@@ -1,17 +1,15 @@
 /* 
- * JunkProfit Tracker Pro - Developer Version
+ * JunkProfit Tracker Pro
  * 
- * This version has NO licensing restrictions.
- * All data is stored in localStorage with the key prefix 'junkProfit_dev_'
+ * Data stored in Supabase with per-user isolation via RLS.
+ * Auth handled in app.html before this script loads.
  * 
- * To add authentication:
- * 1. Replace the init() method to check for valid authentication
- * 2. Add your own authentication service (Firebase, Supabase, custom API, etc.)
- * 3. Store user ID instead of 'dev' in getStorageKey()
+ * Expects `auth` object to be available with:
+ *   - auth.userProfile (junkprofit_users row)
+ *   - auth.currentUser (Supabase auth user)
  */
 
 const app = {
-  currentUser: 'dev',
   currentView: 'dashboard',
   jobs: [],
   quotes: [],
@@ -25,124 +23,310 @@ const app = {
   tempCustomers: null,
   tempExpenses: null,
   tempPhotos: [],
+  isLoading: false,
   
-  init() {
-    this.loadData();
-    this.cleanOldQuotes();
-    this.showApp();
+  // Get user ID from auth module
+  getUserId() {
+    return auth?.userProfile?.id || null;
   },
-  
-  showApp() {
-    document.getElementById('appContainer').classList.add('dev-banner-active');
+
+  async init() {
+    if (!this.getUserId()) {
+      console.error('No user ID available');
+      return;
+    }
+    
+    this.showLoading(true);
+    await this.loadData();
+    this.showLoading(false);
     this.renderNav();
     this.render();
   },
   
-  getStorageKey(key) {
-    return `junkProfit_${this.currentUser}_${key}`;
+  showLoading(show) {
+    this.isLoading = show;
+    const content = document.getElementById('mainContent');
+    if (show && content) {
+      content.innerHTML = `
+        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 300px;">
+          <div class="loading-spinner" style="width: 40px; height: 40px; border: 3px solid #e5e7eb; border-top-color: #22c55e; border-radius: 50%; animation: spin 0.8s linear infinite;"></div>
+          <p style="margin-top: 16px; color: #6b7280;">Loading your data...</p>
+        </div>
+      `;
+    }
   },
   
-  loadData() {
+  async loadData() {
+    const userId = this.getUserId();
+    if (!userId) return;
+    
     try {
-      const savedJobs = localStorage.getItem(this.getStorageKey('jobs'));
-      const savedQuotes = localStorage.getItem(this.getStorageKey('quotes'));
-      const savedSettings = localStorage.getItem(this.getStorageKey('settings'));
+      // Load jobs
+      const { data: jobs, error: jobsError } = await supabase
+        .from('junkprofit_jobs')
+        .select('*')
+        .eq('user_id', userId)
+        .order('date', { ascending: false });
       
-      if (savedJobs) {
-        this.jobs = JSON.parse(savedJobs);
-      }
-      if (savedQuotes) {
-        this.quotes = JSON.parse(savedQuotes);
-      }
-      if (savedSettings) {
-        const loadedSettings = JSON.parse(savedSettings);
+      if (jobsError) throw jobsError;
+      
+      // Map DB columns to app format
+      this.jobs = (jobs || []).map(j => ({
+        id: j.id,
+        date: j.date,
+        customerName: j.customer_name,
+        source: j.source,
+        revenue: parseFloat(j.revenue) || 0,
+        labor: parseFloat(j.labor) || 0,
+        gas: parseFloat(j.gas) || 0,
+        dumpFee: parseFloat(j.dump_fee) || 0,
+        dumpsterRental: parseFloat(j.dumpster_rental) || 0,
+        additionalExpense: parseFloat(j.additional_expense) || 0,
+        numWorkers: j.num_workers || 1,
+        costPerWorker: parseFloat(j.cost_per_worker) || 0,
+        notes: j.notes
+      }));
+      
+      // Load quotes
+      const { data: quotes, error: quotesError } = await supabase
+        .from('junkprofit_quotes')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+      
+      if (quotesError) throw quotesError;
+      
+      // Map DB columns to app format
+      this.quotes = (quotes || []).map(q => ({
+        id: q.id,
+        createdAt: new Date(q.created_at).getTime(),
+        customer: {
+          name: q.customer_name,
+          phone: q.customer_phone,
+          email: q.customer_email,
+          address: q.customer_address,
+          jobDescription: q.job_description
+        },
+        pricing: q.pricing || {},
+        photos: q.photo_urls || [],
+        estimateRange: { low: parseFloat(q.estimate_low) || 0, high: parseFloat(q.estimate_high) || 0 },
+        total: parseFloat(q.total) || 0
+      }));
+      
+      // Load settings
+      const { data: settings, error: settingsError } = await supabase
+        .from('junkprofit_settings')
+        .select('*')
+        .eq('user_id', userId)
+        .single();
+      
+      if (settingsError && settingsError.code !== 'PGRST116') throw settingsError;
+      
+      if (settings) {
         this.settings = {
-          taxPercentage: loadedSettings.taxPercentage || 30,
-          monthlyGoal: loadedSettings.monthlyGoal || 0,
+          taxPercentage: settings.tax_percentage || 30,
+          monthlyGoal: parseFloat(settings.monthly_goal) || 0,
           businessInfo: {
-            name: loadedSettings.businessInfo?.name || '',
-            phone: loadedSettings.businessInfo?.phone || '',
-            email: loadedSettings.businessInfo?.email || '',
-            address: loadedSettings.businessInfo?.address || '',
-            logo: loadedSettings.businessInfo?.logo || null
+            name: settings.business_name || '',
+            phone: settings.business_phone || '',
+            email: settings.business_email || '',
+            address: settings.business_address || '',
+            logo: settings.business_logo || null
           }
         };
       }
+      
     } catch (e) {
       console.error('Error loading data:', e);
-      alert('Error loading data. Your data may be corrupted.');
+      this.showSuccessMessage('⚠️ Error loading data: ' + e.message);
     }
   },
   
-  saveData() {
-    try {
-      const jobsData = JSON.stringify(this.jobs);
-      const quotesData = JSON.stringify(this.quotes);
-      const settingsData = JSON.stringify(this.settings);
-      
-      const totalSize = jobsData.length + quotesData.length + settingsData.length;
-      console.log(`Saving ${(totalSize / 1024 / 1024).toFixed(2)} MB of data`);
-      
-      if (totalSize > 5 * 1024 * 1024) {
-        throw new Error('Data too large (>5MB). Try removing some photos from quotes.');
-      }
-      
-      localStorage.setItem(this.getStorageKey('jobs'), jobsData);
-      localStorage.setItem(this.getStorageKey('quotes'), quotesData);
-      localStorage.setItem(this.getStorageKey('settings'), settingsData);
-    } catch (e) {
-      console.error('Error saving data:', e);
-      if (e.name === 'QuotaExceededError' || e.message.includes('quota')) {
-        alert('Storage full! Photos are too large. Try:\n1. Remove old photos from quotes\n2. Use smaller images\n3. Delete old quotes');
-      } else {
-        alert('Error saving data: ' + e.message);
-      }
-    }
-  },
-  
-  cleanOldQuotes() {
-    const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
-    this.quotes = this.quotes.filter(q => q.createdAt > thirtyDaysAgo);
-    this.saveData();
-  },
-  
-  exportData() {
-    const data = {
-      jobs: this.jobs,
-      quotes: this.quotes,
-      settings: this.settings,
-      exportDate: new Date().toISOString()
+  async saveJob(job) {
+    const userId = this.getUserId();
+    if (!userId) return;
+    
+    const dbJob = {
+      user_id: userId,
+      date: job.date,
+      customer_name: job.customerName,
+      source: job.source || null,
+      revenue: Math.max(0, job.revenue || 0),
+      labor: Math.max(0, job.labor || 0),
+      gas: Math.max(0, job.gas || 0),
+      dump_fee: Math.max(0, job.dumpFee || 0),
+      dumpster_rental: Math.max(0, job.dumpsterRental || 0),
+      additional_expense: Math.max(0, job.additionalExpense || 0),
+      num_workers: job.numWorkers || 1,
+      cost_per_worker: Math.max(0, job.costPerWorker || 0),
+      notes: job.notes || null
     };
     
-    const dataStr = JSON.stringify(data, null, 2);
-    const dataBlob = new Blob([dataStr], { type: 'application/json' });
-    const url = URL.createObjectURL(dataBlob);
+    if (job.id && typeof job.id === 'string' && job.id.includes('-')) {
+      // Existing UUID - update
+      const { error } = await supabase
+        .from('junkprofit_jobs')
+        .update(dbJob)
+        .eq('id', job.id)
+        .eq('user_id', userId);
+      
+      if (error) throw error;
+    } else {
+      // New job - insert
+      const { data, error } = await supabase
+        .from('junkprofit_jobs')
+        .insert(dbJob)
+        .select()
+        .single();
+      
+      if (error) throw error;
+      job.id = data.id;
+    }
+    
+    return job;
+  },
+  
+  async deleteJobFromDB(id) {
+    const userId = this.getUserId();
+    if (!userId) return;
+    
+    const { error } = await supabase
+      .from('junkprofit_jobs')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', userId);
+    
+    if (error) throw error;
+  },
+  
+  async saveQuoteToDB(quote) {
+    const userId = this.getUserId();
+    if (!userId) return;
+    
+    const dbQuote = {
+      user_id: userId,
+      customer_name: quote.customer.name,
+      customer_phone: quote.customer.phone || null,
+      customer_email: quote.customer.email || null,
+      customer_address: quote.customer.address || null,
+      job_description: quote.customer.jobDescription || null,
+      pricing: quote.pricing,
+      estimate_low: quote.estimateRange.low,
+      estimate_high: quote.estimateRange.high,
+      total: quote.total,
+      photo_urls: quote.photos || []
+    };
+    
+    const { data, error } = await supabase
+      .from('junkprofit_quotes')
+      .insert(dbQuote)
+      .select()
+      .single();
+    
+    if (error) throw error;
+    quote.id = data.id;
+    return quote;
+  },
+  
+  async deleteQuoteFromDB(id) {
+    const userId = this.getUserId();
+    if (!userId) return;
+    
+    const { error } = await supabase
+      .from('junkprofit_quotes')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', userId);
+    
+    if (error) throw error;
+  },
+  
+  async saveSettings() {
+    const userId = this.getUserId();
+    if (!userId) return;
+    
+    try {
+      const name = document.getElementById('businessName').value.trim();
+      const phone = document.getElementById('businessPhone').value.trim();
+      const email = document.getElementById('businessEmail').value.trim();
+      const address = document.getElementById('businessAddress').value.trim();
+      const taxPercentage = parseInt(document.getElementById('taxPercentage').value) || 30;
+      const monthlyGoal = Math.max(0, parseFloat(document.getElementById('monthlyGoal').value) || 0);
+      
+      const dbSettings = {
+        tax_percentage: taxPercentage,
+        monthly_goal: monthlyGoal,
+        business_name: name || null,
+        business_phone: phone || null,
+        business_email: email || null,
+        business_address: address || null,
+        business_logo: this.settings.businessInfo.logo
+      };
+      
+      const { error } = await supabase
+        .from('junkprofit_settings')
+        .update(dbSettings)
+        .eq('user_id', userId);
+      
+      if (error) throw error;
+      
+      // Update local state
+      this.settings = {
+        taxPercentage,
+        monthlyGoal,
+        businessInfo: { name, phone, email, address, logo: this.settings.businessInfo.logo }
+      };
+      
+      this.showSuccessMessage('✅ Settings saved!');
+    } catch (error) {
+      console.error('Error saving settings:', error);
+      alert('Error saving settings: ' + error.message);
+    }
+  },
+  
+  // Export to CSV
+  exportData() {
+    const monthJobs = this.jobs;
+    
+    if (monthJobs.length === 0) {
+      alert('No jobs to export');
+      return;
+    }
+    
+    // CSV header
+    const headers = ['Date', 'Customer', 'Source', 'Revenue', 'Labor', 'Gas', 'Dump Fee', 'Dumpster Rental', 'Other Expense', 'Total Expenses', 'Profit'];
+    
+    // CSV rows
+    const rows = monthJobs.map(job => {
+      const totalExpenses = (job.labor || 0) + (job.gas || 0) + (job.dumpFee || 0) + 
+                           (job.dumpsterRental || 0) + (job.additionalExpense || 0);
+      const profit = (job.revenue || 0) - totalExpenses;
+      
+      return [
+        job.date,
+        `"${(job.customerName || '').replace(/"/g, '""')}"`,
+        `"${(job.source || '').replace(/"/g, '""')}"`,
+        job.revenue || 0,
+        job.labor || 0,
+        job.gas || 0,
+        job.dumpFee || 0,
+        job.dumpsterRental || 0,
+        job.additionalExpense || 0,
+        totalExpenses,
+        profit
+      ].join(',');
+    });
+    
+    const csv = [headers.join(','), ...rows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `junkprofit-backup-${Date.now()}.json`;
+    link.download = `junkprofit-jobs-${new Date().toISOString().split('T')[0]}.csv`;
     link.click();
     URL.revokeObjectURL(url);
     
-    this.showSuccessMessage('📥 Data exported successfully!');
-  },
-  
-  clearData() {
-    if (confirm('⚠️ Clear ALL data? This cannot be undone!\n\nMake sure to export your data first.')) {
-      if (confirm('Are you ABSOLUTELY sure? This will delete all jobs, quotes, and settings.')) {
-        localStorage.removeItem(this.getStorageKey('jobs'));
-        localStorage.removeItem(this.getStorageKey('quotes'));
-        localStorage.removeItem(this.getStorageKey('settings'));
-        this.jobs = [];
-        this.quotes = [];
-        this.settings = { 
-          taxPercentage: 30, 
-          monthlyGoal: 0,
-          businessInfo: { name: '', phone: '', email: '', address: '', logo: null }
-        };
-        this.render();
-        this.showSuccessMessage('🗑️ All data cleared!');
-      }
-    }
+    this.showSuccessMessage('📥 CSV exported successfully!');
   },
   
   setView(view) {
@@ -157,6 +341,8 @@ const app = {
   
   renderNav() {
     const nav = document.getElementById('nav');
+    if (!nav) return;
+    
     const views = [
       { id: 'dashboard', icon: '📊', label: 'Dashboard' },
       { id: 'jobs', icon: '💼', label: 'Jobs' },
@@ -176,6 +362,7 @@ const app = {
   
   render() {
     const content = document.getElementById('mainContent');
+    if (!content) return;
     
     switch(this.currentView) {
       case 'dashboard': content.innerHTML = this.renderDashboard(); break;
@@ -363,7 +550,9 @@ const app = {
   goToToday() {
     this.selectedMonth = new Date();
     this.render();
-  },renderJobs() {
+  },
+
+  renderJobs() {
     const monthJobs = this.getJobsForMonth();
     const monthName = this.selectedMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
     
@@ -431,7 +620,7 @@ const app = {
                       </td>
                       <td><strong>${this.formatCurrency(job.revenue || 0)}</strong></td>
                       <td>${this.formatCurrency(totalExpenses)}</td>
-                      <td><strong style="color: #22c55e;">${this.formatCurrency(profit)}</strong></td>
+                      <td><strong style="color: ${profit >= 0 ? '#22c55e' : '#ef4444'};">${this.formatCurrency(profit)}</strong></td>
                       <td style="text-align: right;">
                         <button class="btn-edit" onclick="app.startEditJob('${job.id}')">✏️</button>
                         <button class="btn-danger" onclick="app.deleteJob('${job.id}')">🗑️</button>
@@ -458,7 +647,7 @@ const app = {
         this.tempCustomers[index].name = input.value;
         const revenueInput = document.querySelectorAll('.customer-revenue')[index];
         const sourceInput = document.querySelectorAll('.customer-source')[index];
-        if (revenueInput) this.tempCustomers[index].revenue = parseFloat(revenueInput.value) || 0;
+        if (revenueInput) this.tempCustomers[index].revenue = Math.max(0, parseFloat(revenueInput.value) || 0);
         if (sourceInput) this.tempCustomers[index].source = sourceInput.value;
       }
     });
@@ -469,11 +658,11 @@ const app = {
     const dumpsterInput = document.getElementById('expenseDumpsterRental');
     const additionalInput = document.getElementById('expenseAdditional');
     
-    if (laborInput) this.tempExpenses.labor = parseFloat(laborInput.value) || 0;
-    if (gasInput) this.tempExpenses.gas = parseFloat(gasInput.value) || 0;
-    if (dumpFeeInput) this.tempExpenses.dumpFee = parseFloat(dumpFeeInput.value) || 0;
-    if (dumpsterInput) this.tempExpenses.dumpsterRental = parseFloat(dumpsterInput.value) || 0;
-    if (additionalInput) this.tempExpenses.additional = parseFloat(additionalInput.value) || 0;
+    if (laborInput) this.tempExpenses.labor = Math.max(0, parseFloat(laborInput.value) || 0);
+    if (gasInput) this.tempExpenses.gas = Math.max(0, parseFloat(gasInput.value) || 0);
+    if (dumpFeeInput) this.tempExpenses.dumpFee = Math.max(0, parseFloat(dumpFeeInput.value) || 0);
+    if (dumpsterInput) this.tempExpenses.dumpsterRental = Math.max(0, parseFloat(dumpsterInput.value) || 0);
+    if (additionalInput) this.tempExpenses.additional = Math.max(0, parseFloat(additionalInput.value) || 0);
   },
   
   renderJobForm() {
@@ -543,7 +732,7 @@ const app = {
                 <div class="form-group">
                   <label class="form-label">Revenue from this customer *</label>
                   <input type="number" class="form-input customer-revenue" data-index="${index}"
-                         value="${customer.revenue || 0}" min="1" step="0.01" placeholder="500" required
+                         value="${customer.revenue || 0}" min="0" step="0.01" placeholder="500" required
                          onchange="app.captureFormData()">
                 </div>
               </div>
@@ -551,7 +740,7 @@ const app = {
                 <label class="form-label">How did they find you? (Marketing Source)</label>
                 <select class="form-input customer-source" data-index="${index}" onchange="app.captureFormData()">
                   <option value="">Select source (optional)</option>
-                  ${['Google', 'Facebook', 'Referral', 'Repeat Customer', 'Yelp', 'Craigslist', 'Instagram', 'Other'].map(s =>
+                  ${['Google', 'Facebook', 'Referral', 'Repeat Customer', 'Yelp', 'Craigslist', 'Instagram', 'Nextdoor', 'Other'].map(s =>
                     `<option value="${s}" ${customer.source === s ? 'selected' : ''}>${s}</option>`
                   ).join('')}
                 </select>
@@ -609,7 +798,7 @@ const app = {
       
       <div style="text-align: right; margin-top: 24px; display: flex; gap: 12px; justify-content: flex-end;">
         <button class="btn-secondary" type="button" onclick="app.cancelJobForm()">Cancel</button>
-        <button class="btn-primary" type="button" onclick="app.saveMultipleJobs()">
+        <button class="btn-primary" type="button" onclick="app.saveMultipleJobs()" id="saveJobsBtn">
           💾 Save ${this.tempCustomers.length} Job${this.tempCustomers.length !== 1 ? 's' : ''}
         </button>
       </div>
@@ -661,7 +850,7 @@ const app = {
     }
   },
   
-  saveMultipleJobs() {
+  async saveMultipleJobs() {
     this.captureFormData();
     
     if (!this.tempDate) {
@@ -678,64 +867,86 @@ const app = {
       return;
     }
     
-    const totalExpenses = 
-      (this.tempExpenses.labor || 0) +
-      (this.tempExpenses.gas || 0) +
-      (this.tempExpenses.dumpFee || 0) +
-      (this.tempExpenses.dumpsterRental || 0) +
-      (this.tempExpenses.additional || 0);
-    
-    const isEditing = this.editingJob && this.editingJob !== 'new';
-    
-    if (isEditing) {
-      this.jobs = this.jobs.filter(j => j.id !== this.editingJob.id);
+    const btn = document.getElementById('saveJobsBtn');
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '⏳ Saving...';
     }
     
-    if (isEditing) {
-      this.jobs.push({
-        id: this.editingJob.id,
-        date: this.tempDate,
-        customerName: validCustomers[0].name.trim(),
-        source: validCustomers[0].source || '',
-        revenue: validCustomers[0].revenue || 0,
-        labor: this.tempExpenses.labor || 0,
-        gas: this.tempExpenses.gas || 0,
-        dumpFee: this.tempExpenses.dumpFee || 0,
-        dumpsterRental: this.tempExpenses.dumpsterRental || 0,
-        additionalExpense: this.tempExpenses.additional || 0
-      });
-    } else {
-      validCustomers.forEach(customer => {
-        this.jobs.push({
-          id: Date.now().toString() + Math.random().toString(36).slice(2, 10),
+    try {
+      const isEditing = this.editingJob && this.editingJob !== 'new';
+      
+      if (isEditing) {
+        // Update existing job
+        const job = {
+          id: this.editingJob.id,
           date: this.tempDate,
-          customerName: customer.name.trim(),
-          source: customer.source || '',
-          revenue: customer.revenue || 0,
-          labor: (this.tempExpenses.labor || 0) / validCustomers.length,
-          gas: (this.tempExpenses.gas || 0) / validCustomers.length,
-          dumpFee: (this.tempExpenses.dumpFee || 0) / validCustomers.length,
-          dumpsterRental: (this.tempExpenses.dumpsterRental || 0) / validCustomers.length,
-          additionalExpense: (this.tempExpenses.additional || 0) / validCustomers.length
-        });
-      });
+          customerName: validCustomers[0].name.trim(),
+          source: validCustomers[0].source || '',
+          revenue: Math.max(0, validCustomers[0].revenue || 0),
+          labor: Math.max(0, this.tempExpenses.labor || 0),
+          gas: Math.max(0, this.tempExpenses.gas || 0),
+          dumpFee: Math.max(0, this.tempExpenses.dumpFee || 0),
+          dumpsterRental: Math.max(0, this.tempExpenses.dumpsterRental || 0),
+          additionalExpense: Math.max(0, this.tempExpenses.additional || 0)
+        };
+        
+        await this.saveJob(job);
+        
+        // Update local state
+        const index = this.jobs.findIndex(j => j.id === this.editingJob.id);
+        if (index >= 0) {
+          this.jobs[index] = job;
+        }
+      } else {
+        // Create new jobs
+        for (const customer of validCustomers) {
+          const job = {
+            date: this.tempDate,
+            customerName: customer.name.trim(),
+            source: customer.source || '',
+            revenue: Math.max(0, customer.revenue || 0),
+            labor: Math.max(0, (this.tempExpenses.labor || 0) / validCustomers.length),
+            gas: Math.max(0, (this.tempExpenses.gas || 0) / validCustomers.length),
+            dumpFee: Math.max(0, (this.tempExpenses.dumpFee || 0) / validCustomers.length),
+            dumpsterRental: Math.max(0, (this.tempExpenses.dumpsterRental || 0) / validCustomers.length),
+            additionalExpense: Math.max(0, (this.tempExpenses.additional || 0) / validCustomers.length)
+          };
+          
+          const savedJob = await this.saveJob(job);
+          this.jobs.unshift(savedJob);
+        }
+      }
+      
+      this.cancelJobForm();
+      this.showSuccessMessage(`✅ ${validCustomers.length} job${validCustomers.length === 1 ? '' : 's'} saved!`);
+    } catch (error) {
+      console.error('Error saving jobs:', error);
+      alert('Error saving jobs: ' + error.message);
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = `💾 Save ${this.tempCustomers.length} Job${this.tempCustomers.length !== 1 ? 's' : ''}`;
+      }
     }
-    
-    this.saveData();
-    this.cancelJobForm();
-    this.showSuccessMessage(`✅ ${validCustomers.length} job${validCustomers.length === 1 ? '' : 's'} saved!`);
   },
   
-  deleteJob(id) {
+  async deleteJob(id) {
     if (confirm('Delete this job?')) {
-      this.jobs = this.jobs.filter(j => j.id !== id);
-      this.saveData();
-      this.render();
+      try {
+        await this.deleteJobFromDB(id);
+        this.jobs = this.jobs.filter(j => j.id !== id);
+        this.render();
+        this.showSuccessMessage('🗑️ Job deleted');
+      } catch (error) {
+        console.error('Error deleting job:', error);
+        alert('Error deleting job: ' + error.message);
+      }
     }
   },
   
   renderQuotes() {
-    const recentQuotes = this.quotes;
+    // Sort quotes newest first
+    const sortedQuotes = [...this.quotes].sort((a, b) => b.createdAt - a.createdAt);
     
     return `
       <div class="page-header">
@@ -746,7 +957,7 @@ const app = {
       </div>
       
       <div class="card">
-        ${recentQuotes.length === 0 ? `
+        ${sortedQuotes.length === 0 ? `
           <div class="empty-state">
             <div class="empty-icon">📋</div>
             <p style="color: #6b7280; margin-bottom: 24px;">No quotes yet</p>
@@ -766,7 +977,7 @@ const app = {
               </tr>
             </thead>
             <tbody>
-              ${recentQuotes.map(q => `
+              ${sortedQuotes.map(q => `
                 <tr>
                   <td>${new Date(q.createdAt).toLocaleDateString()}</td>
                   <td>${q.customer.name}</td>
@@ -785,13 +996,21 @@ const app = {
     `;
   },
   
-  deleteQuote(id) {
+  async deleteQuote(id) {
     if (confirm('Delete this quote?')) {
-      this.quotes = this.quotes.filter(q => q.id !== id);
-      this.saveData();
-      this.render();
+      try {
+        await this.deleteQuoteFromDB(id);
+        this.quotes = this.quotes.filter(q => q.id !== id);
+        this.render();
+        this.showSuccessMessage('🗑️ Quote deleted');
+      } catch (error) {
+        console.error('Error deleting quote:', error);
+        alert('Error deleting quote: ' + error.message);
+      }
     }
-  },renderQuoteBuilder() {
+  },
+
+  renderQuoteBuilder() {
     return `
       <div class="page-header">
         <h1 class="page-title">Quote Builder</h1>
@@ -949,10 +1168,10 @@ const app = {
         <div class="card">
           <h3 style="margin-bottom: 8px;">📸 Job Photos (Optional)</h3>
           <p style="color: #6b7280; margin-bottom: 16px; font-size: 14px;">
-            Upload up to 5 photos. <strong>⚠️ Large photos may cause save errors.</strong> Use compressed/resized images if possible.
+            Upload up to 3 photos. Images will be compressed automatically.
           </p>
-          <div class="image-upload-container">
-            ${[0,1,2,3,4].map(i => `
+          <div class="image-upload-container" style="grid-template-columns: repeat(3, 1fr);">
+            ${[0,1,2].map(i => `
               <div class="image-upload-box" id="photoBox${i}">
                 <input type="file" accept="image/*" onchange="app.handleImageUpload(event, ${i})" id="photoInput${i}">
                 <div class="placeholder" id="placeholder${i}">
@@ -1000,7 +1219,7 @@ const app = {
     prices.forEach(p => {
       const input = form.elements[p];
       if (input) {
-        total += parseFloat(input.value) || 0;
+        total += Math.max(0, parseFloat(input.value) || 0);
       }
     });
     
@@ -1025,22 +1244,47 @@ const app = {
     }
   },
   
-  handleImageUpload(event, index) {
+  // Compress image before storing
+  async compressImage(dataUrl, maxWidth = 800, quality = 0.7) {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+        
+        if (width > maxWidth) {
+          height = (height * maxWidth) / width;
+          width = maxWidth;
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.src = dataUrl;
+    });
+  },
+  
+  async handleImageUpload(event, index) {
     const file = event.target.files[0];
     if (file) {
-      if (file.size > 2 * 1024 * 1024) {
-        alert(`Warning: Image "${file.name}" is ${(file.size / 1024 / 1024).toFixed(1)}MB. Large images may cause save errors. Consider using a compressed image.`);
-      }
-      
       const reader = new FileReader();
-      reader.onload = (e) => {
-        this.tempPhotos[index] = e.target.result;
+      reader.onload = async (e) => {
+        // Compress the image
+        const compressed = await this.compressImage(e.target.result, 800, 0.7);
+        
+        this.tempPhotos[index] = compressed;
         const imgEl = document.getElementById('photo' + index);
         const placeholderEl = document.getElementById('placeholder' + index);
         const removeBtn = document.getElementById('removePhoto' + index);
         
         if (imgEl && placeholderEl && removeBtn) {
-          imgEl.src = e.target.result;
+          imgEl.src = compressed;
           imgEl.classList.remove('hidden');
           placeholderEl.classList.add('hidden');
           removeBtn.classList.remove('hidden');
@@ -1063,80 +1307,70 @@ const app = {
     if (inputEl) inputEl.value = '';
   },
   
-  saveQuote(e) {
+  async saveQuote(e) {
     e.preventDefault();
     
     const btn = document.getElementById('saveQuoteBtn');
     btn.disabled = true;
     btn.innerHTML = '⏳ Saving...';
     
-    const formData = new FormData(e.target);
-    
-    const numLoads = parseInt(document.getElementById('numLoads').value) || 0;
-    const pricePerLoad = parseFloat(document.getElementById('pricePerLoad').value) || 0;
-    const multipleLoadsTotal = numLoads * pricePerLoad;
-    
-    const prices = [
-      'minimumFee', 'quarterLoad', 'halfLoad', 'threeQuarterLoad', 'fullLoad',
-      'trampoline', 'shed', 'fridge', 'furniture', 'hotTub', 'customDemo',
-      'laborFee', 'heavyItemFee', 'distanceFee', 'timeFee', 'hazardFee', 'customFee'
-    ];
-    
-    let total = multipleLoadsTotal;
-    prices.forEach(p => {
-      total += parseFloat(formData.get(p)) || 0;
-    });
-    
-    const rangeLow = Math.floor(total * 0.9);
-    const rangeHigh = Math.ceil(total * 1.1);
-    
-    const quote = {
-      id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-      createdAt: Date.now(),
-      customer: {
-        name: formData.get('customerName'),
-        phone: formData.get('customerPhone'),
-        email: formData.get('customerEmail'),
-        address: formData.get('customerAddress'),
-        jobDescription: formData.get('jobDescription')
-      },
-      pricing: {
-        ...Object.fromEntries(prices.map(p => [p, parseFloat(formData.get(p)) || 0])),
-        multipleLoads: {
-          numLoads: numLoads,
-          pricePerLoad: pricePerLoad,
-          total: multipleLoadsTotal
-        }
-      },
-      photos: this.tempPhotos.filter(p => p),
-      estimateRange: { low: rangeLow, high: rangeHigh },
-      total: total
-    };
-    
-    this.quotes.push(quote);
-    
     try {
-      this.saveData();
+      const formData = new FormData(e.target);
+      
+      const numLoads = parseInt(document.getElementById('numLoads').value) || 0;
+      const pricePerLoad = parseFloat(document.getElementById('pricePerLoad').value) || 0;
+      const multipleLoadsTotal = numLoads * pricePerLoad;
+      
+      const prices = [
+        'minimumFee', 'quarterLoad', 'halfLoad', 'threeQuarterLoad', 'fullLoad',
+        'trampoline', 'shed', 'fridge', 'furniture', 'hotTub', 'customDemo',
+        'laborFee', 'heavyItemFee', 'distanceFee', 'timeFee', 'hazardFee', 'customFee'
+      ];
+      
+      let total = multipleLoadsTotal;
+      prices.forEach(p => {
+        total += Math.max(0, parseFloat(formData.get(p)) || 0);
+      });
+      
+      const rangeLow = Math.floor(total * 0.9);
+      const rangeHigh = Math.ceil(total * 1.1);
+      
+      const quote = {
+        createdAt: Date.now(),
+        customer: {
+          name: formData.get('customerName'),
+          phone: formData.get('customerPhone'),
+          email: formData.get('customerEmail'),
+          address: formData.get('customerAddress'),
+          jobDescription: formData.get('jobDescription')
+        },
+        pricing: {
+          ...Object.fromEntries(prices.map(p => [p, Math.max(0, parseFloat(formData.get(p)) || 0)])),
+          multipleLoads: {
+            numLoads: numLoads,
+            pricePerLoad: pricePerLoad,
+            total: multipleLoadsTotal
+          }
+        },
+        photos: this.tempPhotos.filter(p => p),
+        estimateRange: { low: rangeLow, high: rangeHigh },
+        total: total
+      };
+      
+      const savedQuote = await this.saveQuoteToDB(quote);
+      this.quotes.unshift(savedQuote);
+      
       this.tempPhotos = [];
       this.showSuccessMessage('✅ Quote saved successfully!');
       setTimeout(() => {
         this.setView('quotes');
       }, 500);
+      
     } catch (error) {
+      console.error('Error saving quote:', error);
       btn.disabled = false;
       btn.innerHTML = '💾 Generate Quote';
-      
-      if (confirm('Save failed (likely due to large photos). Save quote WITHOUT photos?')) {
-        this.quotes.pop();
-        quote.photos = [];
-        this.quotes.push(quote);
-        this.saveData();
-        this.tempPhotos = [];
-        this.showSuccessMessage('✅ Quote saved (without photos)!');
-        setTimeout(() => {
-          this.setView('quotes');
-        }, 500);
-      }
+      alert('Error saving quote: ' + error.message);
     }
   },
   
@@ -1178,6 +1412,7 @@ const app = {
       
       const businessInfo = this.settings.businessInfo;
       
+      // Add logo if exists
       if (businessInfo && businessInfo.logo) {
         try {
           doc.addImage(businessInfo.logo, 'PNG', 80, y, 50, 50);
@@ -1187,6 +1422,7 @@ const app = {
         }
       }
       
+      // Business info
       if (businessInfo && businessInfo.name && businessInfo.name.trim()) {
         doc.setFontSize(14);
         doc.setFont('helvetica', 'bold');
@@ -1206,6 +1442,7 @@ const app = {
       }
       y += 10;
       
+      // Customer info
       doc.setFontSize(12);
       doc.setFont('helvetica', 'bold');
       doc.text('PREPARED FOR:', 20, y);
@@ -1226,6 +1463,7 @@ const app = {
       
       y += 10;
       
+      // Estimate box
       doc.setFillColor(59, 130, 246);
       doc.rect(20, y, 170, 30, 'F');
       doc.setTextColor(255, 255, 255);
@@ -1249,10 +1487,11 @@ const app = {
       doc.text(`Date: ${new Date(quote.createdAt).toLocaleDateString()}`, 20, y);
       y += 10;
       
+      // Job description
       if (quote.customer.jobDescription) {
         doc.setFont('helvetica', 'bold');
         
-        if (y > 270) {
+        if (y > 250) {
           doc.addPage();
           y = 20;
         }
@@ -1270,13 +1509,44 @@ const app = {
           doc.text(splitDesc[i], 20, y);
           y += 5;
         }
+        y += 5;
       }
       
+      // Add photos if exist
       if (quote.photos && quote.photos.length > 0) {
-        y += 5;
-        doc.setFont('helvetica', 'italic');
-        doc.setFontSize(10);
-        doc.text(`${quote.photos.length} photo${quote.photos.length !== 1 ? 's' : ''} attached to this quote`, 20, y);
+        if (y > 200) {
+          doc.addPage();
+          y = 20;
+        }
+        
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(12);
+        doc.text('Job Photos:', 20, y);
+        y += 10;
+        
+        const photoWidth = 55;
+        const photoHeight = 45;
+        let x = 20;
+        
+        for (let i = 0; i < quote.photos.length && i < 3; i++) {
+          try {
+            if (y + photoHeight > 280) {
+              doc.addPage();
+              y = 20;
+              x = 20;
+            }
+            
+            doc.addImage(quote.photos[i], 'JPEG', x, y, photoWidth, photoHeight);
+            x += photoWidth + 5;
+            
+            if (x > 160) {
+              x = 20;
+              y += photoHeight + 5;
+            }
+          } catch (photoError) {
+            console.error('Error adding photo to PDF:', photoError);
+          }
+        }
       }
       
       doc.save(`quote-${quote.customer.name.replace(/\s/g, '-')}-${Date.now()}.pdf`);
@@ -1371,7 +1641,7 @@ const app = {
     `;
   },
   
-  uploadLogo(event) {
+  async uploadLogo(event) {
     const file = event.target.files[0];
     if (file) {
       if (file.size > 1 * 1024 * 1024) {
@@ -1380,9 +1650,20 @@ const app = {
       }
       
       const reader = new FileReader();
-      reader.onload = (e) => {
-        this.settings.businessInfo.logo = e.target.result;
-        this.saveData();
+      reader.onload = async (e) => {
+        // Compress logo
+        const compressed = await this.compressImage(e.target.result, 400, 0.8);
+        this.settings.businessInfo.logo = compressed;
+        
+        // Save to database
+        const userId = this.getUserId();
+        if (userId) {
+          await supabase
+            .from('junkprofit_settings')
+            .update({ business_logo: compressed })
+            .eq('user_id', userId);
+        }
+        
         this.showSuccessMessage('✅ Logo uploaded!');
         this.render();
       };
@@ -1390,43 +1671,22 @@ const app = {
     }
   },
   
-  removeLogo() {
+  async removeLogo() {
     if (confirm('Remove the uploaded logo?')) {
       this.settings.businessInfo.logo = null;
-      this.saveData();
+      
+      const userId = this.getUserId();
+      if (userId) {
+        await supabase
+          .from('junkprofit_settings')
+          .update({ business_logo: null })
+          .eq('user_id', userId);
+      }
+      
       this.showSuccessMessage('🗑️ Logo removed!');
       this.render();
-    }
-  },
-  
-  saveSettings() {
-    try {
-      const name = document.getElementById('businessName').value.trim();
-      const phone = document.getElementById('businessPhone').value.trim();
-      const email = document.getElementById('businessEmail').value.trim();
-      const address = document.getElementById('businessAddress').value.trim();
-      const taxPercentage = parseInt(document.getElementById('taxPercentage').value) || 30;
-      const monthlyGoal = parseFloat(document.getElementById('monthlyGoal').value) || 0;
-      
-      this.settings.businessInfo.name = name;
-      this.settings.businessInfo.phone = phone;
-      this.settings.businessInfo.email = email;
-      this.settings.businessInfo.address = address;
-      this.settings.taxPercentage = taxPercentage;
-      this.settings.monthlyGoal = monthlyGoal;
-      
-      this.saveData();
-      this.showSuccessMessage('✅ Settings saved!');
-      
-      setTimeout(() => {
-        this.loadData();
-      }, 100);
-    } catch (error) {
-      console.error('Error saving settings:', error);
-      alert('Error saving settings: ' + error.message);
     }
   }
 };
 
-// Initialize the app
-app.init();
+// Note: app.init() is called from app.html after auth is complete

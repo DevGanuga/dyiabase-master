@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JunkProfit Tracker</title>
+  
+  <!-- jsPDF library -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  
+  <!-- Supabase SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  
+  <!-- Styles -->
+  <link rel="stylesheet" href="styles.css">
+  
+  <style>
+    /* Auth Modal Styles */
+    .auth-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(15, 23, 42, 0.9);
+      backdrop-filter: blur(8px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10000;
+    }
+
+    .auth-modal {
+      background: white;
+      border-radius: 24px;
+      padding: 48px;
+      width: 100%;
+      max-width: 420px;
+      box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25);
+    }
+
+    .auth-logo {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      margin-bottom: 32px;
+    }
+
+    .auth-logo-icon {
+      width: 56px;
+      height: 56px;
+      background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+    }
+
+    .auth-logo-text {
+      font-size: 28px;
+      font-weight: 700;
+      color: #111827;
+    }
+
+    .auth-title {
+      text-align: center;
+      font-size: 24px;
+      font-weight: 600;
+      color: #111827;
+      margin-bottom: 8px;
+    }
+
+    .auth-subtitle {
+      text-align: center;
+      color: #6b7280;
+      margin-bottom: 32px;
+    }
+
+    .auth-form .form-group {
+      margin-bottom: 20px;
+    }
+
+    .auth-form .form-label {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      color: #374151;
+    }
+
+    .auth-form .form-input {
+      width: 100%;
+      padding: 14px 16px;
+      border: 1px solid #d1d5db;
+      border-radius: 10px;
+      font-size: 15px;
+      transition: all 0.2s;
+    }
+
+    .auth-form .form-input:focus {
+      outline: none;
+      border-color: #22c55e;
+      box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.15);
+    }
+
+    .auth-btn {
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+      border: none;
+      border-radius: 10px;
+      color: white;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .auth-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
+    }
+
+    .auth-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .auth-toggle {
+      text-align: center;
+      margin-top: 24px;
+      color: #6b7280;
+      font-size: 14px;
+    }
+
+    .auth-toggle a {
+      color: #22c55e;
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    .auth-toggle a:hover {
+      text-decoration: underline;
+    }
+
+    .auth-error {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      color: #dc2626;
+      padding: 12px 16px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      font-size: 14px;
+    }
+
+    .auth-divider {
+      display: flex;
+      align-items: center;
+      margin: 24px 0;
+      color: #9ca3af;
+      font-size: 13px;
+    }
+
+    .auth-divider::before,
+    .auth-divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: #e5e7eb;
+    }
+
+    .auth-divider span {
+      padding: 0 16px;
+    }
+
+    /* Subscription Banner */
+    .subscription-banner {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+      color: #78350f;
+      padding: 12px;
+      text-align: center;
+      font-weight: 600;
+      z-index: 9999;
+    }
+
+    .subscription-banner a {
+      color: #78350f;
+      text-decoration: underline;
+      margin-left: 8px;
+    }
+
+    .subscription-active {
+      padding-top: 0 !important;
+    }
+
+    .subscription-inactive {
+      padding-top: 50px;
+    }
+
+    /* Loading State */
+    .loading-screen {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: white;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 10001;
+    }
+
+    .loading-spinner {
+      width: 48px;
+      height: 48px;
+      border: 4px solid #e5e7eb;
+      border-top-color: #22c55e;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .loading-text {
+      margin-top: 16px;
+      color: #6b7280;
+      font-size: 14px;
+    }
+
+    /* User info in sidebar */
+    .user-email {
+      font-size: 12px;
+      color: #6b7280;
+      word-break: break-all;
+    }
+
+    .logout-btn {
+      width: 100%;
+      padding: 10px;
+      background: transparent;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      color: #6b7280;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-top: 8px;
+    }
+
+    .logout-btn:hover {
+      background: #f3f4f6;
+      color: #374151;
+    }
+  </style>
+</head>
+<body>
+  <!-- Loading Screen -->
+  <div id="loadingScreen" class="loading-screen">
+    <div class="loading-spinner"></div>
+    <p class="loading-text">Loading...</p>
+  </div>
+
+  <!-- Auth Modal (shown when not logged in) -->
+  <div id="authOverlay" class="auth-overlay hidden">
+    <div class="auth-modal">
+      <div class="auth-logo">
+        <div class="auth-logo-icon">💼</div>
+        <span class="auth-logo-text">JunkProfit</span>
+      </div>
+      
+      <div id="authContent">
+        <!-- Login Form (default) -->
+        <div id="loginForm">
+          <h2 class="auth-title">Welcome back</h2>
+          <p class="auth-subtitle">Sign in to access your dashboard</p>
+          
+          <div id="loginError" class="auth-error hidden"></div>
+          
+          <form class="auth-form" onsubmit="auth.login(event)">
+            <div class="form-group">
+              <label class="form-label">Email</label>
+              <input type="email" id="loginEmail" class="form-input" required placeholder="you@company.com">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Password</label>
+              <input type="password" id="loginPassword" class="form-input" required placeholder="••••••••">
+            </div>
+            <button type="submit" class="auth-btn" id="loginBtn">Sign In</button>
+          </form>
+          
+          <p class="auth-toggle">
+            Don't have an account? <a href="#" onclick="auth.showSignup()">Sign up</a>
+          </p>
+          <p class="auth-toggle" style="margin-top: 12px;">
+            <a href="#" onclick="auth.showForgotPassword()">Forgot password?</a>
+          </p>
+        </div>
+        
+        <!-- Signup Form -->
+        <div id="signupForm" class="hidden">
+          <h2 class="auth-title">Create your account</h2>
+          <p class="auth-subtitle">Start tracking your profits today</p>
+          
+          <div id="signupError" class="auth-error hidden"></div>
+          
+          <form class="auth-form" onsubmit="auth.signup(event)">
+            <div class="form-group">
+              <label class="form-label">Email</label>
+              <input type="email" id="signupEmail" class="form-input" required placeholder="you@company.com">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Password</label>
+              <input type="password" id="signupPassword" class="form-input" required placeholder="••••••••" minlength="6">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Confirm Password</label>
+              <input type="password" id="signupConfirm" class="form-input" required placeholder="••••••••">
+            </div>
+            <button type="submit" class="auth-btn" id="signupBtn">Create Account</button>
+          </form>
+          
+          <p class="auth-toggle">
+            Already have an account? <a href="#" onclick="auth.showLogin()">Sign in</a>
+          </p>
+        </div>
+        
+        <!-- Forgot Password Form -->
+        <div id="forgotForm" class="hidden">
+          <h2 class="auth-title">Reset password</h2>
+          <p class="auth-subtitle">We'll send you a reset link</p>
+          
+          <div id="forgotError" class="auth-error hidden"></div>
+          <div id="forgotSuccess" class="auth-error hidden" style="background: #d1fae5; border-color: #a7f3d0; color: #065f46;"></div>
+          
+          <form class="auth-form" onsubmit="auth.resetPassword(event)">
+            <div class="form-group">
+              <label class="form-label">Email</label>
+              <input type="email" id="forgotEmail" class="form-input" required placeholder="you@company.com">
+            </div>
+            <button type="submit" class="auth-btn" id="forgotBtn">Send Reset Link</button>
+          </form>
+          
+          <p class="auth-toggle">
+            <a href="#" onclick="auth.showLogin()">← Back to sign in</a>
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Subscription Banner (shown when subscription inactive) -->
+  <div id="subscriptionBanner" class="subscription-banner hidden">
+    ⚠️ Your subscription is inactive. <a href="landing.html#pricing">Activate now</a> to continue using JunkProfit.
+  </div>
+
+  <!-- Main App Container -->
+  <div id="appContainer" class="container hidden">
+    <div class="sidebar">
+      <div class="logo">
+        <div class="logo-content">
+          <div class="logo-icon">💼</div>
+          <div class="logo-text">
+            <h1>JunkProfit</h1>
+            <p>Tracker Pro</p>
+          </div>
+        </div>
+      </div>
+      
+      <div class="user-info">
+        <p>Signed in as:</p>
+        <strong id="userEmail" class="user-email">Loading...</strong>
+        <button class="logout-btn" onclick="auth.logout()">Sign Out</button>
+      </div>
+      
+      <nav id="nav"></nav>
+      
+      <div class="sidebar-footer">
+        <button class="data-controls-btn" onclick="app.exportData()">
+          📥 Export Data (CSV)
+        </button>
+      </div>
+    </div>
+    
+    <div class="main-content" id="mainContent"></div>
+  </div>
+
+  <script>
+    // ===========================================
+    // CONFIGURATION - Replace with your values
+    // ===========================================
+    const CONFIG = {
+      SUPABASE_URL: 'YOUR_SUPABASE_URL', // e.g., https://xxxxx.supabase.co
+      SUPABASE_ANON_KEY: 'YOUR_SUPABASE_ANON_KEY',
+      STRIPE_MONTHLY_PRICE: 'price_xxxxx', // Replace with Stripe price ID
+      STRIPE_ANNUAL_PRICE: 'price_xxxxx',  // Replace with Stripe price ID
+    };
+
+    // Initialize Supabase client
+    const supabase = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
+
+    // ===========================================
+    // AUTH MODULE
+    // ===========================================
+    const auth = {
+      currentUser: null,
+      userProfile: null, // junkprofit_users row
+      subscription: null,
+
+      async init() {
+        // Check for existing session
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (session) {
+          await this.handleAuthSuccess(session.user);
+        } else {
+          this.showAuthModal();
+        }
+
+        // Listen for auth state changes
+        supabase.auth.onAuthStateChange(async (event, session) => {
+          if (event === 'SIGNED_IN' && session) {
+            await this.handleAuthSuccess(session.user);
+          } else if (event === 'SIGNED_OUT') {
+            this.showAuthModal();
+          }
+        });
+      },
+
+      async handleAuthSuccess(user) {
+        this.currentUser = user;
+        document.getElementById('userEmail').textContent = user.email;
+        
+        // Fetch user profile from junkprofit_users
+        const { data: profile, error } = await supabase
+          .from('junkprofit_users')
+          .select('*')
+          .eq('auth_user_id', user.id)
+          .single();
+        
+        if (error || !profile) {
+          // Profile doesn't exist yet, create it
+          const { data: newProfile, error: createError } = await supabase
+            .from('junkprofit_users')
+            .insert({ auth_user_id: user.id, email: user.email })
+            .select()
+            .single();
+          
+          if (createError) {
+            console.error('Error creating profile:', createError);
+            alert('Error setting up your account. Please try again.');
+            await this.logout();
+            return;
+          }
+          
+          this.userProfile = newProfile;
+          
+          // Also create default settings
+          await supabase
+            .from('junkprofit_settings')
+            .insert({ user_id: newProfile.id });
+        } else {
+          this.userProfile = profile;
+        }
+
+        // Check subscription status
+        this.checkSubscription();
+        
+        // Hide auth modal, show app
+        document.getElementById('loadingScreen').classList.add('hidden');
+        document.getElementById('authOverlay').classList.add('hidden');
+        document.getElementById('appContainer').classList.remove('hidden');
+        
+        // Initialize the app
+        app.init();
+      },
+
+      checkSubscription() {
+        const banner = document.getElementById('subscriptionBanner');
+        const container = document.getElementById('appContainer');
+        
+        // For development/testing, allow access without active subscription
+        // In production, uncomment the subscription check below
+        
+        const isActive = this.userProfile?.subscription_status === 'active' || 
+                        this.userProfile?.subscription_status === 'trialing';
+        
+        // TODO: Uncomment for production
+        // if (!isActive) {
+        //   banner.classList.remove('hidden');
+        //   container.classList.add('subscription-inactive');
+        //   container.classList.remove('subscription-active');
+        // } else {
+        //   banner.classList.add('hidden');
+        //   container.classList.remove('subscription-inactive');
+        //   container.classList.add('subscription-active');
+        // }
+        
+        // For now, allow access regardless
+        banner.classList.add('hidden');
+        container.classList.add('subscription-active');
+      },
+
+      showAuthModal() {
+        document.getElementById('loadingScreen').classList.add('hidden');
+        document.getElementById('appContainer').classList.add('hidden');
+        document.getElementById('authOverlay').classList.remove('hidden');
+        this.showLogin();
+      },
+
+      showLogin() {
+        document.getElementById('loginForm').classList.remove('hidden');
+        document.getElementById('signupForm').classList.add('hidden');
+        document.getElementById('forgotForm').classList.add('hidden');
+        document.getElementById('loginError').classList.add('hidden');
+      },
+
+      showSignup() {
+        document.getElementById('loginForm').classList.add('hidden');
+        document.getElementById('signupForm').classList.remove('hidden');
+        document.getElementById('forgotForm').classList.add('hidden');
+        document.getElementById('signupError').classList.add('hidden');
+      },
+
+      showForgotPassword() {
+        document.getElementById('loginForm').classList.add('hidden');
+        document.getElementById('signupForm').classList.add('hidden');
+        document.getElementById('forgotForm').classList.remove('hidden');
+        document.getElementById('forgotError').classList.add('hidden');
+        document.getElementById('forgotSuccess').classList.add('hidden');
+      },
+
+      async login(e) {
+        e.preventDefault();
+        const btn = document.getElementById('loginBtn');
+        const errorEl = document.getElementById('loginError');
+        
+        btn.disabled = true;
+        btn.textContent = 'Signing in...';
+        errorEl.classList.add('hidden');
+        
+        const email = document.getElementById('loginEmail').value;
+        const password = document.getElementById('loginPassword').value;
+        
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        
+        if (error) {
+          errorEl.textContent = error.message;
+          errorEl.classList.remove('hidden');
+          btn.disabled = false;
+          btn.textContent = 'Sign In';
+        }
+      },
+
+      async signup(e) {
+        e.preventDefault();
+        const btn = document.getElementById('signupBtn');
+        const errorEl = document.getElementById('signupError');
+        
+        btn.disabled = true;
+        btn.textContent = 'Creating account...';
+        errorEl.classList.add('hidden');
+        
+        const email = document.getElementById('signupEmail').value;
+        const password = document.getElementById('signupPassword').value;
+        const confirm = document.getElementById('signupConfirm').value;
+        
+        if (password !== confirm) {
+          errorEl.textContent = 'Passwords do not match';
+          errorEl.classList.remove('hidden');
+          btn.disabled = false;
+          btn.textContent = 'Create Account';
+          return;
+        }
+        
+        const { error } = await supabase.auth.signUp({ email, password });
+        
+        if (error) {
+          errorEl.textContent = error.message;
+          errorEl.classList.remove('hidden');
+          btn.disabled = false;
+          btn.textContent = 'Create Account';
+        } else {
+          // Show success message
+          errorEl.style.background = '#d1fae5';
+          errorEl.style.borderColor = '#a7f3d0';
+          errorEl.style.color = '#065f46';
+          errorEl.textContent = 'Check your email for a confirmation link!';
+          errorEl.classList.remove('hidden');
+          btn.disabled = false;
+          btn.textContent = 'Create Account';
+        }
+      },
+
+      async resetPassword(e) {
+        e.preventDefault();
+        const btn = document.getElementById('forgotBtn');
+        const errorEl = document.getElementById('forgotError');
+        const successEl = document.getElementById('forgotSuccess');
+        
+        btn.disabled = true;
+        btn.textContent = 'Sending...';
+        errorEl.classList.add('hidden');
+        successEl.classList.add('hidden');
+        
+        const email = document.getElementById('forgotEmail').value;
+        
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: window.location.origin + '/app.html'
+        });
+        
+        btn.disabled = false;
+        btn.textContent = 'Send Reset Link';
+        
+        if (error) {
+          errorEl.textContent = error.message;
+          errorEl.classList.remove('hidden');
+        } else {
+          successEl.textContent = 'Check your email for the reset link!';
+          successEl.classList.remove('hidden');
+        }
+      },
+
+      async logout() {
+        await supabase.auth.signOut();
+        this.currentUser = null;
+        this.userProfile = null;
+        window.location.href = 'landing.html';
+      }
+    };
+
+    // Start auth flow
+    auth.init();
+  </script>
+
+  <!-- Application JavaScript (loaded after auth) -->
+  <script src="app.js"></script>
+</body>
+</html>
+
