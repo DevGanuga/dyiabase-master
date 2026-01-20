@@ -147,11 +147,13 @@
 }
 
 .toast-success {
-  @apply bg-emerald-500 text-white;
+  @apply fixed top-6 right-6 px-5 py-4 rounded-xl shadow-xl z-50 flex items-center gap-3 font-medium bg-emerald-500 text-white;
+  animation: slideInRight 0.3s ease-out, fadeOut 0.3s ease-in 2.7s forwards;
 }
 
 .toast-error {
-  @apply bg-red-500 text-white;
+  @apply fixed top-6 right-6 px-5 py-4 rounded-xl shadow-xl z-50 flex items-center gap-3 font-medium bg-red-500 text-white;
+  animation: slideInRight 0.3s ease-out, fadeOut 0.3s ease-in 2.7s forwards;
 }
 
 @keyframes slideInRight {
@@ -174,7 +176,8 @@
 
 /* Legacy success-toast class */
 .success-toast {
-  @apply toast toast-success;
+  @apply fixed top-6 right-6 px-5 py-4 rounded-xl shadow-xl z-50 flex items-center gap-3 font-medium bg-emerald-500 text-white;
+  animation: slideInRight 0.3s ease-out, fadeOut 0.3s ease-in 2.7s forwards;
 }
 
 /* Table */
