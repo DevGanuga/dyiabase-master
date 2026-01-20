@@ -48,7 +48,7 @@ node_modules/
 jspm_packages/
 bower_components/
 
-# Build Output (if you add build process later)
+# Build Output
 dist/
 build/
 out/
@@ -64,11 +64,6 @@ out/
 .env.test.local
 .env.production.local
 .env*.local
-
-# Package Manager Files
-package-lock.json
-yarn.lock
-pnpm-lock.yaml
 
 # Testing
 coverage/
@@ -103,7 +98,7 @@ docs/drafts/
 .local/
 local.config.js
 
-# Database files (if you add later)
+# Database files
 *.db
 *.sqlite
 *.sqlite3
@@ -124,16 +119,5 @@ license-keys.txt
 customer-list.txt
 emails.txt
 
-# Development notes (optional - keep if needed)
-# TODO.md
-# NOTES.md
-# scratch.txt
-
-# IMPORTANT: Keep these files
-!index.html
-!styles.css
-!app.js
-!README.md
-!LICENSE
-!.gitignore
-!netlify.toml
+# Vercel
+.vercel
