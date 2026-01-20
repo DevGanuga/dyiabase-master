@@ -22,11 +22,12 @@ JunkProfit Tracker Pro helps junk removal business owners:
 
 | Component | Technology |
 |-----------|------------|
-| Frontend | Vanilla JavaScript, HTML5, CSS3 |
+| Framework | Next.js 16 (App Router) |
+| Language | TypeScript |
+| Styling | Tailwind CSS |
 | Backend | Supabase (PostgreSQL + Auth) |
 | Payments | Stripe Subscriptions |
-| Hosting | Netlify |
-| Functions | Netlify Functions (Node.js) |
+| Hosting | Vercel |
 | PDF Generation | jsPDF |
 
 ---
@@ -35,21 +36,43 @@ JunkProfit Tracker Pro helps junk removal business owners:
 
 ```
 junkprofit-tracker/
-├── index.html                    # Redirects to landing page
-├── landing.html                  # Marketing page with pricing
-├── app.html                      # Authenticated app shell
-├── app.js                        # Main application logic
-├── styles.css                    # App styling
+├── src/
+│   ├── app/
+│   │   ├── page.tsx              # Landing page
+│   │   ├── layout.tsx            # Root layout
+│   │   ├── globals.css           # Tailwind + custom styles
+│   │   ├── app/
+│   │   │   ├── page.tsx          # Dashboard (protected)
+│   │   │   └── layout.tsx        # App layout with sidebar
+│   │   └── api/
+│   │       └── stripe/
+│   │           ├── checkout/route.ts   # Create checkout session
+│   │           └── webhook/route.ts    # Handle subscriptions
+│   ├── components/
+│   │   ├── app/                  # Dashboard components
+│   │   │   ├── Dashboard.tsx
+│   │   │   ├── Jobs.tsx
+│   │   │   ├── Quotes.tsx
+│   │   │   ├── QuoteBuilder.tsx
+│   │   │   ├── Settings.tsx
+│   │   │   └── Sidebar.tsx
+│   │   └── auth/
+│   │       └── AuthModal.tsx     # Login/signup modal
+│   ├── lib/
+│   │   ├── supabase/             # Supabase client utilities
+│   │   │   ├── client.ts         # Browser client
+│   │   │   ├── server.ts         # Server client
+│   │   │   └── middleware.ts     # Session refresh
+│   │   └── utils.ts              # Helper functions
+│   ├── middleware.ts             # Auth protection
+│   └── types/
+│       └── database.ts           # TypeScript definitions
+├── supabase/
+│   └── migrations/
+│       └── 001_create_junkprofit_schema.sql
 ├── SETUP.md                      # Configuration guide
-├── MILESTONE_1_DELIVERABLES.md   # Detailed delivery documentation
-├── netlify/
-│   └── functions/
-│       ├── create-checkout.js    # Stripe checkout session
-│       ├── stripe-webhook.js     # Subscription webhooks
-│       └── package.json
-└── supabase/
-    └── migrations/
-        └── 001_create_junkprofit_schema.sql
+├── vercel.json                   # Vercel config
+└── package.json
 ```
 
 ---
@@ -69,56 +92,78 @@ junkprofit-tracker/
 
 ### Prerequisites
 
+- Node.js 18+
 - Supabase account (free tier works)
 - Stripe account
-- Netlify account
-- Node.js (for local function testing)
+- Vercel account
 
 ### 1. Clone & Install
 
 ```bash
 git clone https://github.com/yourusername/junkprofit-tracker.git
 cd junkprofit-tracker
-cd netlify/functions && npm install
+npm install
 ```
 
-### 2. Configure Services
+### 2. Configure Environment
 
-See `SETUP.md` for detailed instructions:
+Create `.env.local`:
 
-1. Create Supabase project and run migration
-2. Set up Stripe products and webhook
-3. Update config in `app.html` and `landing.html`
-4. Set Netlify environment variables
+```env
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 
-### 3. Deploy
+STRIPE_SECRET_KEY=sk_live_xxx
+STRIPE_WEBHOOK_SECRET=whsec_xxx
+NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID=price_xxx
+NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID=price_xxx
+
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+```
+
+### 3. Run Database Migration
+
+Run `supabase/migrations/001_create_junkprofit_schema.sql` in Supabase SQL Editor.
+
+### 4. Run Locally
 
 ```bash
-git push origin main  # Netlify auto-deploys
+npm run dev
 ```
+
+### 5. Deploy to Vercel
+
+```bash
+vercel
+# Or push to GitHub and import in Vercel dashboard
+```
+
+Update Stripe webhook URL to `https://your-domain.vercel.app/api/stripe/webhook`
 
 ---
 
 ## 🔧 Development
 
-### Local Testing
+### Commands
 
-Open `index.html` directly in browser for basic testing.
-
-For full auth/payments flow, you need:
-1. Netlify Dev (`netlify dev`) for functions
-2. Supabase project (can use development project)
-3. Stripe test mode
+```bash
+npm run dev      # Start dev server (http://localhost:3000)
+npm run build    # Production build
+npm run start    # Start production server
+npm run lint     # Run ESLint
+```
 
 ### Key Files
 
 | File | Purpose |
 |------|---------|
-| `app.js` | All application logic, Supabase queries |
-| `app.html` | Auth flow, app shell, Supabase init |
-| `landing.html` | Marketing, pricing, checkout trigger |
-| `create-checkout.js` | Creates Stripe checkout sessions |
-| `stripe-webhook.js` | Handles subscription lifecycle |
+| `src/app/page.tsx` | Landing page with pricing |
+| `src/app/app/page.tsx` | Main dashboard |
+| `src/components/auth/AuthModal.tsx` | Authentication flow |
+| `src/app/api/stripe/checkout/route.ts` | Creates Stripe checkout |
+| `src/app/api/stripe/webhook/route.ts` | Handles subscription events |
+| `src/lib/supabase/*` | Supabase client utilities |
 
 ---
 
@@ -166,8 +211,9 @@ All tables have Row-Level Security (RLS) - users can only access their own data.
 - **Supabase RLS** - Database-level user isolation
 - **Supabase Auth** - Industry-standard authentication
 - **Stripe Webhooks** - Signature verification
-- **HTTPS** - Enforced by Netlify
+- **HTTPS** - Enforced by Vercel
 - **Service Role Isolation** - Admin keys server-side only
+- **TypeScript** - Type safety throughout
 
 ---
 
@@ -187,6 +233,8 @@ All tables have Row-Level Security (RLS) - users can only access their own data.
 - [x] CSV data export
 - [x] Image compression
 - [x] Mobile responsive design
+- [x] Next.js + TypeScript migration
+- [x] Vercel deployment ready
 
 ### 🚧 Planned (Milestone 2+)
 
@@ -215,4 +263,4 @@ See LICENSE file for full terms.
 ---
 
 *Last Updated: January 2026*  
-*Version: 2.0.0 (SaaS)*
+*Version: 3.0.0 (Next.js)*

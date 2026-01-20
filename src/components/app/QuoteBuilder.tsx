@@ -1,0 +1,430 @@
+'use client'
+
+import { useState, useEffect, useCallback } from 'react'
+import { createClient } from '@/lib/supabase/client'
+import type { AppQuote } from '@/types/database'
+import { formatCurrency, compressImage } from '@/lib/utils'
+
+interface QuoteBuilderProps {
+  quotes: AppQuote[]
+  setQuotes: (quotes: AppQuote[]) => void
+  userId: string
+  onBack: () => void
+  showSuccess: (message: string) => void
+}
+
+const PRICE_FIELDS = [
+  'minimumFee', 'quarterLoad', 'halfLoad', 'threeQuarterLoad', 'fullLoad',
+  'trampoline', 'shed', 'fridge', 'furniture', 'hotTub', 'customDemo',
+  'laborFee', 'heavyItemFee', 'distanceFee', 'timeFee', 'hazardFee', 'customFee'
+]
+
+export function QuoteBuilder({ quotes, setQuotes, userId, onBack, showSuccess }: QuoteBuilderProps) {
+  const [customer, setCustomer] = useState({ name: '', phone: '', email: '', address: '', jobDescription: '' })
+  const [pricing, setPricing] = useState<Record<string, number>>({})
+  const [numLoads, setNumLoads] = useState(0)
+  const [pricePerLoad, setPricePerLoad] = useState(0)
+  const [photos, setPhotos] = useState<(string | null)[]>([null, null, null])
+  const [total, setTotal] = useState(0)
+  const [saving, setSaving] = useState(false)
+
+  const supabase = createClient()
+
+  const calculateTotal = useCallback(() => {
+    const multipleLoadsTotal = numLoads * pricePerLoad
+    let sum = multipleLoadsTotal
+    PRICE_FIELDS.forEach(field => {
+      sum += Math.max(0, pricing[field] || 0)
+    })
+    setTotal(sum)
+  }, [numLoads, pricePerLoad, pricing])
+
+  useEffect(() => {
+    calculateTotal()
+  }, [calculateTotal])
+
+  const handlePricingChange = (field: string, value: number) => {
+    setPricing({ ...pricing, [field]: Math.max(0, value) })
+  }
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const reader = new FileReader()
+    reader.onload = async (event) => {
+      const dataUrl = event.target?.result as string
+      const compressed = await compressImage(dataUrl, 800, 0.7)
+      const newPhotos = [...photos]
+      newPhotos[index] = compressed
+      setPhotos(newPhotos)
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const removeImage = (index: number) => {
+    const newPhotos = [...photos]
+    newPhotos[index] = null
+    setPhotos(newPhotos)
+  }
+
+  const saveQuote = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!customer.name.trim()) {
+      alert('Please enter a customer name')
+      return
+    }
+
+    setSaving(true)
+
+    try {
+      const multipleLoadsTotal = numLoads * pricePerLoad
+      const rangeLow = Math.floor(total * 0.9)
+      const rangeHigh = Math.ceil(total * 1.1)
+
+      const quoteData = {
+        user_id: userId,
+        customer_name: customer.name,
+        customer_phone: customer.phone || null,
+        customer_email: customer.email || null,
+        customer_address: customer.address || null,
+        job_description: customer.jobDescription || null,
+        pricing: {
+          ...pricing,
+          multipleLoads: { numLoads, pricePerLoad, total: multipleLoadsTotal }
+        },
+        estimate_low: rangeLow,
+        estimate_high: rangeHigh,
+        total,
+        photo_urls: photos.filter(p => p) as string[]
+      }
+
+      const { data, error } = await supabase
+        .from('junkprofit_quotes')
+        .insert(quoteData)
+        .select()
+        .single()
+
+      if (error) throw error
+
+      const newQuote: AppQuote = {
+        id: data.id,
+        createdAt: new Date(data.created_at).getTime(),
+        customer: {
+          name: customer.name,
+          phone: customer.phone,
+          email: customer.email,
+          address: customer.address,
+          jobDescription: customer.jobDescription
+        },
+        pricing: quoteData.pricing,
+        photos: quoteData.photo_urls,
+        estimateRange: { low: rangeLow, high: rangeHigh },
+        total
+      }
+
+      setQuotes([newQuote, ...quotes])
+      showSuccess('✅ Quote saved successfully!')
+      setTimeout(onBack, 500)
+    } catch (error) {
+      console.error('Error saving quote:', error)
+      alert('Error saving quote')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const rangeLow = Math.floor(total * 0.9)
+  const rangeHigh = Math.ceil(total * 1.1)
+
+  return (
+    <div className="animate-fade-in">
+      <div className="page-header">
+        <div>
+          <h1 className="page-title">Quote Builder</h1>
+          <p className="page-subtitle">Create a professional estimate for your customer</p>
+        </div>
+        <button onClick={onBack} className="app-btn-secondary">
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+          </svg>
+          Back
+        </button>
+      </div>
+
+      <form onSubmit={saveQuote}>
+        {/* Customer Information */}
+        <div className="app-card mb-5">
+          <div className="flex items-center gap-3 mb-5">
+            <span className="text-xl">👤</span>
+            <h3 className="font-semibold text-slate-900">Customer Information</h3>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="app-label">Customer Name *</label>
+              <input
+                type="text"
+                value={customer.name}
+                onChange={(e) => setCustomer({ ...customer, name: e.target.value })}
+                className="app-input"
+                placeholder="John Smith"
+                required
+              />
+            </div>
+            <div>
+              <label className="app-label">Phone</label>
+              <input
+                type="tel"
+                value={customer.phone}
+                onChange={(e) => setCustomer({ ...customer, phone: e.target.value })}
+                className="app-input"
+                placeholder="(555) 123-4567"
+              />
+            </div>
+            <div>
+              <label className="app-label">Email</label>
+              <input
+                type="email"
+                value={customer.email}
+                onChange={(e) => setCustomer({ ...customer, email: e.target.value })}
+                className="app-input"
+                placeholder="john@example.com"
+              />
+            </div>
+            <div>
+              <label className="app-label">Address</label>
+              <input
+                type="text"
+                value={customer.address}
+                onChange={(e) => setCustomer({ ...customer, address: e.target.value })}
+                className="app-input"
+                placeholder="123 Main St, City, State"
+              />
+            </div>
+          </div>
+          <div className="mt-4">
+            <label className="app-label">Job Description</label>
+            <textarea
+              value={customer.jobDescription}
+              onChange={(e) => setCustomer({ ...customer, jobDescription: e.target.value })}
+              className="app-input resize-none"
+              rows={3}
+              placeholder="Describe the work to be done..."
+            />
+          </div>
+        </div>
+
+        {/* Volume-Based Pricing */}
+        <div className="app-card mb-5">
+          <div className="flex items-center gap-3 mb-5">
+            <span className="text-xl">📦</span>
+            <h3 className="font-semibold text-slate-900">Volume-Based Pricing</h3>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+            {[
+              { field: 'minimumFee', label: 'Minimum Fee' },
+              { field: 'quarterLoad', label: '1/4 Load' },
+              { field: 'halfLoad', label: '1/2 Load' },
+              { field: 'threeQuarterLoad', label: '3/4 Load' },
+              { field: 'fullLoad', label: 'Full Load' },
+            ].map(({ field, label }) => (
+              <div key={field}>
+                <label className="app-label text-sm">{label}</label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">$</span>
+                  <input
+                    type="number"
+                    value={pricing[field] || ''}
+                    onChange={(e) => handlePricingChange(field, parseFloat(e.target.value) || 0)}
+                    className="app-input pl-7 text-sm"
+                    min="0"
+                    placeholder="0"
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Multiple Full Loads */}
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-5 mt-5">
+            <div className="flex items-center gap-2 mb-4">
+              <span className="text-lg">🚛</span>
+              <h4 className="font-semibold text-amber-900">Multiple Full Loads</h4>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="app-label text-sm text-amber-800"># of Loads</label>
+                <input
+                  type="number"
+                  value={numLoads || ''}
+                  onChange={(e) => setNumLoads(Math.max(0, parseInt(e.target.value) || 0))}
+                  className="app-input"
+                  min="0"
+                  placeholder="e.g., 3"
+                />
+              </div>
+              <div>
+                <label className="app-label text-sm text-amber-800">Price Per Load</label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">$</span>
+                  <input
+                    type="number"
+                    value={pricePerLoad || ''}
+                    onChange={(e) => setPricePerLoad(Math.max(0, parseFloat(e.target.value) || 0))}
+                    className="app-input pl-7"
+                    min="0"
+                    placeholder="e.g., 500"
+                  />
+                </div>
+              </div>
+            </div>
+            {numLoads > 0 && pricePerLoad > 0 && (
+              <p className="text-amber-800 mt-3 font-medium text-sm">
+                Subtotal: {numLoads} loads × {formatCurrency(pricePerLoad)} = <strong>{formatCurrency(numLoads * pricePerLoad)}</strong>
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Specialty Jobs */}
+        <div className="app-card mb-5">
+          <div className="flex items-center gap-3 mb-5">
+            <span className="text-xl">🔧</span>
+            <h3 className="font-semibold text-slate-900">Specialty Jobs</h3>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+            {[
+              { field: 'trampoline', label: 'Trampoline' },
+              { field: 'shed', label: 'Shed Demo' },
+              { field: 'fridge', label: 'Fridge' },
+              { field: 'furniture', label: 'Furniture' },
+              { field: 'hotTub', label: 'Hot Tub' },
+              { field: 'customDemo', label: 'Custom Demo' },
+            ].map(({ field, label }) => (
+              <div key={field}>
+                <label className="app-label text-sm">{label}</label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">$</span>
+                  <input
+                    type="number"
+                    value={pricing[field] || ''}
+                    onChange={(e) => handlePricingChange(field, parseFloat(e.target.value) || 0)}
+                    className="app-input pl-7 text-sm"
+                    min="0"
+                    placeholder="0"
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Additional Fees */}
+        <div className="app-card mb-5">
+          <div className="flex items-center gap-3 mb-5">
+            <span className="text-xl">💰</span>
+            <h3 className="font-semibold text-slate-900">Additional Fees</h3>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+            {[
+              { field: 'laborFee', label: 'Labor' },
+              { field: 'heavyItemFee', label: 'Heavy Item' },
+              { field: 'distanceFee', label: 'Distance' },
+              { field: 'timeFee', label: 'Extra Time' },
+              { field: 'hazardFee', label: 'Hazard' },
+              { field: 'customFee', label: 'Custom' },
+            ].map(({ field, label }) => (
+              <div key={field}>
+                <label className="app-label text-sm">{label}</label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">$</span>
+                  <input
+                    type="number"
+                    value={pricing[field] || ''}
+                    onChange={(e) => handlePricingChange(field, parseFloat(e.target.value) || 0)}
+                    className="app-input pl-7 text-sm"
+                    min="0"
+                    placeholder="0"
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Live Estimate Preview */}
+        <div className="app-card mb-5 bg-gradient-to-r from-emerald-50 to-teal-50 border-2 border-emerald-500">
+          <div className="text-center py-4">
+            <div className="text-xs font-bold text-emerald-600 uppercase tracking-wider mb-2">Live Estimate Preview</div>
+            <div className="text-4xl font-bold text-emerald-700 mb-2">
+              {formatCurrency(rangeLow)} - {formatCurrency(rangeHigh)}
+            </div>
+            <div className="text-sm text-emerald-600/70">
+              Base total: <strong>{formatCurrency(total)}</strong> (±10% range)
+            </div>
+          </div>
+        </div>
+
+        {/* Job Photos */}
+        <div className="app-card mb-6">
+          <div className="flex items-center gap-3 mb-2">
+            <span className="text-xl">📸</span>
+            <h3 className="font-semibold text-slate-900">Job Photos</h3>
+            <span className="text-sm text-slate-500">(Optional)</span>
+          </div>
+          <p className="text-slate-500 text-sm mb-4">Upload up to 3 photos to include in the quote PDF.</p>
+          <div className="grid grid-cols-3 gap-4">
+            {[0, 1, 2].map(i => (
+              <div key={i} className="image-upload-box">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => handleImageUpload(e, i)}
+                />
+                {photos[i] ? (
+                  <>
+                    <img src={photos[i]!} alt={`Photo ${i + 1}`} className="image-preview" />
+                    <button
+                      type="button"
+                      onClick={() => removeImage(i)}
+                      className="image-remove-btn"
+                    >
+                      ✕
+                    </button>
+                  </>
+                ) : (
+                  <div className="image-upload-placeholder">
+                    <svg className="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <span className="text-xs text-slate-400">Add Photo</span>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="flex justify-end gap-3">
+          <button type="button" onClick={onBack} className="app-btn-secondary">Cancel</button>
+          <button type="submit" disabled={saving} className="app-btn-primary">
+            {saving ? (
+              <>
+                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                Saving...
+              </>
+            ) : (
+              <>
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Generate Quote
+              </>
+            )}
+          </button>
+        </div>
+      </form>
+    </div>
+  )
+}
