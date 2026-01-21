@@ -13,8 +13,8 @@ const spaceGrotesk = Space_Grotesk({
 })
 
 export const metadata: Metadata = {
-  title: 'JunkProfit Tracker – Simple Profit Tracking for Junk Removal Businesses',
-  description: 'Track jobs, profits, expenses, and generate professional quotes. Built for junk removal businesses who want results without the complexity.',
+  title: 'dyia – Your Day, Decoded | Simple Profit Tracking for Service Businesses',
+  description: 'Track jobs, profits, expenses, and generate professional quotes. Built for junk removal, lawn care, and house cleaning businesses who want results without the complexity.',
 }
 
 export default function RootLayout({

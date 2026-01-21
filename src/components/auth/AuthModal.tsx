@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
+import Image from 'next/image'
 
 type AuthView = 'login' | 'signup' | 'forgot'
 
@@ -87,9 +88,13 @@ export function AuthModal() {
       <div className="auth-modal animate-slide-up">
         {/* Logo */}
         <div className="flex items-center justify-center gap-3 mb-8">
-          <div className="w-14 h-14 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-2xl flex items-center justify-center text-3xl shadow-lg shadow-emerald-500/20">
-            💼
-          </div>
+          <Image 
+            src="/image-removebg-preview.png" 
+            alt="dyia logo" 
+            width={56} 
+            height={56}
+            className="drop-shadow-lg"
+          />
         </div>
 
         {view === 'login' && (
@@ -136,7 +141,7 @@ export function AuthModal() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-4 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl font-semibold hover:from-emerald-400 hover:to-teal-400 shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="w-full py-4 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-xl font-semibold hover:from-orange-400 hover:to-amber-400 shadow-lg shadow-orange-500/20 hover:shadow-orange-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {loading ? (
                   <>
@@ -154,7 +159,7 @@ export function AuthModal() {
                 Don&apos;t have an account?{' '}
                 <button 
                   onClick={() => switchView('signup')} 
-                  className="text-emerald-600 font-semibold hover:text-emerald-700 transition"
+                  className="text-orange-600 font-semibold hover:text-orange-700 transition"
                 >
                   Sign up
                 </button>
@@ -197,7 +202,7 @@ export function AuthModal() {
               </div>
             )}
             {success && (
-              <div className="bg-emerald-50 border border-emerald-100 text-emerald-600 px-4 py-3 rounded-xl mb-6 text-sm flex items-start gap-2">
+              <div className="bg-orange-50 border border-orange-100 text-orange-600 px-4 py-3 rounded-xl mb-6 text-sm flex items-start gap-2">
                 <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                 </svg>
@@ -246,7 +251,7 @@ export function AuthModal() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-4 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl font-semibold hover:from-emerald-400 hover:to-teal-400 shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="w-full py-4 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-xl font-semibold hover:from-orange-400 hover:to-amber-400 shadow-lg shadow-orange-500/20 hover:shadow-orange-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {loading ? (
                   <>
@@ -263,7 +268,7 @@ export function AuthModal() {
               Already have an account?{' '}
               <button 
                 onClick={() => switchView('login')} 
-                className="text-emerald-600 font-semibold hover:text-emerald-700 transition"
+                className="text-orange-600 font-semibold hover:text-orange-700 transition"
               >
                 Sign in
               </button>
@@ -287,7 +292,7 @@ export function AuthModal() {
               </div>
             )}
             {success && (
-              <div className="bg-emerald-50 border border-emerald-100 text-emerald-600 px-4 py-3 rounded-xl mb-6 text-sm flex items-start gap-2">
+              <div className="bg-orange-50 border border-orange-100 text-orange-600 px-4 py-3 rounded-xl mb-6 text-sm flex items-start gap-2">
                 <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                 </svg>
@@ -311,7 +316,7 @@ export function AuthModal() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-4 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl font-semibold hover:from-emerald-400 hover:to-teal-400 shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="w-full py-4 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-xl font-semibold hover:from-orange-400 hover:to-amber-400 shadow-lg shadow-orange-500/20 hover:shadow-orange-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {loading ? (
                   <>

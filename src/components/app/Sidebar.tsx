@@ -2,6 +2,7 @@
 
 import type { AppJob } from '@/types/database'
 import Link from 'next/link'
+import Image from 'next/image'
 
 type View = 'dashboard' | 'jobs' | 'quotes' | 'quoteBuilder' | 'settings'
 
@@ -57,7 +58,7 @@ export function Sidebar({ currentView, setCurrentView, userEmail, onLogout, jobs
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.download = `junkprofit-jobs-${new Date().toISOString().split('T')[0]}.csv`
+    link.download = `dyia-jobs-${new Date().toISOString().split('T')[0]}.csv`
     link.click()
     URL.revokeObjectURL(url)
 
@@ -69,12 +70,16 @@ export function Sidebar({ currentView, setCurrentView, userEmail, onLogout, jobs
       {/* Logo Header */}
       <div className="sidebar-header p-6 border-b border-slate-100">
         <Link href="/" className="flex items-center gap-3 group">
-          <div className="w-11 h-11 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-xl flex items-center justify-center text-xl shadow-lg shadow-emerald-500/20 group-hover:shadow-emerald-500/30 transition-shadow">
-            💼
-          </div>
+          <Image 
+            src="/image-removebg-preview.png" 
+            alt="dyia logo" 
+            width={44} 
+            height={44}
+            className="group-hover:scale-105 transition-transform"
+          />
           <div className="sidebar-logo-text">
-            <h1 className="text-lg font-bold text-slate-900">JunkProfit</h1>
-            <p className="text-xs text-slate-500 font-medium">Tracker Pro</p>
+            <h1 className="text-lg font-bold text-slate-900">dyia</h1>
+            <p className="text-xs text-slate-500 font-medium">Your day, decoded</p>
           </div>
         </Link>
       </div>
@@ -82,7 +87,7 @@ export function Sidebar({ currentView, setCurrentView, userEmail, onLogout, jobs
       {/* User Info */}
       <div className="sidebar-user px-4 py-4 border-b border-slate-100">
         <div className="flex items-center gap-3 px-2">
-          <div className="w-9 h-9 bg-gradient-to-br from-slate-100 to-slate-200 rounded-lg flex items-center justify-center text-lg">
+          <div className="w-9 h-9 bg-gradient-to-br from-orange-100 to-amber-100 rounded-lg flex items-center justify-center text-lg">
             👤
           </div>
           <div className="sidebar-text flex-1 min-w-0">
@@ -104,7 +109,7 @@ export function Sidebar({ currentView, setCurrentView, userEmail, onLogout, jobs
               <span className="text-xl w-7 text-center">{item.icon}</span>
               <span className="sidebar-text text-sm">{item.label}</span>
               {currentView === item.id && (
-                <span className="sidebar-text ml-auto w-1.5 h-1.5 bg-emerald-500 rounded-full" />
+                <span className="sidebar-text ml-auto w-1.5 h-1.5 bg-orange-500 rounded-full" />
               )}
             </button>
           ))}

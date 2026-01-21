@@ -203,11 +203,13 @@ export default function AppPage() {
   // Loading State
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-orange-50/30 via-white to-amber-50/30 flex items-center justify-center">
         <div className="text-center">
-          <div className="w-16 h-16 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-2xl flex items-center justify-center text-3xl mb-4 mx-auto shadow-lg shadow-emerald-500/20 animate-pulse">
-            💼
-          </div>
+          <img 
+            src="/image-removebg-preview.png" 
+            alt="dyia logo" 
+            className="w-16 h-16 mb-4 mx-auto animate-pulse"
+          />
           <div className="loading-spinner mx-auto mb-4" />
           <p className="text-slate-500 font-medium">Loading your dashboard...</p>
         </div>
