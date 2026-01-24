@@ -88,14 +88,27 @@ function DemoAccess() {
 }
 
 export default function LandingPage() {
-  const { isSignedIn } = useUser()
+  // Safely get user - may not work if Clerk isn't configured
+  let isSignedIn = false
+  try {
+    const user = useUser()
+    isSignedIn = user?.isSignedIn ?? false
+  } catch {
+    // Clerk not configured, that's fine
+  }
+  
   const [loading, setLoading] = useState<string | null>(null)
   const [mounted, setMounted] = useState(false)
   const [couponInput, setCouponInput] = useState('')
   const [openFaq, setOpenFaq] = useState<number | null>(null)
+  const [hasDemoCookie, setHasDemoCookie] = useState(false)
 
   useEffect(() => {
     setMounted(true)
+    // Check for demo cookie
+    const cookies = document.cookie.split(';')
+    const hasDemo = cookies.some(c => c.trim().startsWith('dyia_demo_access='))
+    setHasDemoCookie(hasDemo)
   }, [])
 
   async function checkout(plan: 'monthly' | 'annual') {
@@ -167,10 +180,10 @@ export default function LandingPage() {
             <a href="#pricing" className="text-slate-600 hover:text-orange-600 text-sm font-medium transition">Pricing</a>
             <a href="#faq" className="text-slate-600 hover:text-orange-600 text-sm font-medium transition">FAQ</a>
             <Link 
-              href={isSignedIn ? "/app" : "/sign-in"} 
+              href={(isSignedIn || hasDemoCookie) ? "/app" : "/sign-in"} 
               className="px-5 py-2.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 text-white rounded-full font-semibold text-sm shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 transition-all"
             >
-              {isSignedIn ? 'Open App' : 'Sign In'}
+              {(isSignedIn || hasDemoCookie) ? 'Open App' : 'Sign In'}
             </Link>
           </div>
         </div>

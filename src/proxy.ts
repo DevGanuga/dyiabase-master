@@ -7,34 +7,50 @@ const isProtectedRoute = createRouteMatcher([
   '/app(.*)',
 ])
 
-// Routes that are public (no auth required)
-const isPublicRoute = createRouteMatcher([
-  '/',
-  '/sign-in(.*)',
-  '/sign-up(.*)',
-  '/api/stripe/webhook',
-  '/api/clerk/webhook',
-  '/api/demo/activate',
-])
-
 // Demo password - in production, use env var
 const DEMO_PASSWORD = process.env.DEMO_PASSWORD || 'dyia-demo-2026'
 
-// Create the Clerk middleware handler
-const clerkHandler = clerkMiddleware(async (auth, req) => {
-  // Check for demo mode cookie
-  const demoToken = req.cookies.get('dyia_demo_access')?.value
-  const isDemoMode = demoToken === DEMO_PASSWORD
+// Check if Clerk is configured
+const isClerkConfigured = !!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
 
-  // Protect the /app routes (unless demo mode)
-  if (isProtectedRoute(req) && !isDemoMode) {
-    await auth.protect()
-  }
-})
+// Create the Clerk middleware handler (only if Clerk is configured)
+const clerkHandler = isClerkConfigured 
+  ? clerkMiddleware(async (auth, req) => {
+      // Check for demo mode cookie
+      const demoToken = req.cookies.get('dyia_demo_access')?.value
+      const isDemoMode = demoToken === DEMO_PASSWORD
+
+      // Protect the /app routes (unless demo mode)
+      if (isProtectedRoute(req) && !isDemoMode) {
+        await auth.protect()
+      }
+    })
+  : null
 
 // Export as proxy function (Next.js 16 convention)
 export function proxy(request: NextRequest) {
-  return clerkHandler(request, {} as any)
+  // Check for demo mode cookie first
+  const demoToken = request.cookies.get('dyia_demo_access')?.value
+  const isDemoMode = demoToken === DEMO_PASSWORD
+
+  // If demo mode, allow through
+  if (isDemoMode) {
+    return NextResponse.next()
+  }
+
+  // If Clerk is configured, use Clerk middleware
+  if (clerkHandler) {
+    return clerkHandler(request, {} as any)
+  }
+
+  // If Clerk isn't configured and trying to access /app, redirect to home
+  // (unless demo mode, which is handled above)
+  if (isProtectedRoute(request)) {
+    return NextResponse.redirect(new URL('/', request.url))
+  }
+
+  // Otherwise, allow through
+  return NextResponse.next()
 }
 
 export const config = {
