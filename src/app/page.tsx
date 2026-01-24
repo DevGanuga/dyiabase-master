@@ -192,46 +192,46 @@ export default function LandingPage() {
       <main>
         {/* Hero Section */}
         <section className="pt-20 pb-16 px-6">
-          <div className="max-w-4xl mx-auto">
+          <div className="max-w-4xl mx-auto text-center">
             <div className={`transition-all duration-700 delay-100 ${mounted ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0'}`}>
               <div className="inline-flex items-center gap-2 px-4 py-2 bg-orange-100 border border-orange-200 rounded-full text-orange-700 text-sm font-medium mb-8">
-                <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse" />
-                <span>For junk haulers tired of guessing</span>
+                <span>🚛</span>
+                <span>Built for junk haulers, by junk haulers</span>
               </div>
             </div>
             
-            <h1 className={`text-4xl sm:text-5xl lg:text-6xl font-bold leading-[1.1] mb-6 transition-all duration-700 delay-200 ${mounted ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0'}`}>
-              <span className="text-slate-800">Stop wondering if you </span>
-              <span className="bg-gradient-to-r from-orange-500 to-amber-500 bg-clip-text text-transparent">actually made money</span>
-              <span className="text-slate-800"> today.</span>
+            <h1 className={`text-5xl sm:text-6xl lg:text-7xl font-bold leading-[1.05] mb-6 transition-all duration-700 delay-200 ${mounted ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0'}`}>
+              <span className="bg-gradient-to-r from-orange-500 via-orange-400 to-amber-500 bg-clip-text text-transparent">Your Day,</span>
+              <br />
+              <span className="text-slate-800">Decoded.</span>
             </h1>
             
-            <p className={`text-xl text-slate-600 max-w-2xl mb-10 leading-relaxed transition-all duration-700 delay-300 ${mounted ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0'}`}>
-              dyia shows you exactly what you pocket after gas, dump fees, labor, and taxes. 
-              Log jobs in 30 seconds. Know your real profit instantly.
+            <p className={`text-xl sm:text-2xl text-slate-600 max-w-2xl mx-auto mb-10 leading-relaxed transition-all duration-700 delay-300 ${mounted ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0'}`}>
+              Know exactly what you pocket after every job. 
+              <span className="text-orange-600 font-medium"> No spreadsheets. No guessing.</span>
             </p>
             
-            <div className={`flex flex-wrap gap-4 mb-12 transition-all duration-700 delay-400 ${mounted ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0'}`}>
+            <div className={`flex flex-wrap justify-center gap-4 mb-12 transition-all duration-700 delay-400 ${mounted ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0'}`}>
               <a 
                 href="#pricing" 
                 className="group px-8 py-4 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 text-white rounded-2xl font-bold text-lg shadow-xl shadow-orange-500/25 hover:shadow-orange-500/40 hover:-translate-y-1 transition-all flex items-center gap-2"
               >
-                Start tracking — $12.99/mo
+                Start Tracking — $12.99/mo
                 <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
                 </svg>
               </a>
               <a 
                 href="#how-it-works" 
-                className="px-8 py-4 bg-white hover:bg-orange-50 text-slate-700 border border-slate-200 hover:border-orange-200 rounded-2xl font-semibold text-lg transition-all"
+                className="px-8 py-4 bg-white hover:bg-orange-50 text-slate-700 border-2 border-slate-200 hover:border-orange-300 rounded-2xl font-semibold text-lg transition-all"
               >
-                See how it works
+                See How It Works
               </a>
             </div>
 
             {/* Quick benefits */}
-            <div className={`flex flex-wrap gap-6 text-sm transition-all duration-700 delay-500 ${mounted ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0'}`}>
-              {['No spreadsheets needed', 'Works on your phone', 'Cancel anytime'].map((item, i) => (
+            <div className={`flex flex-wrap justify-center gap-8 text-sm transition-all duration-700 delay-500 ${mounted ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0'}`}>
+              {['Log jobs in 30 seconds', 'See real profit instantly', 'Works on any device'].map((item, i) => (
                 <div key={i} className="flex items-center gap-2 text-slate-600">
                   <div className="w-5 h-5 rounded-full bg-gradient-to-r from-orange-500 to-amber-500 flex items-center justify-center">
                     <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
