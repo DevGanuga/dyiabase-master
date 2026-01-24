@@ -1,30 +1,25 @@
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 
-// Routes that require authentication  
-const isProtectedRoute = createRouteMatcher(['/app(.*)'])
+// Routes that require authentication
+const isProtectedRoute = createRouteMatcher([
+  '/app(.*)',
+])
 
 // Demo password
 const DEMO_PASSWORD = process.env.DEMO_PASSWORD || 'dyia-demo-2026'
 
-export const proxy = clerkMiddleware(async (auth, req) => {
-  // Demo mode bypass
+export default clerkMiddleware(async (auth, req) => {
+  // Check for demo mode cookie first
   const demoToken = req.cookies.get('dyia_demo_access')?.value
   if (demoToken === DEMO_PASSWORD) {
     return NextResponse.next()
   }
 
-  // Check auth for protected routes
+  // Protect /app routes
   if (isProtectedRoute(req)) {
-    const { userId } = await auth()
-    
-    if (!userId) {
-      // Redirect to sign-in
-      return NextResponse.redirect(new URL('/sign-in', req.url))
-    }
+    await auth.protect()
   }
-  
-  return NextResponse.next()
 })
 
 export const config = {

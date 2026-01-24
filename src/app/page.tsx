@@ -88,14 +88,7 @@ function DemoAccess() {
 }
 
 export default function LandingPage() {
-  // Safely get user - may not work if Clerk isn't configured
-  let isSignedIn = false
-  try {
-    const user = useUser()
-    isSignedIn = user?.isSignedIn ?? false
-  } catch {
-    // Clerk not configured, that's fine
-  }
+  const { isSignedIn, isLoaded } = useUser()
   
   const [loading, setLoading] = useState<string | null>(null)
   const [mounted, setMounted] = useState(false)

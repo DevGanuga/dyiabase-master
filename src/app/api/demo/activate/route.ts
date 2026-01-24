@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
     // Set demo access cookie (expires in 24 hours)
     const response = NextResponse.json({ success: true, message: 'Demo mode activated' })
     response.cookies.set('dyia_demo_access', DEMO_PASSWORD, {
-      httpOnly: true,
+      httpOnly: false, // Client needs to read this for demo mode UI
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: 60 * 60 * 24, // 24 hours
