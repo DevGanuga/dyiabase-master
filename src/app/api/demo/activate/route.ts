@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-const DEMO_PASSWORD = process.env.DEMO_PASSWORD || 'dyia-demo-2024'
+const DEMO_PASSWORD = process.env.DEMO_PASSWORD || 'dyia-demo-2026'
 
 export async function POST(request: NextRequest) {
   try {

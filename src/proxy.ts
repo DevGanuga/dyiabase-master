@@ -18,7 +18,7 @@ const isPublicRoute = createRouteMatcher([
 ])
 
 // Demo password - in production, use env var
-const DEMO_PASSWORD = process.env.DEMO_PASSWORD || 'dyia-demo-2024'
+const DEMO_PASSWORD = process.env.DEMO_PASSWORD || 'dyia-demo-2026'
 
 // Create the Clerk middleware handler
 const clerkHandler = clerkMiddleware(async (auth, req) => {
