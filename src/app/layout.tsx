@@ -18,32 +18,46 @@ export const metadata: Metadata = {
   description: 'Track jobs, profits, expenses, and generate professional quotes. Built for junk removal, lawn care, and house cleaning businesses who want results without the complexity.',
 }
 
+const clerkAppearance = {
+  variables: {
+    colorPrimary: '#f97316',
+    colorTextOnPrimaryBackground: '#ffffff',
+    borderRadius: '0.75rem',
+  },
+  elements: {
+    formButtonPrimary: 
+      'bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 shadow-lg shadow-orange-500/20',
+    card: 'shadow-xl',
+    headerTitle: 'text-slate-900',
+    headerSubtitle: 'text-slate-500',
+    socialButtonsBlockButton: 'border-slate-200 hover:bg-slate-50',
+    formFieldInput: 
+      'border-slate-200 focus:border-orange-500 focus:ring-orange-500/20',
+    footerActionLink: 'text-orange-600 hover:text-orange-700',
+  },
+}
+
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  // Check if Clerk is configured
+  const clerkKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+
+  // If Clerk isn't configured, render without it (for development/testing)
+  if (!clerkKey) {
+    return (
+      <html lang="en">
+        <body className={`${dmSans.variable} ${spaceGrotesk.variable} antialiased`}>
+          {children}
+        </body>
+      </html>
+    )
+  }
+
   return (
-    <ClerkProvider
-      appearance={{
-        variables: {
-          colorPrimary: '#f97316',
-          colorTextOnPrimaryBackground: '#ffffff',
-          borderRadius: '0.75rem',
-        },
-        elements: {
-          formButtonPrimary: 
-            'bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 shadow-lg shadow-orange-500/20',
-          card: 'shadow-xl',
-          headerTitle: 'text-slate-900',
-          headerSubtitle: 'text-slate-500',
-          socialButtonsBlockButton: 'border-slate-200 hover:bg-slate-50',
-          formFieldInput: 
-            'border-slate-200 focus:border-orange-500 focus:ring-orange-500/20',
-          footerActionLink: 'text-orange-600 hover:text-orange-700',
-        },
-      }}
-    >
+    <ClerkProvider appearance={clerkAppearance}>
       <html lang="en">
         <body className={`${dmSans.variable} ${spaceGrotesk.variable} antialiased`}>
           {children}
