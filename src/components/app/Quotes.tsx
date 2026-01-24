@@ -24,7 +24,7 @@ export function Quotes({ quotes, setQuotes, userId, settings, onCreateQuote, sho
 
     try {
       const { error } = await supabase
-        .from('junkprofit_quotes')
+        .from('dyia_quotes')
         .delete()
         .eq('id', id)
         .eq('user_id', userId)

@@ -51,8 +51,10 @@ export interface Settings {
 
 export interface UserProfile {
   id: string
-  auth_user_id: string
+  clerk_user_id: string
   email: string
+  first_name?: string | null
+  last_name?: string | null
   stripe_customer_id?: string | null
   stripe_subscription_id?: string | null
   subscription_status: 'active' | 'inactive' | 'canceled' | 'past_due' | 'trialing'

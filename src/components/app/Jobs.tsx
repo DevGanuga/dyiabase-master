@@ -123,7 +123,7 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
         }
 
         const { error } = await supabase
-          .from('junkprofit_jobs')
+          .from('dyia_jobs')
           .update(dbJob)
           .eq('id', (editingJob as AppJob).id)
           .eq('user_id', userId)
@@ -159,7 +159,7 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
           }
 
           const { data, error } = await supabase
-            .from('junkprofit_jobs')
+            .from('dyia_jobs')
             .insert(dbJob)
             .select()
             .single()
@@ -200,7 +200,7 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
 
     try {
       const { error } = await supabase
-        .from('junkprofit_jobs')
+        .from('dyia_jobs')
         .delete()
         .eq('id', id)
         .eq('user_id', userId)

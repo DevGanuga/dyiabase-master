@@ -71,11 +71,11 @@ export function Sidebar({ currentView, setCurrentView, userEmail, onLogout, jobs
       <div className="sidebar-header p-6 border-b border-slate-100">
         <Link href="/" className="flex items-center gap-3 group">
           <Image 
-            src="/image-removebg-preview.png" 
+            src="/dyia-logo.png" 
             alt="dyia logo" 
-            width={44} 
-            height={44}
-            className="group-hover:scale-105 transition-transform"
+            width={36} 
+            height={36}
+            className="group-hover:scale-105 transition-transform drop-shadow-md"
           />
           <div className="sidebar-logo-text">
             <h1 className="text-lg font-bold text-slate-900">dyia</h1>

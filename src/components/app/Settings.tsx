@@ -39,7 +39,7 @@ export function Settings({ settings, setSettings, userId, showSuccess }: Setting
       }
 
       const { error } = await supabase
-        .from('junkprofit_settings')
+        .from('dyia_settings')
         .update(dbSettings)
         .eq('user_id', userId)
 
@@ -83,7 +83,7 @@ export function Settings({ settings, setSettings, userId, showSuccess }: Setting
       const compressed = await compressImage(dataUrl, 400, 0.8)
 
       const { error } = await supabase
-        .from('junkprofit_settings')
+        .from('dyia_settings')
         .update({ business_logo: compressed })
         .eq('user_id', userId)
 
@@ -109,7 +109,7 @@ export function Settings({ settings, setSettings, userId, showSuccess }: Setting
     if (!confirm('Remove the uploaded logo?')) return
 
     const { error } = await supabase
-      .from('junkprofit_settings')
+      .from('dyia_settings')
       .update({ business_logo: null })
       .eq('user_id', userId)
 

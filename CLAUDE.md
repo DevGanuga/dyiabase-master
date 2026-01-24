@@ -4,88 +4,113 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-JunkProfit Tracker Pro is a business management web application for junk removal companies. It's a vanilla JavaScript SPA (no frameworks) that runs entirely in the browser with localStorage for data persistence.
+**dyia** ("Your Day, Decoded") is a business management web application for service businesses (junk removal, lawn care, house cleaning). It's built with Next.js 16 (App Router), TypeScript, and uses Clerk for authentication, Supabase for data storage, and Stripe for subscriptions.
 
-**Tech Stack**: HTML5, CSS3, Vanilla JavaScript, jsPDF (CDN), localStorage
+**Tech Stack**: Next.js 16, TypeScript, Tailwind CSS, Clerk Auth, Supabase (PostgreSQL), Stripe
 
 ## Development
 
-No build process required. Open `index.html` directly in a browser:
-
 ```bash
-# Mac
-open index.html
+# Install dependencies
+npm install
 
-# Windows
-start index.html
+# Run development server
+npm run dev
 
-# Linux
-xdg-open index.html
+# Build for production
+npm run build
 ```
-
-Edit files directly and refresh the browser to see changes.
 
 ## Architecture
 
-### Single Application Object Pattern
+### Authentication Flow (Clerk)
+1. User signs up/in via Clerk (`/sign-in`, `/sign-up`)
+2. Clerk webhook (`/api/clerk/webhook`) syncs user to `dyia_users` table
+3. App pages use `useUser()` from `@clerk/nextjs` to get current user
+4. Middleware (`src/middleware.ts`) protects `/app` routes
 
-The entire app is a single global `app` object in `app.js` (~1400 lines) containing:
-- **State**: `jobs`, `quotes`, `settings`, `currentView`, `selectedMonth`, temporary form state (`tempCustomers`, `tempExpenses`, `tempPhotos`)
-- **Data Layer**: `loadData()`, `saveData()`, `getStorageKey()` - all localStorage operations use prefix `junkProfit_dev_`
-- **View Rendering**: `render()` dispatches to view-specific methods (`renderDashboard()`, `renderJobs()`, `renderQuotes()`, `renderQuoteBuilder()`, `renderSettings()`)
-- **Navigation**: `setView()` changes views, `renderNav()` updates sidebar
+### Database Schema (Supabase)
+- `dyia_users` - User profiles, linked via `clerk_user_id`, stores Stripe subscription info
+- `dyia_settings` - Per-user settings (tax %, monthly goal, business info)
+- `dyia_jobs` - Job tracking (date, customer, revenue, expenses)
+- `dyia_quotes` - Quote storage (customer info, pricing, photos)
+
+### Key Files
+- `src/app/layout.tsx` - Root layout with ClerkProvider
+- `src/middleware.ts` - Clerk auth middleware
+- `src/app/app/page.tsx` - Main app dashboard (protected)
+- `src/app/api/clerk/webhook/route.ts` - User sync webhook
+- `src/app/api/stripe/*/route.ts` - Payment webhooks
 
 ### Data Flow
-
 ```
-User Action → app method → modify state → saveData() → render()
+User Action → Component → Supabase Client → Database
+                              ↓
+                         RLS bypassed (service role)
+                              ↓
+                    App handles auth via Clerk
 ```
-
-Views are rendered as HTML strings returned from render methods, then inserted via `innerHTML` into `#mainContent`.
 
 ### Key Data Structures
 
-**Job**:
-```javascript
-{ id, date, customerName, source, revenue, labor, gas, dumpFee, dumpsterRental, additionalExpense }
+**dyia_users** (database):
+```typescript
+{
+  id: UUID,
+  clerk_user_id: string,          // From Clerk
+  email: string,
+  first_name?: string,
+  last_name?: string,
+  stripe_customer_id?: string,
+  stripe_subscription_id?: string,
+  subscription_status: 'active' | 'inactive' | 'canceled' | 'past_due' | 'trialing',
+  subscription_plan?: 'monthly' | 'annual'
+}
 ```
 
-**Quote**:
-```javascript
-{ id, createdAt, customer: {name, phone, email, address, jobDescription}, pricing: {...}, photos: [], estimateRange: {low, high}, total }
+**AppJob** (frontend):
+```typescript
+{
+  id, date, customerName, source,
+  revenue, labor, gas, dumpFee, dumpsterRental, additionalExpense,
+  numWorkers, costPerWorker, notes
+}
 ```
 
-**Settings**:
-```javascript
-{ taxPercentage, monthlyGoal, businessInfo: {name, phone, email, address, logo} }
+**AppQuote** (frontend):
+```typescript
+{
+  id, createdAt,
+  customer: { name, phone, email, address, jobDescription },
+  pricing: { ... },
+  photos: string[],
+  estimateRange: { low, high },
+  total
+}
 ```
 
-### External Dependencies
+## Environment Variables
 
-- **jsPDF**: Loaded via CDN (`window.jspdf`) for PDF quote generation in `downloadQuotePDF()`
-- **Google Fonts**: Inter font family
-
-## Key Implementation Details
-
-### Multi-Customer Job Entry
-Jobs form (`renderJobForm()`) allows adding multiple customers at once. Expenses are split evenly across all customers when saving (`saveMultipleJobs()`).
-
-### Quote Builder
-Real-time price preview via `updateQuotePreview()`. Estimate range is calculated as base total +/- 10%.
-
-### Photo Handling
-Photos stored as base64 data URLs in localStorage. Large photos (>2MB) can exceed quota - app warns users and offers to save without photos.
-
-### Monthly Filtering
-Dashboard and Jobs views filter by `selectedMonth`. Use `getJobsForMonth()` for filtered data and `calculateStats()` for aggregations.
-
-## Known Constraints
-
-- localStorage 5MB limit - large photo uploads can fail
-- Quotes auto-delete after 30 days (`cleanOldQuotes()`)
-- No server-side persistence - all data is browser-local
-- PDF generation requires jsPDF library to be loaded
+Required in `.env.local`:
+- `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` - Clerk public key
+- `CLERK_SECRET_KEY` - Clerk secret key
+- `CLERK_WEBHOOK_SECRET` - Clerk webhook signing secret
+- `NEXT_PUBLIC_SUPABASE_URL` - Supabase project URL
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY` - Supabase anon key
+- `SUPABASE_SERVICE_ROLE_KEY` - Supabase service role key (server-side)
+- `STRIPE_SECRET_KEY` - Stripe secret key
+- `STRIPE_WEBHOOK_SECRET` - Stripe webhook signing secret
+- `NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID` - Stripe price ID
+- `NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID` - Stripe price ID
 
 ## Design Tokens
 
-Primary: `#3b82f6`, Success: `#10b981`, Warning: `#fbbf24`, Danger: `#ef4444`
+Primary: `#f97316` (orange-500), Gradient: `from-orange-500 to-amber-500`
+Success: `#f97316` (uses orange), Warning: `#fbbf24`, Danger: `#ef4444`
+
+## Naming Convention
+
+- Database tables: `dyia_*` prefix (snake_case)
+- Database columns: snake_case
+- Frontend types: PascalCase
+- Frontend props: camelCase

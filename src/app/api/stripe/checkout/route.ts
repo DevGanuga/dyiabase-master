@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
+import { createClient } from '@supabase/supabase-js'
 
 function getStripe() {
   if (!process.env.STRIPE_SECRET_KEY) {
@@ -8,15 +9,40 @@ function getStripe() {
   return new Stripe(process.env.STRIPE_SECRET_KEY)
 }
 
+function getSupabase() {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    throw new Error('Supabase environment variables not set')
+  }
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY
+  )
+}
+
 export async function POST(request: NextRequest) {
   try {
     const stripe = getStripe()
-    const { priceId, userId, userEmail, couponCode } = await request.json()
+    const supabase = getSupabase()
+    const { priceId, clerkUserId, userEmail, couponCode } = await request.json()
 
-    if (!priceId || !userId || !userEmail) {
+    if (!priceId || !clerkUserId || !userEmail) {
       return NextResponse.json(
-        { error: 'Missing required fields: priceId, userId, userEmail' },
+        { error: 'Missing required fields: priceId, clerkUserId, userEmail' },
         { status: 400 }
+      )
+    }
+
+    // Get the dyia user ID from clerk_user_id
+    const { data: dyiaUser, error: userError } = await supabase
+      .from('dyia_users')
+      .select('id')
+      .eq('clerk_user_id', clerkUserId)
+      .single()
+
+    if (userError || !dyiaUser) {
+      return NextResponse.json(
+        { error: 'User not found. Please try signing out and back in.' },
+        { status: 404 }
       )
     }
 
@@ -29,13 +55,15 @@ export async function POST(request: NextRequest) {
       success_url: `${baseUrl}/app?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/#pricing`,
       customer_email: userEmail,
-      client_reference_id: userId,
+      client_reference_id: clerkUserId,
       metadata: {
-        supabase_user_id: userId,
+        clerk_user_id: clerkUserId,
+        dyia_user_id: dyiaUser.id,
       },
       subscription_data: {
         metadata: {
-          supabase_user_id: userId,
+          clerk_user_id: clerkUserId,
+          dyia_user_id: dyiaUser.id,
         },
       },
     }

@@ -100,7 +100,7 @@ export function QuoteBuilder({ quotes, setQuotes, userId, onBack, showSuccess }:
       }
 
       const { data, error } = await supabase
-        .from('junkprofit_quotes')
+        .from('dyia_quotes')
         .insert(quoteData)
         .select()
         .single()

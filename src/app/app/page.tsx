@@ -1,10 +1,9 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
+import { useUser, useClerk } from '@clerk/nextjs'
 import { createClient } from '@/lib/supabase/client'
-import type { User } from '@supabase/supabase-js'
 import type { AppJob, AppQuote, AppSettings, UserProfile } from '@/types/database'
-import { AuthModal } from '@/components/auth/AuthModal'
 import { Sidebar } from '@/components/app/Sidebar'
 import { Dashboard } from '@/components/app/Dashboard'
 import { Jobs } from '@/components/app/Jobs'
@@ -14,10 +13,27 @@ import { Settings } from '@/components/app/Settings'
 
 type View = 'dashboard' | 'jobs' | 'quotes' | 'quoteBuilder' | 'settings'
 
+// Demo data for showcase
+const DEMO_JOBS: AppJob[] = [
+  { id: 'demo-1', date: new Date().toISOString().split('T')[0], customerName: 'Johnson Family', source: 'Google', revenue: 450, labor: 80, gas: 25, dumpFee: 65, dumpsterRental: 0, additionalExpense: 0, numWorkers: 2, costPerWorker: 40, notes: 'Full garage cleanout' },
+  { id: 'demo-2', date: new Date(Date.now() - 86400000).toISOString().split('T')[0], customerName: 'Mike\'s Restaurant', source: 'Referral', revenue: 800, labor: 150, gas: 40, dumpFee: 120, dumpsterRental: 150, additionalExpense: 0, numWorkers: 3, costPerWorker: 50, notes: 'Commercial kitchen equipment removal' },
+  { id: 'demo-3', date: new Date(Date.now() - 172800000).toISOString().split('T')[0], customerName: 'Sarah Miller', source: 'Yelp', revenue: 275, labor: 60, gas: 20, dumpFee: 45, dumpsterRental: 0, additionalExpense: 0, numWorkers: 2, costPerWorker: 30, notes: 'Basement cleanout' },
+  { id: 'demo-4', date: new Date(Date.now() - 259200000).toISOString().split('T')[0], customerName: 'Downtown Office Co', source: 'Website', revenue: 1200, labor: 200, gas: 50, dumpFee: 180, dumpsterRental: 200, additionalExpense: 50, numWorkers: 4, costPerWorker: 50, notes: 'Office furniture disposal' },
+  { id: 'demo-5', date: new Date(Date.now() - 345600000).toISOString().split('T')[0], customerName: 'The Martinez Home', source: 'Google', revenue: 350, labor: 70, gas: 22, dumpFee: 55, dumpsterRental: 0, additionalExpense: 0, numWorkers: 2, costPerWorker: 35, notes: 'Attic cleanout' },
+]
+
+const DEMO_SETTINGS: AppSettings = {
+  taxPercentage: 30,
+  monthlyGoal: 8000,
+  businessInfo: { name: 'Demo Junk Co', phone: '(555) 123-4567', email: 'demo@dyia.co', address: '123 Demo Street', logo: null }
+}
+
 export default function AppPage() {
-  const [user, setUser] = useState<User | null>(null)
+  const { user, isLoaded } = useUser()
+  const { signOut } = useClerk()
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
+  const [isDemoMode, setIsDemoMode] = useState(false)
   const [currentView, setCurrentView] = useState<View>('dashboard')
   const [jobs, setJobs] = useState<AppJob[]>([])
   const [quotes, setQuotes] = useState<AppQuote[]>([])
@@ -30,6 +46,30 @@ export default function AppPage() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
 
   const supabase = createClient()
+  
+  // Check for demo mode cookie
+  useEffect(() => {
+    const checkDemoMode = () => {
+      const cookies = document.cookie.split(';')
+      const demoCookie = cookies.find(c => c.trim().startsWith('dyia_demo_access='))
+      if (demoCookie) {
+        setIsDemoMode(true)
+        setJobs(DEMO_JOBS)
+        setSettings(DEMO_SETTINGS)
+        setQuotes([])
+        setUserProfile({
+          id: 'demo-user',
+          clerk_user_id: 'demo',
+          email: 'demo@dyia.co',
+          subscription_status: 'active',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        setLoading(false)
+      }
+    }
+    checkDemoMode()
+  }, [])
 
   const showSuccess = useCallback((message: string) => {
     setSuccessMessage(message)
@@ -40,7 +80,7 @@ export default function AppPage() {
     try {
       // Load jobs
       const { data: jobsData } = await supabase
-        .from('junkprofit_jobs')
+        .from('dyia_jobs')
         .select('*')
         .eq('user_id', userId)
         .order('date', { ascending: false })
@@ -65,7 +105,7 @@ export default function AppPage() {
 
       // Load quotes
       const { data: quotesData } = await supabase
-        .from('junkprofit_quotes')
+        .from('dyia_quotes')
         .select('*')
         .eq('user_id', userId)
         .order('created_at', { ascending: false })
@@ -90,7 +130,7 @@ export default function AppPage() {
 
       // Load settings
       const { data: settingsData } = await supabase
-        .from('junkprofit_settings')
+        .from('dyia_settings')
         .select('*')
         .eq('user_id', userId)
         .single()
@@ -113,30 +153,42 @@ export default function AppPage() {
     }
   }, [supabase])
 
+  // Initialize user profile when Clerk user is loaded
   useEffect(() => {
-    const initAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
+    const initUserProfile = async () => {
+      // Skip if in demo mode
+      if (isDemoMode) return
+      
+      if (!isLoaded || !user) {
+        setLoading(false)
+        return
+      }
 
-      if (session?.user) {
-        setUser(session.user)
-        
-        // Get or create user profile
+      try {
+        // Check if user profile exists
         let { data: profile } = await supabase
-          .from('junkprofit_users')
+          .from('dyia_users')
           .select('*')
-          .eq('auth_user_id', session.user.id)
+          .eq('clerk_user_id', user.id)
           .single()
 
+        // If no profile, create one
         if (!profile) {
-          const { data: newProfile } = await supabase
-            .from('junkprofit_users')
-            .insert({ auth_user_id: session.user.id, email: session.user.email })
+          const { data: newProfile, error: createError } = await supabase
+            .from('dyia_users')
+            .insert({ 
+              clerk_user_id: user.id, 
+              email: user.primaryEmailAddress?.emailAddress || ''
+            })
             .select()
             .single()
 
-          if (newProfile) {
+          if (createError) {
+            console.error('Error creating user profile:', createError)
+          } else if (newProfile) {
+            // Create default settings
             await supabase
-              .from('junkprofit_settings')
+              .from('dyia_settings')
               .insert({ user_id: newProfile.id })
 
             profile = newProfile
@@ -147,68 +199,35 @@ export default function AppPage() {
           setUserProfile(profile)
           await loadData(profile.id)
         }
+      } catch (error) {
+        console.error('Error initializing user:', error)
+      } finally {
+        setLoading(false)
       }
-
-      setLoading(false)
     }
 
-    initAuth()
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN' && session?.user) {
-        setUser(session.user)
-        
-        let { data: profile } = await supabase
-          .from('junkprofit_users')
-          .select('*')
-          .eq('auth_user_id', session.user.id)
-          .single()
-
-        if (!profile) {
-          const { data: newProfile } = await supabase
-            .from('junkprofit_users')
-            .insert({ auth_user_id: session.user.id, email: session.user.email })
-            .select()
-            .single()
-
-          if (newProfile) {
-            await supabase
-              .from('junkprofit_settings')
-              .insert({ user_id: newProfile.id })
-
-            profile = newProfile
-          }
-        }
-
-        if (profile) {
-          setUserProfile(profile)
-          await loadData(profile.id)
-        }
-      } else if (event === 'SIGNED_OUT') {
-        setUser(null)
-        setUserProfile(null)
-        setJobs([])
-        setQuotes([])
-      }
-    })
-
-    return () => subscription.unsubscribe()
-  }, [supabase, loadData])
+    initUserProfile()
+  }, [isLoaded, user, supabase, loadData, isDemoMode])
 
   const handleLogout = async () => {
-    await supabase.auth.signOut()
-    window.location.href = '/'
+    if (isDemoMode) {
+      // Clear demo cookie and redirect
+      document.cookie = 'dyia_demo_access=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
+      window.location.href = '/'
+      return
+    }
+    await signOut()
   }
 
   // Loading State
-  if (loading) {
+  if ((!isLoaded && !isDemoMode) || loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-orange-50/30 via-white to-amber-50/30 flex items-center justify-center">
         <div className="text-center">
           <img 
-            src="/image-removebg-preview.png" 
+            src="/dyia-logo.png" 
             alt="dyia logo" 
-            className="w-16 h-16 mb-4 mx-auto animate-pulse"
+            className="w-12 h-12 mb-4 mx-auto animate-pulse"
           />
           <div className="loading-spinner mx-auto mb-4" />
           <p className="text-slate-500 font-medium">Loading your dashboard...</p>
@@ -217,9 +236,9 @@ export default function AppPage() {
     )
   }
 
-  // Auth Required
-  if (!user) {
-    return <AuthModal />
+  // This shouldn't happen due to middleware, but just in case
+  if (!user && !isDemoMode) {
+    return null
   }
 
   const renderContent = () => {
@@ -280,16 +299,29 @@ export default function AppPage() {
 
   return (
     <div className="app-layout">
+      {/* Demo Mode Banner */}
+      {isDemoMode && (
+        <div className="fixed top-0 left-0 right-0 z-50 bg-gradient-to-r from-orange-500 to-amber-500 text-white text-center py-2 px-4 text-sm font-medium shadow-lg">
+          🎯 Demo Mode — Data is sample only and won&apos;t be saved.{' '}
+          <button 
+            onClick={handleLogout}
+            className="underline hover:no-underline ml-2"
+          >
+            Exit Demo
+          </button>
+        </div>
+      )}
+      
       <Sidebar
         currentView={currentView}
         setCurrentView={setCurrentView}
-        userEmail={user.email || ''}
+        userEmail={isDemoMode ? 'demo@dyia.co' : (user?.primaryEmailAddress?.emailAddress || '')}
         onLogout={handleLogout}
         jobs={jobs}
         showSuccess={showSuccess}
       />
       
-      <main className="flex-1 overflow-y-auto p-6 lg:p-8">
+      <main className={`flex-1 overflow-y-auto p-6 lg:p-8 ${isDemoMode ? 'pt-16' : ''}`}>
         <div className="max-w-6xl mx-auto">
           {renderContent()}
         </div>

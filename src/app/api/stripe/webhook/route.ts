@@ -88,12 +88,27 @@ export async function POST(request: NextRequest) {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function handleCheckoutComplete(stripe: Stripe, supabase: any, session: Stripe.Checkout.Session) {
-  const supabaseUserId = session.metadata?.supabase_user_id || session.client_reference_id
+  // Get dyia_user_id from metadata (preferred) or lookup by clerk_user_id
+  let dyiaUserId = session.metadata?.dyia_user_id
+  const clerkUserId = session.metadata?.clerk_user_id || session.client_reference_id
   const customerId = session.customer as string
   const subscriptionId = session.subscription as string
 
-  if (!supabaseUserId) {
-    console.error('No Supabase user ID in session metadata')
+  // If no dyia_user_id in metadata, look it up from clerk_user_id
+  if (!dyiaUserId && clerkUserId) {
+    const { data: user } = await supabase
+      .from('dyia_users')
+      .select('id')
+      .eq('clerk_user_id', clerkUserId)
+      .single()
+    
+    if (user) {
+      dyiaUserId = user.id
+    }
+  }
+
+  if (!dyiaUserId) {
+    console.error('No dyia user ID found in session metadata or by clerk_user_id lookup')
     return
   }
 
@@ -107,7 +122,7 @@ async function handleCheckoutComplete(stripe: Stripe, supabase: any, session: St
   const periodEnd = subscription.current_period_end
 
   const { error } = await supabase
-    .from('junkprofit_users')
+    .from('dyia_users')
     .update({
       stripe_customer_id: customerId,
       stripe_subscription_id: subscriptionId,
@@ -115,14 +130,14 @@ async function handleCheckoutComplete(stripe: Stripe, supabase: any, session: St
       subscription_plan: plan,
       subscription_ends_at: periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
     })
-    .eq('auth_user_id', supabaseUserId)
+    .eq('id', dyiaUserId)
 
   if (error) {
     console.error('Error updating user subscription:', error)
     throw error
   }
 
-  console.log(`Subscription activated for user ${supabaseUserId}`)
+  console.log(`Subscription activated for dyia user ${dyiaUserId}`)
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -145,7 +160,7 @@ async function handleSubscriptionUpdate(supabase: any, subscription: Stripe.Subs
   else if (status === 'canceled') ourStatus = 'canceled'
 
   const { error } = await supabase
-    .from('junkprofit_users')
+    .from('dyia_users')
     .update({
       subscription_status: ourStatus,
       subscription_plan: plan,
@@ -168,7 +183,7 @@ async function handleSubscriptionCanceled(supabase: any, subscription: Stripe.Su
   const periodEnd = sub.current_period_end
 
   const { error } = await supabase
-    .from('junkprofit_users')
+    .from('dyia_users')
     .update({
       subscription_status: 'canceled',
       subscription_ends_at: periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
@@ -188,7 +203,7 @@ async function handlePaymentFailed(supabase: any, invoice: Stripe.Invoice) {
   const customerId = invoice.customer as string
 
   const { error } = await supabase
-    .from('junkprofit_users')
+    .from('dyia_users')
     .update({ subscription_status: 'past_due' })
     .eq('stripe_customer_id', customerId)
 
