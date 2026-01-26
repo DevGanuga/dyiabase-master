@@ -172,26 +172,22 @@ export default function AppPage() {
           .eq('clerk_user_id', user.id)
           .single()
 
-        // If no profile, create one
+        // If no profile, create one via API (uses service role key)
         if (!profile) {
-          const { data: newProfile, error: createError } = await supabase
-            .from('dyia_users')
-            .insert({ 
-              clerk_user_id: user.id, 
-              email: user.primaryEmailAddress?.emailAddress || ''
-            })
-            .select()
-            .single()
+          const response = await fetch('/api/user/init', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              email: user.primaryEmailAddress?.emailAddress || '' 
+            }),
+          })
 
-          if (createError) {
-            console.error('Error creating user profile:', createError)
-          } else if (newProfile) {
-            // Create default settings
-            await supabase
-              .from('dyia_settings')
-              .insert({ user_id: newProfile.id })
-
-            profile = newProfile
+          if (response.ok) {
+            const data = await response.json()
+            profile = data.profile
+          } else {
+            const error = await response.json()
+            console.error('Error creating user profile:', error)
           }
         }
 
