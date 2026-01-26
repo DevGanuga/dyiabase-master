@@ -221,9 +221,9 @@ export default function AppPage() {
       <div className="min-h-screen bg-gradient-to-br from-orange-50/30 via-white to-amber-50/30 flex items-center justify-center">
         <div className="text-center">
           <img 
-            src="/dyia-logo.png" 
+            src="/dyia-logo-full.png" 
             alt="dyia logo" 
-            className="w-12 h-12 mb-4 mx-auto animate-pulse"
+            className="h-10 mb-4 mx-auto animate-pulse"
           />
           <div className="loading-spinner mx-auto mb-4" />
           <p className="text-slate-500 font-medium">Loading your dashboard...</p>

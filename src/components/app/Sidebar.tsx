@@ -69,18 +69,14 @@ export function Sidebar({ currentView, setCurrentView, userEmail, onLogout, jobs
     <aside className="app-sidebar">
       {/* Logo Header */}
       <div className="sidebar-header p-6 border-b border-slate-100">
-        <Link href="/" className="flex items-center gap-3 group">
+        <Link href="/" className="group">
           <Image 
-            src="/dyia-logo.png" 
+            src="/dyia-logo-full.png" 
             alt="dyia logo" 
-            width={36} 
+            width={100} 
             height={36}
-            className="group-hover:scale-105 transition-transform drop-shadow-md"
+            className="group-hover:scale-105 transition-transform"
           />
-          <div className="sidebar-logo-text">
-            <h1 className="text-lg font-bold text-slate-900">dyia</h1>
-            <p className="text-xs text-slate-500 font-medium">Your day, decoded</p>
-          </div>
         </Link>
       </div>
 

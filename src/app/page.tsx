@@ -158,15 +158,14 @@ export default function LandingPage() {
       {/* Navigation */}
       <nav className={`sticky top-0 z-50 bg-white/90 backdrop-blur-xl border-b border-orange-100 transition-all duration-500 ${mounted ? 'translate-y-0 opacity-100' : '-translate-y-4 opacity-0'}`}>
         <div className="max-w-6xl mx-auto px-6 py-4 flex justify-between items-center">
-          <Link href="/" className="flex items-center gap-2.5 group">
+          <Link href="/" className="group">
             <Image 
-              src="/dyia-logo.png" 
+              src="/dyia-logo-full.png" 
               alt="dyia" 
-              width={36} 
+              width={100} 
               height={36}
-              className="group-hover:scale-110 transition-transform drop-shadow-md"
+              className="group-hover:scale-105 transition-transform"
             />
-            <span className="text-xl font-bold bg-gradient-to-r from-orange-600 to-amber-600 bg-clip-text text-transparent">dyia</span>
           </Link>
           <div className="hidden md:flex items-center gap-6">
             <a href="#how-it-works" className="text-slate-600 hover:text-orange-600 text-sm font-medium transition">How it works</a>
@@ -688,15 +687,12 @@ export default function LandingPage() {
       <footer className="border-t border-orange-100 py-12 px-6 bg-gradient-to-b from-white to-orange-50/50">
         <div className="max-w-6xl mx-auto">
           <div className="flex flex-col md:flex-row justify-between items-center gap-6">
-            <div className="flex items-center gap-2">
-              <Image 
-                src="/dyia-logo.png" 
-                alt="dyia" 
-                width={28} 
-                height={28}
-              />
-              <span className="font-bold bg-gradient-to-r from-orange-600 to-amber-600 bg-clip-text text-transparent">dyia</span>
-            </div>
+            <Image 
+              src="/dyia-logo-full.png" 
+              alt="dyia" 
+              width={80} 
+              height={28}
+            />
             <div className="flex flex-wrap justify-center gap-6 text-sm">
               <a href="mailto:support@dyia.co" className="text-slate-500 hover:text-orange-600 transition">support@dyia.co</a>
               <a href="#" className="text-slate-500 hover:text-orange-600 transition">Terms</a>

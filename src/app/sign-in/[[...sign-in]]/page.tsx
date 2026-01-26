@@ -14,15 +14,14 @@ export default function SignInPage() {
       </div>
 
       {/* Logo */}
-      <Link href="/" className="flex items-center gap-3 mb-8 group">
+      <Link href="/" className="mb-8 group">
         <Image 
-          src="/dyia-logo.png" 
+          src="/dyia-logo-full.png" 
           alt="dyia logo" 
-          width={40} 
+          width={120} 
           height={40}
-          className="group-hover:scale-105 transition-transform drop-shadow-lg"
+          className="group-hover:scale-105 transition-transform"
         />
-        <span className="text-2xl font-bold text-slate-800">dyia</span>
       </Link>
 
       {/* Clerk Sign In */}
