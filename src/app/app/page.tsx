@@ -10,8 +10,9 @@ import { Jobs } from '@/components/app/Jobs'
 import { Quotes } from '@/components/app/Quotes'
 import { QuoteBuilder } from '@/components/app/QuoteBuilder'
 import { Settings } from '@/components/app/Settings'
+import { FollowUps } from '@/components/app/FollowUps'
 
-type View = 'dashboard' | 'jobs' | 'quotes' | 'quoteBuilder' | 'settings'
+type View = 'dashboard' | 'jobs' | 'quotes' | 'quoteBuilder' | 'followUps' | 'settings'
 
 // Demo data for showcase
 const DEMO_JOBS: AppJob[] = [
@@ -44,6 +45,7 @@ export default function AppPage() {
   })
   const [selectedMonth, setSelectedMonth] = useState(new Date())
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const [fixedMonthlyExpenses, setFixedMonthlyExpenses] = useState(0)
 
   const supabase = createClient()
   
@@ -57,6 +59,7 @@ export default function AppPage() {
         setJobs(DEMO_JOBS)
         setSettings(DEMO_SETTINGS)
         setQuotes([])
+        setFixedMonthlyExpenses(0)
         setUserProfile({
           id: 'demo-user',
           clerk_user_id: 'demo',
@@ -147,6 +150,26 @@ export default function AppPage() {
             logo: settingsData.business_logo || null
           }
         })
+      }
+
+      try {
+        const { data: fixedData, error: fixedError } = await supabase
+          .from('dyia_fixed_expenses')
+          .select('amount, frequency, is_active')
+          .eq('user_id', userId)
+
+        if (fixedError) throw fixedError
+
+        const monthlyTotal = (fixedData || []).reduce((sum, expense) => {
+          if (expense.is_active === false) return sum
+          const amount = parseFloat(expense.amount) || 0
+          return sum + (expense.frequency === 'yearly' ? amount / 12 : amount)
+        }, 0)
+
+        setFixedMonthlyExpenses(monthlyTotal)
+      } catch (error) {
+        console.error('Error loading fixed expenses:', error)
+        setFixedMonthlyExpenses(0)
       }
     } catch (error) {
       console.error('Error loading data:', error)
@@ -247,6 +270,7 @@ export default function AppPage() {
             selectedMonth={selectedMonth}
             setSelectedMonth={setSelectedMonth}
             onAddJob={() => setCurrentView('jobs')}
+            fixedMonthlyExpenses={fixedMonthlyExpenses}
           />
         )
       case 'jobs':
@@ -287,6 +311,14 @@ export default function AppPage() {
             settings={settings}
             setSettings={setSettings}
             userId={userProfile?.id || ''}
+            showSuccess={showSuccess}
+          />
+        )
+      case 'followUps':
+        return (
+          <FollowUps
+            userId={userProfile?.id || ''}
+            businessName={settings.businessInfo.name || 'dyia'}
             showSuccess={showSuccess}
           />
         )

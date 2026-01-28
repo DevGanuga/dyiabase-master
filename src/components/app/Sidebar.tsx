@@ -1,10 +1,10 @@
-'use client'
+﻿'use client'
 
 import type { AppJob } from '@/types/database'
 import Link from 'next/link'
 import Image from 'next/image'
 
-type View = 'dashboard' | 'jobs' | 'quotes' | 'quoteBuilder' | 'settings'
+type View = 'dashboard' | 'jobs' | 'quotes' | 'quoteBuilder' | 'followUps' | 'settings'
 
 interface SidebarProps {
   currentView: View
@@ -16,11 +16,12 @@ interface SidebarProps {
 }
 
 const NAV_ITEMS: { id: View; icon: string; label: string }[] = [
-  { id: 'dashboard', icon: '📊', label: 'Dashboard' },
-  { id: 'jobs', icon: '💼', label: 'Jobs' },
-  { id: 'quotes', icon: '📋', label: 'Quotes' },
-  { id: 'quoteBuilder', icon: '✏️', label: 'Quote Builder' },
-  { id: 'settings', icon: '⚙️', label: 'Settings' },
+  { id: 'dashboard', icon: 'ðŸ“Š', label: 'Dashboard' },
+  { id: 'jobs', icon: 'ðŸ’¼', label: 'Jobs' },
+  { id: 'quotes', icon: 'ðŸ“‹', label: 'Quotes' },
+  { id: 'quoteBuilder', icon: 'âœï¸', label: 'Quote Builder' },
+  { id: 'followUps', icon: 'ðŸ“', label: 'Follow-ups' },
+  { id: 'settings', icon: 'âš™ï¸', label: 'Settings' },
 ]
 
 export function Sidebar({ currentView, setCurrentView, userEmail, onLogout, jobs, showSuccess }: SidebarProps) {
@@ -62,7 +63,7 @@ export function Sidebar({ currentView, setCurrentView, userEmail, onLogout, jobs
     link.click()
     URL.revokeObjectURL(url)
 
-    showSuccess('📥 CSV exported successfully!')
+    showSuccess('ðŸ“¥ CSV exported successfully!')
   }
 
   return (
@@ -84,7 +85,7 @@ export function Sidebar({ currentView, setCurrentView, userEmail, onLogout, jobs
       <div className="sidebar-user px-4 py-4 border-b border-slate-100">
         <div className="flex items-center gap-3 px-2">
           <div className="w-9 h-9 bg-gradient-to-br from-orange-100 to-amber-100 rounded-lg flex items-center justify-center text-lg">
-            👤
+            ðŸ‘¤
           </div>
           <div className="sidebar-text flex-1 min-w-0">
             <p className="text-sm font-medium text-slate-900 truncate">{userEmail}</p>
@@ -137,3 +138,6 @@ export function Sidebar({ currentView, setCurrentView, userEmail, onLogout, jobs
     </aside>
   )
 }
+
+
+

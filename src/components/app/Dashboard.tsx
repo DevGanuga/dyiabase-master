@@ -1,7 +1,8 @@
-'use client'
+﻿'use client'
 
 import type { AppJob, AppSettings } from '@/types/database'
 import { formatCurrency, calculateStats } from '@/lib/utils'
+import { ProFeature } from '@/components/ui/ProFeature'
 
 interface DashboardProps {
   jobs: AppJob[]
@@ -9,9 +10,10 @@ interface DashboardProps {
   selectedMonth: Date
   setSelectedMonth: (date: Date) => void
   onAddJob: () => void
+  fixedMonthlyExpenses?: number
 }
 
-export function Dashboard({ jobs, settings, selectedMonth, setSelectedMonth, onAddJob }: DashboardProps) {
+export function Dashboard({ jobs, settings, selectedMonth, setSelectedMonth, onAddJob, fixedMonthlyExpenses = 0 }: DashboardProps) {
   const monthJobs = jobs.filter(job => {
     const jobDate = new Date(job.date)
     return jobDate.getMonth() === selectedMonth.getMonth() &&
@@ -19,6 +21,10 @@ export function Dashboard({ jobs, settings, selectedMonth, setSelectedMonth, onA
   })
 
   const stats = calculateStats(monthJobs, settings)
+  const adjustedExpenses = stats.totalExpenses + fixedMonthlyExpenses
+  const adjustedNetProfit = stats.totalRevenue - adjustedExpenses
+  const adjustedSetAside = adjustedNetProfit * (settings.taxPercentage / 100)
+  const adjustedStats = { ...stats, totalExpenses: adjustedExpenses, netProfit: adjustedNetProfit, setAside: adjustedSetAside }
   const monthValue = `${selectedMonth.getFullYear()}-${String(selectedMonth.getMonth() + 1).padStart(2, '0')}`
   const monthName = selectedMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
 
@@ -87,7 +93,7 @@ export function Dashboard({ jobs, settings, selectedMonth, setSelectedMonth, onA
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4 mb-4">
             <div>
               <div className="flex items-center gap-2 mb-2">
-                <span className="text-2xl">🎯</span>
+                <span className="text-2xl">ðŸŽ¯</span>
                 <h3 className="text-lg font-bold text-emerald-900">Monthly Revenue Goal</h3>
               </div>
               <p className="text-emerald-700">
@@ -100,7 +106,7 @@ export function Dashboard({ jobs, settings, selectedMonth, setSelectedMonth, onA
               <div className="text-4xl font-bold text-emerald-600">{Math.round(stats.goalProgress)}%</div>
               <p className="text-sm text-emerald-600/70">
                 {stats.goalProgress >= 100 
-                  ? '🎉 Goal achieved!' 
+                  ? 'ðŸŽ‰ Goal achieved!' 
                   : `${formatCurrency(settings.monthlyGoal - stats.totalRevenue)} to go`
                 }
               </p>
@@ -120,7 +126,7 @@ export function Dashboard({ jobs, settings, selectedMonth, setSelectedMonth, onA
         {/* Jobs Count */}
         <div className="app-stat-card">
           <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center text-2xl mb-4">
-            📊
+            ðŸ“Š
           </div>
           <p className="text-sm font-medium text-slate-500 mb-1">Jobs This Month</p>
           <p className="text-3xl font-bold text-slate-900">{stats.jobCount}</p>
@@ -134,7 +140,7 @@ export function Dashboard({ jobs, settings, selectedMonth, setSelectedMonth, onA
         {/* Total Revenue */}
         <div className="app-stat-card">
           <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center text-2xl mb-4">
-            💵
+            ðŸ’µ
           </div>
           <p className="text-sm font-medium text-slate-500 mb-1">Total Revenue</p>
           <p className="text-3xl font-bold text-emerald-600">{formatCurrency(stats.totalRevenue)}</p>
@@ -143,13 +149,13 @@ export function Dashboard({ jobs, settings, selectedMonth, setSelectedMonth, onA
         {/* Total Expenses */}
         <div className="app-stat-card">
           <div className="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center text-2xl mb-4">
-            📦
+            ðŸ“¦
           </div>
           <p className="text-sm font-medium text-slate-500 mb-1">Total Expenses</p>
-          <p className="text-3xl font-bold text-orange-600">{formatCurrency(stats.totalExpenses)}</p>
+          <p className="text-3xl font-bold text-orange-600">{formatCurrency(adjustedStats.totalExpenses)}</p>
           {stats.totalRevenue > 0 && (
             <p className="text-xs text-slate-400 mt-2">
-              {Math.round((stats.totalExpenses / stats.totalRevenue) * 100)}% of revenue
+              {Math.round((adjustedStats.totalExpenses / stats.totalRevenue) * 100)}% of revenue
             </p>
           )}
         </div>
@@ -157,36 +163,44 @@ export function Dashboard({ jobs, settings, selectedMonth, setSelectedMonth, onA
         {/* Net Profit */}
         <div className="app-stat-card">
           <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center text-2xl mb-4">
-            📈
+            ðŸ“ˆ
           </div>
           <p className="text-sm font-medium text-slate-500 mb-1">Net Profit</p>
-          <p className={`text-3xl font-bold ${stats.netProfit >= 0 ? 'text-purple-600' : 'text-red-600'}`}>
-            {formatCurrency(stats.netProfit)}
+          <p className={`text-3xl font-bold ${adjustedStats.netProfit >= 0 ? 'text-purple-600' : 'text-red-600'}`}>
+            {formatCurrency(adjustedStats.netProfit)}
           </p>
           {stats.totalRevenue > 0 && (
             <p className="text-xs text-slate-400 mt-2">
-              {Math.round((stats.netProfit / stats.totalRevenue) * 100)}% margin
+              {Math.round((adjustedStats.netProfit / stats.totalRevenue) * 100)}% margin
             </p>
           )}
         </div>
-
+        {/* Fixed Expenses */}
+        <div className="app-stat-card">
+          <div className="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center text-2xl mb-4">
+            ðŸ§¾
+          </div>
+          <p className="text-sm font-medium text-slate-500 mb-1">Fixed Expenses (Monthly)</p>
+          <p className="text-3xl font-bold text-slate-700">{formatCurrency(fixedMonthlyExpenses)}</p>
+          <p className="text-xs text-slate-400 mt-2">Subscriptions, insurance, vehicle, etc.</p>
+        </div>
         {/* Tax Set-Aside */}
         <div className="app-stat-card bg-gradient-to-br from-amber-50 to-yellow-50 border-amber-100">
           <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center text-2xl mb-4 shadow-sm">
-            🐷
+            ðŸ·
           </div>
           <p className="text-sm font-medium text-amber-800 mb-1">
             Set Aside ({settings.taxPercentage}%)
           </p>
-          <p className="text-3xl font-bold text-amber-700">{formatCurrency(stats.setAside)}</p>
-          <p className="text-xs text-amber-600/70 mt-2">💡 For taxes & savings</p>
+          <p className="text-3xl font-bold text-amber-700">{formatCurrency(adjustedStats.setAside)}</p>
+          <p className="text-xs text-amber-600/70 mt-2">ðŸ’¡ For taxes & savings</p>
         </div>
 
         {/* Top Marketing Source */}
         {stats.topSource ? (
           <div className="app-stat-card bg-gradient-to-br from-violet-50 to-purple-50 border-violet-100">
             <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center text-2xl mb-4 shadow-sm">
-              📣
+              ðŸ“£
             </div>
             <p className="text-sm font-medium text-violet-800 mb-1">Top Source</p>
             <p className="text-2xl font-bold text-violet-700 truncate">{stats.topSource}</p>
@@ -197,7 +211,7 @@ export function Dashboard({ jobs, settings, selectedMonth, setSelectedMonth, onA
         ) : stats.jobCount > 0 ? (
           <div className="app-stat-card bg-slate-50 border-slate-100">
             <div className="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center text-2xl mb-4">
-              📣
+              ðŸ“£
             </div>
             <p className="text-sm font-medium text-slate-500 mb-1">Top Source</p>
             <p className="text-lg font-semibold text-slate-400">No data yet</p>
@@ -205,11 +219,27 @@ export function Dashboard({ jobs, settings, selectedMonth, setSelectedMonth, onA
           </div>
         ) : null}
       </div>
-
+      {/* AI Insights Placeholder */}
+      <div className="mt-6">
+        <ProFeature
+          title="AI Insights"
+          description="Unlock weekly and monthly insights on your business performance."
+        >
+          <div className="app-card bg-gradient-to-r from-slate-50 to-white border-slate-200">
+            <div className="flex items-center gap-3 mb-3">
+              <span className="text-2xl">ðŸ¤–</span>
+              <h3 className="text-lg font-semibold text-slate-900">AI Insights</h3>
+            </div>
+            <p className="text-sm text-slate-600">
+              Youâ€™ll see trends, conversion risks, and actionable recommendations here.
+            </p>
+          </div>
+        </ProFeature>
+      </div>
       {/* Empty State */}
       {stats.jobCount === 0 && (
         <div className="app-card mt-6 text-center py-12">
-          <div className="text-6xl mb-4">📊</div>
+          <div className="text-6xl mb-4">ðŸ“Š</div>
           <h3 className="text-xl font-semibold text-slate-700 mb-2">No jobs this month</h3>
           <p className="text-slate-500 mb-6">Start tracking your profits by adding your first job.</p>
           <button onClick={onAddJob} className="app-btn-primary">
@@ -223,3 +253,5 @@ export function Dashboard({ jobs, settings, selectedMonth, setSelectedMonth, onA
     </div>
   )
 }
+
+

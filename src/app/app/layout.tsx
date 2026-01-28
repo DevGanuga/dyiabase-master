@@ -1,6 +1,7 @@
 import { auth } from '@clerk/nextjs/server'
 import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
+import { TrialBanner } from '@/components/app/TrialBanner'
 
 export default async function AppLayout({
   children,
@@ -20,5 +21,10 @@ export default async function AppLayout({
     }
   }
 
-  return <>{children}</>
+  return (
+    <>
+      <TrialBanner />
+      {children}
+    </>
+  )
 }
