@@ -1,4 +1,4 @@
-import type { AppJob, AppSettings } from '@/types/database'
+import type { AppJob, AppSettings, AppFixedExpense } from '@/types/database'
 
 export function formatCurrency(amount: number): string {
   return new Intl.NumberFormat('en-US', {
@@ -73,4 +73,77 @@ export async function compressImage(dataUrl: string, maxWidth = 800, quality = 0
     }
     img.src = dataUrl
   })
+}
+
+// ============================================
+// FIXED EXPENSE UTILITIES
+// ============================================
+
+/**
+ * Calculate total monthly fixed expenses
+ * Converts yearly expenses to monthly equivalent (yearly / 12)
+ */
+export function calculateMonthlyFixedExpenses(expenses: AppFixedExpense[]): number {
+  return expenses
+    .filter(e => e.isActive)
+    .reduce((total, expense) => {
+      const monthlyAmount = expense.frequency === 'yearly' 
+        ? expense.amount / 12 
+        : expense.amount
+      return total + monthlyAmount
+    }, 0)
+}
+
+/**
+ * Calculate total yearly fixed expenses
+ * Converts monthly expenses to yearly equivalent (monthly * 12)
+ */
+export function calculateYearlyFixedExpenses(expenses: AppFixedExpense[]): number {
+  return expenses
+    .filter(e => e.isActive)
+    .reduce((total, expense) => {
+      const yearlyAmount = expense.frequency === 'monthly' 
+        ? expense.amount * 12 
+        : expense.amount
+      return total + yearlyAmount
+    }, 0)
+}
+
+/**
+ * Group expenses by category with totals
+ */
+export function groupExpensesByCategory(expenses: AppFixedExpense[]): Record<string, { 
+  expenses: AppFixedExpense[]
+  monthlyTotal: number 
+}> {
+  const grouped: Record<string, { expenses: AppFixedExpense[]; monthlyTotal: number }> = {}
+  
+  expenses.forEach(expense => {
+    const category = expense.category || 'other'
+    if (!grouped[category]) {
+      grouped[category] = { expenses: [], monthlyTotal: 0 }
+    }
+    grouped[category].expenses.push(expense)
+    if (expense.isActive) {
+      const monthlyAmount = expense.frequency === 'yearly' 
+        ? expense.amount / 12 
+        : expense.amount
+      grouped[category].monthlyTotal += monthlyAmount
+    }
+  })
+  
+  return grouped
+}
+
+// Category labels and emojis for fixed expenses
+export const EXPENSE_CATEGORIES: Record<string, { label: string; emoji: string }> = {
+  vehicle: { label: 'Vehicle', emoji: '🚗' },
+  insurance: { label: 'Insurance', emoji: '🛡️' },
+  software: { label: 'Software', emoji: '💻' },
+  rent: { label: 'Rent/Lease', emoji: '🏢' },
+  utilities: { label: 'Utilities', emoji: '⚡' },
+  marketing: { label: 'Marketing', emoji: '📣' },
+  equipment: { label: 'Equipment', emoji: '🔧' },
+  subscription: { label: 'Subscriptions', emoji: '📱' },
+  other: { label: 'Other', emoji: '📦' },
 }

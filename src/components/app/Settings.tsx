@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { AppSettings } from '@/types/database'
 import { compressImage, formatCurrency } from '@/lib/utils'
+import { FixedExpenses } from './FixedExpenses'
 
 interface SettingsProps {
   settings: AppSettings
@@ -330,7 +331,7 @@ export function Settings({ settings, setSettings, userId, showSuccess }: Setting
       </div>
 
       {/* Save Button */}
-      <div className="flex justify-end">
+      <div className="flex justify-end mb-8">
         <button 
           onClick={saveSettings} 
           disabled={saving} 
@@ -350,6 +351,11 @@ export function Settings({ settings, setSettings, userId, showSuccess }: Setting
             </>
           )}
         </button>
+      </div>
+
+      {/* Fixed Expenses Section */}
+      <div className="border-t border-slate-200 pt-8">
+        <FixedExpenses userId={userId} showSuccess={showSuccess} />
       </div>
     </div>
   )
