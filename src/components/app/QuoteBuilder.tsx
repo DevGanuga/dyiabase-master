@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import type { AppQuote } from '@/types/database'
+import type { AppQuote, AppPriceTemplate } from '@/types/database'
 import { formatCurrency, compressImage } from '@/lib/utils'
 
 interface QuoteBuilderProps {
@@ -27,8 +27,56 @@ export function QuoteBuilder({ quotes, setQuotes, userId, onBack, showSuccess }:
   const [photos, setPhotos] = useState<(string | null)[]>([null, null, null])
   const [total, setTotal] = useState(0)
   const [saving, setSaving] = useState(false)
+  const [defaultTemplate, setDefaultTemplate] = useState<AppPriceTemplate | null>(null)
+  const [templateLoaded, setTemplateLoaded] = useState(false)
 
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
+
+  // Load default price template on mount
+  useEffect(() => {
+    const loadDefaultTemplate = async () => {
+      if (!userId || templateLoaded) return
+
+      try {
+        const { data, error } = await supabase
+          .from('dyia_price_templates')
+          .select('*')
+          .eq('user_id', userId)
+          .eq('is_default', true)
+          .single()
+
+        if (error && error.code !== 'PGRST116') throw error // PGRST116 = no rows
+
+        if (data) {
+          const template: AppPriceTemplate = {
+            id: data.id,
+            name: data.name,
+            isDefault: data.is_default,
+            prices: data.prices
+          }
+          setDefaultTemplate(template)
+          
+          // Auto-fill pricing fields from template
+          const templatePricing: Record<string, number> = {}
+          if (template.prices.minimumFee) templatePricing.minimumFee = template.prices.minimumFee
+          if (template.prices.quarterLoad) templatePricing.quarterLoad = template.prices.quarterLoad
+          if (template.prices.halfLoad) templatePricing.halfLoad = template.prices.halfLoad
+          if (template.prices.threeQuarterLoad) templatePricing.threeQuarterLoad = template.prices.threeQuarterLoad
+          if (template.prices.fullLoad) templatePricing.fullLoad = template.prices.fullLoad
+          if (template.prices.surcharges?.trampoline) templatePricing.trampoline = template.prices.surcharges.trampoline
+          if (template.prices.surcharges?.hotTub) templatePricing.hotTub = template.prices.surcharges.hotTub
+          
+          setPricing(templatePricing)
+        }
+      } catch (error) {
+        console.error('Error loading default template:', error)
+      } finally {
+        setTemplateLoaded(true)
+      }
+    }
+
+    loadDefaultTemplate()
+  }, [userId, supabase, templateLoaded])
 
   const calculateTotal = useCallback(() => {
     const multipleLoadsTotal = numLoads * pricePerLoad
@@ -216,9 +264,16 @@ export function QuoteBuilder({ quotes, setQuotes, userId, onBack, showSuccess }:
 
         {/* Volume-Based Pricing */}
         <div className="app-card mb-5">
-          <div className="flex items-center gap-3 mb-5">
-            <span className="text-xl">📦</span>
-            <h3 className="font-semibold text-slate-900">Volume-Based Pricing</h3>
+          <div className="flex items-center justify-between mb-5">
+            <div className="flex items-center gap-3">
+              <span className="text-xl">📦</span>
+              <h3 className="font-semibold text-slate-900">Volume-Based Pricing</h3>
+            </div>
+            {defaultTemplate && (
+              <span className="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded-full">
+                Using: {defaultTemplate.name}
+              </span>
+            )}
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
             {[

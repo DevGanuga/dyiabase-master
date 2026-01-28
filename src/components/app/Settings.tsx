@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import type { AppSettings } from '@/types/database'
 import { compressImage, formatCurrency } from '@/lib/utils'
 import { FixedExpenses } from './FixedExpenses'
+import { PriceTemplates } from './PriceTemplates'
 
 interface SettingsProps {
   settings: AppSettings
@@ -356,6 +357,11 @@ export function Settings({ settings, setSettings, userId, showSuccess }: Setting
       {/* Fixed Expenses Section */}
       <div className="border-t border-slate-200 pt-8">
         <FixedExpenses userId={userId} showSuccess={showSuccess} />
+      </div>
+
+      {/* Pricing Templates Section */}
+      <div className="border-t border-slate-200 pt-8 mt-8">
+        <PriceTemplates userId={userId} showSuccess={showSuccess} />
       </div>
     </div>
   )
