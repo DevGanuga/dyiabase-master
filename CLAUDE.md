@@ -4,113 +4,107 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**dyia** ("Your Day, Decoded") is a business management web application for service businesses (junk removal, lawn care, house cleaning). It's built with Next.js 16 (App Router), TypeScript, and uses Clerk for authentication, Supabase for data storage, and Stripe for subscriptions.
+**dyia** ("Your Day, Decoded") is a business management SaaS for service businesses (junk removal, lawn care, house cleaning). Features job tracking, quote generation with PDF export, follow-up management, and AI-powered business insights.
 
-**Tech Stack**: Next.js 16, TypeScript, Tailwind CSS, Clerk Auth, Supabase (PostgreSQL), Stripe
+**Tech Stack**: Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS 4, Clerk Auth, Supabase (PostgreSQL), Stripe, OpenAI
 
 ## Development
 
 ```bash
-# Install dependencies
-npm install
-
-# Run development server
-npm run dev
-
-# Build for production
-npm run build
+npm install    # Install dependencies
+npm run dev    # Run development server (localhost:3000)
+npm run build  # Build for production
+npm run lint   # Run ESLint
 ```
 
 ## Architecture
 
-### Authentication Flow (Clerk)
-1. User signs up/in via Clerk (`/sign-in`, `/sign-up`)
-2. Clerk webhook (`/api/clerk/webhook`) syncs user to `dyia_users` table
-3. App pages use `useUser()` from `@clerk/nextjs` to get current user
-4. Middleware (`src/middleware.ts`) protects `/app` routes
+### Authentication & Authorization
+- **Clerk**: Handles auth UI (`/sign-in`, `/sign-up`) and session management
+- **Clerk Webhook** (`/api/clerk/webhook`): Syncs user.created/updated/deleted events to `dyia_users`
+- **App Layout** (`src/app/app/layout.tsx`): Server-side auth check, redirects unauthenticated users
+- **Demo Mode**: Cookie-based bypass (`dyia_demo_access=true`) for unauthenticated access
+
+### Subscription Tiers
+Three tiers gated by `useSubscription()` hook:
+- **basic**: Free tier (limited features)
+- **trial**: Trial period (`trialing` status)
+- **pro**: Paid (`active` or `trialing` status)
+
+Use `<ProFeature>` component to gate UI behind pro subscription.
 
 ### Database Schema (Supabase)
-- `dyia_users` - User profiles, linked via `clerk_user_id`, stores Stripe subscription info
+All tables prefixed with `dyia_`:
+- `dyia_users` - User profiles, Clerk/Stripe IDs, subscription status
 - `dyia_settings` - Per-user settings (tax %, monthly goal, business info)
-- `dyia_jobs` - Job tracking (date, customer, revenue, expenses)
-- `dyia_quotes` - Quote storage (customer info, pricing, photos)
+- `dyia_jobs` - Job tracking (date, customer, revenue, expenses breakdown)
+- `dyia_quotes` - Quote storage (customer info, pricing, photos, estimate range)
+- `dyia_follow_ups` - Quote follow-up tracking with priority system (hot/warm/cold)
+- `dyia_fixed_expenses` - Recurring business expenses (monthly/yearly)
+- `dyia_price_templates` - Saved pricing templates for quotes
+- `dyia_threads` / `dyia_messages` - AI chat conversation storage
 
-### Key Files
-- `src/app/layout.tsx` - Root layout with ClerkProvider
-- `src/middleware.ts` - Clerk auth middleware
-- `src/app/app/page.tsx` - Main app dashboard (protected)
-- `src/app/api/clerk/webhook/route.ts` - User sync webhook
-- `src/app/api/stripe/*/route.ts` - Payment webhooks
+### API Routes
+- `/api/clerk/webhook` - Clerk user sync (uses svix for signature verification)
+- `/api/stripe/checkout` - Creates Stripe checkout session
+- `/api/stripe/webhook` - Handles subscription lifecycle events
+- `/api/user/init` - Initializes user data on first app load
+- `/api/demo/activate` - Enables demo mode cookie
 
 ### Data Flow
 ```
-User Action → Component → Supabase Client → Database
-                              ↓
-                         RLS bypassed (service role)
-                              ↓
-                    App handles auth via Clerk
+Browser → Clerk Auth Check → Component → Supabase Client → Database
+                                              ↓
+                                    Server routes use service role key
+                                    (bypasses RLS for admin operations)
 ```
 
-### Key Data Structures
+### AI Integration (OpenAI)
+Located in `src/lib/openai/`:
+- `client.ts` - OpenAI client initialization
+- `functions.ts` - Function definitions for AI tool calling
+- `handlers.ts` - Server-side handlers for AI function calls (create_job, generate_quote, log_expense, get_performance_stats, get_pending_follow_ups, suggest_quote_price)
 
-**dyia_users** (database):
-```typescript
-{
-  id: UUID,
-  clerk_user_id: string,          // From Clerk
-  email: string,
-  first_name?: string,
-  last_name?: string,
-  stripe_customer_id?: string,
-  stripe_subscription_id?: string,
-  subscription_status: 'active' | 'inactive' | 'canceled' | 'past_due' | 'trialing',
-  subscription_plan?: 'monthly' | 'annual'
-}
-```
+### Key Patterns
 
-**AppJob** (frontend):
-```typescript
-{
-  id, date, customerName, source,
-  revenue, labor, gas, dumpFee, dumpsterRental, additionalExpense,
-  numWorkers, costPerWorker, notes
-}
-```
+**Database ↔ Frontend Type Transformation**:
+- Database types: snake_case (`customer_name`, `dump_fee`)
+- App types: camelCase with `App` prefix (`AppJob`, `AppQuote`)
+- Types defined in `src/types/database.ts`
 
-**AppQuote** (frontend):
-```typescript
-{
-  id, createdAt,
-  customer: { name, phone, email, address, jobDescription },
-  pricing: { ... },
-  photos: string[],
-  estimateRange: { low, high },
-  total
-}
-```
+**Supabase Clients**:
+- `src/lib/supabase/client.ts` - Browser client (uses anon key)
+- `src/lib/supabase/server.ts` - Server client (uses anon key + cookies)
+- API routes create direct clients with `SUPABASE_SERVICE_ROLE_KEY`
 
 ## Environment Variables
 
 Required in `.env.local`:
-- `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` - Clerk public key
-- `CLERK_SECRET_KEY` - Clerk secret key
-- `CLERK_WEBHOOK_SECRET` - Clerk webhook signing secret
-- `NEXT_PUBLIC_SUPABASE_URL` - Supabase project URL
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY` - Supabase anon key
-- `SUPABASE_SERVICE_ROLE_KEY` - Supabase service role key (server-side)
-- `STRIPE_SECRET_KEY` - Stripe secret key
-- `STRIPE_WEBHOOK_SECRET` - Stripe webhook signing secret
-- `NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID` - Stripe price ID
-- `NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID` - Stripe price ID
+```
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+CLERK_SECRET_KEY
+CLERK_WEBHOOK_SECRET
+
+NEXT_PUBLIC_SUPABASE_URL
+NEXT_PUBLIC_SUPABASE_ANON_KEY
+SUPABASE_SERVICE_ROLE_KEY
+
+STRIPE_SECRET_KEY
+STRIPE_WEBHOOK_SECRET
+NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID
+NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID
+
+OPENAI_API_KEY
+```
 
 ## Design Tokens
 
 Primary: `#f97316` (orange-500), Gradient: `from-orange-500 to-amber-500`
 Success: `#f97316` (uses orange), Warning: `#fbbf24`, Danger: `#ef4444`
 
-## Naming Convention
+## Naming Conventions
 
-- Database tables: `dyia_*` prefix (snake_case)
-- Database columns: snake_case
-- Frontend types: PascalCase
-- Frontend props: camelCase
+- Database tables: `dyia_*` prefix, snake_case columns
+- TypeScript types: PascalCase (`Job`), App-side with `App` prefix (`AppJob`)
+- Component props: camelCase
+- Utility functions: camelCase, grouped by domain in `src/lib/`

@@ -1,257 +1,302 @@
-﻿'use client'
+'use client'
 
-import type { AppJob, AppSettings } from '@/types/database'
-import { formatCurrency, calculateStats } from '@/lib/utils'
-import { ProFeature } from '@/components/ui/ProFeature'
+import { useMemo } from 'react'
+import type { AppJob, AppQuote, AppSettings } from '@/types/database'
+import { formatCurrency } from '@/lib/utils'
 
 interface DashboardProps {
   jobs: AppJob[]
+  quotes: AppQuote[]
   settings: AppSettings
-  selectedMonth: Date
-  setSelectedMonth: (date: Date) => void
-  onAddJob: () => void
-  fixedMonthlyExpenses?: number
+  userName?: string
+  onNavigate: (view: string) => void
+  pendingFollowUps?: number
 }
 
-export function Dashboard({ jobs, settings, selectedMonth, setSelectedMonth, onAddJob, fixedMonthlyExpenses = 0 }: DashboardProps) {
-  const monthJobs = jobs.filter(job => {
-    const jobDate = new Date(job.date)
-    return jobDate.getMonth() === selectedMonth.getMonth() &&
-           jobDate.getFullYear() === selectedMonth.getFullYear()
-  })
+export function Dashboard({ 
+  jobs, 
+  quotes = [],
+  settings, 
+  userName,
+  onNavigate,
+  pendingFollowUps = 0
+}: DashboardProps) {
+  
+  // Get greeting based on time of day
+  const greeting = useMemo(() => {
+    const hour = new Date().getHours()
+    if (hour < 12) return 'Good morning'
+    if (hour < 17) return 'Good afternoon'
+    return 'Good evening'
+  }, [])
 
-  const stats = calculateStats(monthJobs, settings)
-  const adjustedExpenses = stats.totalExpenses + fixedMonthlyExpenses
-  const adjustedNetProfit = stats.totalRevenue - adjustedExpenses
-  const adjustedSetAside = adjustedNetProfit * (settings.taxPercentage / 100)
-  const adjustedStats = { ...stats, totalExpenses: adjustedExpenses, netProfit: adjustedNetProfit, setAside: adjustedSetAside }
-  const monthValue = `${selectedMonth.getFullYear()}-${String(selectedMonth.getMonth() + 1).padStart(2, '0')}`
-  const monthName = selectedMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+  const displayName = userName?.split('@')[0]?.split('.')[0] || 'there'
+  const capitalizedName = displayName.charAt(0).toUpperCase() + displayName.slice(1)
 
-  const navigateMonth = (dir: number) => {
-    const newDate = new Date(selectedMonth)
-    newDate.setMonth(newDate.getMonth() + dir)
-    setSelectedMonth(newDate)
-  }
+  // Calculate workflow stats
+  const stats = useMemo(() => {
+    const now = new Date()
+    const thisMonth = jobs.filter(j => {
+      const d = new Date(j.date)
+      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
+    })
+    
+    const thisWeek = jobs.filter(j => {
+      const d = new Date(j.date)
+      const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+      return d >= weekAgo
+    })
+
+    const totalRevenue = thisMonth.reduce((sum, j) => sum + (j.revenue || 0), 0)
+    const totalExpenses = thisMonth.reduce((sum, j) => 
+      sum + (j.labor || 0) + (j.gas || 0) + (j.dumpFee || 0) + 
+      (j.dumpsterRental || 0) + (j.additionalExpense || 0), 0)
+
+    const pendingQuotes = quotes.filter(q => {
+      const created = new Date(q.createdAt)
+      const daysSince = Math.floor((now.getTime() - created.getTime()) / (1000 * 60 * 60 * 24))
+      return daysSince < 30 // Active quotes less than 30 days old
+    })
+
+    const quoteValue = pendingQuotes.reduce((sum, q) => sum + (q.total || 0), 0)
+
+    return {
+      jobsThisWeek: thisWeek.length,
+      jobsThisMonth: thisMonth.length,
+      revenueThisMonth: totalRevenue,
+      profitThisMonth: totalRevenue - totalExpenses,
+      pendingQuotes: pendingQuotes.length,
+      quoteValue,
+      goalProgress: settings.monthlyGoal > 0 
+        ? Math.round((totalRevenue / settings.monthlyGoal) * 100) 
+        : 0
+    }
+  }, [jobs, quotes, settings.monthlyGoal])
 
   return (
-    <div className="animate-fade-in">
-      {/* Header */}
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">Dashboard</h1>
-          <p className="page-subtitle">{monthName} Overview</p>
+    <div className="space-y-8">
+      {/* Greeting Header */}
+      <div>
+        <h1 className="text-3xl font-bold text-slate-900">
+          {greeting}, {capitalizedName}
+        </h1>
+        <p className="text-slate-500 mt-1">
+          Here&apos;s what&apos;s happening with your business
+        </p>
+      </div>
+
+      {/* Workflow Pipeline */}
+      <div>
+        <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-4">
+          Workflow
+        </h2>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Quotes */}
+          <button 
+            onClick={() => onNavigate('quotes')}
+            className="bg-white border-l-4 border-l-blue-500 border border-slate-200 rounded-xl p-5 text-left hover:shadow-md hover:border-slate-300 transition-all group"
+          >
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs font-medium text-blue-600 uppercase tracking-wide">Quotes</span>
+              <svg className="w-4 h-4 text-slate-300 group-hover:text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </div>
+            <div className="flex items-baseline gap-2">
+              <span className="text-3xl font-bold text-slate-900">{stats.pendingQuotes}</span>
+              <span className="text-sm text-slate-400">{formatCurrency(stats.quoteValue)}</span>
+            </div>
+            <p className="text-xs text-slate-500 mt-1">Pending</p>
+          </button>
+
+          {/* Follow-ups */}
+          <button 
+            onClick={() => onNavigate('followUps')}
+            className="bg-white border-l-4 border-l-amber-500 border border-slate-200 rounded-xl p-5 text-left hover:shadow-md hover:border-slate-300 transition-all group"
+          >
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs font-medium text-amber-600 uppercase tracking-wide">Follow-ups</span>
+              <svg className="w-4 h-4 text-slate-300 group-hover:text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </div>
+            <div className="flex items-baseline gap-2">
+              <span className="text-3xl font-bold text-slate-900">{pendingFollowUps}</span>
+            </div>
+            <p className="text-xs text-slate-500 mt-1">Need attention</p>
+          </button>
+
+          {/* Jobs */}
+          <button 
+            onClick={() => onNavigate('jobs')}
+            className="bg-white border-l-4 border-l-green-500 border border-slate-200 rounded-xl p-5 text-left hover:shadow-md hover:border-slate-300 transition-all group"
+          >
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs font-medium text-green-600 uppercase tracking-wide">Jobs</span>
+              <svg className="w-4 h-4 text-slate-300 group-hover:text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </div>
+            <div className="flex items-baseline gap-2">
+              <span className="text-3xl font-bold text-slate-900">{stats.jobsThisMonth}</span>
+              <span className="text-sm text-slate-400">{formatCurrency(stats.revenueThisMonth)}</span>
+            </div>
+            <p className="text-xs text-slate-500 mt-1">This month</p>
+          </button>
+
+          {/* Profit */}
+          <div className="bg-white border-l-4 border-l-purple-500 border border-slate-200 rounded-xl p-5">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs font-medium text-purple-600 uppercase tracking-wide">Profit</span>
+            </div>
+            <div className="flex items-baseline gap-2">
+              <span className={`text-3xl font-bold ${stats.profitThisMonth >= 0 ? 'text-slate-900' : 'text-red-600'}`}>
+                {formatCurrency(stats.profitThisMonth)}
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 mt-1">This month</p>
+          </div>
         </div>
-        <button onClick={onAddJob} className="app-btn-primary">
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          Add Jobs
-        </button>
       </div>
 
-      {/* Month Navigation */}
-      <div className="flex items-center gap-3 mb-8">
-        <button 
-          onClick={() => navigateMonth(-1)} 
-          className="p-2.5 bg-white border border-slate-200 rounded-xl hover:border-emerald-500 hover:text-emerald-600 transition-all"
-          title="Previous month"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
-        </button>
-        <input
-          type="month"
-          value={monthValue}
-          onChange={(e) => {
-            const [year, month] = e.target.value.split('-')
-            setSelectedMonth(new Date(parseInt(year), parseInt(month) - 1, 1))
-          }}
-          className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl font-semibold text-slate-900 focus:outline-none focus:border-emerald-500"
-        />
-        <button 
-          onClick={() => navigateMonth(1)} 
-          className="p-2.5 bg-white border border-slate-200 rounded-xl hover:border-emerald-500 hover:text-emerald-600 transition-all"
-          title="Next month"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-          </svg>
-        </button>
-        <button 
-          onClick={() => setSelectedMonth(new Date())} 
-          className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl hover:border-emerald-500 hover:text-emerald-600 font-medium text-sm transition-all"
-        >
-          Today
-        </button>
+      {/* Quick Actions */}
+      <div>
+        <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-4">
+          Quick Actions
+        </h2>
+        <div className="flex flex-wrap gap-3">
+          <button 
+            onClick={() => onNavigate('jobs')}
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-orange-500 hover:bg-orange-600 text-white font-medium rounded-xl transition-colors"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Log a Job
+          </button>
+          <button 
+            onClick={() => onNavigate('quoteBuilder')}
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-700 font-medium rounded-xl transition-colors"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+            </svg>
+            Create Quote
+          </button>
+          <button 
+            onClick={() => onNavigate('assistant')}
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-700 font-medium rounded-xl transition-colors"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+            </svg>
+            Ask Dyia
+          </button>
+        </div>
       </div>
 
-      {/* Goal Progress Card */}
+      {/* Goal Progress (if set) */}
       {settings.monthlyGoal > 0 && (
-        <div className="app-card mb-6 bg-gradient-to-r from-emerald-50 to-teal-50 border-emerald-100">
-          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4 mb-4">
+        <div className="bg-gradient-to-r from-slate-50 to-white border border-slate-200 rounded-2xl p-6">
+          <div className="flex items-center justify-between mb-4">
             <div>
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-2xl">ðŸŽ¯</span>
-                <h3 className="text-lg font-bold text-emerald-900">Monthly Revenue Goal</h3>
-              </div>
-              <p className="text-emerald-700">
-                <span className="font-semibold">{formatCurrency(stats.totalRevenue)}</span>
-                <span className="text-emerald-600/70"> of </span>
-                <span className="font-semibold">{formatCurrency(settings.monthlyGoal)}</span>
+              <h3 className="font-semibold text-slate-900">Monthly Goal</h3>
+              <p className="text-sm text-slate-500">
+                {formatCurrency(stats.revenueThisMonth)} of {formatCurrency(settings.monthlyGoal)}
               </p>
             </div>
-            <div className="text-left sm:text-right">
-              <div className="text-4xl font-bold text-emerald-600">{Math.round(stats.goalProgress)}%</div>
-              <p className="text-sm text-emerald-600/70">
-                {stats.goalProgress >= 100 
-                  ? 'ðŸŽ‰ Goal achieved!' 
-                  : `${formatCurrency(settings.monthlyGoal - stats.totalRevenue)} to go`
-                }
-              </p>
+            <div className="text-right">
+              <span className={`text-2xl font-bold ${stats.goalProgress >= 100 ? 'text-green-600' : 'text-slate-900'}`}>
+                {stats.goalProgress}%
+              </span>
             </div>
           </div>
-          <div className="progress-bar-container bg-emerald-200/50">
+          <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
             <div 
-              className="progress-bar" 
+              className={`h-full rounded-full transition-all duration-500 ${
+                stats.goalProgress >= 100 
+                  ? 'bg-green-500' 
+                  : 'bg-gradient-to-r from-orange-500 to-amber-500'
+              }`}
               style={{ width: `${Math.min(stats.goalProgress, 100)}%` }} 
             />
+          </div>
+          {stats.goalProgress < 100 && (
+            <p className="text-xs text-slate-400 mt-2">
+              {formatCurrency(settings.monthlyGoal - stats.revenueThisMonth)} to go
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Recent Activity */}
+      {jobs.length > 0 && (
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wide">
+              Recent Jobs
+            </h2>
+            <button 
+              onClick={() => onNavigate('jobs')}
+              className="text-sm text-orange-600 hover:text-orange-700 font-medium"
+            >
+              View all
+            </button>
+          </div>
+          <div className="bg-white border border-slate-200 rounded-2xl divide-y divide-slate-100">
+            {jobs.slice(0, 5).map((job) => (
+              <div key={job.id} className="flex items-center justify-between p-4">
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 bg-green-50 rounded-xl flex items-center justify-center">
+                    <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="font-medium text-slate-900">{job.customerName}</p>
+                    <p className="text-sm text-slate-500">
+                      {new Date(job.date).toLocaleDateString('en-US', { 
+                        month: 'short', 
+                        day: 'numeric' 
+                      })}
+                      {job.source && <span className="text-slate-300"> · {job.source}</span>}
+                    </p>
+                  </div>
+                </div>
+                <span className="font-semibold text-green-600">
+                  {formatCurrency(job.revenue)}
+                </span>
+              </div>
+            ))}
           </div>
         </div>
       )}
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-        {/* Jobs Count */}
-        <div className="app-stat-card">
-          <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center text-2xl mb-4">
-            ðŸ“Š
-          </div>
-          <p className="text-sm font-medium text-slate-500 mb-1">Jobs This Month</p>
-          <p className="text-3xl font-bold text-slate-900">{stats.jobCount}</p>
-          {stats.jobCount > 0 && (
-            <p className="text-xs text-slate-400 mt-2">
-              Avg {formatCurrency(stats.totalRevenue / stats.jobCount)} per job
-            </p>
-          )}
-        </div>
-
-        {/* Total Revenue */}
-        <div className="app-stat-card">
-          <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center text-2xl mb-4">
-            ðŸ’µ
-          </div>
-          <p className="text-sm font-medium text-slate-500 mb-1">Total Revenue</p>
-          <p className="text-3xl font-bold text-emerald-600">{formatCurrency(stats.totalRevenue)}</p>
-        </div>
-
-        {/* Total Expenses */}
-        <div className="app-stat-card">
-          <div className="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center text-2xl mb-4">
-            ðŸ“¦
-          </div>
-          <p className="text-sm font-medium text-slate-500 mb-1">Total Expenses</p>
-          <p className="text-3xl font-bold text-orange-600">{formatCurrency(adjustedStats.totalExpenses)}</p>
-          {stats.totalRevenue > 0 && (
-            <p className="text-xs text-slate-400 mt-2">
-              {Math.round((adjustedStats.totalExpenses / stats.totalRevenue) * 100)}% of revenue
-            </p>
-          )}
-        </div>
-
-        {/* Net Profit */}
-        <div className="app-stat-card">
-          <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center text-2xl mb-4">
-            ðŸ“ˆ
-          </div>
-          <p className="text-sm font-medium text-slate-500 mb-1">Net Profit</p>
-          <p className={`text-3xl font-bold ${adjustedStats.netProfit >= 0 ? 'text-purple-600' : 'text-red-600'}`}>
-            {formatCurrency(adjustedStats.netProfit)}
-          </p>
-          {stats.totalRevenue > 0 && (
-            <p className="text-xs text-slate-400 mt-2">
-              {Math.round((adjustedStats.netProfit / stats.totalRevenue) * 100)}% margin
-            </p>
-          )}
-        </div>
-        {/* Fixed Expenses */}
-        <div className="app-stat-card">
-          <div className="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center text-2xl mb-4">
-            ðŸ§¾
-          </div>
-          <p className="text-sm font-medium text-slate-500 mb-1">Fixed Expenses (Monthly)</p>
-          <p className="text-3xl font-bold text-slate-700">{formatCurrency(fixedMonthlyExpenses)}</p>
-          <p className="text-xs text-slate-400 mt-2">Subscriptions, insurance, vehicle, etc.</p>
-        </div>
-        {/* Tax Set-Aside */}
-        <div className="app-stat-card bg-gradient-to-br from-amber-50 to-yellow-50 border-amber-100">
-          <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center text-2xl mb-4 shadow-sm">
-            ðŸ·
-          </div>
-          <p className="text-sm font-medium text-amber-800 mb-1">
-            Set Aside ({settings.taxPercentage}%)
-          </p>
-          <p className="text-3xl font-bold text-amber-700">{formatCurrency(adjustedStats.setAside)}</p>
-          <p className="text-xs text-amber-600/70 mt-2">ðŸ’¡ For taxes & savings</p>
-        </div>
-
-        {/* Top Marketing Source */}
-        {stats.topSource ? (
-          <div className="app-stat-card bg-gradient-to-br from-violet-50 to-purple-50 border-violet-100">
-            <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center text-2xl mb-4 shadow-sm">
-              ðŸ“£
-            </div>
-            <p className="text-sm font-medium text-violet-800 mb-1">Top Source</p>
-            <p className="text-2xl font-bold text-violet-700 truncate">{stats.topSource}</p>
-            <p className="text-xs text-violet-600/70 mt-2">
-              {stats.topSourceCount} jobs ({stats.topSourcePercent}%)
-            </p>
-          </div>
-        ) : stats.jobCount > 0 ? (
-          <div className="app-stat-card bg-slate-50 border-slate-100">
-            <div className="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center text-2xl mb-4">
-              ðŸ“£
-            </div>
-            <p className="text-sm font-medium text-slate-500 mb-1">Top Source</p>
-            <p className="text-lg font-semibold text-slate-400">No data yet</p>
-            <p className="text-xs text-slate-400 mt-2">Add sources to your jobs</p>
-          </div>
-        ) : null}
-      </div>
-      {/* AI Insights Placeholder */}
-      <div className="mt-6">
-        <ProFeature
-          title="AI Insights"
-          description="Unlock weekly and monthly insights on your business performance."
-        >
-          <div className="app-card bg-gradient-to-r from-slate-50 to-white border-slate-200">
-            <div className="flex items-center gap-3 mb-3">
-              <span className="text-2xl">ðŸ¤–</span>
-              <h3 className="text-lg font-semibold text-slate-900">AI Insights</h3>
-            </div>
-            <p className="text-sm text-slate-600">
-              Youâ€™ll see trends, conversion risks, and actionable recommendations here.
-            </p>
-          </div>
-        </ProFeature>
-      </div>
       {/* Empty State */}
-      {stats.jobCount === 0 && (
-        <div className="app-card mt-6 text-center py-12">
-          <div className="text-6xl mb-4">ðŸ“Š</div>
-          <h3 className="text-xl font-semibold text-slate-700 mb-2">No jobs this month</h3>
-          <p className="text-slate-500 mb-6">Start tracking your profits by adding your first job.</p>
-          <button onClick={onAddJob} className="app-btn-primary">
+      {jobs.length === 0 && (
+        <div className="bg-white border border-slate-200 rounded-2xl text-center py-12 px-6">
+          <div className="w-16 h-16 bg-orange-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <svg className="w-8 h-8 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            </svg>
+          </div>
+          <h3 className="text-lg font-semibold text-slate-900 mb-2">
+            Welcome to dyia
+          </h3>
+          <p className="text-slate-500 mb-6 max-w-sm mx-auto">
+            Start by logging your first job to track your revenue and profits.
+          </p>
+          <button 
+            onClick={() => onNavigate('jobs')}
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-orange-500 hover:bg-orange-600 text-white font-medium rounded-xl transition-colors"
+          >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
-            Add Your First Job
+            Log Your First Job
           </button>
         </div>
       )}
     </div>
   )
 }
-
-

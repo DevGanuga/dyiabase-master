@@ -11,8 +11,10 @@ import { Quotes } from '@/components/app/Quotes'
 import { QuoteBuilder } from '@/components/app/QuoteBuilder'
 import { Settings } from '@/components/app/Settings'
 import { FollowUps } from '@/components/app/FollowUps'
+import { Reports } from '@/components/app/Reports'
+import { Assistant } from '@/components/app/Assistant'
 
-type View = 'dashboard' | 'jobs' | 'quotes' | 'quoteBuilder' | 'followUps' | 'settings'
+type View = 'dashboard' | 'jobs' | 'quotes' | 'quoteBuilder' | 'followUps' | 'reports' | 'assistant' | 'settings'
 
 // Demo data for showcase
 const DEMO_JOBS: AppJob[] = [
@@ -266,11 +268,11 @@ export default function AppPage() {
         return (
           <Dashboard
             jobs={jobs}
+            quotes={quotes}
             settings={settings}
-            selectedMonth={selectedMonth}
-            setSelectedMonth={setSelectedMonth}
-            onAddJob={() => setCurrentView('jobs')}
-            fixedMonthlyExpenses={fixedMonthlyExpenses}
+            userName={isDemoMode ? 'Demo User' : (user?.primaryEmailAddress?.emailAddress || '')}
+            onNavigate={(view) => setCurrentView(view as View)}
+            pendingFollowUps={0} // TODO: Load from API
           />
         )
       case 'jobs':
@@ -322,6 +324,21 @@ export default function AppPage() {
             showSuccess={showSuccess}
           />
         )
+      case 'reports':
+        return (
+          <Reports
+            jobs={jobs}
+            quotes={quotes}
+            fixedMonthlyExpenses={fixedMonthlyExpenses}
+          />
+        )
+      case 'assistant':
+        return (
+          <Assistant
+            userId={userProfile?.id || ''}
+            showSuccess={showSuccess}
+          />
+        )
     }
   }
 
@@ -347,6 +364,7 @@ export default function AppPage() {
         onLogout={handleLogout}
         jobs={jobs}
         showSuccess={showSuccess}
+        isPro={['active', 'trialing'].includes(userProfile?.subscription_status || '')}
       />
       
       <main className={`flex-1 overflow-y-auto p-6 lg:p-8 ${isDemoMode ? 'pt-16' : ''}`}>

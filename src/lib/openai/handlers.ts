@@ -2,62 +2,15 @@ import { createClient } from '@supabase/supabase-js'
 import type { DyiaFunctionName } from './functions'
 
 // Create Supabase client with service role for server-side operations
-const supabase = createClient(
+const getSupabase = () => createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
-// Type definitions for function arguments
-interface CreateJobArgs {
-  date?: string
-  customerName: string
-  source?: string
-  revenue: number
-  labor?: number
-  gas?: number
-  dumpFee?: number
-  dumpsterRental?: number
-  additionalExpense?: number
-  numWorkers?: number
-  costPerWorker?: number
-  notes?: string
-}
-
-interface GenerateQuoteArgs {
-  customerName: string
-  customerPhone?: string
-  customerEmail?: string
-  customerAddress?: string
-  jobDescription: string
-  estimateLow: number
-  estimateHigh: number
-}
-
-interface LogExpenseArgs {
-  name: string
-  amount: number
-  frequency: 'monthly' | 'yearly'
-  category?: string
-}
-
-interface GetPerformanceStatsArgs {
-  period?: 'today' | 'this_week' | 'this_month' | 'last_month' | 'this_year' | 'all_time'
-}
-
-interface GetPendingFollowUpsArgs {
-  priority?: 'hot' | 'warm' | 'cold' | 'all'
-  limit?: number
-}
-
-interface SuggestQuotePriceArgs {
-  jobDescription: string
-  factors?: string[]
-}
-
 // Result type for all handlers
-interface HandlerResult {
+export interface HandlerResult {
   success: boolean
-  data?: unknown
+  data?: Record<string, unknown>
   error?: string
   message: string
 }
@@ -66,40 +19,55 @@ interface HandlerResult {
 // HANDLER IMPLEMENTATIONS
 // =============================================
 
-async function createJob(args: CreateJobArgs, dyiaUserId: string): Promise<HandlerResult> {
+async function createJob(args: Record<string, unknown>, dyiaUserId: string): Promise<HandlerResult> {
+  const supabase = getSupabase()
   try {
-    const jobDate = args.date || new Date().toISOString().split('T')[0]
+    const jobDate = (args.date as string) || new Date().toISOString().split('T')[0]
+    const revenue = args.revenue as number
+    const labor = (args.labor as number) || 0
+    const gas = (args.gas as number) || 0
+    const dumpFee = (args.dump_fee as number) || 0
+    const dumpsterRental = (args.dumpster_rental as number) || 0
+    const additionalExpense = (args.additional_expense as number) || 0
     
     const { data, error } = await supabase
       .from('dyia_jobs')
       .insert({
         user_id: dyiaUserId,
         date: jobDate,
-        customer_name: args.customerName,
-        source: args.source || null,
-        revenue: args.revenue,
-        labor: args.labor || 0,
-        gas: args.gas || 0,
-        dump_fee: args.dumpFee || 0,
-        dumpster_rental: args.dumpsterRental || 0,
-        additional_expense: args.additionalExpense || 0,
-        num_workers: args.numWorkers || 1,
-        cost_per_worker: args.costPerWorker || 0,
-        notes: args.notes || null
+        customer_name: args.customer_name as string,
+        source: (args.source as string) || null,
+        revenue: revenue,
+        labor: labor,
+        gas: gas,
+        dump_fee: dumpFee,
+        dumpster_rental: dumpsterRental,
+        additional_expense: additionalExpense,
+        num_workers: (args.num_workers as number) || 1,
+        cost_per_worker: (args.cost_per_worker as number) || 0,
+        notes: (args.notes as string) || null
       })
       .select()
       .single()
 
     if (error) throw error
 
-    const totalExpenses = (args.labor || 0) + (args.gas || 0) + (args.dumpFee || 0) + 
-                          (args.dumpsterRental || 0) + (args.additionalExpense || 0)
-    const profit = args.revenue - totalExpenses
+    const totalExpenses = labor + gas + dumpFee + dumpsterRental + additionalExpense
+    const profit = revenue - totalExpenses
+    const margin = revenue > 0 ? Math.round((profit / revenue) * 100) : 0
 
     return {
       success: true,
-      data: { jobId: data.id, date: jobDate },
-      message: `Job logged for ${args.customerName}. Revenue: $${args.revenue.toLocaleString()}, Expenses: $${totalExpenses.toLocaleString()}, Profit: $${profit.toLocaleString()}`
+      data: { 
+        jobId: data.id, 
+        date: jobDate,
+        customer: args.customer_name,
+        revenue,
+        expenses: totalExpenses,
+        profit,
+        margin
+      },
+      message: `✅ Job logged for ${args.customer_name}!\n\n💰 Revenue: $${revenue.toLocaleString()}\n📦 Expenses: $${totalExpenses.toLocaleString()}\n📈 Profit: $${profit.toLocaleString()} (${margin}% margin)`
     }
   } catch (error) {
     console.error('Error creating job:', error)
@@ -111,22 +79,25 @@ async function createJob(args: CreateJobArgs, dyiaUserId: string): Promise<Handl
   }
 }
 
-async function generateQuote(args: GenerateQuoteArgs, dyiaUserId: string): Promise<HandlerResult> {
+async function generateQuote(args: Record<string, unknown>, dyiaUserId: string): Promise<HandlerResult> {
+  const supabase = getSupabase()
   try {
-    const total = Math.round((args.estimateLow + args.estimateHigh) / 2)
+    const estimateLow = args.estimate_low as number
+    const estimateHigh = args.estimate_high as number
+    const total = Math.round((estimateLow + estimateHigh) / 2)
     
     const { data, error } = await supabase
       .from('dyia_quotes')
       .insert({
         user_id: dyiaUserId,
-        customer_name: args.customerName,
-        customer_phone: args.customerPhone || null,
-        customer_email: args.customerEmail || null,
-        customer_address: args.customerAddress || null,
-        job_description: args.jobDescription,
+        customer_name: args.customer_name as string,
+        customer_phone: (args.customer_phone as string) || null,
+        customer_email: (args.customer_email as string) || null,
+        customer_address: (args.customer_address as string) || null,
+        job_description: args.job_description as string,
         pricing: {},
-        estimate_low: args.estimateLow,
-        estimate_high: args.estimateHigh,
+        estimate_low: estimateLow,
+        estimate_high: estimateHigh,
         total: total,
         photo_urls: []
       })
@@ -147,8 +118,13 @@ async function generateQuote(args: GenerateQuoteArgs, dyiaUserId: string): Promi
 
     return {
       success: true,
-      data: { quoteId: data.id },
-      message: `Quote created for ${args.customerName}. Estimate: $${args.estimateLow.toLocaleString()} - $${args.estimateHigh.toLocaleString()} for "${args.jobDescription}"`
+      data: { 
+        quoteId: data.id,
+        customer: args.customer_name,
+        estimate: `$${estimateLow.toLocaleString()} - $${estimateHigh.toLocaleString()}`,
+        description: args.job_description
+      },
+      message: `✅ Quote created for ${args.customer_name}!\n\n📋 ${args.job_description}\n💵 Estimate: $${estimateLow.toLocaleString()} - $${estimateHigh.toLocaleString()}\n\n📍 A follow-up has been automatically scheduled.`
     }
   } catch (error) {
     console.error('Error generating quote:', error)
@@ -160,16 +136,20 @@ async function generateQuote(args: GenerateQuoteArgs, dyiaUserId: string): Promi
   }
 }
 
-async function logExpense(args: LogExpenseArgs, dyiaUserId: string): Promise<HandlerResult> {
+async function logExpense(args: Record<string, unknown>, dyiaUserId: string): Promise<HandlerResult> {
+  const supabase = getSupabase()
   try {
+    const amount = args.amount as number
+    const frequency = args.frequency as 'monthly' | 'yearly'
+    
     const { data, error } = await supabase
       .from('dyia_fixed_expenses')
       .insert({
         user_id: dyiaUserId,
-        name: args.name,
-        amount: args.amount,
-        frequency: args.frequency,
-        category: args.category || 'other',
+        name: args.name as string,
+        amount: amount,
+        frequency: frequency,
+        category: (args.category as string) || 'other',
         is_active: true
       })
       .select()
@@ -177,12 +157,19 @@ async function logExpense(args: LogExpenseArgs, dyiaUserId: string): Promise<Han
 
     if (error) throw error
 
-    const monthlyEquiv = args.frequency === 'yearly' ? args.amount / 12 : args.amount
+    const monthlyEquiv = frequency === 'yearly' ? amount / 12 : amount
+    const yearlyEquiv = frequency === 'monthly' ? amount * 12 : amount
 
     return {
       success: true,
-      data: { expenseId: data.id },
-      message: `Fixed expense "${args.name}" added: $${args.amount.toLocaleString()}/${args.frequency} (≈$${Math.round(monthlyEquiv).toLocaleString()}/month)`
+      data: { 
+        expenseId: data.id,
+        name: args.name,
+        amount,
+        frequency,
+        monthlyEquivalent: monthlyEquiv
+      },
+      message: `✅ Fixed expense added: "${args.name}"\n\n💸 Amount: $${amount.toLocaleString()}/${frequency}\n📊 Monthly impact: $${Math.round(monthlyEquiv).toLocaleString()}/mo\n📅 Yearly total: $${Math.round(yearlyEquiv).toLocaleString()}/yr`
     }
   } catch (error) {
     console.error('Error logging expense:', error)
@@ -194,9 +181,10 @@ async function logExpense(args: LogExpenseArgs, dyiaUserId: string): Promise<Han
   }
 }
 
-async function getPerformanceStats(args: GetPerformanceStatsArgs, dyiaUserId: string): Promise<HandlerResult> {
+async function getPerformanceStats(args: Record<string, unknown>, dyiaUserId: string): Promise<HandlerResult> {
+  const supabase = getSupabase()
   try {
-    const period = args.period || 'this_month'
+    const period = (args.period as string) || 'this_month'
     let startDate: string
     let endDate: string = new Date().toISOString().split('T')[0]
 
@@ -244,6 +232,7 @@ async function getPerformanceStats(args: GetPerformanceStatsArgs, dyiaUserId: st
       (parseFloat(j.additional_expense) || 0), 0) || 0
     const netProfit = totalRevenue - totalExpenses
     const avgJobRevenue = jobCount > 0 ? totalRevenue / jobCount : 0
+    const profitMargin = totalRevenue > 0 ? Math.round((netProfit / totalRevenue) * 100) : 0
 
     const periodLabel = {
       today: 'Today',
@@ -252,7 +241,7 @@ async function getPerformanceStats(args: GetPerformanceStatsArgs, dyiaUserId: st
       last_month: 'Last Month',
       this_year: 'This Year',
       all_time: 'All Time'
-    }[period]
+    }[period] || 'This Month'
 
     return {
       success: true,
@@ -262,9 +251,10 @@ async function getPerformanceStats(args: GetPerformanceStatsArgs, dyiaUserId: st
         totalRevenue,
         totalExpenses,
         netProfit,
-        avgJobRevenue
+        avgJobRevenue,
+        profitMargin
       },
-      message: `${periodLabel} Stats: ${jobCount} jobs, $${totalRevenue.toLocaleString()} revenue, $${netProfit.toLocaleString()} profit, $${Math.round(avgJobRevenue).toLocaleString()} avg per job`
+      message: `📊 **${periodLabel} Performance**\n\n🔢 Jobs: ${jobCount}\n💰 Revenue: $${totalRevenue.toLocaleString()}\n📦 Expenses: $${totalExpenses.toLocaleString()}\n📈 Net Profit: $${netProfit.toLocaleString()}\n📉 Margin: ${profitMargin}%\n💵 Avg/Job: $${Math.round(avgJobRevenue).toLocaleString()}`
     }
   } catch (error) {
     console.error('Error getting stats:', error)
@@ -276,12 +266,12 @@ async function getPerformanceStats(args: GetPerformanceStatsArgs, dyiaUserId: st
   }
 }
 
-async function getPendingFollowUps(args: GetPendingFollowUpsArgs, dyiaUserId: string): Promise<HandlerResult> {
+async function getPendingFollowUps(args: Record<string, unknown>, dyiaUserId: string): Promise<HandlerResult> {
+  const supabase = getSupabase()
   try {
-    const limit = args.limit || 5
+    const limit = (args.limit as number) || 5
     const now = new Date()
     
-    // Get follow-ups with quote info
     const { data: followUps, error } = await supabase
       .from('dyia_follow_ups')
       .select(`
@@ -291,11 +281,10 @@ async function getPendingFollowUps(args: GetPendingFollowUpsArgs, dyiaUserId: st
       .eq('user_id', dyiaUserId)
       .in('status', ['pending', 'contacted', 'snoozed'])
       .order('created_at', { ascending: true })
-      .limit(limit * 2) // Get extra to filter by priority
+      .limit(limit * 2)
 
     if (error) throw error
 
-    // Calculate priority and filter
     const withPriority = (followUps || []).map(fu => {
       const quoteDate = new Date(fu.quote?.created_at || fu.created_at)
       const daysSince = Math.floor((now.getTime() - quoteDate.getTime()) / (1000 * 60 * 60 * 24))
@@ -313,13 +302,14 @@ async function getPendingFollowUps(args: GetPendingFollowUpsArgs, dyiaUserId: st
       return {
         success: true,
         data: { followUps: [] },
-        message: 'No pending follow-ups found. Great job staying on top of things!'
+        message: '✨ No pending follow-ups! You\'re all caught up.'
       }
     }
 
     const summaries = limited.map(fu => {
       const emoji = fu.priority === 'hot' ? '🔥' : fu.priority === 'warm' ? '🌡️' : '❄️'
-      return `${emoji} ${fu.quote?.customer_name || 'Unknown'} - $${fu.quote?.estimate_low}-$${fu.quote?.estimate_high} (${fu.daysSince}d ago)`
+      const phone = fu.quote?.customer_phone ? ` • ${fu.quote.customer_phone}` : ''
+      return `${emoji} **${fu.quote?.customer_name}**${phone}\n   $${fu.quote?.estimate_low}-$${fu.quote?.estimate_high} • ${fu.daysSince}d ago`
     })
 
     return {
@@ -329,12 +319,12 @@ async function getPendingFollowUps(args: GetPendingFollowUpsArgs, dyiaUserId: st
           id: fu.id,
           customerName: fu.quote?.customer_name,
           phone: fu.quote?.customer_phone,
-          estimateRange: `$${fu.quote?.estimate_low}-$${fu.quote?.estimate_high}`,
+          estimate: `$${fu.quote?.estimate_low}-$${fu.quote?.estimate_high}`,
           daysSince: fu.daysSince,
           priority: fu.priority
         }))
       },
-      message: `${limited.length} follow-ups need attention:\n${summaries.join('\n')}`
+      message: `📍 **${limited.length} Follow-ups Need Attention**\n\n${summaries.join('\n\n')}`
     }
   } catch (error) {
     console.error('Error getting follow-ups:', error)
@@ -346,7 +336,8 @@ async function getPendingFollowUps(args: GetPendingFollowUpsArgs, dyiaUserId: st
   }
 }
 
-async function suggestQuotePrice(args: SuggestQuotePriceArgs, dyiaUserId: string): Promise<HandlerResult> {
+async function suggestQuotePrice(args: Record<string, unknown>, dyiaUserId: string): Promise<HandlerResult> {
+  const supabase = getSupabase()
   try {
     // Get user's default price template
     const { data: template } = await supabase
@@ -366,60 +357,70 @@ async function suggestQuotePrice(args: SuggestQuotePriceArgs, dyiaUserId: string
       surcharges: { trampoline: 100, hotTub: 200, piano: 150 }
     }
 
-    const desc = args.jobDescription.toLowerCase()
+    const desc = (args.job_description as string).toLowerCase()
+    const factors = (args.factors as string[]) || []
     let baseLow = prices.minimumFee || 75
     let baseHigh = prices.minimumFee || 75
-    const factors: string[] = []
+    const appliedFactors: string[] = []
 
     // Analyze job description for pricing
-    if (desc.includes('full') && desc.includes('load')) {
+    if (desc.includes('full') && (desc.includes('load') || desc.includes('truck'))) {
       baseLow = prices.fullLoad || 450
       baseHigh = baseLow * 1.2
-      factors.push('Full load')
+      appliedFactors.push('Full load')
+    } else if (desc.includes('3/4') || desc.includes('three quarter')) {
+      baseLow = prices.threeQuarterLoad || 350
+      baseHigh = baseLow * 1.2
+      appliedFactors.push('3/4 load')
     } else if (desc.includes('half') || desc.includes('1/2')) {
       baseLow = prices.halfLoad || 250
       baseHigh = baseLow * 1.2
-      factors.push('Half load')
+      appliedFactors.push('Half load')
     } else if (desc.includes('quarter') || desc.includes('1/4')) {
       baseLow = prices.quarterLoad || 150
       baseHigh = baseLow * 1.2
-      factors.push('Quarter load')
+      appliedFactors.push('Quarter load')
     }
 
     // Check for specialty items
-    if (desc.includes('hot tub') || desc.includes('hottub')) {
+    if (desc.includes('hot tub') || desc.includes('hottub') || desc.includes('jacuzzi')) {
       baseLow += prices.surcharges?.hotTub || 200
       baseHigh += prices.surcharges?.hotTub || 200
-      factors.push('Hot tub removal')
+      appliedFactors.push('Hot tub removal')
     }
     if (desc.includes('trampoline')) {
       baseLow += prices.surcharges?.trampoline || 100
       baseHigh += prices.surcharges?.trampoline || 100
-      factors.push('Trampoline')
+      appliedFactors.push('Trampoline')
     }
     if (desc.includes('piano')) {
       baseLow += prices.surcharges?.piano || 150
       baseHigh += prices.surcharges?.piano || 150
-      factors.push('Piano')
+      appliedFactors.push('Piano')
     }
 
-    // Check for complexity factors
-    if (desc.includes('garage') || desc.includes('basement') || desc.includes('attic')) {
-      baseLow *= 1.1
+    // Check for complexity
+    if (desc.includes('garage') || desc.includes('basement') || desc.includes('attic') || desc.includes('cleanout')) {
+      baseLow *= 1.2
+      baseHigh *= 1.4
+      appliedFactors.push('Full cleanout')
+    }
+
+    // Additional factors
+    if (factors.includes('stairs') || desc.includes('stairs') || desc.includes('upstairs') || desc.includes('second floor')) {
+      baseLow += 50
+      baseHigh += 100
+      appliedFactors.push('Stairs access')
+    }
+    if (factors.includes('long distance') || desc.includes('far') || desc.includes('distance')) {
+      baseLow += 50
+      baseHigh += 100
+      appliedFactors.push('Distance surcharge')
+    }
+    if (desc.includes('commercial') || desc.includes('office') || desc.includes('business')) {
+      baseLow *= 1.2
       baseHigh *= 1.3
-      factors.push('Full cleanout')
-    }
-
-    // Additional factors from args
-    if (args.factors?.includes('stairs')) {
-      baseLow += 50
-      baseHigh += 100
-      factors.push('Stairs access')
-    }
-    if (args.factors?.includes('long distance') || args.factors?.includes('far')) {
-      baseLow += 50
-      baseHigh += 100
-      factors.push('Distance surcharge')
+      appliedFactors.push('Commercial job')
     }
 
     const suggestedLow = Math.round(baseLow)
@@ -430,9 +431,9 @@ async function suggestQuotePrice(args: SuggestQuotePriceArgs, dyiaUserId: string
       data: {
         suggestedLow,
         suggestedHigh,
-        factors
+        factors: appliedFactors
       },
-      message: `Suggested price range: $${suggestedLow.toLocaleString()} - $${suggestedHigh.toLocaleString()}${factors.length > 0 ? `\n\nFactors: ${factors.join(', ')}` : ''}\n\nThis is based on your pricing template. Adjust based on the specific job conditions.`
+      message: `💰 **Suggested Price Range**\n\n**$${suggestedLow.toLocaleString()} - $${suggestedHigh.toLocaleString()}**\n\n${appliedFactors.length > 0 ? `📋 Factors considered:\n• ${appliedFactors.join('\n• ')}\n\n` : ''}💡 Adjust based on specific job conditions, customer budget, and your availability.`
     }
   } catch (error) {
     console.error('Error suggesting price:', error)
@@ -440,6 +441,195 @@ async function suggestQuotePrice(args: SuggestQuotePriceArgs, dyiaUserId: string
       success: false,
       error: String(error),
       message: 'Failed to suggest price. Please try again.'
+    }
+  }
+}
+
+async function updateFollowUpStatus(args: Record<string, unknown>, dyiaUserId: string): Promise<HandlerResult> {
+  const supabase = getSupabase()
+  try {
+    const followUpId = args.follow_up_id as string
+    const status = args.status as string
+    const notes = args.notes as string
+    const snoozeUntil = args.snooze_until as string
+
+    const updateData: Record<string, unknown> = {
+      status,
+      notes: notes || null
+    }
+
+    if (status === 'contacted') {
+      updateData.last_contacted_at = new Date().toISOString()
+      updateData.contact_count = supabase.rpc('increment_contact_count', { row_id: followUpId })
+    }
+
+    if (status === 'snoozed' && snoozeUntil) {
+      updateData.next_follow_up_at = snoozeUntil
+    }
+
+    const { error } = await supabase
+      .from('dyia_follow_ups')
+      .update(updateData)
+      .eq('id', followUpId)
+      .eq('user_id', dyiaUserId)
+
+    if (error) throw error
+
+    const statusEmoji = {
+      contacted: '📞',
+      converted: '🎉',
+      lost: '❌',
+      snoozed: '⏰'
+    }[status] || '✅'
+
+    const statusMessage = {
+      contacted: 'marked as contacted',
+      converted: 'converted to a job! Nice work!',
+      lost: 'marked as lost',
+      snoozed: `snoozed until ${snoozeUntil}`
+    }[status] || 'updated'
+
+    return {
+      success: true,
+      data: { followUpId, status },
+      message: `${statusEmoji} Follow-up ${statusMessage}${notes ? `\n\n📝 Notes: ${notes}` : ''}`
+    }
+  } catch (error) {
+    console.error('Error updating follow-up:', error)
+    return {
+      success: false,
+      error: String(error),
+      message: 'Failed to update follow-up. Please try again.'
+    }
+  }
+}
+
+async function getBusinessSummary(args: Record<string, unknown>, dyiaUserId: string): Promise<HandlerResult> {
+  const supabase = getSupabase()
+  try {
+    const period = args.period as string
+    const now = new Date()
+    let startDate: string
+    let endDate: string = now.toISOString().split('T')[0]
+
+    switch (period) {
+      case 'this_week':
+        const weekStart = new Date(now)
+        weekStart.setDate(now.getDate() - now.getDay())
+        startDate = weekStart.toISOString().split('T')[0]
+        break
+      case 'this_month':
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0]
+        break
+      case 'last_month':
+        startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().split('T')[0]
+        endDate = new Date(now.getFullYear(), now.getMonth(), 0).toISOString().split('T')[0]
+        break
+      case 'this_quarter':
+        const quarterStart = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1)
+        startDate = quarterStart.toISOString().split('T')[0]
+        break
+      case 'this_year':
+        startDate = new Date(now.getFullYear(), 0, 1).toISOString().split('T')[0]
+        break
+      default:
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0]
+    }
+
+    // Get jobs
+    const { data: jobs } = await supabase
+      .from('dyia_jobs')
+      .select('*')
+      .eq('user_id', dyiaUserId)
+      .gte('date', startDate)
+      .lte('date', endDate)
+
+    // Get fixed expenses
+    const { data: expenses } = await supabase
+      .from('dyia_fixed_expenses')
+      .select('*')
+      .eq('user_id', dyiaUserId)
+      .eq('is_active', true)
+
+    // Get pending follow-ups
+    const { data: followUps } = await supabase
+      .from('dyia_follow_ups')
+      .select('*')
+      .eq('user_id', dyiaUserId)
+      .eq('status', 'pending')
+
+    const jobCount = jobs?.length || 0
+    const totalRevenue = jobs?.reduce((sum, j) => sum + (parseFloat(j.revenue) || 0), 0) || 0
+    const jobExpenses = jobs?.reduce((sum, j) => 
+      sum + (parseFloat(j.labor) || 0) + (parseFloat(j.gas) || 0) + 
+      (parseFloat(j.dump_fee) || 0) + (parseFloat(j.dumpster_rental) || 0) + 
+      (parseFloat(j.additional_expense) || 0), 0) || 0
+
+    const monthlyFixed = expenses?.reduce((sum, e) => {
+      const monthly = e.frequency === 'yearly' ? parseFloat(e.amount) / 12 : parseFloat(e.amount)
+      return sum + monthly
+    }, 0) || 0
+
+    const totalExpenses = jobExpenses + monthlyFixed
+    const netProfit = totalRevenue - totalExpenses
+
+    // Top sources
+    const sources: Record<string, number> = {}
+    jobs?.forEach(job => {
+      if (job.source) {
+        sources[job.source] = (sources[job.source] || 0) + 1
+      }
+    })
+    const topSources = Object.entries(sources)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 3)
+
+    const periodLabel = {
+      this_week: 'This Week',
+      this_month: 'This Month',
+      last_month: 'Last Month',
+      this_quarter: 'This Quarter',
+      this_year: 'This Year'
+    }[period] || period
+
+    let summary = `📊 **${periodLabel} Business Summary**\n\n`
+    summary += `**Revenue & Profit**\n`
+    summary += `• Jobs: ${jobCount}\n`
+    summary += `• Revenue: $${totalRevenue.toLocaleString()}\n`
+    summary += `• Job Expenses: $${jobExpenses.toLocaleString()}\n`
+    summary += `• Fixed Overhead: $${Math.round(monthlyFixed).toLocaleString()}\n`
+    summary += `• Net Profit: $${netProfit.toLocaleString()}\n\n`
+
+    if (topSources.length > 0) {
+      summary += `**Top Lead Sources**\n`
+      topSources.forEach(([source, count]) => {
+        summary += `• ${source}: ${count} jobs\n`
+      })
+      summary += '\n'
+    }
+
+    summary += `**Action Items**\n`
+    summary += `• Pending follow-ups: ${followUps?.length || 0}\n`
+
+    return {
+      success: true,
+      data: {
+        period: periodLabel,
+        jobCount,
+        totalRevenue,
+        totalExpenses,
+        netProfit,
+        topSources,
+        pendingFollowUps: followUps?.length || 0
+      },
+      message: summary
+    }
+  } catch (error) {
+    console.error('Error getting business summary:', error)
+    return {
+      success: false,
+      error: String(error),
+      message: 'Failed to get business summary. Please try again.'
     }
   }
 }
@@ -453,6 +643,8 @@ export async function handleFunctionCall(
   args: Record<string, unknown>,
   clerkUserId: string
 ): Promise<HandlerResult> {
+  const supabase = getSupabase()
+  
   // First, get the dyia user ID from clerk user ID
   const { data: userData, error: userError } = await supabase
     .from('dyia_users')
@@ -473,22 +665,28 @@ export async function handleFunctionCall(
   // Route to appropriate handler
   switch (functionName) {
     case 'create_job':
-      return createJob(args as unknown as CreateJobArgs, dyiaUserId)
+      return createJob(args, dyiaUserId)
     
     case 'generate_quote':
-      return generateQuote(args as unknown as GenerateQuoteArgs, dyiaUserId)
+      return generateQuote(args, dyiaUserId)
     
     case 'log_expense':
-      return logExpense(args as unknown as LogExpenseArgs, dyiaUserId)
+      return logExpense(args, dyiaUserId)
     
     case 'get_performance_stats':
-      return getPerformanceStats(args as unknown as GetPerformanceStatsArgs, dyiaUserId)
+      return getPerformanceStats(args, dyiaUserId)
     
     case 'get_pending_follow_ups':
-      return getPendingFollowUps(args as unknown as GetPendingFollowUpsArgs, dyiaUserId)
+      return getPendingFollowUps(args, dyiaUserId)
     
     case 'suggest_quote_price':
-      return suggestQuotePrice(args as unknown as SuggestQuotePriceArgs, dyiaUserId)
+      return suggestQuotePrice(args, dyiaUserId)
+    
+    case 'update_follow_up_status':
+      return updateFollowUpStatus(args, dyiaUserId)
+    
+    case 'get_business_summary':
+      return getBusinessSummary(args, dyiaUserId)
     
     default:
       return {
