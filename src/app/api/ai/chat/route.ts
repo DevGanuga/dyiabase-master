@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { createClient } from '@supabase/supabase-js'
-import { openai, DYIA_INSTRUCTIONS, DYIA_MODEL, DYIA_MODEL_MINI } from '@/lib/openai/client'
+import { getOpenAI, DYIA_INSTRUCTIONS, DYIA_MODEL, DYIA_MODEL_MINI } from '@/lib/openai/client'
 import { DYIA_TOOLS, DyiaFunctionName } from '@/lib/openai/functions'
 import { handleFunctionCall, HandlerResult } from '@/lib/openai/handlers'
 
@@ -80,6 +80,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Cast and call API
+    const openai = getOpenAI()
     let response = await openai.responses.create(
       requestParams as Parameters<typeof openai.responses.create>[0]
     ) as unknown as ResponseData

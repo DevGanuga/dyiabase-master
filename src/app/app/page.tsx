@@ -273,6 +273,7 @@ export default function AppPage() {
             userName={isDemoMode ? 'Demo User' : (user?.primaryEmailAddress?.emailAddress || '')}
             onNavigate={(view) => setCurrentView(view as View)}
             pendingFollowUps={0} // TODO: Load from API
+            fixedMonthlyExpenses={fixedMonthlyExpenses}
           />
         )
       case 'jobs':

@@ -11,6 +11,7 @@ interface DashboardProps {
   userName?: string
   onNavigate: (view: string) => void
   pendingFollowUps?: number
+  fixedMonthlyExpenses?: number
 }
 
 export function Dashboard({ 
@@ -19,7 +20,8 @@ export function Dashboard({
   settings, 
   userName,
   onNavigate,
-  pendingFollowUps = 0
+  pendingFollowUps = 0,
+  fixedMonthlyExpenses = 0
 }: DashboardProps) {
   
   // Get greeting based on time of day
@@ -64,14 +66,15 @@ export function Dashboard({
       jobsThisWeek: thisWeek.length,
       jobsThisMonth: thisMonth.length,
       revenueThisMonth: totalRevenue,
-      profitThisMonth: totalRevenue - totalExpenses,
+      jobExpenses: totalExpenses,
+      profitThisMonth: totalRevenue - totalExpenses - fixedMonthlyExpenses,
       pendingQuotes: pendingQuotes.length,
       quoteValue,
-      goalProgress: settings.monthlyGoal > 0 
-        ? Math.round((totalRevenue / settings.monthlyGoal) * 100) 
+      goalProgress: settings.monthlyGoal > 0
+        ? Math.round((totalRevenue / settings.monthlyGoal) * 100)
         : 0
     }
-  }, [jobs, quotes, settings.monthlyGoal])
+  }, [jobs, quotes, settings.monthlyGoal, fixedMonthlyExpenses])
 
   return (
     <div className="space-y-8">
@@ -90,7 +93,7 @@ export function Dashboard({
         <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-4">
           Workflow
         </h2>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
           {/* Quotes */}
           <button 
             onClick={() => onNavigate('quotes')}
@@ -144,6 +147,25 @@ export function Dashboard({
             <p className="text-xs text-slate-500 mt-1">This month</p>
           </button>
 
+          {/* Fixed Expenses */}
+          <button
+            onClick={() => onNavigate('settings')}
+            className="bg-white border-l-4 border-l-red-400 border border-slate-200 rounded-xl p-5 text-left hover:shadow-md hover:border-slate-300 transition-all group"
+          >
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs font-medium text-red-500 uppercase tracking-wide">Overhead</span>
+              <svg className="w-4 h-4 text-slate-300 group-hover:text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </div>
+            <div className="flex items-baseline gap-2">
+              <span className="text-3xl font-bold text-slate-900">
+                {formatCurrency(fixedMonthlyExpenses)}
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 mt-1">Monthly fixed</p>
+          </button>
+
           {/* Profit */}
           <div className="bg-white border-l-4 border-l-purple-500 border border-slate-200 rounded-xl p-5">
             <div className="flex items-center justify-between mb-3">
@@ -154,7 +176,7 @@ export function Dashboard({
                 {formatCurrency(stats.profitThisMonth)}
               </span>
             </div>
-            <p className="text-xs text-slate-500 mt-1">This month</p>
+            <p className="text-xs text-slate-500 mt-1">This month (net)</p>
           </div>
         </div>
       </div>

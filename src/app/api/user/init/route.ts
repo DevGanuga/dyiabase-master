@@ -45,13 +45,14 @@ export async function POST(req: Request) {
       .insert({
         clerk_user_id: userId,
         email: email,
+        subscription_status: 'inactive',
       })
       .select()
       .single()
 
     if (createError) {
-      console.error('Error creating user profile:', createError)
-      return NextResponse.json({ error: createError.message }, { status: 500 })
+      console.error('Error creating user profile:', createError.message, createError.details, createError.code)
+      return NextResponse.json({ error: createError.message || 'Failed to create profile' }, { status: 500 })
     }
 
     // Create default settings

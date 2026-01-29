@@ -1,10 +1,20 @@
 import OpenAI from 'openai'
 
-// Initialize OpenAI client for Responses API
-// The Responses API is OpenAI's new primitive for agentic applications
-export const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-})
+// Lazy-initialized OpenAI client to avoid crashing at module evaluation
+// if the env var isn't loaded yet
+let _openai: OpenAI | null = null
+
+export function getOpenAI(): OpenAI {
+  if (!_openai) {
+    if (!process.env.OPENAI_API_KEY) {
+      throw new Error('OPENAI_API_KEY environment variable is not set. Please add it to .env.local and restart the dev server.')
+    }
+    _openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    })
+  }
+  return _openai
+}
 
 // System instructions for the Dyia assistant
 // These guide the AI's behavior across all interactions
