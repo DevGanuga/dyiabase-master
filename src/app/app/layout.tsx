@@ -1,7 +1,6 @@
 import { auth } from '@clerk/nextjs/server'
 import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
-import { TrialBanner } from '@/components/app/TrialBanner'
 
 export default async function AppLayout({
   children,
@@ -11,20 +10,15 @@ export default async function AppLayout({
   // Check for demo mode cookie
   const cookieStore = await cookies()
   const isDemoMode = cookieStore.get('dyia_demo_access')?.value === 'true'
-  
+
   // If not in demo mode, require Clerk authentication
   if (!isDemoMode) {
     const { userId } = await auth()
-    
+
     if (!userId) {
       redirect('/')
     }
   }
 
-  return (
-    <>
-      <TrialBanner />
-      {children}
-    </>
-  )
+  return <>{children}</>
 }

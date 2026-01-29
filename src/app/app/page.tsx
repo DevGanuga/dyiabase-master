@@ -13,6 +13,7 @@ import { Settings } from '@/components/app/Settings'
 import { FollowUps } from '@/components/app/FollowUps'
 import { Reports } from '@/components/app/Reports'
 import { Assistant } from '@/components/app/Assistant'
+import { TrialBanner } from '@/components/app/TrialBanner'
 
 type View = 'dashboard' | 'jobs' | 'quotes' | 'quoteBuilder' | 'followUps' | 'reports' | 'assistant' | 'settings'
 
@@ -368,10 +369,19 @@ export default function AppPage() {
         isPro={['active', 'trialing'].includes(userProfile?.subscription_status || '')}
       />
       
-      <main className={`flex-1 overflow-y-auto p-6 lg:p-8 ${isDemoMode ? 'pt-16' : ''}`}>
-        <div className="max-w-6xl mx-auto">
-          {renderContent()}
-        </div>
+      <main className={`flex-1 flex flex-col overflow-hidden ${isDemoMode ? 'pt-16' : ''}`}>
+        <TrialBanner />
+        {currentView === 'assistant' ? (
+          <div className="flex-1 min-h-0">
+            {renderContent()}
+          </div>
+        ) : (
+          <div className="flex-1 overflow-y-auto p-6 lg:p-8">
+            <div className="max-w-6xl mx-auto">
+              {renderContent()}
+            </div>
+          </div>
+        )}
       </main>
 
       {/* Success Toast */}
