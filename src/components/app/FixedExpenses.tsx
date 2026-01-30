@@ -225,8 +225,8 @@ export function FixedExpenses({ userId, showSuccess }: FixedExpensesProps) {
         <div className="flex items-center gap-3">
           <span className="text-2xl">💸</span>
           <div>
-            <h3 className="font-semibold text-slate-900">Fixed Expenses</h3>
-            <p className="text-sm text-slate-500">Track your recurring business costs</p>
+            <h3 className="font-semibold text-[var(--color-text-primary)]">Fixed Expenses</h3>
+            <p className="text-sm text-[var(--color-text-muted)]">Track your recurring business costs</p>
           </div>
         </div>
         <button
@@ -246,16 +246,16 @@ export function FixedExpenses({ userId, showSuccess }: FixedExpensesProps) {
           <p className="text-sm text-orange-600 font-medium mb-1">Monthly Total</p>
           <p className="text-2xl font-bold text-orange-700">{formatCurrency(monthlyTotal)}</p>
         </div>
-        <div className="bg-slate-50 rounded-xl p-4 border border-slate-200">
-          <p className="text-sm text-slate-500 font-medium mb-1">Yearly Total</p>
-          <p className="text-2xl font-bold text-slate-700">{formatCurrency(yearlyTotal)}</p>
+        <div className="bg-[var(--color-bg-subtle)] rounded-xl p-4 border border-[var(--color-border)]">
+          <p className="text-sm text-[var(--color-text-muted)] font-medium mb-1">Yearly Total</p>
+          <p className="text-2xl font-bold text-[var(--color-text-secondary)]">{formatCurrency(yearlyTotal)}</p>
         </div>
       </div>
 
       {/* Add/Edit Form */}
       {showForm && (
-        <div className="bg-slate-50 rounded-xl p-4 mb-6 border border-slate-200">
-          <h4 className="font-medium text-slate-900 mb-4">
+        <div className="bg-[var(--color-bg-subtle)] rounded-xl p-4 mb-6 border border-[var(--color-border)]">
+          <h4 className="font-medium text-[var(--color-text-primary)] mb-4">
             {editingId ? 'Edit Expense' : 'Add New Expense'}
           </h4>
           <div className="space-y-4">
@@ -274,7 +274,7 @@ export function FixedExpenses({ userId, showSuccess }: FixedExpensesProps) {
               <div>
                 <label className="app-label">Amount *</label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">$</span>
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)]">$</span>
                   <input
                     type="number"
                     value={formData.amount}
@@ -347,7 +347,7 @@ export function FixedExpenses({ userId, showSuccess }: FixedExpensesProps) {
 
       {/* Expenses List */}
       {expenses.length === 0 ? (
-        <div className="text-center py-8 text-slate-500">
+        <div className="text-center py-8 text-[var(--color-text-muted)]">
           <span className="text-4xl mb-3 block">📋</span>
           <p>No fixed expenses yet.</p>
           <p className="text-sm">Add your recurring business costs to track them.</p>
@@ -365,8 +365,8 @@ export function FixedExpenses({ userId, showSuccess }: FixedExpensesProps) {
                 key={expense.id}
                 className={`flex items-center gap-4 p-4 rounded-xl border transition ${
                   expense.isActive 
-                    ? 'bg-white border-slate-200' 
-                    : 'bg-slate-50 border-slate-100 opacity-60'
+                    ? 'bg-[var(--color-bg-card)] border-[var(--color-border)]' 
+                    : 'bg-[var(--color-bg-subtle)] border-[var(--color-border-light)] opacity-60'
                 }`}
               >
                 {/* Category Icon */}
@@ -379,7 +379,7 @@ export function FixedExpenses({ userId, showSuccess }: FixedExpensesProps) {
                 {/* Details */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <h4 className={`font-medium truncate ${expense.isActive ? 'text-slate-900' : 'text-slate-500'}`}>
+                    <h4 className={`font-medium truncate ${expense.isActive ? 'text-[var(--color-text-primary)]' : 'text-[var(--color-text-muted)]'}`}>
                       {expense.name}
                     </h4>
                     {!expense.isActive && (
@@ -388,20 +388,20 @@ export function FixedExpenses({ userId, showSuccess }: FixedExpensesProps) {
                       </span>
                     )}
                   </div>
-                  <p className="text-sm text-slate-500">
+                  <p className="text-sm text-[var(--color-text-muted)]">
                     {category.label} • {expense.frequency === 'yearly' ? 'Yearly' : 'Monthly'}
                     {expense.frequency === 'yearly' && (
-                      <span className="text-slate-400"> ({formatCurrency(monthlyEquivalent)}/mo)</span>
+                      <span className="text-[var(--color-text-faint)]"> ({formatCurrency(monthlyEquivalent)}/mo)</span>
                     )}
                   </p>
                 </div>
 
                 {/* Amount */}
                 <div className="text-right">
-                  <p className={`font-semibold ${expense.isActive ? 'text-slate-900' : 'text-slate-500'}`}>
+                  <p className={`font-semibold ${expense.isActive ? 'text-[var(--color-text-primary)]' : 'text-[var(--color-text-muted)]'}`}>
                     {formatCurrency(expense.amount)}
                   </p>
-                  <p className="text-xs text-slate-400">
+                  <p className="text-xs text-[var(--color-text-faint)]">
                     {expense.frequency === 'yearly' ? '/year' : '/month'}
                   </p>
                 </div>
@@ -412,8 +412,8 @@ export function FixedExpenses({ userId, showSuccess }: FixedExpensesProps) {
                     onClick={() => handleToggleActive(expense)}
                     className={`p-2 rounded-lg transition ${
                       expense.isActive 
-                        ? 'text-slate-400 hover:text-orange-600 hover:bg-orange-50' 
-                        : 'text-slate-400 hover:text-green-600 hover:bg-green-50'
+                        ? 'text-[var(--color-text-faint)] hover:text-orange-600 hover:bg-orange-50' 
+                        : 'text-[var(--color-text-faint)] hover:text-green-600 hover:bg-green-50'
                     }`}
                     title={expense.isActive ? 'Pause expense' : 'Activate expense'}
                   >
@@ -430,7 +430,7 @@ export function FixedExpenses({ userId, showSuccess }: FixedExpensesProps) {
                   </button>
                   <button
                     onClick={() => handleEdit(expense)}
-                    className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                    className="p-2 text-[var(--color-text-faint)] hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
                     title="Edit expense"
                   >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -439,7 +439,7 @@ export function FixedExpenses({ userId, showSuccess }: FixedExpensesProps) {
                   </button>
                   <button
                     onClick={() => handleDelete(expense.id)}
-                    className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition"
+                    className="p-2 text-[var(--color-text-faint)] hover:text-red-600 hover:bg-red-50 rounded-lg transition"
                     title="Delete expense"
                   >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

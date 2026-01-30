@@ -32,7 +32,9 @@ export function Dashboard({
     return 'Good evening'
   }, [])
 
-  const displayName = userName?.split('@')[0]?.split('.')[0] || 'there'
+  const displayName = userName?.includes('@')
+    ? userName.split('@')[0]?.split('.')[0] || 'there'
+    : userName || 'there'
   const capitalizedName = displayName.charAt(0).toUpperCase() + displayName.slice(1)
 
   // Calculate workflow stats
@@ -80,110 +82,110 @@ export function Dashboard({
     <div className="space-y-8">
       {/* Greeting Header */}
       <div>
-        <h1 className="text-3xl font-bold text-slate-900">
+        <h1 className="text-3xl font-bold text-[var(--color-text-primary)]">
           {greeting}, {capitalizedName}
         </h1>
-        <p className="text-slate-500 mt-1">
+        <p className="text-[var(--color-text-muted)] mt-1">
           Here&apos;s what&apos;s happening with your business
         </p>
       </div>
 
       {/* Workflow Pipeline */}
       <div>
-        <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-4">
+        <h2 className="text-sm font-semibold text-[var(--color-text-muted)] uppercase tracking-wide mb-4">
           Workflow
         </h2>
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
           {/* Quotes */}
           <button 
             onClick={() => onNavigate('quotes')}
-            className="bg-white border-l-4 border-l-blue-500 border border-slate-200 rounded-xl p-5 text-left hover:shadow-md hover:border-slate-300 transition-all group"
+            className="bg-[var(--color-bg-card)] border-l-4 border-l-blue-500 border border-[var(--color-border)] rounded-xl p-5 text-left hover:shadow-md hover:border-slate-300 transition-all group"
           >
             <div className="flex items-center justify-between mb-3">
               <span className="text-xs font-medium text-blue-600 uppercase tracking-wide">Quotes</span>
-              <svg className="w-4 h-4 text-slate-300 group-hover:text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4 text-slate-300 group-hover:text-[var(--color-text-faint)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
             </div>
             <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-bold text-slate-900">{stats.pendingQuotes}</span>
-              <span className="text-sm text-slate-400">{formatCurrency(stats.quoteValue)}</span>
+              <span className="text-3xl font-bold text-[var(--color-text-primary)]">{stats.pendingQuotes}</span>
+              <span className="text-sm text-[var(--color-text-faint)]">{formatCurrency(stats.quoteValue)}</span>
             </div>
-            <p className="text-xs text-slate-500 mt-1">Pending</p>
+            <p className="text-xs text-[var(--color-text-muted)] mt-1">Pending</p>
           </button>
 
           {/* Follow-ups */}
           <button 
             onClick={() => onNavigate('followUps')}
-            className="bg-white border-l-4 border-l-amber-500 border border-slate-200 rounded-xl p-5 text-left hover:shadow-md hover:border-slate-300 transition-all group"
+            className="bg-[var(--color-bg-card)] border-l-4 border-l-amber-500 border border-[var(--color-border)] rounded-xl p-5 text-left hover:shadow-md hover:border-slate-300 transition-all group"
           >
             <div className="flex items-center justify-between mb-3">
               <span className="text-xs font-medium text-amber-600 uppercase tracking-wide">Follow-ups</span>
-              <svg className="w-4 h-4 text-slate-300 group-hover:text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4 text-slate-300 group-hover:text-[var(--color-text-faint)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
             </div>
             <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-bold text-slate-900">{pendingFollowUps}</span>
+              <span className="text-3xl font-bold text-[var(--color-text-primary)]">{pendingFollowUps}</span>
             </div>
-            <p className="text-xs text-slate-500 mt-1">Need attention</p>
+            <p className="text-xs text-[var(--color-text-muted)] mt-1">Need attention</p>
           </button>
 
           {/* Jobs */}
           <button 
             onClick={() => onNavigate('jobs')}
-            className="bg-white border-l-4 border-l-green-500 border border-slate-200 rounded-xl p-5 text-left hover:shadow-md hover:border-slate-300 transition-all group"
+            className="bg-[var(--color-bg-card)] border-l-4 border-l-green-500 border border-[var(--color-border)] rounded-xl p-5 text-left hover:shadow-md hover:border-slate-300 transition-all group"
           >
             <div className="flex items-center justify-between mb-3">
               <span className="text-xs font-medium text-green-600 uppercase tracking-wide">Jobs</span>
-              <svg className="w-4 h-4 text-slate-300 group-hover:text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4 text-slate-300 group-hover:text-[var(--color-text-faint)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
             </div>
             <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-bold text-slate-900">{stats.jobsThisMonth}</span>
-              <span className="text-sm text-slate-400">{formatCurrency(stats.revenueThisMonth)}</span>
+              <span className="text-3xl font-bold text-[var(--color-text-primary)]">{stats.jobsThisMonth}</span>
+              <span className="text-sm text-[var(--color-text-faint)]">{formatCurrency(stats.revenueThisMonth)}</span>
             </div>
-            <p className="text-xs text-slate-500 mt-1">This month</p>
+            <p className="text-xs text-[var(--color-text-muted)] mt-1">This month</p>
           </button>
 
           {/* Fixed Expenses */}
           <button
             onClick={() => onNavigate('settings')}
-            className="bg-white border-l-4 border-l-red-400 border border-slate-200 rounded-xl p-5 text-left hover:shadow-md hover:border-slate-300 transition-all group"
+            className="bg-[var(--color-bg-card)] border-l-4 border-l-red-400 border border-[var(--color-border)] rounded-xl p-5 text-left hover:shadow-md hover:border-slate-300 transition-all group"
           >
             <div className="flex items-center justify-between mb-3">
               <span className="text-xs font-medium text-red-500 uppercase tracking-wide">Overhead</span>
-              <svg className="w-4 h-4 text-slate-300 group-hover:text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4 text-slate-300 group-hover:text-[var(--color-text-faint)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
             </div>
             <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-bold text-slate-900">
+              <span className="text-3xl font-bold text-[var(--color-text-primary)]">
                 {formatCurrency(fixedMonthlyExpenses)}
               </span>
             </div>
-            <p className="text-xs text-slate-500 mt-1">Monthly fixed</p>
+            <p className="text-xs text-[var(--color-text-muted)] mt-1">Monthly fixed</p>
           </button>
 
           {/* Profit */}
-          <div className="bg-white border-l-4 border-l-purple-500 border border-slate-200 rounded-xl p-5">
+          <div className="bg-[var(--color-bg-card)] border-l-4 border-l-purple-500 border border-[var(--color-border)] rounded-xl p-5">
             <div className="flex items-center justify-between mb-3">
               <span className="text-xs font-medium text-purple-600 uppercase tracking-wide">Profit</span>
             </div>
             <div className="flex items-baseline gap-2">
-              <span className={`text-3xl font-bold ${stats.profitThisMonth >= 0 ? 'text-slate-900' : 'text-red-600'}`}>
+              <span className={`text-3xl font-bold ${stats.profitThisMonth >= 0 ? 'text-[var(--color-text-primary)]' : 'text-red-600'}`}>
                 {formatCurrency(stats.profitThisMonth)}
               </span>
             </div>
-            <p className="text-xs text-slate-500 mt-1">This month (net)</p>
+            <p className="text-xs text-[var(--color-text-muted)] mt-1">This month (net)</p>
           </div>
         </div>
       </div>
 
       {/* Quick Actions */}
       <div>
-        <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-4">
+        <h2 className="text-sm font-semibold text-[var(--color-text-muted)] uppercase tracking-wide mb-4">
           Quick Actions
         </h2>
         <div className="flex flex-wrap gap-3">
@@ -198,7 +200,7 @@ export function Dashboard({
           </button>
           <button 
             onClick={() => onNavigate('quoteBuilder')}
-            className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-700 font-medium rounded-xl transition-colors"
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-[var(--color-bg-card)] border border-[var(--color-border)] hover:border-slate-300 hover:bg-[var(--color-bg-subtle)] text-[var(--color-text-secondary)] font-medium rounded-xl transition-colors"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
@@ -207,7 +209,7 @@ export function Dashboard({
           </button>
           <button 
             onClick={() => onNavigate('assistant')}
-            className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-700 font-medium rounded-xl transition-colors"
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-[var(--color-bg-card)] border border-[var(--color-border)] hover:border-slate-300 hover:bg-[var(--color-bg-subtle)] text-[var(--color-text-secondary)] font-medium rounded-xl transition-colors"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
@@ -219,16 +221,16 @@ export function Dashboard({
 
       {/* Goal Progress (if set) */}
       {settings.monthlyGoal > 0 && (
-        <div className="bg-gradient-to-r from-slate-50 to-white border border-slate-200 rounded-2xl p-6">
+        <div className="bg-gradient-to-r from-slate-50 to-white border border-[var(--color-border)] rounded-2xl p-6">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h3 className="font-semibold text-slate-900">Monthly Goal</h3>
-              <p className="text-sm text-slate-500">
+              <h3 className="font-semibold text-[var(--color-text-primary)]">Monthly Goal</h3>
+              <p className="text-sm text-[var(--color-text-muted)]">
                 {formatCurrency(stats.revenueThisMonth)} of {formatCurrency(settings.monthlyGoal)}
               </p>
             </div>
             <div className="text-right">
-              <span className={`text-2xl font-bold ${stats.goalProgress >= 100 ? 'text-green-600' : 'text-slate-900'}`}>
+              <span className={`text-2xl font-bold ${stats.goalProgress >= 100 ? 'text-green-600' : 'text-[var(--color-text-primary)]'}`}>
                 {stats.goalProgress}%
               </span>
             </div>
@@ -244,7 +246,7 @@ export function Dashboard({
             />
           </div>
           {stats.goalProgress < 100 && (
-            <p className="text-xs text-slate-400 mt-2">
+            <p className="text-xs text-[var(--color-text-faint)] mt-2">
               {formatCurrency(settings.monthlyGoal - stats.revenueThisMonth)} to go
             </p>
           )}
@@ -255,7 +257,7 @@ export function Dashboard({
       {jobs.length > 0 && (
         <div>
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wide">
+            <h2 className="text-sm font-semibold text-[var(--color-text-muted)] uppercase tracking-wide">
               Recent Jobs
             </h2>
             <button 
@@ -265,7 +267,7 @@ export function Dashboard({
               View all
             </button>
           </div>
-          <div className="bg-white border border-slate-200 rounded-2xl divide-y divide-slate-100">
+          <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-2xl divide-y divide-slate-100">
             {jobs.slice(0, 5).map((job) => (
               <div key={job.id} className="flex items-center justify-between p-4">
                 <div className="flex items-center gap-4">
@@ -275,8 +277,8 @@ export function Dashboard({
                     </svg>
                   </div>
                   <div>
-                    <p className="font-medium text-slate-900">{job.customerName}</p>
-                    <p className="text-sm text-slate-500">
+                    <p className="font-medium text-[var(--color-text-primary)]">{job.customerName}</p>
+                    <p className="text-sm text-[var(--color-text-muted)]">
                       {new Date(job.date).toLocaleDateString('en-US', { 
                         month: 'short', 
                         day: 'numeric' 
@@ -296,16 +298,16 @@ export function Dashboard({
 
       {/* Empty State */}
       {jobs.length === 0 && (
-        <div className="bg-white border border-slate-200 rounded-2xl text-center py-12 px-6">
+        <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-2xl text-center py-12 px-6">
           <div className="w-16 h-16 bg-orange-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <svg className="w-8 h-8 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
             </svg>
           </div>
-          <h3 className="text-lg font-semibold text-slate-900 mb-2">
+          <h3 className="text-lg font-semibold text-[var(--color-text-primary)] mb-2">
             Welcome to dyia
           </h3>
-          <p className="text-slate-500 mb-6 max-w-sm mx-auto">
+          <p className="text-[var(--color-text-muted)] mb-6 max-w-sm mx-auto">
             Start by logging your first job to track your revenue and profits.
           </p>
           <button 

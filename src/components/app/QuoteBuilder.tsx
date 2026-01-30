@@ -205,7 +205,7 @@ export function QuoteBuilder({ quotes, setQuotes, userId, onBack, showSuccess }:
         <div className="app-card mb-5">
           <div className="flex items-center gap-3 mb-5">
             <span className="text-xl">👤</span>
-            <h3 className="font-semibold text-slate-900">Customer Information</h3>
+            <h3 className="font-semibold text-[var(--color-text-primary)]">Customer Information</h3>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
@@ -267,7 +267,7 @@ export function QuoteBuilder({ quotes, setQuotes, userId, onBack, showSuccess }:
           <div className="flex items-center justify-between mb-5">
             <div className="flex items-center gap-3">
               <span className="text-xl">📦</span>
-              <h3 className="font-semibold text-slate-900">Volume-Based Pricing</h3>
+              <h3 className="font-semibold text-[var(--color-text-primary)]">Volume-Based Pricing</h3>
             </div>
             {defaultTemplate && (
               <span className="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded-full">
@@ -286,7 +286,7 @@ export function QuoteBuilder({ quotes, setQuotes, userId, onBack, showSuccess }:
               <div key={field}>
                 <label className="app-label text-sm">{label}</label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">$</span>
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)] text-sm">$</span>
                   <input
                     type="number"
                     value={pricing[field] || ''}
@@ -321,7 +321,7 @@ export function QuoteBuilder({ quotes, setQuotes, userId, onBack, showSuccess }:
               <div>
                 <label className="app-label text-sm text-amber-800">Price Per Load</label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">$</span>
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)]">$</span>
                   <input
                     type="number"
                     value={pricePerLoad || ''}
@@ -345,7 +345,7 @@ export function QuoteBuilder({ quotes, setQuotes, userId, onBack, showSuccess }:
         <div className="app-card mb-5">
           <div className="flex items-center gap-3 mb-5">
             <span className="text-xl">🔧</span>
-            <h3 className="font-semibold text-slate-900">Specialty Jobs</h3>
+            <h3 className="font-semibold text-[var(--color-text-primary)]">Specialty Jobs</h3>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
             {[
@@ -359,7 +359,7 @@ export function QuoteBuilder({ quotes, setQuotes, userId, onBack, showSuccess }:
               <div key={field}>
                 <label className="app-label text-sm">{label}</label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">$</span>
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)] text-sm">$</span>
                   <input
                     type="number"
                     value={pricing[field] || ''}
@@ -378,7 +378,7 @@ export function QuoteBuilder({ quotes, setQuotes, userId, onBack, showSuccess }:
         <div className="app-card mb-5">
           <div className="flex items-center gap-3 mb-5">
             <span className="text-xl">💰</span>
-            <h3 className="font-semibold text-slate-900">Additional Fees</h3>
+            <h3 className="font-semibold text-[var(--color-text-primary)]">Additional Fees</h3>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
             {[
@@ -392,7 +392,7 @@ export function QuoteBuilder({ quotes, setQuotes, userId, onBack, showSuccess }:
               <div key={field}>
                 <label className="app-label text-sm">{label}</label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">$</span>
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)] text-sm">$</span>
                   <input
                     type="number"
                     value={pricing[field] || ''}
@@ -424,10 +424,10 @@ export function QuoteBuilder({ quotes, setQuotes, userId, onBack, showSuccess }:
         <div className="app-card mb-6">
           <div className="flex items-center gap-3 mb-2">
             <span className="text-xl">📸</span>
-            <h3 className="font-semibold text-slate-900">Job Photos</h3>
-            <span className="text-sm text-slate-500">(Optional)</span>
+            <h3 className="font-semibold text-[var(--color-text-primary)]">Job Photos</h3>
+            <span className="text-sm text-[var(--color-text-muted)]">(Optional)</span>
           </div>
-          <p className="text-slate-500 text-sm mb-4">Upload up to 3 photos to include in the quote PDF.</p>
+          <p className="text-[var(--color-text-muted)] text-sm mb-4">Upload up to 3 photos to include in the quote PDF.</p>
           <div className="grid grid-cols-3 gap-4">
             {[0, 1, 2].map(i => (
               <div key={i} className="image-upload-box">
@@ -449,10 +449,10 @@ export function QuoteBuilder({ quotes, setQuotes, userId, onBack, showSuccess }:
                   </>
                 ) : (
                   <div className="image-upload-placeholder">
-                    <svg className="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-8 h-8 text-[var(--color-text-faint)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                     </svg>
-                    <span className="text-xs text-slate-400">Add Photo</span>
+                    <span className="text-xs text-[var(--color-text-faint)]">Add Photo</span>
                   </div>
                 )}
               </div>

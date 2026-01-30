@@ -143,8 +143,8 @@ export function Settings({ settings, setSettings, userId, showSuccess }: Setting
         <div className="flex items-center gap-3 mb-6">
           <span className="text-2xl">🏢</span>
           <div>
-            <h3 className="font-semibold text-slate-900">Business Information</h3>
-            <p className="text-sm text-slate-500">This appears on your quotes</p>
+            <h3 className="font-semibold text-[var(--color-text-primary)]">Business Information</h3>
+            <p className="text-sm text-[var(--color-text-muted)]">This appears on your quotes</p>
           </div>
         </div>
 
@@ -197,7 +197,7 @@ export function Settings({ settings, setSettings, userId, showSuccess }: Setting
           {/* Logo Upload */}
           <div>
             <label className="app-label">Business Logo</label>
-            <p className="text-sm text-slate-500 mb-3">Upload a logo to display on your quotes (max 2MB)</p>
+            <p className="text-sm text-[var(--color-text-muted)] mb-3">Upload a logo to display on your quotes (max 2MB)</p>
             
             {settings.businessInfo.logo ? (
               <div className="flex items-start gap-4">
@@ -205,7 +205,7 @@ export function Settings({ settings, setSettings, userId, showSuccess }: Setting
                   <img
                     src={settings.businessInfo.logo}
                     alt="Business Logo"
-                    className="w-32 h-32 object-contain rounded-xl border border-slate-200 bg-slate-50"
+                    className="w-32 h-32 object-contain rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-subtle)]"
                   />
                   <button
                     onClick={removeLogo}
@@ -231,18 +231,18 @@ export function Settings({ settings, setSettings, userId, showSuccess }: Setting
               </div>
             ) : (
               <label className="cursor-pointer block">
-                <div className="w-full max-w-xs aspect-video bg-slate-50 border-2 border-dashed border-slate-300 rounded-xl flex flex-col items-center justify-center gap-2 hover:border-emerald-500 hover:bg-emerald-50/50 transition-all">
+                <div className="w-full max-w-xs aspect-video bg-[var(--color-bg-subtle)] border-2 border-dashed border-slate-300 rounded-xl flex flex-col items-center justify-center gap-2 hover:border-emerald-500 hover:bg-emerald-50/50 transition-all">
                   {uploadingLogo ? (
                     <>
                       <div className="w-8 h-8 border-2 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin" />
-                      <span className="text-sm text-slate-500">Uploading...</span>
+                      <span className="text-sm text-[var(--color-text-muted)]">Uploading...</span>
                     </>
                   ) : (
                     <>
-                      <svg className="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-8 h-8 text-[var(--color-text-faint)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                       </svg>
-                      <span className="text-sm text-slate-500">Click to upload logo</span>
+                      <span className="text-sm text-[var(--color-text-muted)]">Click to upload logo</span>
                     </>
                   )}
                 </div>
@@ -264,8 +264,8 @@ export function Settings({ settings, setSettings, userId, showSuccess }: Setting
         <div className="flex items-center gap-3 mb-6">
           <span className="text-2xl">🐷</span>
           <div>
-            <h3 className="font-semibold text-slate-900">Tax & Savings Set-Aside</h3>
-            <p className="text-sm text-slate-500">Percentage of profit to set aside for taxes</p>
+            <h3 className="font-semibold text-[var(--color-text-primary)]">Tax & Savings Set-Aside</h3>
+            <p className="text-sm text-[var(--color-text-muted)]">Percentage of profit to set aside for taxes</p>
           </div>
         </div>
         
@@ -279,7 +279,7 @@ export function Settings({ settings, setSettings, userId, showSuccess }: Setting
               max="50"
               className="app-slider w-full"
             />
-            <div className="flex justify-between text-xs text-slate-400 mt-2">
+            <div className="flex justify-between text-xs text-[var(--color-text-faint)] mt-2">
               <span>0%</span>
               <span>25%</span>
               <span>50%</span>
@@ -287,7 +287,7 @@ export function Settings({ settings, setSettings, userId, showSuccess }: Setting
           </div>
           <div className="text-center sm:text-right">
             <div className="text-4xl font-bold text-emerald-600">{taxPercentage}%</div>
-            <p className="text-sm text-slate-500">of profit</p>
+            <p className="text-sm text-[var(--color-text-muted)]">of profit</p>
           </div>
         </div>
         
@@ -303,8 +303,8 @@ export function Settings({ settings, setSettings, userId, showSuccess }: Setting
         <div className="flex items-center gap-3 mb-6">
           <span className="text-2xl">🎯</span>
           <div>
-            <h3 className="font-semibold text-slate-900">Monthly Revenue Goal</h3>
-            <p className="text-sm text-slate-500">Track your progress on the dashboard</p>
+            <h3 className="font-semibold text-[var(--color-text-primary)]">Monthly Revenue Goal</h3>
+            <p className="text-sm text-[var(--color-text-muted)]">Track your progress on the dashboard</p>
           </div>
         </div>
         
@@ -312,7 +312,7 @@ export function Settings({ settings, setSettings, userId, showSuccess }: Setting
           <div className="flex-1">
             <label className="app-label">Target Revenue</label>
             <div className="relative">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">$</span>
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)]">$</span>
               <input
                 type="number"
                 value={monthlyGoal || ''}
@@ -355,12 +355,12 @@ export function Settings({ settings, setSettings, userId, showSuccess }: Setting
       </div>
 
       {/* Fixed Expenses Section */}
-      <div className="border-t border-slate-200 pt-8">
+      <div className="border-t border-[var(--color-border)] pt-8">
         <FixedExpenses userId={userId} showSuccess={showSuccess} />
       </div>
 
       {/* Pricing Templates Section */}
-      <div className="border-t border-slate-200 pt-8 mt-8">
+      <div className="border-t border-[var(--color-border)] pt-8 mt-8">
         <PriceTemplates userId={userId} showSuccess={showSuccess} />
       </div>
     </div>

@@ -259,10 +259,10 @@ export function Assistant({ userId, showSuccess }: AssistantProps) {
     <div className="h-full flex">
       {/* Thread Sidebar - collapses to width 0 when hidden */}
       <div className={`assistant-sidebar-panel ${showThreads ? 'assistant-sidebar-open' : 'assistant-sidebar-closed'}`}>
-        <div className="p-3 border-b border-slate-200 whitespace-nowrap">
+        <div className="p-3 border-b border-[var(--color-border)] whitespace-nowrap">
           <button
             onClick={handleNewConversation}
-            className="w-full flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+            className="w-full flex items-center gap-2 px-3 py-2 text-sm font-medium text-[var(--color-text-secondary)] hover:bg-slate-100 rounded-lg transition-colors"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -280,10 +280,10 @@ export function Assistant({ userId, showSuccess }: AssistantProps) {
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col min-w-0 h-full">
         {/* Header */}
-        <div className="px-4 py-3 border-b border-slate-200 flex items-center gap-3 bg-white">
+        <div className="px-4 py-3 border-b border-[var(--color-border)] flex items-center gap-3 bg-[var(--color-bg-card)]">
           <button
             onClick={() => setShowThreads(!showThreads)}
-            className="p-2 hover:bg-slate-100 rounded-lg transition-colors text-slate-500 hover:text-slate-700"
+            className="p-2 hover:bg-slate-100 rounded-lg transition-colors text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]"
             title={showThreads ? 'Hide conversations' : 'Show conversations'}
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -296,12 +296,12 @@ export function Assistant({ userId, showSuccess }: AssistantProps) {
           </button>
           <div className="flex items-center gap-2 flex-1">
             <span className="text-lg">✨</span>
-            <span className="font-medium text-slate-900 text-sm">Dyia Assistant</span>
+            <span className="font-medium text-[var(--color-text-primary)] text-sm">Dyia Assistant</span>
             <span className={`w-2 h-2 rounded-full ${
               isSending ? 'bg-orange-500 animate-pulse' : 'bg-green-500'
             }`} />
             {isSending && (
-              <span className="text-xs text-slate-400">Working on it...</span>
+              <span className="text-xs text-[var(--color-text-faint)]">Working on it...</span>
             )}
           </div>
         </div>
@@ -313,7 +313,7 @@ export function Assistant({ userId, showSuccess }: AssistantProps) {
               <div className="flex items-center justify-center h-full">
                 <div className="text-center">
                   <div className="loading-spinner mx-auto mb-4" />
-                  <p className="text-slate-500">Loading conversation...</p>
+                  <p className="text-[var(--color-text-muted)]">Loading conversation...</p>
                 </div>
               </div>
             ) : (
@@ -365,7 +365,7 @@ export function Assistant({ userId, showSuccess }: AssistantProps) {
         )}
 
         {/* Input Area */}
-        <div className="p-4 border-t border-slate-200 bg-white">
+        <div className="p-4 border-t border-[var(--color-border)] bg-[var(--color-bg-card)]">
           <div className="max-w-3xl mx-auto">
             <div className="chat-input-wrapper">
               <textarea
@@ -393,7 +393,7 @@ export function Assistant({ userId, showSuccess }: AssistantProps) {
                 )}
               </button>
             </div>
-            <p className="text-xs text-slate-400 mt-2 text-center">
+            <p className="text-xs text-[var(--color-text-faint)] mt-2 text-center">
               Enter to send · Shift+Enter for new line
             </p>
           </div>

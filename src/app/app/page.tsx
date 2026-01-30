@@ -252,7 +252,7 @@ export default function AppPage() {
             className="h-10 mb-4 mx-auto animate-pulse"
           />
           <div className="loading-spinner mx-auto mb-4" />
-          <p className="text-slate-500 font-medium">Loading your dashboard...</p>
+          <p className="text-[var(--color-text-muted)] font-medium">Loading your dashboard...</p>
         </div>
       </div>
     )
@@ -271,7 +271,7 @@ export default function AppPage() {
             jobs={jobs}
             quotes={quotes}
             settings={settings}
-            userName={isDemoMode ? 'Demo User' : (user?.primaryEmailAddress?.emailAddress || '')}
+            userName={isDemoMode ? 'Demo User' : (userProfile?.first_name || user?.firstName || user?.primaryEmailAddress?.emailAddress || '')}
             onNavigate={(view) => setCurrentView(view as View)}
             pendingFollowUps={0} // TODO: Load from API
             fixedMonthlyExpenses={fixedMonthlyExpenses}
@@ -369,7 +369,7 @@ export default function AppPage() {
         isPro={['active', 'trialing'].includes(userProfile?.subscription_status || '')}
       />
       
-      <main className={`flex-1 flex flex-col overflow-hidden ${isDemoMode ? 'pt-16' : ''}`}>
+      <main className={`flex-1 flex flex-col overflow-hidden ${isDemoMode ? 'pt-16' : ''}`} style={{ animation: 'contentReveal 0.6s cubic-bezier(0.16, 1, 0.3, 1) both' }}>
         <TrialBanner />
         {currentView === 'assistant' ? (
           <div className="flex-1 min-h-0">

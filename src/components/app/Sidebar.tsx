@@ -3,6 +3,7 @@
 import type { AppJob } from '@/types/database'
 import Link from 'next/link'
 import Image from 'next/image'
+import { useTheme } from '@/hooks/useTheme'
 
 type View = 'dashboard' | 'jobs' | 'quotes' | 'quoteBuilder' | 'followUps' | 'reports' | 'assistant' | 'settings'
 
@@ -77,7 +78,8 @@ const NAV_ITEMS: { id: View; icon: keyof typeof Icons; label: string; pro?: bool
 ]
 
 export function Sidebar({ currentView, setCurrentView, userEmail, onLogout, jobs, showSuccess, isPro = false }: SidebarProps) {
-  
+  const { resolvedTheme, setTheme } = useTheme()
+
   const exportData = () => {
     if (jobs.length === 0) {
       alert('No jobs to export')
@@ -185,6 +187,23 @@ export function Sidebar({ currentView, setCurrentView, userEmail, onLogout, jobs
           </div>
         </div>
         
+        <button
+          onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
+          className="w-full flex items-center gap-3 px-3 py-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded-lg transition-all text-xs mb-2"
+          title={resolvedTheme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+        >
+          {resolvedTheme === 'dark' ? (
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+            </svg>
+          ) : (
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+            </svg>
+          )}
+          <span className="sidebar-text">{resolvedTheme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
+        </button>
+
         <div className="flex gap-2">
           <button
             onClick={exportData}

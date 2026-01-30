@@ -315,7 +315,7 @@ export function FollowUps({ userId, businessName = 'dyia', showSuccess }: Follow
         <div className="app-card">
           <div className="flex items-center gap-3">
             <div className="loading-spinner" />
-            <span className="text-slate-500">Loading follow-ups...</span>
+            <span className="text-[var(--color-text-muted)]">Loading follow-ups...</span>
           </div>
         </div>
       ) : filteredRows.length === 0 ? (
@@ -345,14 +345,14 @@ export function FollowUps({ userId, businessName = 'dyia', showSuccess }: Follow
                 <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
                   <div className="flex-1">
                     <div className="flex flex-wrap items-center gap-2 mb-2">
-                      <h3 className="text-lg font-semibold text-slate-900">{row.quote.customerName}</h3>
+                      <h3 className="text-lg font-semibold text-[var(--color-text-primary)]">{row.quote.customerName}</h3>
                       <span className={`badge ${priorityBadge}`}>
                         {row.priority === 'hot' ? 'Hot 🔥' : row.priority === 'warm' ? 'Warm 🌡️' : 'Cold ❄️'}
                       </span>
                       <span className={`badge ${statusBadge}`}>
                         {STATUS_OPTIONS.find((opt) => opt.value === status)?.label || 'Pending'}
                       </span>
-                      <span className="text-xs text-slate-400">
+                      <span className="text-xs text-[var(--color-text-faint)]">
                         {row.daysSinceQuote} day{row.daysSinceQuote !== 1 ? 's' : ''} ago
                       </span>
                     </div>
@@ -372,7 +372,7 @@ export function FollowUps({ userId, businessName = 'dyia', showSuccess }: Follow
                       </div>
                     )}
 
-                    <div className="text-sm text-slate-500 mb-4">
+                    <div className="text-sm text-[var(--color-text-muted)] mb-4">
                       {row.quote.jobDescription || 'No job description provided.'}
                     </div>
 

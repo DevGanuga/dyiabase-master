@@ -128,8 +128,8 @@ export function Reports({ jobs, quotes, fixedMonthlyExpenses }: ReportsProps) {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Reports</h1>
-          <p className="text-slate-500">Business analytics and insights</p>
+          <h1 className="text-2xl font-bold text-[var(--color-text-primary)]">Reports</h1>
+          <p className="text-[var(--color-text-muted)]">Business analytics and insights</p>
         </div>
         <div className="flex gap-2">
           {(['week', 'month', 'quarter', 'year', 'all'] as TimeRange[]).map(range => (
@@ -139,7 +139,7 @@ export function Reports({ jobs, quotes, fixedMonthlyExpenses }: ReportsProps) {
               className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
                 timeRange === range
                   ? 'bg-slate-900 text-white'
-                  : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+                  : 'bg-[var(--color-bg-card)] border border-[var(--color-border)] text-slate-600 hover:bg-[var(--color-bg-subtle)]'
               }`}
             >
               {range === 'week' ? '7D' : range === 'month' ? '30D' : range === 'quarter' ? '3M' : range === 'year' ? '1Y' : 'All'}
@@ -150,35 +150,35 @@ export function Reports({ jobs, quotes, fixedMonthlyExpenses }: ReportsProps) {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white border border-slate-200 rounded-xl p-5">
-          <p className="text-sm text-slate-500 mb-1">Total Revenue</p>
+        <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl p-5">
+          <p className="text-sm text-[var(--color-text-muted)] mb-1">Total Revenue</p>
           <p className="text-2xl font-bold text-green-600">{formatCurrency(stats.totalRevenue)}</p>
-          <p className="text-xs text-slate-400 mt-1">{stats.jobCount} jobs</p>
+          <p className="text-xs text-[var(--color-text-faint)] mt-1">{stats.jobCount} jobs</p>
         </div>
-        <div className="bg-white border border-slate-200 rounded-xl p-5">
-          <p className="text-sm text-slate-500 mb-1">Gross Profit</p>
+        <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl p-5">
+          <p className="text-sm text-[var(--color-text-muted)] mb-1">Gross Profit</p>
           <p className="text-2xl font-bold text-purple-600">{formatCurrency(stats.grossProfit)}</p>
-          <p className="text-xs text-slate-400 mt-1">{Math.round(stats.profitMargin)}% margin</p>
+          <p className="text-xs text-[var(--color-text-faint)] mt-1">{Math.round(stats.profitMargin)}% margin</p>
         </div>
-        <div className="bg-white border border-slate-200 rounded-xl p-5">
-          <p className="text-sm text-slate-500 mb-1">Avg Job Value</p>
-          <p className="text-2xl font-bold text-slate-900">{formatCurrency(stats.avgJobRevenue)}</p>
-          <p className="text-xs text-slate-400 mt-1">{formatCurrency(stats.avgJobProfit)} profit</p>
+        <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl p-5">
+          <p className="text-sm text-[var(--color-text-muted)] mb-1">Avg Job Value</p>
+          <p className="text-2xl font-bold text-[var(--color-text-primary)]">{formatCurrency(stats.avgJobRevenue)}</p>
+          <p className="text-xs text-[var(--color-text-faint)] mt-1">{formatCurrency(stats.avgJobProfit)} profit</p>
         </div>
-        <div className="bg-white border border-slate-200 rounded-xl p-5">
-          <p className="text-sm text-slate-500 mb-1">Job Expenses</p>
+        <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl p-5">
+          <p className="text-sm text-[var(--color-text-muted)] mb-1">Job Expenses</p>
           <p className="text-2xl font-bold text-red-500">{formatCurrency(stats.totalExpenses)}</p>
-          <p className="text-xs text-slate-400 mt-1">+ {formatCurrency(stats.fixedExpenses)} fixed</p>
+          <p className="text-xs text-[var(--color-text-faint)] mt-1">+ {formatCurrency(stats.fixedExpenses)} fixed</p>
         </div>
       </div>
 
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Revenue by Source */}
-        <div className="bg-white border border-slate-200 rounded-xl p-6">
-          <h3 className="font-semibold text-slate-900 mb-4">Revenue by Source</h3>
+        <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl p-6">
+          <h3 className="font-semibold text-[var(--color-text-primary)] mb-4">Revenue by Source</h3>
           {stats.sources.length === 0 ? (
-            <p className="text-slate-400 text-sm">No data yet</p>
+            <p className="text-[var(--color-text-faint)] text-sm">No data yet</p>
           ) : (
             <div className="space-y-3">
               {stats.sources.slice(0, 5).map((source, idx) => {
@@ -186,8 +186,8 @@ export function Reports({ jobs, quotes, fixedMonthlyExpenses }: ReportsProps) {
                 return (
                   <div key={source.name}>
                     <div className="flex justify-between text-sm mb-1">
-                      <span className="font-medium text-slate-700">{source.name}</span>
-                      <span className="text-slate-500">{formatCurrency(source.revenue)} ({source.count} jobs)</span>
+                      <span className="font-medium text-[var(--color-text-secondary)]">{source.name}</span>
+                      <span className="text-[var(--color-text-muted)]">{formatCurrency(source.revenue)} ({source.count} jobs)</span>
                     </div>
                     <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
                       <div 
@@ -203,10 +203,10 @@ export function Reports({ jobs, quotes, fixedMonthlyExpenses }: ReportsProps) {
         </div>
 
         {/* Expense Breakdown */}
-        <div className="bg-white border border-slate-200 rounded-xl p-6">
-          <h3 className="font-semibold text-slate-900 mb-4">Expense Breakdown</h3>
+        <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl p-6">
+          <h3 className="font-semibold text-[var(--color-text-primary)] mb-4">Expense Breakdown</h3>
           {stats.totalExpenses === 0 ? (
-            <p className="text-slate-400 text-sm">No expenses logged</p>
+            <p className="text-[var(--color-text-faint)] text-sm">No expenses logged</p>
           ) : (
             <div className="space-y-3">
               {[
@@ -214,14 +214,14 @@ export function Reports({ jobs, quotes, fixedMonthlyExpenses }: ReportsProps) {
                 { name: 'Gas', value: stats.expenseBreakdown.gas, color: 'bg-green-500' },
                 { name: 'Dump Fees', value: stats.expenseBreakdown.dumpFees, color: 'bg-yellow-500' },
                 { name: 'Dumpster Rental', value: stats.expenseBreakdown.dumpster, color: 'bg-purple-500' },
-                { name: 'Other', value: stats.expenseBreakdown.other, color: 'bg-slate-500' },
+                { name: 'Other', value: stats.expenseBreakdown.other, color: 'bg-[var(--color-bg-subtle)]0' },
               ].filter(e => e.value > 0).map((expense) => {
                 const percentage = stats.totalExpenses > 0 ? (expense.value / stats.totalExpenses) * 100 : 0
                 return (
                   <div key={expense.name}>
                     <div className="flex justify-between text-sm mb-1">
-                      <span className="font-medium text-slate-700">{expense.name}</span>
-                      <span className="text-slate-500">{formatCurrency(expense.value)} ({Math.round(percentage)}%)</span>
+                      <span className="font-medium text-[var(--color-text-secondary)]">{expense.name}</span>
+                      <span className="text-[var(--color-text-muted)]">{formatCurrency(expense.value)} ({Math.round(percentage)}%)</span>
                     </div>
                     <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
                       <div 
@@ -239,12 +239,12 @@ export function Reports({ jobs, quotes, fixedMonthlyExpenses }: ReportsProps) {
 
       {/* Monthly Trend */}
       {stats.monthlyTrend.length > 0 && (
-        <div className="bg-white border border-slate-200 rounded-xl p-6">
-          <h3 className="font-semibold text-slate-900 mb-4">Monthly Trend</h3>
+        <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl p-6">
+          <h3 className="font-semibold text-[var(--color-text-primary)] mb-4">Monthly Trend</h3>
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="text-left text-sm text-slate-500 border-b border-slate-100">
+                <tr className="text-left text-sm text-[var(--color-text-muted)] border-b border-[var(--color-border-light)]">
                   <th className="pb-3 font-medium">Month</th>
                   <th className="pb-3 font-medium text-right">Jobs</th>
                   <th className="pb-3 font-medium text-right">Revenue</th>
@@ -255,7 +255,7 @@ export function Reports({ jobs, quotes, fixedMonthlyExpenses }: ReportsProps) {
               <tbody>
                 {stats.monthlyTrend.map((m) => (
                   <tr key={m.month} className="border-b border-slate-50">
-                    <td className="py-3 font-medium text-slate-900">{m.month}</td>
+                    <td className="py-3 font-medium text-[var(--color-text-primary)]">{m.month}</td>
                     <td className="py-3 text-right text-slate-600">{m.jobs}</td>
                     <td className="py-3 text-right font-semibold text-green-600">{formatCurrency(m.revenue)}</td>
                     <td className="py-3 text-right font-semibold text-purple-600">{formatCurrency(m.profit)}</td>
@@ -272,7 +272,7 @@ export function Reports({ jobs, quotes, fixedMonthlyExpenses }: ReportsProps) {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200/50 rounded-xl p-5">
           <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center text-green-600">
+            <div className="w-10 h-10 bg-[var(--color-bg-card)] rounded-lg flex items-center justify-center text-green-600">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
               </svg>
@@ -291,7 +291,7 @@ export function Reports({ jobs, quotes, fixedMonthlyExpenses }: ReportsProps) {
 
         <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200/50 rounded-xl p-5">
           <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center text-blue-600">
+            <div className="w-10 h-10 bg-[var(--color-bg-card)] rounded-lg flex items-center justify-center text-blue-600">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
@@ -308,7 +308,7 @@ export function Reports({ jobs, quotes, fixedMonthlyExpenses }: ReportsProps) {
 
         <div className="bg-gradient-to-br from-purple-50 to-violet-50 border border-purple-200/50 rounded-xl p-5">
           <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center text-purple-600">
+            <div className="w-10 h-10 bg-[var(--color-bg-card)] rounded-lg flex items-center justify-center text-purple-600">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
@@ -326,14 +326,14 @@ export function Reports({ jobs, quotes, fixedMonthlyExpenses }: ReportsProps) {
 
       {/* Empty State */}
       {stats.jobCount === 0 && (
-        <div className="bg-white border border-slate-200 rounded-xl text-center py-12 px-6">
+        <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl text-center py-12 px-6">
           <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <svg className="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-8 h-8 text-[var(--color-text-faint)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
             </svg>
           </div>
-          <h3 className="text-lg font-semibold text-slate-900 mb-2">No data for {timeRangeLabel.toLowerCase()}</h3>
-          <p className="text-slate-500">Start logging jobs to see your analytics.</p>
+          <h3 className="text-lg font-semibold text-[var(--color-text-primary)] mb-2">No data for {timeRangeLabel.toLowerCase()}</h3>
+          <p className="text-[var(--color-text-muted)]">Start logging jobs to see your analytics.</p>
         </div>
       )}
     </div>

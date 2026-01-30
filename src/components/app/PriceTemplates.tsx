@@ -258,8 +258,8 @@ export function PriceTemplates({ userId, showSuccess }: PriceTemplatesProps) {
         <div className="flex items-center gap-3">
           <span className="text-2xl">💲</span>
           <div>
-            <h3 className="font-semibold text-slate-900">Pricing Templates</h3>
-            <p className="text-sm text-slate-500">Pre-set pricing for quick quote creation</p>
+            <h3 className="font-semibold text-[var(--color-text-primary)]">Pricing Templates</h3>
+            <p className="text-sm text-[var(--color-text-muted)]">Pre-set pricing for quick quote creation</p>
           </div>
         </div>
         <button
@@ -279,8 +279,8 @@ export function PriceTemplates({ userId, showSuccess }: PriceTemplatesProps) {
 
       {/* Add/Edit Form */}
       {showForm && (
-        <div className="bg-slate-50 rounded-xl p-5 mb-6 border border-slate-200">
-          <h4 className="font-medium text-slate-900 mb-4">
+        <div className="bg-[var(--color-bg-subtle)] rounded-xl p-5 mb-6 border border-[var(--color-border)]">
+          <h4 className="font-medium text-[var(--color-text-primary)] mb-4">
             {editingId ? 'Edit Template' : 'Create New Template'}
           </h4>
 
@@ -299,7 +299,7 @@ export function PriceTemplates({ userId, showSuccess }: PriceTemplatesProps) {
 
             {/* Load Sizes */}
             <div>
-              <h5 className="text-sm font-medium text-slate-700 mb-3">📦 Load Sizes</h5>
+              <h5 className="text-sm font-medium text-[var(--color-text-secondary)] mb-3">📦 Load Sizes</h5>
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
                 {[
                   { field: 'minimumFee', label: 'Minimum' },
@@ -314,7 +314,7 @@ export function PriceTemplates({ userId, showSuccess }: PriceTemplatesProps) {
                     <div key={field}>
                       <label className="app-label text-xs">{label}</label>
                       <div className="relative">
-                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 text-sm">$</span>
+                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)] text-sm">$</span>
                         <input
                           type="number"
                           value={typeof fieldValue === 'number' ? fieldValue : ''}
@@ -332,12 +332,12 @@ export function PriceTemplates({ userId, showSuccess }: PriceTemplatesProps) {
 
             {/* Labor & Dump Fee */}
             <div>
-              <h5 className="text-sm font-medium text-slate-700 mb-3">⚙️ Labor & Fees</h5>
+              <h5 className="text-sm font-medium text-[var(--color-text-secondary)] mb-3">⚙️ Labor & Fees</h5>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="app-label text-xs">Labor (per hour)</label>
                   <div className="relative">
-                    <span className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 text-sm">$</span>
+                    <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)] text-sm">$</span>
                     <input
                       type="number"
                       value={formData.prices.laborPerHour || ''}
@@ -351,7 +351,7 @@ export function PriceTemplates({ userId, showSuccess }: PriceTemplatesProps) {
                 <div>
                   <label className="app-label text-xs">Dump Fee</label>
                   <div className="relative">
-                    <span className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 text-sm">$</span>
+                    <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)] text-sm">$</span>
                     <input
                       type="number"
                       value={formData.prices.dumpFee || ''}
@@ -367,7 +367,7 @@ export function PriceTemplates({ userId, showSuccess }: PriceTemplatesProps) {
 
             {/* Surcharges */}
             <div>
-              <h5 className="text-sm font-medium text-slate-700 mb-3">🔧 Specialty Surcharges</h5>
+              <h5 className="text-sm font-medium text-[var(--color-text-secondary)] mb-3">🔧 Specialty Surcharges</h5>
               <div className="grid grid-cols-3 gap-3">
                 {[
                   { field: 'trampoline', label: 'Trampoline' },
@@ -377,7 +377,7 @@ export function PriceTemplates({ userId, showSuccess }: PriceTemplatesProps) {
                   <div key={field}>
                     <label className="app-label text-xs">{label}</label>
                     <div className="relative">
-                      <span className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 text-sm">$</span>
+                      <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)] text-sm">$</span>
                       <input
                         type="number"
                         value={formData.prices.surcharges[field as keyof typeof formData.prices.surcharges] || ''}
@@ -423,7 +423,7 @@ export function PriceTemplates({ userId, showSuccess }: PriceTemplatesProps) {
 
       {/* Templates List */}
       {templates.length === 0 ? (
-        <div className="text-center py-8 text-slate-500">
+        <div className="text-center py-8 text-[var(--color-text-muted)]">
           <span className="text-4xl mb-3 block">📋</span>
           <p>No pricing templates yet.</p>
           <p className="text-sm">Create templates to speed up quote creation.</p>
@@ -436,12 +436,12 @@ export function PriceTemplates({ userId, showSuccess }: PriceTemplatesProps) {
               className={`p-4 rounded-xl border transition ${
                 template.isDefault
                   ? 'bg-orange-50 border-orange-200'
-                  : 'bg-white border-slate-200'
+                  : 'bg-[var(--color-bg-card)] border-[var(--color-border)]'
               }`}
             >
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-2">
-                  <h4 className="font-medium text-slate-900">{template.name}</h4>
+                  <h4 className="font-medium text-[var(--color-text-primary)]">{template.name}</h4>
                   {template.isDefault && (
                     <span className="text-xs bg-orange-500 text-white px-2 py-0.5 rounded-full font-medium">
                       Default
@@ -452,7 +452,7 @@ export function PriceTemplates({ userId, showSuccess }: PriceTemplatesProps) {
                   {!template.isDefault && (
                     <button
                       onClick={() => handleSetDefault(template.id)}
-                      className="p-2 text-slate-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition"
+                      className="p-2 text-[var(--color-text-faint)] hover:text-orange-600 hover:bg-orange-50 rounded-lg transition"
                       title="Set as default"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -462,7 +462,7 @@ export function PriceTemplates({ userId, showSuccess }: PriceTemplatesProps) {
                   )}
                   <button
                     onClick={() => handleEdit(template)}
-                    className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                    className="p-2 text-[var(--color-text-faint)] hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
                     title="Edit"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -472,7 +472,7 @@ export function PriceTemplates({ userId, showSuccess }: PriceTemplatesProps) {
                   {!template.isDefault && (
                     <button
                       onClick={() => handleDelete(template.id)}
-                      className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition"
+                      className="p-2 text-[var(--color-text-faint)] hover:text-red-600 hover:bg-red-50 rounded-lg transition"
                       title="Delete"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -485,37 +485,37 @@ export function PriceTemplates({ userId, showSuccess }: PriceTemplatesProps) {
 
               {/* Price Preview Grid */}
               <div className="grid grid-cols-4 md:grid-cols-8 gap-2 text-xs">
-                <div className="bg-white/50 rounded-lg p-2 text-center">
-                  <div className="text-slate-500">Min</div>
-                  <div className="font-semibold text-slate-900">{formatCurrency(template.prices.minimumFee)}</div>
+                <div className="bg-[var(--color-bg-card)]/50 rounded-lg p-2 text-center">
+                  <div className="text-[var(--color-text-muted)]">Min</div>
+                  <div className="font-semibold text-[var(--color-text-primary)]">{formatCurrency(template.prices.minimumFee)}</div>
                 </div>
-                <div className="bg-white/50 rounded-lg p-2 text-center">
-                  <div className="text-slate-500">1/4</div>
-                  <div className="font-semibold text-slate-900">{formatCurrency(template.prices.quarterLoad)}</div>
+                <div className="bg-[var(--color-bg-card)]/50 rounded-lg p-2 text-center">
+                  <div className="text-[var(--color-text-muted)]">1/4</div>
+                  <div className="font-semibold text-[var(--color-text-primary)]">{formatCurrency(template.prices.quarterLoad)}</div>
                 </div>
-                <div className="bg-white/50 rounded-lg p-2 text-center">
-                  <div className="text-slate-500">1/2</div>
-                  <div className="font-semibold text-slate-900">{formatCurrency(template.prices.halfLoad)}</div>
+                <div className="bg-[var(--color-bg-card)]/50 rounded-lg p-2 text-center">
+                  <div className="text-[var(--color-text-muted)]">1/2</div>
+                  <div className="font-semibold text-[var(--color-text-primary)]">{formatCurrency(template.prices.halfLoad)}</div>
                 </div>
-                <div className="bg-white/50 rounded-lg p-2 text-center">
-                  <div className="text-slate-500">3/4</div>
-                  <div className="font-semibold text-slate-900">{formatCurrency(template.prices.threeQuarterLoad)}</div>
+                <div className="bg-[var(--color-bg-card)]/50 rounded-lg p-2 text-center">
+                  <div className="text-[var(--color-text-muted)]">3/4</div>
+                  <div className="font-semibold text-[var(--color-text-primary)]">{formatCurrency(template.prices.threeQuarterLoad)}</div>
                 </div>
-                <div className="bg-white/50 rounded-lg p-2 text-center">
-                  <div className="text-slate-500">Full</div>
-                  <div className="font-semibold text-slate-900">{formatCurrency(template.prices.fullLoad)}</div>
+                <div className="bg-[var(--color-bg-card)]/50 rounded-lg p-2 text-center">
+                  <div className="text-[var(--color-text-muted)]">Full</div>
+                  <div className="font-semibold text-[var(--color-text-primary)]">{formatCurrency(template.prices.fullLoad)}</div>
                 </div>
-                <div className="bg-white/50 rounded-lg p-2 text-center">
-                  <div className="text-slate-500">Labor/hr</div>
-                  <div className="font-semibold text-slate-900">{formatCurrency(template.prices.laborPerHour)}</div>
+                <div className="bg-[var(--color-bg-card)]/50 rounded-lg p-2 text-center">
+                  <div className="text-[var(--color-text-muted)]">Labor/hr</div>
+                  <div className="font-semibold text-[var(--color-text-primary)]">{formatCurrency(template.prices.laborPerHour)}</div>
                 </div>
-                <div className="bg-white/50 rounded-lg p-2 text-center">
-                  <div className="text-slate-500">Dump</div>
-                  <div className="font-semibold text-slate-900">{formatCurrency(template.prices.dumpFee)}</div>
+                <div className="bg-[var(--color-bg-card)]/50 rounded-lg p-2 text-center">
+                  <div className="text-[var(--color-text-muted)]">Dump</div>
+                  <div className="font-semibold text-[var(--color-text-primary)]">{formatCurrency(template.prices.dumpFee)}</div>
                 </div>
-                <div className="bg-white/50 rounded-lg p-2 text-center">
-                  <div className="text-slate-500">Hot Tub</div>
-                  <div className="font-semibold text-slate-900">{formatCurrency(template.prices.surcharges.hotTub)}</div>
+                <div className="bg-[var(--color-bg-card)]/50 rounded-lg p-2 text-center">
+                  <div className="text-[var(--color-text-muted)]">Hot Tub</div>
+                  <div className="font-semibold text-[var(--color-text-primary)]">{formatCurrency(template.prices.surcharges.hotTub)}</div>
                 </div>
               </div>
             </div>

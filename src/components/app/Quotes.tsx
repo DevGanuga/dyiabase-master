@@ -239,13 +239,13 @@ export function Quotes({ quotes, setQuotes, userId, settings, onCreateQuote, sho
               <tbody>
                 {sortedQuotes.map(quote => (
                   <tr key={quote.id}>
-                    <td className="font-medium text-slate-900">
+                    <td className="font-medium text-[var(--color-text-primary)]">
                       {new Date(quote.createdAt).toLocaleDateString()}
                     </td>
                     <td>
-                      <div className="font-medium text-slate-900">{quote.customer.name}</div>
+                      <div className="font-medium text-[var(--color-text-primary)]">{quote.customer.name}</div>
                       {quote.customer.phone && (
-                        <div className="text-sm text-slate-500">{quote.customer.phone}</div>
+                        <div className="text-sm text-[var(--color-text-muted)]">{quote.customer.phone}</div>
                       )}
                     </td>
                     <td className="text-right">

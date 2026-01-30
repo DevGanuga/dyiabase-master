@@ -46,9 +46,12 @@ export default function RootLayout({
   const clerkKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
 
   // If Clerk isn't configured, render without it (for development/testing)
+  const themeScript = `(function(){try{var t=localStorage.getItem('dyia-theme')||'system';var d=t==='dark'||(t==='system'&&window.matchMedia('(prefers-color-scheme:dark)').matches);if(d)document.documentElement.classList.add('dark')}catch(e){}})();`
+
   if (!clerkKey) {
     return (
-      <html lang="en">
+      <html lang="en" suppressHydrationWarning>
+        <head><script dangerouslySetInnerHTML={{ __html: themeScript }} /></head>
         <body className={`${dmSans.variable} ${spaceGrotesk.variable} antialiased`}>
           {children}
         </body>
@@ -58,7 +61,8 @@ export default function RootLayout({
 
   return (
     <ClerkProvider appearance={clerkAppearance}>
-      <html lang="en">
+      <html lang="en" suppressHydrationWarning>
+        <head><script dangerouslySetInnerHTML={{ __html: themeScript }} /></head>
         <body className={`${dmSans.variable} ${spaceGrotesk.variable} antialiased`}>
           {children}
         </body>
