@@ -63,7 +63,7 @@ export function Assistant({ userId, showSuccess }: AssistantProps) {
   const [inputValue, setInputValue] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [isSending, setIsSending] = useState(false)
-  const [showThreads, setShowThreads] = useState(true)
+  const [showThreads, setShowThreads] = useState(false)
   const [lastResponseId, setLastResponseId] = useState<string | null>(null) // For stateful conversation
   
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -256,65 +256,59 @@ export function Assistant({ userId, showSuccess }: AssistantProps) {
   }
 
   return (
-    <div className="animate-fade-in h-full">
-      <div className="assistant-container h-full">
-        {/* Thread Sidebar */}
-        <div className={`assistant-sidebar ${showThreads ? '' : 'hidden lg:flex'}`}>
-          <div className="p-4 border-b border-slate-200">
-            <button
-              onClick={handleNewConversation}
-              className="w-full app-btn-primary text-sm py-2.5 hover-glow"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              New Conversation
-            </button>
+    <div className="h-full flex">
+      {/* Thread Sidebar - collapses to width 0 when hidden */}
+      <div className={`assistant-sidebar-panel ${showThreads ? 'assistant-sidebar-open' : 'assistant-sidebar-closed'}`}>
+        <div className="p-3 border-b border-slate-200 whitespace-nowrap">
+          <button
+            onClick={handleNewConversation}
+            className="w-full flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            New chat
+          </button>
+        </div>
+        <ThreadList
+          threads={threads}
+          currentThreadId={currentThreadId}
+          onSelect={(threadId) => { handleSelectThread(threadId); setShowThreads(false); }}
+        />
+      </div>
+
+      {/* Main Chat Area */}
+      <div className="flex-1 flex flex-col min-w-0 h-full">
+        {/* Header */}
+        <div className="px-4 py-3 border-b border-slate-200 flex items-center gap-3 bg-white">
+          <button
+            onClick={() => setShowThreads(!showThreads)}
+            className="p-2 hover:bg-slate-100 rounded-lg transition-colors text-slate-500 hover:text-slate-700"
+            title={showThreads ? 'Hide conversations' : 'Show conversations'}
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              {showThreads ? (
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+              ) : (
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h8m-8 6h16" />
+              )}
+            </svg>
+          </button>
+          <div className="flex items-center gap-2 flex-1">
+            <span className="text-lg">✨</span>
+            <span className="font-medium text-slate-900 text-sm">Dyia Assistant</span>
+            <span className={`w-2 h-2 rounded-full ${
+              isSending ? 'bg-orange-500 animate-pulse' : 'bg-green-500'
+            }`} />
+            {isSending && (
+              <span className="text-xs text-slate-400">Working on it...</span>
+            )}
           </div>
-          <ThreadList
-            threads={threads}
-            currentThreadId={currentThreadId}
-            onSelect={handleSelectThread}
-          />
         </div>
 
-        {/* Main Chat Area */}
-        <div className="assistant-main">
-          {/* Header */}
-          <div className="assistant-header">
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => setShowThreads(!showThreads)}
-                className="lg:hidden p-2 hover:bg-slate-100 rounded-lg transition-colors"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                </svg>
-              </button>
-              <div className="w-10 h-10 bg-gradient-to-br from-orange-100 to-amber-100 rounded-xl flex items-center justify-center shadow-sm">
-                <span className="text-xl">✨</span>
-              </div>
-              <div>
-                <h3 className="font-semibold text-slate-900">Dyia Assistant</h3>
-                <p className="text-xs text-slate-500">
-                  {isSending ? (
-                    <span className="flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 bg-orange-500 rounded-full animate-pulse" />
-                      Working on it...
-                    </span>
-                  ) : 'Ready to help'}
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className={`w-2.5 h-2.5 rounded-full transition-colors ${
-                isSending ? 'bg-orange-500 animate-pulse' : 'bg-green-500'
-              }`} />
-            </div>
-          </div>
-
-          {/* Messages */}
-          <div className="assistant-messages">
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto px-4 py-6">
+          <div className="max-w-3xl mx-auto space-y-4">
             {isLoading ? (
               <div className="flex items-center justify-center h-full">
                 <div className="text-center">
@@ -331,8 +325,7 @@ export function Assistant({ userId, showSuccess }: AssistantProps) {
                     isLatest={index === messages.length - 1}
                   />
                 ))}
-                
-                {/* Typing Indicator */}
+
                 {isSending && (
                   <div className="flex justify-start">
                     <div className="flex gap-3">
@@ -347,39 +340,40 @@ export function Assistant({ userId, showSuccess }: AssistantProps) {
                     </div>
                   </div>
                 )}
-                
+
                 <div ref={messagesEndRef} />
               </>
             )}
           </div>
+        </div>
 
-          {/* Quick Actions - Show only at start */}
-          {messages.length <= 1 && !isSending && (
-            <div className="px-4 pb-2">
-              <p className="text-xs text-slate-400 mb-2">Quick actions:</p>
-              <div className="flex flex-wrap gap-2">
-                {QUICK_ACTIONS.map((action, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => handleQuickAction(action.prompt)}
-                    className="px-3 py-1.5 bg-slate-100 hover:bg-orange-50 hover:text-orange-700 text-slate-600 text-sm rounded-lg transition-colors"
-                  >
-                    {action.label}
-                  </button>
-                ))}
-              </div>
+        {/* Quick Actions */}
+        {messages.length <= 1 && !isSending && (
+          <div className="px-4 pb-2">
+            <div className="max-w-3xl mx-auto flex flex-wrap gap-2 justify-center">
+              {QUICK_ACTIONS.map((action, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => handleQuickAction(action.prompt)}
+                  className="px-3 py-1.5 bg-slate-100 hover:bg-orange-50 hover:text-orange-700 text-slate-600 text-sm rounded-full transition-colors"
+                >
+                  {action.label}
+                </button>
+              ))}
             </div>
-          )}
+          </div>
+        )}
 
-          {/* Input Area */}
-          <div className="assistant-input-area">
+        {/* Input Area */}
+        <div className="p-4 border-t border-slate-200 bg-white">
+          <div className="max-w-3xl mx-auto">
             <div className="chat-input-wrapper">
               <textarea
                 ref={inputRef}
                 value={inputValue}
                 onChange={handleInputChange}
                 onKeyDown={handleKeyDown}
-                placeholder="Tell me what you need... (e.g., 'Log a $500 job for Mike')"
+                placeholder="Ask Dyia anything..."
                 className="chat-input"
                 rows={1}
                 disabled={isSending}
@@ -400,7 +394,7 @@ export function Assistant({ userId, showSuccess }: AssistantProps) {
               </button>
             </div>
             <p className="text-xs text-slate-400 mt-2 text-center">
-              Press Enter to send • Shift+Enter for new line
+              Enter to send · Shift+Enter for new line
             </p>
           </div>
         </div>

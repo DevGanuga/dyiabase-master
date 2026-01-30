@@ -418,28 +418,21 @@
 /* ASSISTANT / CHAT STYLES */
 /* ============================================ */
 
-.assistant-container {
-  @apply flex h-full bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm;
+/* Sidebar panel - width collapse/expand */
+.assistant-sidebar-panel {
+  @apply h-full bg-white border-r border-slate-200 flex flex-col overflow-hidden flex-shrink-0;
+  transition: width 200ms ease-in-out, min-width 200ms ease-in-out;
 }
 
-.assistant-sidebar {
-  @apply w-72 border-r border-slate-200 flex flex-col bg-slate-50/50;
+.assistant-sidebar-open {
+  width: 18rem;
+  min-width: 18rem;
 }
 
-.assistant-main {
-  @apply flex-1 flex flex-col min-w-0;
-}
-
-.assistant-header {
-  @apply px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-white;
-}
-
-.assistant-messages {
-  @apply flex-1 overflow-y-auto p-6 space-y-4;
-}
-
-.assistant-input-area {
-  @apply p-4 border-t border-slate-200 bg-white;
+.assistant-sidebar-closed {
+  width: 0;
+  min-width: 0;
+  border-right-width: 0;
 }
 
 /* Message Bubbles */
