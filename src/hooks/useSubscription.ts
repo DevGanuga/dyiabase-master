@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useUser } from '@clerk/nextjs'
 import { createClient } from '@/lib/supabase/client'
 
@@ -22,7 +22,7 @@ const PRO_STATUSES: SubscriptionStatus[] = ['active', 'trialing']
 
 export function useSubscription(): SubscriptionState {
   const { user, isLoaded } = useUser()
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
   const [state, setState] = useState<SubscriptionState>({
     tier: 'basic',
     status: null,

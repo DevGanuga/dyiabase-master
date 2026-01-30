@@ -239,18 +239,18 @@ export interface AppPriceTemplate {
   name: string
   isDefault: boolean
   prices: {
-    minimumFee: number
-    quarterLoad: number
-    halfLoad: number
-    threeQuarterLoad: number
-    fullLoad: number
-    additionalLoads: number
-    laborPerHour: number
-    dumpFee: number
-    surcharges: {
-      trampoline: number
-      hotTub: number
-      piano: number
+    minimumFee?: number
+    quarterLoad?: number
+    halfLoad?: number
+    threeQuarterLoad?: number
+    fullLoad?: number
+    additionalLoads?: number
+    laborPerHour?: number
+    dumpFee?: number
+    surcharges?: {
+      trampoline?: number
+      hotTub?: number
+      piano?: number
     }
   }
 }

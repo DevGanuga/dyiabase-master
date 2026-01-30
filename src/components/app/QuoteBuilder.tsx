@@ -155,6 +155,16 @@ export function QuoteBuilder({ quotes, setQuotes, userId, onBack, showSuccess }:
 
       if (error) throw error
 
+      // Auto-create a follow-up for this quote
+      await supabase
+        .from('dyia_follow_ups')
+        .insert({
+          user_id: userId,
+          quote_id: data.id,
+          status: 'pending',
+          contact_count: 0
+        })
+
       const newQuote: AppQuote = {
         id: data.id,
         createdAt: new Date(data.created_at).getTime(),

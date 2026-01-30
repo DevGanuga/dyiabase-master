@@ -77,7 +77,7 @@ export const DYIA_TOOLS: FunctionTool[] = [
           description: 'Notes about the job (type of work, special circumstances)'
         }
       },
-      required: ['customer_name', 'revenue'],
+      required: ['date', 'customer_name', 'source', 'revenue', 'labor', 'gas', 'dump_fee', 'dumpster_rental', 'additional_expense', 'num_workers', 'cost_per_worker', 'notes'],
       additionalProperties: false
     },
     strict: true
@@ -118,7 +118,7 @@ export const DYIA_TOOLS: FunctionTool[] = [
           description: 'High end of the estimate range in dollars (required)'
         }
       },
-      required: ['customer_name', 'job_description', 'estimate_low', 'estimate_high'],
+      required: ['customer_name', 'customer_phone', 'customer_email', 'customer_address', 'job_description', 'estimate_low', 'estimate_high'],
       additionalProperties: false
     },
     strict: true
@@ -149,7 +149,7 @@ export const DYIA_TOOLS: FunctionTool[] = [
           description: 'Category of the expense'
         }
       },
-      required: ['name', 'amount', 'frequency'],
+      required: ['name', 'amount', 'frequency', 'category'],
       additionalProperties: false
     },
     strict: true
@@ -167,7 +167,7 @@ export const DYIA_TOOLS: FunctionTool[] = [
           description: 'Time period for stats. Defaults to this_month.'
         }
       },
-      required: [],
+      required: ['period'],
       additionalProperties: false
     },
     strict: true
@@ -182,14 +182,14 @@ export const DYIA_TOOLS: FunctionTool[] = [
         priority: {
           type: 'string',
           enum: ['hot', 'warm', 'cold', 'all'],
-          description: 'Filter by priority level. Hot = 0-3 days since quote, Warm = 3-7 days, Cold = 7+ days.'
+          description: 'Filter by priority level. Hot = 0-3 days since quote, Warm = 3-7 days, Cold = 7+ days. Defaults to all.'
         },
         limit: {
           type: 'number',
           description: 'Maximum number of follow-ups to return. Defaults to 5.'
         }
       },
-      required: [],
+      required: ['priority', 'limit'],
       additionalProperties: false
     },
     strict: true
@@ -211,7 +211,7 @@ export const DYIA_TOOLS: FunctionTool[] = [
           description: 'Additional factors to consider (e.g., "stairs", "long distance", "heavy items", "hazardous materials")'
         }
       },
-      required: ['job_description'],
+      required: ['job_description', 'factors'],
       additionalProperties: false
     },
     strict: true
@@ -241,7 +241,7 @@ export const DYIA_TOOLS: FunctionTool[] = [
           description: 'If status is snoozed, the date to follow up again (YYYY-MM-DD)'
         }
       },
-      required: ['follow_up_id', 'status'],
+      required: ['follow_up_id', 'status', 'notes', 'snooze_until'],
       additionalProperties: false
     },
     strict: true

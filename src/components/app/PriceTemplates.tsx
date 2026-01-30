@@ -79,9 +79,9 @@ export function PriceTemplates({ userId, showSuccess }: PriceTemplatesProps) {
               laborPerHour: t.prices?.laborPerHour ?? DEFAULT_PRICES.laborPerHour,
               dumpFee: t.prices?.dumpFee ?? DEFAULT_PRICES.dumpFee,
               surcharges: {
-                trampoline: t.prices?.surcharges?.trampoline ?? DEFAULT_PRICES.surcharges.trampoline,
-                hotTub: t.prices?.surcharges?.hotTub ?? DEFAULT_PRICES.surcharges.hotTub,
-                piano: t.prices?.surcharges?.piano ?? DEFAULT_PRICES.surcharges.piano,
+                trampoline: t.prices?.surcharges?.trampoline ?? DEFAULT_PRICES.surcharges?.trampoline ?? 100,
+                hotTub: t.prices?.surcharges?.hotTub ?? DEFAULT_PRICES.surcharges?.hotTub ?? 200,
+                piano: t.prices?.surcharges?.piano ?? DEFAULT_PRICES.surcharges?.piano ?? 150,
               }
             }
           })))
@@ -123,7 +123,7 @@ export function PriceTemplates({ userId, showSuccess }: PriceTemplatesProps) {
       ...prev,
       prices: {
         ...prev.prices,
-        surcharges: { ...prev.prices.surcharges, [field]: Math.max(0, value) }
+        surcharges: { ...(prev.prices.surcharges || {}), [field]: Math.max(0, value) }
       }
     }))
   }
@@ -380,7 +380,7 @@ export function PriceTemplates({ userId, showSuccess }: PriceTemplatesProps) {
                       <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)] text-sm">$</span>
                       <input
                         type="number"
-                        value={formData.prices.surcharges[field as keyof typeof formData.prices.surcharges] || ''}
+                        value={formData.prices.surcharges?.[field as keyof NonNullable<typeof formData.prices.surcharges>] || ''}
                         onChange={(e) => handleSurchargeChange(field, parseFloat(e.target.value) || 0)}
                         className="app-input pl-6 text-sm"
                         min="0"
@@ -487,35 +487,35 @@ export function PriceTemplates({ userId, showSuccess }: PriceTemplatesProps) {
               <div className="grid grid-cols-4 md:grid-cols-8 gap-2 text-xs">
                 <div className="bg-[var(--color-bg-card)]/50 rounded-lg p-2 text-center">
                   <div className="text-[var(--color-text-muted)]">Min</div>
-                  <div className="font-semibold text-[var(--color-text-primary)]">{formatCurrency(template.prices.minimumFee)}</div>
+                  <div className="font-semibold text-[var(--color-text-primary)]">{formatCurrency(template.prices.minimumFee ?? 0)}</div>
                 </div>
                 <div className="bg-[var(--color-bg-card)]/50 rounded-lg p-2 text-center">
                   <div className="text-[var(--color-text-muted)]">1/4</div>
-                  <div className="font-semibold text-[var(--color-text-primary)]">{formatCurrency(template.prices.quarterLoad)}</div>
+                  <div className="font-semibold text-[var(--color-text-primary)]">{formatCurrency(template.prices.quarterLoad ?? 0)}</div>
                 </div>
                 <div className="bg-[var(--color-bg-card)]/50 rounded-lg p-2 text-center">
                   <div className="text-[var(--color-text-muted)]">1/2</div>
-                  <div className="font-semibold text-[var(--color-text-primary)]">{formatCurrency(template.prices.halfLoad)}</div>
+                  <div className="font-semibold text-[var(--color-text-primary)]">{formatCurrency(template.prices.halfLoad ?? 0)}</div>
                 </div>
                 <div className="bg-[var(--color-bg-card)]/50 rounded-lg p-2 text-center">
                   <div className="text-[var(--color-text-muted)]">3/4</div>
-                  <div className="font-semibold text-[var(--color-text-primary)]">{formatCurrency(template.prices.threeQuarterLoad)}</div>
+                  <div className="font-semibold text-[var(--color-text-primary)]">{formatCurrency(template.prices.threeQuarterLoad ?? 0)}</div>
                 </div>
                 <div className="bg-[var(--color-bg-card)]/50 rounded-lg p-2 text-center">
                   <div className="text-[var(--color-text-muted)]">Full</div>
-                  <div className="font-semibold text-[var(--color-text-primary)]">{formatCurrency(template.prices.fullLoad)}</div>
+                  <div className="font-semibold text-[var(--color-text-primary)]">{formatCurrency(template.prices.fullLoad ?? 0)}</div>
                 </div>
                 <div className="bg-[var(--color-bg-card)]/50 rounded-lg p-2 text-center">
                   <div className="text-[var(--color-text-muted)]">Labor/hr</div>
-                  <div className="font-semibold text-[var(--color-text-primary)]">{formatCurrency(template.prices.laborPerHour)}</div>
+                  <div className="font-semibold text-[var(--color-text-primary)]">{formatCurrency(template.prices.laborPerHour ?? 0)}</div>
                 </div>
                 <div className="bg-[var(--color-bg-card)]/50 rounded-lg p-2 text-center">
                   <div className="text-[var(--color-text-muted)]">Dump</div>
-                  <div className="font-semibold text-[var(--color-text-primary)]">{formatCurrency(template.prices.dumpFee)}</div>
+                  <div className="font-semibold text-[var(--color-text-primary)]">{formatCurrency(template.prices.dumpFee ?? 0)}</div>
                 </div>
                 <div className="bg-[var(--color-bg-card)]/50 rounded-lg p-2 text-center">
                   <div className="text-[var(--color-text-muted)]">Hot Tub</div>
-                  <div className="font-semibold text-[var(--color-text-primary)]">{formatCurrency(template.prices.surcharges.hotTub)}</div>
+                  <div className="font-semibold text-[var(--color-text-primary)]">{formatCurrency(template.prices.surcharges?.hotTub ?? 0)}</div>
                 </div>
               </div>
             </div>

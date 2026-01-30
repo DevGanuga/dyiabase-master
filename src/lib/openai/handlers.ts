@@ -460,7 +460,14 @@ async function updateFollowUpStatus(args: Record<string, unknown>, dyiaUserId: s
 
     if (status === 'contacted') {
       updateData.last_contacted_at = new Date().toISOString()
-      updateData.contact_count = supabase.rpc('increment_contact_count', { row_id: followUpId })
+      // Fetch current contact count and increment manually
+      const { data: current } = await supabase
+        .from('dyia_follow_ups')
+        .select('contact_count')
+        .eq('id', followUpId)
+        .eq('user_id', dyiaUserId)
+        .single()
+      updateData.contact_count = ((current?.contact_count as number) || 0) + 1
     }
 
     if (status === 'snoozed' && snoozeUntil) {

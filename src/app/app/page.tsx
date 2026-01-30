@@ -49,6 +49,7 @@ export default function AppPage() {
   const [selectedMonth, setSelectedMonth] = useState(new Date())
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [fixedMonthlyExpenses, setFixedMonthlyExpenses] = useState(0)
+  const [pendingFollowUpsCount, setPendingFollowUpsCount] = useState(0)
 
   const supabase = createClient()
   
@@ -174,6 +175,21 @@ export default function AppPage() {
         console.error('Error loading fixed expenses:', error)
         setFixedMonthlyExpenses(0)
       }
+
+      // Load pending follow-ups count
+      try {
+        const { count, error: followUpError } = await supabase
+          .from('dyia_follow_ups')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', userId)
+          .in('status', ['pending', 'contacted', 'snoozed'])
+
+        if (followUpError) throw followUpError
+        setPendingFollowUpsCount(count || 0)
+      } catch (error) {
+        console.error('Error loading follow-ups count:', error)
+        setPendingFollowUpsCount(0)
+      }
     } catch (error) {
       console.error('Error loading data:', error)
     }
@@ -273,7 +289,7 @@ export default function AppPage() {
             settings={settings}
             userName={isDemoMode ? 'Demo User' : (userProfile?.first_name || user?.firstName || user?.primaryEmailAddress?.emailAddress || '')}
             onNavigate={(view) => setCurrentView(view as View)}
-            pendingFollowUps={0} // TODO: Load from API
+            pendingFollowUps={pendingFollowUpsCount}
             fixedMonthlyExpenses={fixedMonthlyExpenses}
           />
         )

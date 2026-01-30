@@ -83,7 +83,7 @@ function generateFollowUpMessage(quote: QuoteSummary, businessName: string) {
 }
 
 export function FollowUps({ userId, businessName = 'dyia', showSuccess }: FollowUpsProps) {
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
   const [rows, setRows] = useState<FollowUpRow[]>([])
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState<FollowUpStatus | 'all'>('all')
@@ -357,14 +357,14 @@ export function FollowUps({ userId, businessName = 'dyia', showSuccess }: Follow
                       </span>
                     </div>
 
-                    <div className="text-sm text-slate-600 mb-3">
+                    <div className="text-sm text-[var(--color-text-muted)] mb-3">
                       Estimate: <span className="font-semibold text-emerald-600">
                         {formatCurrency(row.quote.estimateLow)} - {formatCurrency(row.quote.estimateHigh)}
                       </span>
                     </div>
 
                     {row.quote.phone && (
-                      <div className="text-sm text-slate-600 mb-3">
+                      <div className="text-sm text-[var(--color-text-muted)] mb-3">
                         Phone:{' '}
                         <a href={`tel:${row.quote.phone}`} className="text-orange-600 hover:text-orange-700 font-medium">
                           {row.quote.phone}
