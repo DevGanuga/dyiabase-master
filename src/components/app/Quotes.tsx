@@ -229,8 +229,8 @@ export function Quotes({ quotes, setQuotes, userId, settings, onCreateQuote, sho
             <table className="app-table">
               <thead>
                 <tr>
-                  <th>Date</th>
-                  <th>Customer</th>
+                  <th className="text-left">Date</th>
+                  <th className="text-left">Customer</th>
                   <th className="text-right">Estimate</th>
                   <th className="text-center">Photos</th>
                   <th className="text-right w-32">Actions</th>

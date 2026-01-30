@@ -1,12 +1,14 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
 import { useSubscription } from '@/hooks/useSubscription'
 
 export function TrialBanner() {
   const { tier, daysRemaining, isLoading } = useSubscription()
+  const [dismissed, setDismissed] = useState(false)
 
-  if (isLoading || tier !== 'trial') {
+  if (isLoading || tier !== 'trial' || dismissed) {
     return null
   }
 
@@ -18,9 +20,18 @@ export function TrialBanner() {
         <span>
           {urgent ? '⏰ Trial ending soon' : '✨ Pro trial active'} — {daysRemaining} day{daysRemaining !== 1 ? 's' : ''} left
         </span>
-        <Link href="/#pricing" className="underline hover:no-underline">
-          Upgrade to Pro
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link href="/#pricing" className="underline hover:no-underline">
+            Upgrade to Pro
+          </Link>
+          <button
+            onClick={() => setDismissed(true)}
+            className="ml-1 hover:opacity-70 transition-opacity"
+            aria-label="Dismiss banner"
+          >
+            ✕
+          </button>
+        </div>
       </div>
     </div>
   )
