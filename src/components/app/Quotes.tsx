@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/client'
 import type { AppQuote, AppSettings } from '@/types/database'
 import { formatCurrency } from '@/lib/utils'
 import { jsPDF } from 'jspdf'
+import { useConfirm } from '@/components/providers/ConfirmProvider'
 
 interface QuotesProps {
   quotes: AppQuote[]
@@ -16,11 +17,13 @@ interface QuotesProps {
 
 export function Quotes({ quotes, setQuotes, userId, settings, onCreateQuote, showSuccess }: QuotesProps) {
   const supabase = createClient()
+  const { confirm, alert } = useConfirm()
 
   const sortedQuotes = [...quotes].sort((a, b) => b.createdAt - a.createdAt)
 
   const deleteQuote = async (id: string) => {
-    if (!confirm('Delete this quote?')) return
+    const ok = await confirm({ title: 'Delete Quote', message: 'Are you sure you want to delete this quote?', confirmLabel: 'Delete', variant: 'danger' })
+    if (!ok) return
 
     try {
       const { error } = await supabase
@@ -35,11 +38,11 @@ export function Quotes({ quotes, setQuotes, userId, settings, onCreateQuote, sho
       showSuccess('🗑️ Quote deleted')
     } catch (error) {
       console.error('Error deleting quote:', error)
-      alert('Error deleting quote')
+      await alert({ title: 'Error', message: 'Error deleting quote.', variant: 'error' })
     }
   }
 
-  const downloadQuotePDF = (quote: AppQuote) => {
+  const downloadQuotePDF = async (quote: AppQuote) => {
     try {
       const doc = new jsPDF()
       let y = 20
@@ -192,7 +195,7 @@ export function Quotes({ quotes, setQuotes, userId, settings, onCreateQuote, sho
       showSuccess('📄 PDF downloaded!')
     } catch (error) {
       console.error('PDF generation error:', error)
-      alert('Error generating PDF')
+      await alert({ title: 'Error', message: 'Error generating PDF.', variant: 'error' })
     }
   }
 

@@ -4,6 +4,7 @@ import type { AppJob } from '@/types/database'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useTheme } from '@/hooks/useTheme'
+import { useConfirm } from '@/components/providers/ConfirmProvider'
 
 type View = 'dashboard' | 'jobs' | 'quotes' | 'quoteBuilder' | 'followUps' | 'reports' | 'assistant' | 'settings'
 
@@ -79,10 +80,11 @@ const NAV_ITEMS: { id: View; icon: keyof typeof Icons; label: string; pro?: bool
 
 export function Sidebar({ currentView, setCurrentView, userEmail, onLogout, jobs, showSuccess, isPro = false }: SidebarProps) {
   const { resolvedTheme, setTheme } = useTheme()
+  const { alert } = useConfirm()
 
-  const exportData = () => {
+  const exportData = async () => {
     if (jobs.length === 0) {
-      alert('No jobs to export')
+      await alert({ title: 'No Data', message: 'No jobs to export.', variant: 'info' })
       return
     }
 

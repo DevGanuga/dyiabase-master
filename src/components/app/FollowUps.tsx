@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { formatCurrency } from '@/lib/utils'
+import { useConfirm } from '@/components/providers/ConfirmProvider'
 
 type FollowUpStatus = 'pending' | 'contacted' | 'converted' | 'lost' | 'snoozed'
 type FollowUpPriority = 'hot' | 'warm' | 'cold'
@@ -84,6 +85,7 @@ function generateFollowUpMessage(quote: QuoteSummary, businessName: string) {
 
 export function FollowUps({ userId, businessName = 'dyia', showSuccess }: FollowUpsProps) {
   const supabase = useMemo(() => createClient(), [])
+  const { alert } = useConfirm()
   const [rows, setRows] = useState<FollowUpRow[]>([])
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState<FollowUpStatus | 'all'>('all')
@@ -213,7 +215,7 @@ export function FollowUps({ userId, businessName = 'dyia', showSuccess }: Follow
       )
     } catch (error) {
       console.error('Error updating follow-up:', error)
-      alert('Error updating follow-up')
+      await alert({ title: 'Error', message: 'Error updating follow-up.', variant: 'error' })
     }
   }
 
@@ -269,7 +271,7 @@ export function FollowUps({ userId, businessName = 'dyia', showSuccess }: Follow
       showSuccess?.('📋 Follow-up message copied')
     } catch (error) {
       console.error('Copy failed:', error)
-      alert('Failed to copy message')
+      await alert({ title: 'Error', message: 'Failed to copy message.', variant: 'error' })
     }
   }
 

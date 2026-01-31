@@ -14,6 +14,7 @@ import { FollowUps } from '@/components/app/FollowUps'
 import { Reports } from '@/components/app/Reports'
 import { Assistant } from '@/components/app/Assistant'
 import { TrialBanner } from '@/components/app/TrialBanner'
+import { ConfirmProvider } from '@/components/providers/ConfirmProvider'
 
 type View = 'dashboard' | 'jobs' | 'quotes' | 'quoteBuilder' | 'followUps' | 'reports' | 'assistant' | 'settings'
 
@@ -361,6 +362,7 @@ export default function AppPage() {
   }
 
   return (
+    <ConfirmProvider>
     <div className="app-layout">
       {/* Demo Mode Banner */}
       {isDemoMode && (
@@ -410,5 +412,6 @@ export default function AppPage() {
         </div>
       )}
     </div>
+    </ConfirmProvider>
   )
 }

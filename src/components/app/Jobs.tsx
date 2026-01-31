@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { AppJob } from '@/types/database'
 import { formatCurrency } from '@/lib/utils'
+import { useConfirm } from '@/components/providers/ConfirmProvider'
 
 interface JobsProps {
   jobs: AppJob[]
@@ -41,6 +42,7 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
   const [sourceFilter, setSourceFilter] = useState<string>('all')
 
   const supabase = createClient()
+  const { confirm, alert } = useConfirm()
 
   // Filter jobs by month
   const monthJobs = useMemo(() => {
@@ -130,7 +132,7 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
   const saveJobs = async () => {
     const validCustomers = tempCustomers.filter(c => c.name.trim() && c.revenue > 0)
     if (validCustomers.length === 0) {
-      alert('Please add at least one customer with a name and revenue greater than 0')
+      await alert({ title: 'Missing Info', message: 'Please add at least one customer with a name and revenue greater than 0.', variant: 'warning' })
       return
     }
 
@@ -221,14 +223,15 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
       cancelForm()
     } catch (error) {
       console.error('Error saving jobs:', error)
-      alert('Error saving jobs')
+      await alert({ title: 'Error', message: 'Error saving jobs.', variant: 'error' })
     } finally {
       setSaving(false)
     }
   }
 
   const deleteJob = async (id: string) => {
-    if (!confirm('Delete this job?')) return
+    const ok = await confirm({ title: 'Delete Job', message: 'Are you sure you want to delete this job?', confirmLabel: 'Delete', variant: 'danger' })
+    if (!ok) return
 
     try {
       const { error } = await supabase
@@ -243,7 +246,7 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
       showSuccess('Job deleted')
     } catch (error) {
       console.error('Error deleting job:', error)
-      alert('Error deleting job')
+      await alert({ title: 'Error', message: 'Error deleting job.', variant: 'error' })
     }
   }
 

@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { AppFixedExpense } from '@/types/database'
+import { useConfirm } from '@/components/providers/ConfirmProvider'
 import { 
   formatCurrency, 
   calculateMonthlyFixedExpenses, 
@@ -36,6 +37,7 @@ export function FixedExpenses({ userId, showSuccess }: FixedExpensesProps) {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [formData, setFormData] = useState<ExpenseFormData>(defaultFormData)
   const [saving, setSaving] = useState(false)
+  const { confirm, alert } = useConfirm()
 
   // Memoize supabase client to prevent unnecessary re-renders
   const supabase = useMemo(() => createClient(), [])
@@ -97,13 +99,13 @@ export function FixedExpenses({ userId, showSuccess }: FixedExpensesProps) {
 
   const handleSave = async () => {
     if (!formData.name.trim() || !formData.amount) {
-      alert('Please fill in all required fields')
+      await alert({ title: 'Missing Fields', message: 'Please fill in all required fields.', variant: 'warning' })
       return
     }
 
     const amount = parseFloat(formData.amount)
     if (isNaN(amount) || amount < 0) {
-      alert('Please enter a valid amount')
+      await alert({ title: 'Invalid Amount', message: 'Please enter a valid amount.', variant: 'warning' })
       return
     }
 
@@ -162,14 +164,15 @@ export function FixedExpenses({ userId, showSuccess }: FixedExpensesProps) {
       resetForm()
     } catch (error) {
       console.error('Error saving expense:', error)
-      alert('Error saving expense')
+      await alert({ title: 'Error', message: 'Error saving expense.', variant: 'error' })
     } finally {
       setSaving(false)
     }
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Delete this expense?')) return
+    const ok = await confirm({ title: 'Delete Expense', message: 'Are you sure you want to delete this expense?', confirmLabel: 'Delete', variant: 'danger' })
+    if (!ok) return
 
     try {
       const { error } = await supabase
@@ -183,7 +186,7 @@ export function FixedExpenses({ userId, showSuccess }: FixedExpensesProps) {
       showSuccess('Expense deleted!')
     } catch (error) {
       console.error('Error deleting expense:', error)
-      alert('Error deleting expense')
+      await alert({ title: 'Error', message: 'Error deleting expense.', variant: 'error' })
     }
   }
 
@@ -202,7 +205,7 @@ export function FixedExpenses({ userId, showSuccess }: FixedExpensesProps) {
       showSuccess(expense.isActive ? 'Expense paused' : 'Expense activated')
     } catch (error) {
       console.error('Error toggling expense:', error)
-      alert('Error updating expense')
+      await alert({ title: 'Error', message: 'Error updating expense.', variant: 'error' })
     }
   }
 

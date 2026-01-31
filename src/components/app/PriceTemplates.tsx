@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { AppPriceTemplate } from '@/types/database'
 import { formatCurrency } from '@/lib/utils'
+import { useConfirm } from '@/components/providers/ConfirmProvider'
 
 interface PriceTemplatesProps {
   userId: string
@@ -45,6 +46,7 @@ export function PriceTemplates({ userId, showSuccess }: PriceTemplatesProps) {
   const [saving, setSaving] = useState(false)
 
   const supabase = useMemo(() => createClient(), [])
+  const { confirm, alert } = useConfirm()
 
   // Load templates
   useEffect(() => {
@@ -130,7 +132,7 @@ export function PriceTemplates({ userId, showSuccess }: PriceTemplatesProps) {
 
   const handleSave = async () => {
     if (!formData.name.trim()) {
-      alert('Please enter a template name')
+      await alert({ title: 'Missing Name', message: 'Please enter a template name.', variant: 'warning' })
       return
     }
 
@@ -184,7 +186,7 @@ export function PriceTemplates({ userId, showSuccess }: PriceTemplatesProps) {
       resetForm()
     } catch (error) {
       console.error('Error saving template:', error)
-      alert('Error saving template')
+      await alert({ title: 'Error', message: 'Error saving template.', variant: 'error' })
     } finally {
       setSaving(false)
     }
@@ -193,11 +195,12 @@ export function PriceTemplates({ userId, showSuccess }: PriceTemplatesProps) {
   const handleDelete = async (id: string) => {
     const template = templates.find(t => t.id === id)
     if (template?.isDefault) {
-      alert('Cannot delete the default template. Set another template as default first.')
+      await alert({ title: 'Cannot Delete', message: 'Cannot delete the default template. Set another template as default first.', variant: 'warning' })
       return
     }
-    
-    if (!confirm('Delete this template?')) return
+
+    const ok = await confirm({ title: 'Delete Template', message: 'Are you sure you want to delete this template?', confirmLabel: 'Delete', variant: 'danger' })
+    if (!ok) return
 
     try {
       const { error } = await supabase
@@ -211,7 +214,7 @@ export function PriceTemplates({ userId, showSuccess }: PriceTemplatesProps) {
       showSuccess('Template deleted!')
     } catch (error) {
       console.error('Error deleting template:', error)
-      alert('Error deleting template')
+      await alert({ title: 'Error', message: 'Error deleting template.', variant: 'error' })
     }
   }
 
@@ -238,7 +241,7 @@ export function PriceTemplates({ userId, showSuccess }: PriceTemplatesProps) {
       showSuccess('Default template updated!')
     } catch (error) {
       console.error('Error setting default:', error)
-      alert('Error setting default template')
+      await alert({ title: 'Error', message: 'Error setting default template.', variant: 'error' })
     }
   }
 

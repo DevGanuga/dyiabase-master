@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { AppQuote, AppPriceTemplate } from '@/types/database'
 import { formatCurrency, compressImage } from '@/lib/utils'
+import { useConfirm } from '@/components/providers/ConfirmProvider'
 
 interface QuoteBuilderProps {
   quotes: AppQuote[]
@@ -31,6 +32,7 @@ export function QuoteBuilder({ quotes, setQuotes, userId, onBack, showSuccess }:
   const [templateLoaded, setTemplateLoaded] = useState(false)
 
   const supabase = useMemo(() => createClient(), [])
+  const { alert } = useConfirm()
 
   // Load default price template on mount
   useEffect(() => {
@@ -119,7 +121,7 @@ export function QuoteBuilder({ quotes, setQuotes, userId, onBack, showSuccess }:
   const saveQuote = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!customer.name.trim()) {
-      alert('Please enter a customer name')
+      await alert({ title: 'Missing Name', message: 'Please enter a customer name.', variant: 'warning' })
       return
     }
 
@@ -186,7 +188,7 @@ export function QuoteBuilder({ quotes, setQuotes, userId, onBack, showSuccess }:
       setTimeout(onBack, 500)
     } catch (error) {
       console.error('Error saving quote:', error)
-      alert('Error saving quote')
+      await alert({ title: 'Error', message: 'Error saving quote.', variant: 'error' })
     } finally {
       setSaving(false)
     }

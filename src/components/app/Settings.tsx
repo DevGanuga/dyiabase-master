@@ -6,6 +6,7 @@ import type { AppSettings } from '@/types/database'
 import { compressImage, formatCurrency } from '@/lib/utils'
 import { FixedExpenses } from './FixedExpenses'
 import { PriceTemplates } from './PriceTemplates'
+import { useConfirm } from '@/components/providers/ConfirmProvider'
 
 interface SettingsProps {
   settings: AppSettings
@@ -25,6 +26,7 @@ export function Settings({ settings, setSettings, userId, showSuccess }: Setting
   const [uploadingLogo, setUploadingLogo] = useState(false)
 
   const supabase = createClient()
+  const { confirm, alert } = useConfirm()
 
   const saveSettings = async () => {
     setSaving(true)
@@ -62,7 +64,7 @@ export function Settings({ settings, setSettings, userId, showSuccess }: Setting
       showSuccess('✅ Settings saved!')
     } catch (error) {
       console.error('Error saving settings:', error)
-      alert('Error saving settings')
+      await alert({ title: 'Error', message: 'Error saving settings.', variant: 'error' })
     } finally {
       setSaving(false)
     }
@@ -73,7 +75,7 @@ export function Settings({ settings, setSettings, userId, showSuccess }: Setting
     if (!file) return
 
     if (file.size > 2 * 1024 * 1024) {
-      alert('Logo file is too large. Please use an image under 2MB.')
+      await alert({ title: 'File Too Large', message: 'Logo file is too large. Please use an image under 2MB.', variant: 'warning' })
       return
     }
 
@@ -93,7 +95,7 @@ export function Settings({ settings, setSettings, userId, showSuccess }: Setting
 
       if (error) {
         console.error('Error uploading logo:', error)
-        alert('Error uploading logo')
+        await alert({ title: 'Error', message: 'Error uploading logo.', variant: 'error' })
         return
       }
 
@@ -108,7 +110,8 @@ export function Settings({ settings, setSettings, userId, showSuccess }: Setting
   }
 
   const removeLogo = async () => {
-    if (!confirm('Remove the uploaded logo?')) return
+    const ok = await confirm({ title: 'Remove Logo', message: 'Are you sure you want to remove the uploaded logo?', confirmLabel: 'Remove', variant: 'danger' })
+    if (!ok) return
 
     const { error } = await supabase
       .from('dyia_settings')
@@ -117,7 +120,7 @@ export function Settings({ settings, setSettings, userId, showSuccess }: Setting
 
     if (error) {
       console.error('Error removing logo:', error)
-      alert('Error removing logo')
+      await alert({ title: 'Error', message: 'Error removing logo.', variant: 'error' })
       return
     }
 
