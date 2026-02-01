@@ -75,7 +75,6 @@ const NAV_ITEMS: { id: View; icon: keyof typeof Icons; label: string; pro?: bool
   { id: 'followUps', icon: 'bell', label: 'Follow-ups' },
   { id: 'reports', icon: 'chart', label: 'Reports' },
   { id: 'assistant', icon: 'sparkles', label: 'Ask Dyia', pro: true },
-  { id: 'settings', icon: 'cog', label: 'Settings' },
 ]
 
 export function Sidebar({ currentView, setCurrentView, userEmail, onLogout, jobs, showSuccess, isPro = false }: SidebarProps) {
@@ -177,6 +176,22 @@ export function Sidebar({ currentView, setCurrentView, userEmail, onLogout, jobs
 
       {/* Footer */}
       <div className="p-4 border-t border-slate-800">
+        {/* Settings */}
+        <button
+          onClick={() => setCurrentView('settings')}
+          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all mb-2 ${
+            currentView === 'settings'
+              ? 'bg-slate-800 text-white'
+              : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'
+          }`}
+          title="Settings"
+        >
+          <span className={currentView === 'settings' ? 'text-orange-400' : ''}>
+            {Icons.cog}
+          </span>
+          <span className="sidebar-text text-sm">Settings</span>
+        </button>
+
         {/* User */}
         <div className="flex items-center gap-3 px-2 mb-3">
           <div className="w-8 h-8 bg-slate-700 rounded-full flex items-center justify-center">
@@ -188,7 +203,7 @@ export function Sidebar({ currentView, setCurrentView, userEmail, onLogout, jobs
             <p className="text-sm text-slate-300 truncate">{userEmail}</p>
           </div>
         </div>
-        
+
         <button
           onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
           className="w-full flex items-center gap-3 px-3 py-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded-lg transition-all text-xs mb-2"
@@ -206,29 +221,16 @@ export function Sidebar({ currentView, setCurrentView, userEmail, onLogout, jobs
           <span className="sidebar-text">{resolvedTheme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
         </button>
 
-        <div className="flex gap-2">
-          <button
-            onClick={exportData}
-            className="flex-1 flex items-center justify-center gap-2 py-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded-lg transition-all text-xs"
-            title="Export CSV"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-            </svg>
-            <span className="sidebar-text">Export</span>
-          </button>
-          
-          <button
-            onClick={onLogout}
-            className="flex-1 flex items-center justify-center gap-2 py-2 text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-lg transition-all text-xs"
-            title="Sign Out"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-            </svg>
-            <span className="sidebar-text">Sign Out</span>
-          </button>
-        </div>
+        <button
+          onClick={onLogout}
+          className="w-full flex items-center justify-center gap-2 py-2 text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-lg transition-all text-xs"
+          title="Sign Out"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+          </svg>
+          <span className="sidebar-text">Sign Out</span>
+        </button>
       </div>
     </aside>
   )
