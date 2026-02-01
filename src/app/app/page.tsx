@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { useUser, useClerk } from '@clerk/nextjs'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import type { AppJob, AppQuote, AppSettings, UserProfile } from '@/types/database'
 import { Sidebar } from '@/components/app/Sidebar'
@@ -18,6 +19,11 @@ import { ConfirmProvider } from '@/components/providers/ConfirmProvider'
 
 type View = 'dashboard' | 'jobs' | 'quotes' | 'quoteBuilder' | 'followUps' | 'reports' | 'assistant' | 'settings'
 
+// Track selected job for quote building
+interface QuoteBuilderState {
+  selectedJob: AppJob | null
+}
+
 // Demo data for showcase
 const DEMO_JOBS: AppJob[] = [
   { id: 'demo-1', date: new Date().toISOString().split('T')[0], customerName: 'Johnson Family', source: 'Google', revenue: 450, labor: 80, gas: 25, dumpFee: 65, dumpsterRental: 0, additionalExpense: 0, numWorkers: 2, costPerWorker: 40, notes: 'Full garage cleanout' },
@@ -30,12 +36,16 @@ const DEMO_JOBS: AppJob[] = [
 const DEMO_SETTINGS: AppSettings = {
   taxPercentage: 30,
   monthlyGoal: 8000,
-  businessInfo: { name: 'Demo Junk Co', phone: '(555) 123-4567', email: 'demo@dyia.co', address: '123 Demo Street', logo: null }
+  businessInfo: { name: 'Demo Junk Co', phone: '(555) 123-4567', email: 'demo@dyia.co', address: '123 Demo Street', logo: null },
+  onboardingCompleted: true,
+  onboardingSkipped: false,
+  onboardingCompletedAt: null
 }
 
 export default function AppPage() {
   const { user, isLoaded } = useUser()
   const { signOut } = useClerk()
+  const router = useRouter()
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const [isDemoMode, setIsDemoMode] = useState(false)
@@ -45,12 +55,17 @@ export default function AppPage() {
   const [settings, setSettings] = useState<AppSettings>({
     taxPercentage: 30,
     monthlyGoal: 0,
-    businessInfo: { name: '', phone: '', email: '', address: '', logo: null }
+    businessInfo: { name: '', phone: '', email: '', address: '', logo: null },
+    onboardingCompleted: false,
+    onboardingSkipped: false,
+    onboardingCompletedAt: null
   })
   const [selectedMonth, setSelectedMonth] = useState(new Date())
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [fixedMonthlyExpenses, setFixedMonthlyExpenses] = useState(0)
   const [pendingFollowUpsCount, setPendingFollowUpsCount] = useState(0)
+  const [selectedJobForQuote, setSelectedJobForQuote] = useState<AppJob | null>(null)
+  const [priceTemplatesCount, setPriceTemplatesCount] = useState(0)
 
   const supabase = createClient()
   
@@ -121,6 +136,7 @@ export default function AppPage() {
       if (quotesData) {
         setQuotes(quotesData.map(q => ({
           id: q.id,
+          jobId: q.job_id || undefined,  // Include job reference
           createdAt: new Date(q.created_at).getTime(),
           customer: {
             name: q.customer_name,
@@ -153,7 +169,10 @@ export default function AppPage() {
             email: settingsData.business_email || '',
             address: settingsData.business_address || '',
             logo: settingsData.business_logo || null
-          }
+          },
+          onboardingCompleted: settingsData.onboarding_completed || false,
+          onboardingSkipped: settingsData.onboarding_skipped || false,
+          onboardingCompletedAt: settingsData.onboarding_completed_at || null
         })
       }
 
@@ -190,6 +209,20 @@ export default function AppPage() {
       } catch (error) {
         console.error('Error loading follow-ups count:', error)
         setPendingFollowUpsCount(0)
+      }
+
+      // Load price templates count for launchpad
+      try {
+        const { count, error: templatesError } = await supabase
+          .from('dyia_price_templates')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', userId)
+
+        if (templatesError) throw templatesError
+        setPriceTemplatesCount(count || 0)
+      } catch (error) {
+        console.error('Error loading templates count:', error)
+        setPriceTemplatesCount(0)
       }
     } catch (error) {
       console.error('Error loading data:', error)
@@ -258,6 +291,17 @@ export default function AppPage() {
     await signOut()
   }
 
+  // Redirect to onboarding for new users (after loading completes)
+  useEffect(() => {
+    if (!loading && !isDemoMode && userProfile && !settings.onboardingCompleted && !settings.onboardingSkipped) {
+      router.push('/app/onboarding')
+    }
+  }, [loading, isDemoMode, userProfile, settings.onboardingCompleted, settings.onboardingSkipped, router])
+
+  const handleReopenOnboarding = () => {
+    router.push('/app/onboarding')
+  }
+
   // Loading State
   if ((!isLoaded && !isDemoMode) || loading) {
     return (
@@ -292,6 +336,7 @@ export default function AppPage() {
             onNavigate={(view) => setCurrentView(view as View)}
             pendingFollowUps={pendingFollowUpsCount}
             fixedMonthlyExpenses={fixedMonthlyExpenses}
+            isPro={['active', 'trialing'].includes(userProfile?.subscription_status || '')}
           />
         )
       case 'jobs':
@@ -310,9 +355,14 @@ export default function AppPage() {
           <Quotes
             quotes={quotes}
             setQuotes={setQuotes}
+            jobs={jobs}
             userId={userProfile?.id || ''}
             settings={settings}
-            onCreateQuote={() => setCurrentView('quoteBuilder')}
+            onCreateQuote={(job: AppJob) => {
+              setSelectedJobForQuote(job)
+              setCurrentView('quoteBuilder')
+            }}
+            onNavigateToJobs={() => setCurrentView('jobs')}
             showSuccess={showSuccess}
           />
         )
@@ -322,7 +372,11 @@ export default function AppPage() {
             quotes={quotes}
             setQuotes={setQuotes}
             userId={userProfile?.id || ''}
-            onBack={() => setCurrentView('quotes')}
+            selectedJob={selectedJobForQuote}
+            onBack={() => {
+              setSelectedJobForQuote(null)
+              setCurrentView('quotes')
+            }}
             showSuccess={showSuccess}
           />
         )
@@ -349,6 +403,7 @@ export default function AppPage() {
             jobs={jobs}
             quotes={quotes}
             fixedMonthlyExpenses={fixedMonthlyExpenses}
+            isPro={['active', 'trialing'].includes(userProfile?.subscription_status || '')}
           />
         )
       case 'assistant':
@@ -383,8 +438,18 @@ export default function AppPage() {
         userEmail={isDemoMode ? 'demo@dyia.co' : (user?.primaryEmailAddress?.emailAddress || '')}
         onLogout={handleLogout}
         jobs={jobs}
+        quotes={quotes}
         showSuccess={showSuccess}
         isPro={['active', 'trialing'].includes(userProfile?.subscription_status || '')}
+        launchpadData={{
+          onboardingCompleted: settings.onboardingCompleted,
+          onboardingSkipped: settings.onboardingSkipped,
+          jobsCount: jobs.length,
+          quotesCount: quotes.length,
+          templatesCount: priceTemplatesCount,
+          onReopenOnboarding: handleReopenOnboarding,
+        }}
+        isDemoMode={isDemoMode}
       />
       
       <main className={`flex-1 flex flex-col overflow-hidden ${isDemoMode ? 'pt-16' : ''}`} style={{ animation: 'contentReveal 0.6s cubic-bezier(0.16, 1, 0.3, 1) both' }}>
@@ -394,7 +459,7 @@ export default function AppPage() {
             {renderContent()}
           </div>
         ) : (
-          <div className="flex-1 overflow-y-auto p-6 lg:p-8">
+          <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
             <div className="max-w-6xl mx-auto">
               {renderContent()}
             </div>

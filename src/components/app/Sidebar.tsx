@@ -1,12 +1,22 @@
 'use client'
 
-import type { AppJob } from '@/types/database'
+import type { AppJob, AppQuote } from '@/types/database'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useTheme } from '@/hooks/useTheme'
 import { useConfirm } from '@/components/providers/ConfirmProvider'
+import { Launchpad, type LaunchpadItem } from '@/components/app/Launchpad'
 
 type View = 'dashboard' | 'jobs' | 'quotes' | 'quoteBuilder' | 'followUps' | 'reports' | 'assistant' | 'settings'
+
+interface LaunchpadData {
+  onboardingCompleted: boolean
+  onboardingSkipped: boolean
+  jobsCount: number
+  quotesCount: number
+  templatesCount: number
+  onReopenOnboarding: () => void
+}
 
 interface SidebarProps {
   currentView: View
@@ -14,8 +24,11 @@ interface SidebarProps {
   userEmail: string
   onLogout: () => void
   jobs: AppJob[]
+  quotes?: AppQuote[]
   showSuccess: (message: string) => void
   isPro?: boolean
+  launchpadData?: LaunchpadData
+  isDemoMode?: boolean
 }
 
 // Clean SVG Icons
@@ -68,18 +81,48 @@ const Icons = {
   ),
 }
 
-const NAV_ITEMS: { id: View; icon: keyof typeof Icons; label: string; pro?: boolean }[] = [
+const NAV_ITEMS: { id: View; icon: keyof typeof Icons; label: string; pro?: boolean; mobileHide?: boolean }[] = [
   { id: 'dashboard', icon: 'home', label: 'Home' },
   { id: 'jobs', icon: 'briefcase', label: 'Jobs' },
   { id: 'quotes', icon: 'document', label: 'Quotes' },
-  { id: 'followUps', icon: 'bell', label: 'Follow-ups' },
-  { id: 'reports', icon: 'chart', label: 'Reports' },
+  { id: 'followUps', icon: 'bell', label: 'Follow-ups', mobileHide: true },
+  { id: 'reports', icon: 'chart', label: 'Reports', mobileHide: true },
   { id: 'assistant', icon: 'sparkles', label: 'Ask Dyia', pro: true },
 ]
 
-export function Sidebar({ currentView, setCurrentView, userEmail, onLogout, jobs, showSuccess, isPro = false }: SidebarProps) {
+export function Sidebar({ currentView, setCurrentView, userEmail, onLogout, jobs, quotes = [], showSuccess, isPro = false, launchpadData, isDemoMode = false }: SidebarProps) {
   const { resolvedTheme, setTheme } = useTheme()
   const { alert } = useConfirm()
+
+  // Build launchpad items
+  const launchpadItems: LaunchpadItem[] = launchpadData ? [
+    {
+      id: 'onboarding',
+      label: 'Complete setup',
+      completed: launchpadData.onboardingCompleted,
+      action: launchpadData.onboardingCompleted ? undefined : launchpadData.onReopenOnboarding,
+    },
+    {
+      id: 'first-job',
+      label: 'Log your first job',
+      completed: launchpadData.jobsCount > 0,
+      action: launchpadData.jobsCount > 0 ? undefined : () => setCurrentView('jobs'),
+    },
+    {
+      id: 'first-quote',
+      label: 'Create a quote',
+      completed: launchpadData.quotesCount > 0,
+      action: launchpadData.quotesCount > 0 ? undefined : () => setCurrentView('quoteBuilder'),
+    },
+    {
+      id: 'first-template',
+      label: 'Save a price template',
+      completed: launchpadData.templatesCount > 0,
+      action: launchpadData.templatesCount > 0 ? undefined : () => setCurrentView('settings'),
+    },
+  ] : []
+
+  const showLaunchpad = launchpadData && !isDemoMode && launchpadItems.some(item => !item.completed)
 
   const exportData = async () => {
     if (jobs.length === 0) {
@@ -123,8 +166,8 @@ export function Sidebar({ currentView, setCurrentView, userEmail, onLogout, jobs
 
   return (
     <aside className="app-sidebar bg-slate-900">
-      {/* Logo */}
-      <div className="p-5">
+      {/* Logo - hidden on mobile */}
+      <div className="p-5 hidden sm:block">
         <Link href="/" className="block">
           <Image 
             src="/dyia-logo-full.png" 
@@ -136,8 +179,8 @@ export function Sidebar({ currentView, setCurrentView, userEmail, onLogout, jobs
         </Link>
       </div>
 
-      {/* Create Button */}
-      <div className="px-4 mb-2">
+      {/* Create Button - hidden on mobile */}
+      <div className="px-4 mb-2 hidden sm:block">
         <button
           onClick={() => setCurrentView('quoteBuilder')}
           className="w-full flex items-center gap-2 px-4 py-2.5 bg-orange-500 hover:bg-orange-600 text-white font-medium rounded-lg transition-colors"
@@ -150,22 +193,24 @@ export function Sidebar({ currentView, setCurrentView, userEmail, onLogout, jobs
       {/* Navigation */}
       <nav className="flex-1 px-3 py-2">
         <div className="space-y-0.5">
-          {NAV_ITEMS.map((item) => (
+          {NAV_ITEMS.map((item, index) => (
             <button
               key={item.id}
               onClick={() => setCurrentView(item.id)}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-all ${
+              data-mobile-hide={item.mobileHide ? "true" : undefined}
+              className={`nav-item-animated w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-all duration-200 group ${
                 currentView === item.id 
-                  ? 'bg-slate-800 text-white' 
+                  ? 'active bg-slate-800 text-white' 
                   : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'
-              }`}
+              } ${item.mobileHide ? 'sm:flex hidden' : ''}`}
+              style={{ animationDelay: `${index * 0.05}s` }}
             >
-              <span className={currentView === item.id ? 'text-orange-400' : ''}>
+              <span className={`transition-all duration-200 flex-shrink-0 ${currentView === item.id ? 'text-orange-400 scale-110' : 'group-hover:scale-110'}`}>
                 {Icons[item.icon]}
               </span>
-              <span className="sidebar-text text-sm">{item.label}</span>
+              <span className="sidebar-text text-sm truncate">{item.label}</span>
               {item.pro && !isPro && (
-                <span className="sidebar-text ml-auto px-1.5 py-0.5 rounded text-[9px] font-bold bg-orange-500/20 text-orange-400">
+                <span className="sidebar-text ml-auto px-1.5 py-0.5 rounded text-[9px] font-bold bg-orange-500/20 text-orange-400 animate-pulse-soft flex-shrink-0">
                   PRO
                 </span>
               )}
@@ -174,8 +219,15 @@ export function Sidebar({ currentView, setCurrentView, userEmail, onLogout, jobs
         </div>
       </nav>
 
-      {/* Footer */}
-      <div className="p-4 border-t border-slate-800">
+      {/* Launchpad - Getting Started Checklist */}
+      {showLaunchpad && (
+        <div className="hidden sm:block">
+          <Launchpad items={launchpadItems} />
+        </div>
+      )}
+
+      {/* Footer - hidden on mobile */}
+      <div className="p-4 border-t border-slate-800 hidden sm:block">
         {/* Settings */}
         <button
           onClick={() => setCurrentView('settings')}

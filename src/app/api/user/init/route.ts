@@ -39,13 +39,17 @@ export async function POST(req: Request) {
       return NextResponse.json({ profile: existingUser })
     }
 
-    // Create user profile
+    // Calculate 7-day trial end date
+    const trialEndsAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+
+    // Create user profile with automatic 7-day trial
     const { data: newProfile, error: createError } = await supabase
       .from('dyia_users')
       .insert({
         clerk_user_id: userId,
         email: email,
-        subscription_status: 'inactive',
+        subscription_status: 'trialing',
+        subscription_ends_at: trialEndsAt,
       })
       .select()
       .single()

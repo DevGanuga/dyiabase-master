@@ -20,6 +20,7 @@ export interface Job {
 export interface Quote {
   id: string
   user_id: string
+  job_id?: string | null  // Reference to the parent job
   customer_name: string
   customer_phone?: string | null
   customer_email?: string | null
@@ -45,6 +46,9 @@ export interface Settings {
   business_email?: string | null
   business_address?: string | null
   business_logo?: string | null
+  onboarding_completed: boolean
+  onboarding_skipped: boolean
+  onboarding_completed_at?: string | null
   created_at: string
   updated_at: string
 }
@@ -83,6 +87,7 @@ export interface AppJob {
 
 export interface AppQuote {
   id: string
+  jobId?: string  // Reference to the parent job
   createdAt: number
   customer: {
     name: string
@@ -107,6 +112,9 @@ export interface AppSettings {
     address: string
     logo: string | null
   }
+  onboardingCompleted: boolean
+  onboardingSkipped: boolean
+  onboardingCompletedAt: string | null
 }
 
 // ============================================

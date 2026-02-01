@@ -3,6 +3,7 @@
 import { useMemo } from 'react'
 import type { AppJob, AppQuote, AppSettings } from '@/types/database'
 import { formatCurrency } from '@/lib/utils'
+import { AIInsights } from './AIInsights'
 
 interface DashboardProps {
   jobs: AppJob[]
@@ -12,6 +13,7 @@ interface DashboardProps {
   onNavigate: (view: string) => void
   pendingFollowUps?: number
   fixedMonthlyExpenses?: number
+  isPro?: boolean
 }
 
 export function Dashboard({ 
@@ -21,7 +23,8 @@ export function Dashboard({
   userName,
   onNavigate,
   pendingFollowUps = 0,
-  fixedMonthlyExpenses = 0
+  fixedMonthlyExpenses = 0,
+  isPro = false
 }: DashboardProps) {
   
   // Get greeting based on time of day
@@ -79,165 +82,171 @@ export function Dashboard({
   }, [jobs, quotes, settings.monthlyGoal, fixedMonthlyExpenses])
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 animate-view-enter">
       {/* Greeting Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-[var(--color-text-primary)]">
+      <div className="animate-fade-in">
+        <h1 className="text-2xl sm:text-3xl font-bold text-[var(--color-text-primary)]">
           {greeting}, {capitalizedName}
         </h1>
-        <p className="text-[var(--color-text-muted)] mt-1">
+        <p className="text-sm sm:text-base text-[var(--color-text-muted)] mt-1">
           Here&apos;s what&apos;s happening with your business
         </p>
       </div>
 
+      {/* AI Insights - Pro feature */}
+      {isPro && jobs.length > 0 && (
+        <AIInsights type="dashboard" compact autoRefresh className="animate-fade-in delay-fade-1" />
+      )}
+
       {/* Workflow Pipeline */}
-      <div>
-        <h2 className="text-sm font-semibold text-[var(--color-text-muted)] uppercase tracking-wide mb-4">
+      <div className="animate-fade-in delay-fade-1" style={{ animationFillMode: 'both' }}>
+        <h2 className="text-xs sm:text-sm font-semibold text-[var(--color-text-muted)] uppercase tracking-wide mb-3 sm:mb-4">
           Workflow
         </h2>
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
           {/* Quotes */}
           <button 
             onClick={() => onNavigate('quotes')}
-            className="bg-[var(--color-bg-card)] border-l-4 border-l-blue-500 border border-[var(--color-border)] rounded-xl p-5 text-left hover:shadow-md hover:border-slate-300 transition-all group"
+            className="stagger-card interactive-card stat-highlight bg-[var(--color-bg-card)] border-l-4 border-l-blue-500 border border-[var(--color-border)] rounded-xl p-3 sm:p-5 text-left group"
           >
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-medium text-blue-600 uppercase tracking-wide">Quotes</span>
-              <svg className="w-4 h-4 text-slate-300 group-hover:text-[var(--color-text-faint)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="flex items-center justify-between mb-2 sm:mb-3">
+              <span className="text-[10px] sm:text-xs font-medium text-blue-600 uppercase tracking-wide">Quotes</span>
+              <svg className="w-3 h-3 sm:w-4 sm:h-4 text-slate-300 group-hover:text-blue-500 group-hover:translate-x-0.5 transition-all duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
             </div>
-            <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-bold text-[var(--color-text-primary)]">{stats.pendingQuotes}</span>
-              <span className="text-sm text-[var(--color-text-faint)]">{formatCurrency(stats.quoteValue)}</span>
+            <div className="flex flex-col sm:flex-row sm:items-baseline gap-0 sm:gap-2">
+              <span className="stat-number text-2xl sm:text-3xl font-bold text-[var(--color-text-primary)]">{stats.pendingQuotes}</span>
+              <span className="text-xs sm:text-sm text-[var(--color-text-faint)]">{formatCurrency(stats.quoteValue)}</span>
             </div>
-            <p className="text-xs text-[var(--color-text-muted)] mt-1">Pending</p>
+            <p className="text-[10px] sm:text-xs text-[var(--color-text-muted)] mt-1">Pending</p>
           </button>
 
           {/* Follow-ups */}
           <button 
             onClick={() => onNavigate('followUps')}
-            className="bg-[var(--color-bg-card)] border-l-4 border-l-amber-500 border border-[var(--color-border)] rounded-xl p-5 text-left hover:shadow-md hover:border-slate-300 transition-all group"
+            className="stagger-card interactive-card stat-highlight bg-[var(--color-bg-card)] border-l-4 border-l-amber-500 border border-[var(--color-border)] rounded-xl p-3 sm:p-5 text-left group"
           >
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-medium text-amber-600 uppercase tracking-wide">Follow-ups</span>
-              <svg className="w-4 h-4 text-slate-300 group-hover:text-[var(--color-text-faint)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="flex items-center justify-between mb-2 sm:mb-3">
+              <span className="text-[10px] sm:text-xs font-medium text-amber-600 uppercase tracking-wide">Follow-ups</span>
+              <svg className="w-3 h-3 sm:w-4 sm:h-4 text-slate-300 group-hover:text-amber-500 group-hover:translate-x-0.5 transition-all duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
             </div>
             <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-bold text-[var(--color-text-primary)]">{pendingFollowUps}</span>
+              <span className="stat-number text-2xl sm:text-3xl font-bold text-[var(--color-text-primary)]">{pendingFollowUps}</span>
             </div>
-            <p className="text-xs text-[var(--color-text-muted)] mt-1">Need attention</p>
+            <p className="text-[10px] sm:text-xs text-[var(--color-text-muted)] mt-1">Need attention</p>
           </button>
 
           {/* Jobs */}
           <button 
             onClick={() => onNavigate('jobs')}
-            className="bg-[var(--color-bg-card)] border-l-4 border-l-green-500 border border-[var(--color-border)] rounded-xl p-5 text-left hover:shadow-md hover:border-slate-300 transition-all group"
+            className="stagger-card interactive-card stat-highlight bg-[var(--color-bg-card)] border-l-4 border-l-green-500 border border-[var(--color-border)] rounded-xl p-3 sm:p-5 text-left group"
           >
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-medium text-green-600 uppercase tracking-wide">Jobs</span>
-              <svg className="w-4 h-4 text-slate-300 group-hover:text-[var(--color-text-faint)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="flex items-center justify-between mb-2 sm:mb-3">
+              <span className="text-[10px] sm:text-xs font-medium text-green-600 uppercase tracking-wide">Jobs</span>
+              <svg className="w-3 h-3 sm:w-4 sm:h-4 text-slate-300 group-hover:text-green-500 group-hover:translate-x-0.5 transition-all duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
             </div>
-            <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-bold text-[var(--color-text-primary)]">{stats.jobsThisMonth}</span>
-              <span className="text-sm text-[var(--color-text-faint)]">{formatCurrency(stats.revenueThisMonth)}</span>
+            <div className="flex flex-col sm:flex-row sm:items-baseline gap-0 sm:gap-2">
+              <span className="stat-number text-2xl sm:text-3xl font-bold text-[var(--color-text-primary)]">{stats.jobsThisMonth}</span>
+              <span className="text-xs sm:text-sm text-[var(--color-text-faint)]">{formatCurrency(stats.revenueThisMonth)}</span>
             </div>
-            <p className="text-xs text-[var(--color-text-muted)] mt-1">This month</p>
+            <p className="text-[10px] sm:text-xs text-[var(--color-text-muted)] mt-1">This month</p>
           </button>
 
-          {/* Fixed Expenses */}
+          {/* Fixed Expenses - hidden on smallest screens */}
           <button
             onClick={() => onNavigate('settings')}
-            className="bg-[var(--color-bg-card)] border-l-4 border-l-red-400 border border-[var(--color-border)] rounded-xl p-5 text-left hover:shadow-md hover:border-slate-300 transition-all group"
+            className="stagger-card interactive-card stat-highlight bg-[var(--color-bg-card)] border-l-4 border-l-red-400 border border-[var(--color-border)] rounded-xl p-3 sm:p-5 text-left group hidden sm:block"
           >
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-medium text-red-500 uppercase tracking-wide">Overhead</span>
-              <svg className="w-4 h-4 text-slate-300 group-hover:text-[var(--color-text-faint)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="flex items-center justify-between mb-2 sm:mb-3">
+              <span className="text-[10px] sm:text-xs font-medium text-red-500 uppercase tracking-wide">Overhead</span>
+              <svg className="w-3 h-3 sm:w-4 sm:h-4 text-slate-300 group-hover:text-red-400 group-hover:translate-x-0.5 transition-all duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
             </div>
             <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-bold text-[var(--color-text-primary)]">
+              <span className="stat-number text-2xl sm:text-3xl font-bold text-[var(--color-text-primary)]">
                 {formatCurrency(fixedMonthlyExpenses)}
               </span>
             </div>
-            <p className="text-xs text-[var(--color-text-muted)] mt-1">Monthly fixed</p>
+            <p className="text-[10px] sm:text-xs text-[var(--color-text-muted)] mt-1">Monthly fixed</p>
           </button>
 
           {/* Profit */}
-          <div className="bg-[var(--color-bg-card)] border-l-4 border-l-purple-500 border border-[var(--color-border)] rounded-xl p-5">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-medium text-purple-600 uppercase tracking-wide">Profit</span>
+          <div className="stagger-card stat-highlight bg-[var(--color-bg-card)] border-l-4 border-l-purple-500 border border-[var(--color-border)] rounded-xl p-3 sm:p-5 hover:shadow-md transition-all duration-200">
+            <div className="flex items-center justify-between mb-2 sm:mb-3">
+              <span className="text-[10px] sm:text-xs font-medium text-purple-600 uppercase tracking-wide">Profit</span>
             </div>
             <div className="flex items-baseline gap-2">
-              <span className={`text-3xl font-bold ${stats.profitThisMonth >= 0 ? 'text-[var(--color-text-primary)]' : 'text-red-600'}`}>
+              <span className={`stat-number text-2xl sm:text-3xl font-bold ${stats.profitThisMonth >= 0 ? 'text-[var(--color-text-primary)]' : 'text-red-600'}`}>
                 {formatCurrency(stats.profitThisMonth)}
               </span>
             </div>
-            <p className="text-xs text-[var(--color-text-muted)] mt-1">This month (net)</p>
+            <p className="text-[10px] sm:text-xs text-[var(--color-text-muted)] mt-1">This month (net)</p>
           </div>
         </div>
       </div>
 
       {/* Quick Actions */}
-      <div>
-        <h2 className="text-sm font-semibold text-[var(--color-text-muted)] uppercase tracking-wide mb-4">
+      <div className="animate-fade-in delay-fade-2" style={{ animationFillMode: 'both' }}>
+        <h2 className="text-xs sm:text-sm font-semibold text-[var(--color-text-muted)] uppercase tracking-wide mb-3 sm:mb-4">
           Quick Actions
         </h2>
-        <div className="flex flex-wrap gap-3">
+        <div className="flex flex-wrap gap-2 sm:gap-3">
           <button 
             onClick={() => onNavigate('jobs')}
-            className="inline-flex items-center gap-2 px-4 py-2.5 bg-orange-500 hover:bg-orange-600 text-white font-medium rounded-xl transition-colors"
+            className="btn-press inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-orange-500 hover:bg-orange-600 hover:shadow-lg hover:shadow-orange-500/25 text-white text-sm sm:text-base font-medium rounded-lg sm:rounded-xl transition-all duration-200 group"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4 sm:w-5 sm:h-5 group-hover:rotate-90 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
-            Log a Job
+            <span>Log Job</span>
           </button>
           <button 
-            onClick={() => onNavigate('quoteBuilder')}
-            className="inline-flex items-center gap-2 px-4 py-2.5 bg-[var(--color-bg-card)] border border-[var(--color-border)] hover:border-slate-300 hover:bg-[var(--color-bg-subtle)] text-[var(--color-text-secondary)] font-medium rounded-xl transition-colors"
+            onClick={() => onNavigate('quotes')}
+            className="btn-press inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-[var(--color-bg-card)] border border-[var(--color-border)] hover:border-slate-300 hover:bg-[var(--color-bg-subtle)] hover:shadow-md text-[var(--color-text-secondary)] text-sm sm:text-base font-medium rounded-lg sm:rounded-xl transition-all duration-200 group"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4 sm:w-5 sm:h-5 group-hover:scale-110 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
             </svg>
-            Create Quote
+            <span>Quote</span>
           </button>
           <button 
             onClick={() => onNavigate('assistant')}
-            className="inline-flex items-center gap-2 px-4 py-2.5 bg-[var(--color-bg-card)] border border-[var(--color-border)] hover:border-slate-300 hover:bg-[var(--color-bg-subtle)] text-[var(--color-text-secondary)] font-medium rounded-xl transition-colors"
+            className="btn-press inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-[var(--color-bg-card)] border border-[var(--color-border)] hover:border-slate-300 hover:bg-[var(--color-bg-subtle)] hover:shadow-md text-[var(--color-text-secondary)] text-sm sm:text-base font-medium rounded-lg sm:rounded-xl transition-all duration-200 group"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4 sm:w-5 sm:h-5 group-hover:scale-110 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
             </svg>
-            Ask Dyia
+            <span className="hidden sm:inline">Ask Dyia</span>
+            <span className="sm:hidden">Dyia</span>
           </button>
         </div>
       </div>
 
       {/* Goal Progress (if set) */}
       {settings.monthlyGoal > 0 && (
-        <div className="bg-gradient-to-r from-slate-50 to-white border border-[var(--color-border)] rounded-2xl p-6">
-          <div className="flex items-center justify-between mb-4">
+        <div className="animate-fade-in delay-fade-3 bg-gradient-to-r from-slate-50 to-white dark:from-slate-800/50 dark:to-slate-900/50 border border-[var(--color-border)] rounded-xl sm:rounded-2xl p-4 sm:p-6 hover:shadow-md transition-shadow duration-300" style={{ animationFillMode: 'both' }}>
+          <div className="flex items-center justify-between mb-3 sm:mb-4">
             <div>
-              <h3 className="font-semibold text-[var(--color-text-primary)]">Monthly Goal</h3>
-              <p className="text-sm text-[var(--color-text-muted)]">
+              <h3 className="text-sm sm:text-base font-semibold text-[var(--color-text-primary)]">Monthly Goal</h3>
+              <p className="text-xs sm:text-sm text-[var(--color-text-muted)]">
                 {formatCurrency(stats.revenueThisMonth)} of {formatCurrency(settings.monthlyGoal)}
               </p>
             </div>
             <div className="text-right">
-              <span className={`text-2xl font-bold ${stats.goalProgress >= 100 ? 'text-green-600' : 'text-[var(--color-text-primary)]'}`}>
+              <span className={`text-xl sm:text-2xl font-bold transition-colors duration-300 ${stats.goalProgress >= 100 ? 'text-green-600' : 'text-[var(--color-text-primary)]'}`}>
                 {stats.goalProgress}%
               </span>
             </div>
           </div>
-          <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+          <div className="h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
             <div 
-              className={`h-full rounded-full transition-all duration-500 ${
+              className={`h-full rounded-full progress-animated ${
                 stats.goalProgress >= 100 
                   ? 'bg-green-500' 
                   : 'bg-gradient-to-r from-orange-500 to-amber-500'
@@ -246,7 +255,7 @@ export function Dashboard({
             />
           </div>
           {stats.goalProgress < 100 && (
-            <p className="text-xs text-[var(--color-text-faint)] mt-2">
+            <p className="text-[10px] sm:text-xs text-[var(--color-text-faint)] mt-2">
               {formatCurrency(settings.monthlyGoal - stats.revenueThisMonth)} to go
             </p>
           )}
@@ -255,39 +264,44 @@ export function Dashboard({
 
       {/* Recent Activity */}
       {jobs.length > 0 && (
-        <div>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-semibold text-[var(--color-text-muted)] uppercase tracking-wide">
+        <div className="animate-fade-in delay-fade-4" style={{ animationFillMode: 'both' }}>
+          <div className="flex items-center justify-between mb-3 sm:mb-4">
+            <h2 className="text-xs sm:text-sm font-semibold text-[var(--color-text-muted)] uppercase tracking-wide">
               Recent Jobs
             </h2>
             <button 
               onClick={() => onNavigate('jobs')}
-              className="text-sm text-orange-600 hover:text-orange-700 font-medium"
+              className="text-xs sm:text-sm text-orange-600 hover:text-orange-700 font-medium hover:underline transition-all duration-200"
             >
               View all
             </button>
           </div>
-          <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-2xl divide-y divide-slate-100">
-            {jobs.slice(0, 5).map((job) => (
-              <div key={job.id} className="flex items-center justify-between p-4">
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 bg-green-50 rounded-xl flex items-center justify-center">
-                    <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl sm:rounded-2xl divide-y divide-slate-100 dark:divide-slate-700 overflow-hidden">
+            {jobs.slice(0, 5).map((job, index) => (
+              <div 
+                key={job.id} 
+                className="list-row flex items-center justify-between p-3 sm:p-4 hover:bg-[var(--color-bg-subtle)] transition-colors duration-200 cursor-pointer"
+                style={{ animationDelay: `${index * 0.05}s` }}
+                onClick={() => onNavigate('jobs')}
+              >
+                <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 bg-green-50 dark:bg-green-900/30 rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0">
+                    <svg className="w-4 h-4 sm:w-5 sm:h-5 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 13l4 4L19 7" />
                     </svg>
                   </div>
-                  <div>
-                    <p className="font-medium text-[var(--color-text-primary)]">{job.customerName}</p>
-                    <p className="text-sm text-[var(--color-text-muted)]">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm sm:text-base font-medium text-[var(--color-text-primary)] truncate">{job.customerName}</p>
+                    <p className="text-xs sm:text-sm text-[var(--color-text-muted)]">
                       {new Date(job.date).toLocaleDateString('en-US', { 
                         month: 'short', 
                         day: 'numeric' 
                       })}
-                      {job.source && <span className="text-slate-300"> · {job.source}</span>}
+                      {job.source && <span className="text-slate-300 dark:text-slate-600 hidden sm:inline"> · {job.source}</span>}
                     </p>
                   </div>
                 </div>
-                <span className="font-semibold text-green-600">
+                <span className="text-sm sm:text-base font-semibold text-green-600 dark:text-green-400 flex-shrink-0 ml-2">
                   {formatCurrency(job.revenue)}
                 </span>
               </div>
@@ -298,23 +312,23 @@ export function Dashboard({
 
       {/* Empty State */}
       {jobs.length === 0 && (
-        <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-2xl text-center py-12 px-6">
-          <div className="w-16 h-16 bg-orange-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <svg className="w-8 h-8 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="animate-card-pop bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl sm:rounded-2xl text-center py-8 sm:py-12 px-4 sm:px-6">
+          <div className="empty-state-float w-12 h-12 sm:w-16 sm:h-16 bg-orange-50 dark:bg-orange-900/30 rounded-xl sm:rounded-2xl flex items-center justify-center mx-auto mb-3 sm:mb-4">
+            <svg className="w-6 h-6 sm:w-8 sm:h-8 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
             </svg>
           </div>
-          <h3 className="text-lg font-semibold text-[var(--color-text-primary)] mb-2">
+          <h3 className="text-base sm:text-lg font-semibold text-[var(--color-text-primary)] mb-2">
             Welcome to dyia
           </h3>
-          <p className="text-[var(--color-text-muted)] mb-6 max-w-sm mx-auto">
+          <p className="text-sm sm:text-base text-[var(--color-text-muted)] mb-4 sm:mb-6 max-w-sm mx-auto">
             Start by logging your first job to track your revenue and profits.
           </p>
           <button 
             onClick={() => onNavigate('jobs')}
-            className="inline-flex items-center gap-2 px-5 py-2.5 bg-orange-500 hover:bg-orange-600 text-white font-medium rounded-xl transition-colors"
+            className="btn-press inline-flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 bg-orange-500 hover:bg-orange-600 hover:shadow-lg hover:shadow-orange-500/25 text-white text-sm sm:text-base font-medium rounded-lg sm:rounded-xl transition-all duration-200 group"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4 sm:w-5 sm:h-5 group-hover:rotate-90 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
             Log Your First Job

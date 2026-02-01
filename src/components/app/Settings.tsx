@@ -58,7 +58,10 @@ export function Settings({ settings, setSettings, userId, showSuccess }: Setting
           email: businessEmail,
           address: businessAddress,
           logo: settings.businessInfo.logo
-        }
+        },
+        onboardingCompleted: settings.onboardingCompleted,
+        onboardingSkipped: settings.onboardingSkipped,
+        onboardingCompletedAt: settings.onboardingCompletedAt
       })
 
       showSuccess('✅ Settings saved!')

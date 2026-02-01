@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import type { AppQuote, AppPriceTemplate } from '@/types/database'
+import type { AppQuote, AppPriceTemplate, AppJob } from '@/types/database'
 import { formatCurrency, compressImage } from '@/lib/utils'
 import { useConfirm } from '@/components/providers/ConfirmProvider'
 
@@ -10,6 +10,7 @@ interface QuoteBuilderProps {
   quotes: AppQuote[]
   setQuotes: (quotes: AppQuote[]) => void
   userId: string
+  selectedJob: AppJob | null  // Job context for the quote
   onBack: () => void
   showSuccess: (message: string) => void
 }
@@ -20,8 +21,15 @@ const PRICE_FIELDS = [
   'laborFee', 'heavyItemFee', 'distanceFee', 'timeFee', 'hazardFee', 'customFee'
 ]
 
-export function QuoteBuilder({ quotes, setQuotes, userId, onBack, showSuccess }: QuoteBuilderProps) {
-  const [customer, setCustomer] = useState({ name: '', phone: '', email: '', address: '', jobDescription: '' })
+export function QuoteBuilder({ quotes, setQuotes, userId, selectedJob, onBack, showSuccess }: QuoteBuilderProps) {
+  // Pre-fill customer info from the selected job
+  const [customer, setCustomer] = useState(() => ({
+    name: selectedJob?.customerName || '',
+    phone: '',
+    email: '',
+    address: '',
+    jobDescription: selectedJob?.notes || ''
+  }))
   const [pricing, setPricing] = useState<Record<string, number>>({})
   const [numLoads, setNumLoads] = useState(0)
   const [pricePerLoad, setPricePerLoad] = useState(0)
@@ -134,6 +142,7 @@ export function QuoteBuilder({ quotes, setQuotes, userId, onBack, showSuccess }:
 
       const quoteData = {
         user_id: userId,
+        job_id: selectedJob?.id || null,  // Link quote to job
         customer_name: customer.name,
         customer_phone: customer.phone || null,
         customer_email: customer.email || null,
@@ -169,6 +178,7 @@ export function QuoteBuilder({ quotes, setQuotes, userId, onBack, showSuccess }:
 
       const newQuote: AppQuote = {
         id: data.id,
+        jobId: selectedJob?.id,  // Include job reference
         createdAt: new Date(data.created_at).getTime(),
         customer: {
           name: customer.name,
@@ -201,25 +211,30 @@ export function QuoteBuilder({ quotes, setQuotes, userId, onBack, showSuccess }:
     <div className="animate-fade-in">
       <div className="page-header">
         <div>
-          <h1 className="page-title">Quote Builder</h1>
-          <p className="page-subtitle">Create a professional estimate for your customer</p>
+          <h1 className="page-title text-xl sm:text-3xl">Quote Builder</h1>
+          <p className="page-subtitle text-sm sm:text-base">
+            {selectedJob 
+              ? <>Creating quote for <span className="text-orange-600 font-medium">{selectedJob.customerName}</span></>
+              : 'Create a professional estimate'
+            }
+          </p>
         </div>
-        <button onClick={onBack} className="app-btn-secondary">
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <button onClick={onBack} className="app-btn-secondary text-sm sm:text-base px-3 sm:px-6 py-2 sm:py-3">
+          <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
           </svg>
-          Back
+          <span className="hidden sm:inline">Back</span>
         </button>
       </div>
 
       <form onSubmit={saveQuote}>
         {/* Customer Information */}
-        <div className="app-card mb-5">
-          <div className="flex items-center gap-3 mb-5">
-            <span className="text-xl">👤</span>
-            <h3 className="font-semibold text-[var(--color-text-primary)]">Customer Information</h3>
+        <div className="app-card mb-4 sm:mb-5 p-4 sm:p-6">
+          <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-5">
+            <span className="text-lg sm:text-xl">👤</span>
+            <h3 className="text-sm sm:text-base font-semibold text-[var(--color-text-primary)]">Customer Information</h3>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
             <div>
               <label className="app-label">Customer Name *</label>
               <input
@@ -275,19 +290,19 @@ export function QuoteBuilder({ quotes, setQuotes, userId, onBack, showSuccess }:
         </div>
 
         {/* Volume-Based Pricing */}
-        <div className="app-card mb-5">
-          <div className="flex items-center justify-between mb-5">
-            <div className="flex items-center gap-3">
-              <span className="text-xl">📦</span>
-              <h3 className="font-semibold text-[var(--color-text-primary)]">Volume-Based Pricing</h3>
+        <div className="app-card mb-4 sm:mb-5 p-4 sm:p-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4 sm:mb-5">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <span className="text-lg sm:text-xl">📦</span>
+              <h3 className="text-sm sm:text-base font-semibold text-[var(--color-text-primary)]">Volume-Based Pricing</h3>
             </div>
             {defaultTemplate && (
-              <span className="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded-full">
+              <span className="text-[10px] sm:text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded-full self-start sm:self-auto">
                 Using: {defaultTemplate.name}
               </span>
             )}
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
             {[
               { field: 'minimumFee', label: 'Minimum Fee' },
               { field: 'quarterLoad', label: '1/4 Load' },
@@ -354,12 +369,12 @@ export function QuoteBuilder({ quotes, setQuotes, userId, onBack, showSuccess }:
         </div>
 
         {/* Specialty Jobs */}
-        <div className="app-card mb-5">
-          <div className="flex items-center gap-3 mb-5">
-            <span className="text-xl">🔧</span>
-            <h3 className="font-semibold text-[var(--color-text-primary)]">Specialty Jobs</h3>
+        <div className="app-card mb-4 sm:mb-5 p-4 sm:p-6">
+          <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-5">
+            <span className="text-lg sm:text-xl">🔧</span>
+            <h3 className="text-sm sm:text-base font-semibold text-[var(--color-text-primary)]">Specialty Jobs</h3>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
             {[
               { field: 'trampoline', label: 'Trampoline' },
               { field: 'shed', label: 'Shed Demo' },
@@ -387,12 +402,12 @@ export function QuoteBuilder({ quotes, setQuotes, userId, onBack, showSuccess }:
         </div>
 
         {/* Additional Fees */}
-        <div className="app-card mb-5">
-          <div className="flex items-center gap-3 mb-5">
-            <span className="text-xl">💰</span>
-            <h3 className="font-semibold text-[var(--color-text-primary)]">Additional Fees</h3>
+        <div className="app-card mb-4 sm:mb-5 p-4 sm:p-6">
+          <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-5">
+            <span className="text-lg sm:text-xl">💰</span>
+            <h3 className="text-sm sm:text-base font-semibold text-[var(--color-text-primary)]">Additional Fees</h3>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
             {[
               { field: 'laborFee', label: 'Labor' },
               { field: 'heavyItemFee', label: 'Heavy Item' },
@@ -420,27 +435,27 @@ export function QuoteBuilder({ quotes, setQuotes, userId, onBack, showSuccess }:
         </div>
 
         {/* Live Estimate Preview */}
-        <div className="app-card mb-5 bg-gradient-to-r from-emerald-50 to-teal-50 border-2 border-emerald-500">
-          <div className="text-center py-4">
-            <div className="text-xs font-bold text-emerald-600 uppercase tracking-wider mb-2">Live Estimate Preview</div>
-            <div className="text-4xl font-bold text-emerald-700 mb-2">
+        <div className="app-card mb-4 sm:mb-5 p-4 sm:p-6 bg-gradient-to-r from-emerald-50 to-teal-50 border-2 border-emerald-500">
+          <div className="text-center py-2 sm:py-4">
+            <div className="text-[10px] sm:text-xs font-bold text-emerald-600 uppercase tracking-wider mb-1 sm:mb-2">Live Estimate Preview</div>
+            <div className="text-2xl sm:text-4xl font-bold text-emerald-700 mb-1 sm:mb-2">
               {formatCurrency(rangeLow)} - {formatCurrency(rangeHigh)}
             </div>
-            <div className="text-sm text-emerald-600/70">
+            <div className="text-xs sm:text-sm text-emerald-600/70">
               Base total: <strong>{formatCurrency(total)}</strong> (±10% range)
             </div>
           </div>
         </div>
 
         {/* Job Photos */}
-        <div className="app-card mb-6">
-          <div className="flex items-center gap-3 mb-2">
-            <span className="text-xl">📸</span>
-            <h3 className="font-semibold text-[var(--color-text-primary)]">Job Photos</h3>
-            <span className="text-sm text-[var(--color-text-muted)]">(Optional)</span>
+        <div className="app-card mb-4 sm:mb-6 p-4 sm:p-6">
+          <div className="flex items-center gap-2 sm:gap-3 mb-2">
+            <span className="text-lg sm:text-xl">📸</span>
+            <h3 className="text-sm sm:text-base font-semibold text-[var(--color-text-primary)]">Job Photos</h3>
+            <span className="text-xs sm:text-sm text-[var(--color-text-muted)]">(Optional)</span>
           </div>
-          <p className="text-[var(--color-text-muted)] text-sm mb-4">Upload up to 3 photos to include in the quote PDF.</p>
-          <div className="grid grid-cols-3 gap-4">
+          <p className="text-[var(--color-text-muted)] text-xs sm:text-sm mb-3 sm:mb-4">Upload up to 3 photos to include in the quote PDF.</p>
+          <div className="grid grid-cols-3 gap-2 sm:gap-4">
             {[0, 1, 2].map(i => (
               <div key={i} className="image-upload-box">
                 <input
@@ -473,17 +488,17 @@ export function QuoteBuilder({ quotes, setQuotes, userId, onBack, showSuccess }:
         </div>
 
         {/* Actions */}
-        <div className="flex justify-end gap-3">
-          <button type="button" onClick={onBack} className="app-btn-secondary">Cancel</button>
-          <button type="submit" disabled={saving} className="app-btn-primary">
+        <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3">
+          <button type="button" onClick={onBack} className="app-btn-secondary w-full sm:w-auto text-sm sm:text-base py-2.5 sm:py-3">Cancel</button>
+          <button type="submit" disabled={saving} className="app-btn-primary w-full sm:w-auto text-sm sm:text-base py-2.5 sm:py-3">
             {saving ? (
               <>
-                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                <div className="w-4 h-4 sm:w-5 sm:h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                 Saving...
               </>
             ) : (
               <>
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
                 Generate Quote

@@ -279,13 +279,13 @@ export function FollowUps({ userId, businessName = 'dyia', showSuccess }: Follow
     <div className="animate-fade-in">
       <div className="page-header">
         <div>
-          <h1 className="page-title">Follow-Ups</h1>
-          <p className="page-subtitle">{filteredRows.length} quote{filteredRows.length !== 1 ? 's' : ''} to follow up</p>
+          <h1 className="page-title text-xl sm:text-3xl">Follow-Ups</h1>
+          <p className="page-subtitle text-sm sm:text-base">{filteredRows.length} quote{filteredRows.length !== 1 ? 's' : ''} to follow up</p>
         </div>
       </div>
 
-      <div className="app-card mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="app-card mb-4 sm:mb-6 p-4 sm:p-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
           <div>
             <label className="app-label">Status</label>
             <select
@@ -329,7 +329,7 @@ export function FollowUps({ userId, businessName = 'dyia', showSuccess }: Follow
           </div>
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-3 sm:space-y-4">
           {filteredRows.map((row) => {
             const status = row.followUp?.status || 'pending'
             const priorityBadge =
@@ -343,30 +343,30 @@ export function FollowUps({ userId, businessName = 'dyia', showSuccess }: Follow
               status === 'snoozed' ? 'badge-warning' : 'badge-success'
 
             return (
-              <div key={row.quote.id} className="app-card">
-                <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
-                  <div className="flex-1">
-                    <div className="flex flex-wrap items-center gap-2 mb-2">
-                      <h3 className="text-lg font-semibold text-[var(--color-text-primary)]">{row.quote.customerName}</h3>
-                      <span className={`badge ${priorityBadge}`}>
+              <div key={row.quote.id} className="app-card p-4 sm:p-6">
+                <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 sm:gap-6">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mb-2">
+                      <h3 className="text-base sm:text-lg font-semibold text-[var(--color-text-primary)]">{row.quote.customerName}</h3>
+                      <span className={`badge text-[10px] sm:text-xs ${priorityBadge}`}>
                         {row.priority === 'hot' ? 'Hot 🔥' : row.priority === 'warm' ? 'Warm 🌡️' : 'Cold ❄️'}
                       </span>
-                      <span className={`badge ${statusBadge}`}>
+                      <span className={`badge text-[10px] sm:text-xs ${statusBadge}`}>
                         {STATUS_OPTIONS.find((opt) => opt.value === status)?.label || 'Pending'}
                       </span>
-                      <span className="text-xs text-[var(--color-text-faint)]">
-                        {row.daysSinceQuote} day{row.daysSinceQuote !== 1 ? 's' : ''} ago
+                      <span className="text-[10px] sm:text-xs text-[var(--color-text-faint)]">
+                        {row.daysSinceQuote}d ago
                       </span>
                     </div>
 
-                    <div className="text-sm text-[var(--color-text-muted)] mb-3">
+                    <div className="text-xs sm:text-sm text-[var(--color-text-muted)] mb-2 sm:mb-3">
                       Estimate: <span className="font-semibold text-emerald-600">
                         {formatCurrency(row.quote.estimateLow)} - {formatCurrency(row.quote.estimateHigh)}
                       </span>
                     </div>
 
                     {row.quote.phone && (
-                      <div className="text-sm text-[var(--color-text-muted)] mb-3">
+                      <div className="text-xs sm:text-sm text-[var(--color-text-muted)] mb-2 sm:mb-3">
                         Phone:{' '}
                         <a href={`tel:${row.quote.phone}`} className="text-orange-600 hover:text-orange-700 font-medium">
                           {row.quote.phone}
@@ -374,18 +374,18 @@ export function FollowUps({ userId, businessName = 'dyia', showSuccess }: Follow
                       </div>
                     )}
 
-                    <div className="text-sm text-[var(--color-text-muted)] mb-4">
+                    <div className="text-xs sm:text-sm text-[var(--color-text-muted)] mb-3 sm:mb-4 line-clamp-2 sm:line-clamp-none">
                       {row.quote.jobDescription || 'No job description provided.'}
                     </div>
 
                     <div className="flex flex-wrap gap-2">
-                      <button onClick={() => copyMessage(row)} className="app-btn-ghost text-sm">
-                        📋 Copy follow-up message
+                      <button onClick={() => copyMessage(row)} className="app-btn-ghost text-xs sm:text-sm px-2 sm:px-4 py-1.5 sm:py-2">
+                        📋 Copy message
                       </button>
                     </div>
                   </div>
 
-                  <div className="w-full lg:w-72 space-y-4">
+                  <div className="w-full lg:w-72 space-y-3 sm:space-y-4">
                     <div>
                       <label className="app-label">Status</label>
                       <select
