@@ -337,6 +337,7 @@ export default function AppPage() {
             pendingFollowUps={pendingFollowUpsCount}
             fixedMonthlyExpenses={fixedMonthlyExpenses}
             isPro={['active', 'trialing'].includes(userProfile?.subscription_status || '')}
+            taxPercentage={settings.taxPercentage}
           />
         )
       case 'jobs':

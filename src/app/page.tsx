@@ -139,12 +139,12 @@ export default function LandingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white text-slate-900 overflow-x-hidden">
-      {/* Orange Gradient Background */}
+    <div className="min-h-screen bg-[#fafafa] text-slate-900 overflow-x-hidden">
+      {/* Refined Gradient Background */}
       <div className="fixed inset-0 -z-10">
-        <div className="absolute inset-0 bg-gradient-to-b from-orange-50 via-white to-white" />
-        <div className="absolute top-0 right-0 w-[800px] h-[600px] bg-gradient-to-bl from-orange-100/60 to-transparent rounded-full blur-3xl" />
-        <div className="absolute top-1/3 left-0 w-[400px] h-[400px] bg-gradient-to-r from-amber-100/40 to-transparent rounded-full blur-3xl" />
+        <div className="absolute inset-0 bg-gradient-to-b from-orange-50/80 via-[#fafafa] to-[#fafafa]" />
+        <div className="absolute top-0 right-0 w-[800px] h-[600px] bg-gradient-to-bl from-orange-100/50 to-transparent rounded-full blur-3xl" />
+        <div className="absolute top-1/3 left-0 w-[400px] h-[400px] bg-gradient-to-r from-amber-100/30 to-transparent rounded-full blur-3xl" />
       </div>
 
       {/* Announcement Banner - Orange */}
@@ -192,21 +192,21 @@ export default function LandingPage() {
               </div>
             </div>
             
-            <h1 className={`text-5xl sm:text-6xl lg:text-7xl font-bold leading-[1.05] mb-6 transition-all duration-700 delay-200 ${mounted ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0'}`}>
-              <span className="bg-gradient-to-r from-orange-500 via-orange-400 to-amber-500 bg-clip-text text-transparent">Your Day,</span>
+            <h1 className={`text-5xl sm:text-6xl lg:text-7xl font-bold leading-[1.02] mb-6 tracking-tight transition-all duration-700 delay-200 ${mounted ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0'}`}>
+              <span className="bg-gradient-to-r from-orange-500 via-orange-500 to-amber-500 bg-clip-text text-transparent">Your Day,</span>
               <br />
-              <span className="text-slate-800">Decoded.</span>
+              <span className="text-gray-900">Decoded.</span>
             </h1>
             
-            <p className={`text-xl sm:text-2xl text-slate-600 max-w-2xl mx-auto mb-10 leading-relaxed transition-all duration-700 delay-300 ${mounted ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0'}`}>
+            <p className={`text-xl sm:text-2xl text-gray-600 max-w-2xl mx-auto mb-10 leading-relaxed transition-all duration-700 delay-300 ${mounted ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0'}`}>
               Know exactly what you pocket after every job. 
-              <span className="text-orange-600 font-medium"> No spreadsheets. No guessing.</span>
+              <span className="text-orange-600 font-semibold"> No spreadsheets. No guessing.</span>
             </p>
             
             <div className={`flex flex-wrap justify-center gap-4 mb-12 transition-all duration-700 delay-400 ${mounted ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0'}`}>
               <a 
                 href="#pricing" 
-                className="group px-8 py-4 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 text-white rounded-2xl font-bold text-lg shadow-xl shadow-orange-500/25 hover:shadow-orange-500/40 hover:-translate-y-1 transition-all flex items-center gap-2"
+                className="group px-8 py-4 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-2xl font-bold text-lg shadow-lg shadow-orange-500/25 hover:shadow-xl hover:shadow-orange-500/35 hover:-translate-y-0.5 active:translate-y-0 transition-all flex items-center gap-2"
               >
                 Start Tracking — $12.99/mo
                 <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -215,22 +215,22 @@ export default function LandingPage() {
               </a>
               <a 
                 href="#how-it-works" 
-                className="px-8 py-4 bg-white hover:bg-orange-50 text-slate-700 border-2 border-slate-200 hover:border-orange-300 rounded-2xl font-semibold text-lg transition-all"
+                className="px-8 py-4 bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 hover:border-gray-300 rounded-2xl font-semibold text-lg shadow-sm hover:shadow transition-all"
               >
                 See How It Works
               </a>
             </div>
 
             {/* Quick benefits */}
-            <div className={`flex flex-wrap justify-center gap-8 text-sm transition-all duration-700 delay-500 ${mounted ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0'}`}>
+            <div className={`flex flex-wrap justify-center gap-6 sm:gap-8 text-sm transition-all duration-700 delay-500 ${mounted ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0'}`}>
               {['Log jobs in 30 seconds', 'See real profit instantly', 'Works on any device'].map((item, i) => (
-                <div key={i} className="flex items-center gap-2 text-slate-600">
-                  <div className="w-5 h-5 rounded-full bg-gradient-to-r from-orange-500 to-amber-500 flex items-center justify-center">
+                <div key={i} className="flex items-center gap-2.5 text-gray-600">
+                  <div className="w-5 h-5 rounded-full bg-gradient-to-r from-orange-500 to-amber-500 flex items-center justify-center shadow-sm">
                     <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                     </svg>
                   </div>
-                  <span>{item}</span>
+                  <span className="font-medium">{item}</span>
                 </div>
               ))}
             </div>
@@ -288,12 +288,12 @@ export default function LandingPage() {
         {/* Pain Points Section */}
         <section className="py-20 px-6">
           <div className="max-w-4xl mx-auto">
-            <h2 className="text-3xl sm:text-4xl font-bold text-slate-800 mb-4 text-center">
+            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4 text-center tracking-tight">
               Sound familiar?
             </h2>
-            <p className="text-slate-500 text-center mb-12">You&apos;re not alone. Every hauler deals with this.</p>
+            <p className="text-gray-500 text-center mb-12">You&apos;re not alone. Every hauler deals with this.</p>
             
-            <div className="grid md:grid-cols-2 gap-6">
+            <div className="grid md:grid-cols-2 gap-5">
               {[
                 { emoji: '😰', pain: '"I had a $500 day but after gas, dump fees, and paying my helper... I don\'t even know what I actually made."' },
                 { emoji: '📝', pain: '"I\'ve got receipts everywhere. When tax time comes, I\'m scrambling to figure out what I owe."' },
@@ -302,38 +302,38 @@ export default function LandingPage() {
               ].map((item, i) => (
                 <div 
                   key={i} 
-                  className="bg-gradient-to-br from-orange-50 to-amber-50/50 rounded-2xl p-6 border border-orange-100 hover:border-orange-200 hover:shadow-lg hover:shadow-orange-500/5 transition-all"
+                  className="bg-white rounded-2xl p-6 border border-gray-200 hover:border-orange-200 hover:shadow-lg hover:shadow-orange-500/5 transition-all"
                 >
                   <span className="text-4xl mb-4 block">{item.emoji}</span>
-                  <p className="text-slate-600 italic leading-relaxed">{item.pain}</p>
+                  <p className="text-gray-600 italic leading-relaxed">{item.pain}</p>
                 </div>
               ))}
             </div>
 
             <div className="mt-12 text-center">
-              <p className="text-xl text-slate-800 font-medium">
-                dyia fixes all of this for <span className="text-orange-500 font-bold">$12.99/month</span>.
+              <p className="text-xl text-gray-800 font-medium">
+                dyia fixes all of this for <span className="text-orange-600 font-bold">$12.99/month</span>.
               </p>
             </div>
           </div>
         </section>
 
         {/* How It Works */}
-        <section id="how-it-works" className="py-20 px-6 bg-gradient-to-b from-orange-50 to-white">
+        <section id="how-it-works" className="py-20 px-6 bg-gradient-to-b from-orange-50/50 to-[#fafafa]">
           <div className="max-w-5xl mx-auto">
             <div className="text-center mb-16">
-              <div className="inline-flex items-center gap-2 px-3 py-1 bg-orange-100 border border-orange-200 rounded-full text-orange-600 text-xs font-bold uppercase tracking-wider mb-4">
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-orange-100 border border-orange-200 rounded-full text-orange-600 text-xs font-bold uppercase tracking-wider mb-4">
                 How it works
               </div>
-              <h2 className="text-3xl sm:text-4xl font-bold text-slate-800 mb-4">
+              <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4 tracking-tight">
                 Three taps. That&apos;s it.
               </h2>
-              <p className="text-slate-600 text-lg">
+              <p className="text-gray-600 text-lg">
                 Do it from the truck between jobs.
               </p>
             </div>
             
-            <div className="grid md:grid-cols-3 gap-8">
+            <div className="grid md:grid-cols-3 gap-6">
               {[
                 { 
                   step: '1', 
@@ -355,13 +355,13 @@ export default function LandingPage() {
                 },
               ].map((item, i) => (
                 <div key={i} className="relative">
-                  <div className="bg-white rounded-2xl p-8 border border-orange-200 hover:border-orange-300 hover:shadow-xl hover:shadow-orange-500/10 transition-all h-full">
-                    <div className="w-14 h-14 bg-gradient-to-br from-orange-500 to-amber-500 rounded-2xl flex items-center justify-center text-2xl mb-6 shadow-lg shadow-orange-500/30">
+                  <div className="bg-white rounded-2xl p-8 border border-gray-200 hover:border-orange-200 hover:shadow-lg hover:-translate-y-1 transition-all h-full">
+                    <div className="w-14 h-14 bg-gradient-to-br from-orange-500 to-amber-500 rounded-2xl flex items-center justify-center text-2xl mb-6 shadow-lg shadow-orange-500/20">
                       {item.icon}
                     </div>
                     <div className="inline-block px-3 py-1 bg-orange-100 rounded-full text-orange-600 text-xs font-bold mb-3">Step {item.step}</div>
-                    <h3 className="text-xl font-bold text-slate-800 mb-3">{item.title}</h3>
-                    <p className="text-slate-600 leading-relaxed">{item.desc}</p>
+                    <h3 className="text-xl font-bold text-gray-900 mb-3">{item.title}</h3>
+                    <p className="text-gray-600 leading-relaxed">{item.desc}</p>
                   </div>
                 </div>
               ))}
@@ -373,33 +373,33 @@ export default function LandingPage() {
         <section className="py-20 px-6">
           <div className="max-w-5xl mx-auto">
             <div className="text-center mb-16">
-              <div className="inline-flex items-center gap-2 px-3 py-1 bg-orange-100 border border-orange-200 rounded-full text-orange-600 text-xs font-bold uppercase tracking-wider mb-4">
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-orange-100 border border-orange-200 rounded-full text-orange-600 text-xs font-bold uppercase tracking-wider mb-4">
                 Features
               </div>
-              <h2 className="text-3xl sm:text-4xl font-bold text-slate-800 mb-4">
-                Everything you need. <span className="text-slate-400">Nothing you don&apos;t.</span>
+              <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4 tracking-tight">
+                Everything you need. <span className="text-gray-400">Nothing you don&apos;t.</span>
               </h2>
             </div>
             
-            <div className="grid md:grid-cols-2 gap-5">
+            <div className="grid md:grid-cols-2 gap-4">
               {[
-                { icon: '📊', title: 'Job & profit tracking', desc: 'Log jobs fast. See revenue, expenses, and real profit per job. Track labor costs when you have help.', color: 'from-orange-500 to-orange-600' },
-                { icon: '🧾', title: 'Tax set-aside calculator', desc: 'Set your tax rate (default 30%). We show you what to put away from each job so you\'re never surprised.', color: 'from-amber-500 to-orange-500' },
-                { icon: '📋', title: 'Quote builder', desc: 'Create professional PDF quotes with your business info. Volume pricing, specialty items, the works.', color: 'from-orange-400 to-amber-500' },
-                { icon: '📈', title: 'Monthly goals', desc: 'Set a revenue target. Watch your progress. Know exactly where you stand at any moment.', color: 'from-orange-500 to-red-500' },
-                { icon: '📣', title: 'Lead source tracking', desc: 'Tag where each customer came from—Google, Yelp, referral. See what\'s actually bringing in work.', color: 'from-amber-500 to-yellow-500' },
-                { icon: '📥', title: 'Export your data', desc: 'Download everything as CSV anytime. Your data is yours. Give it to your accountant, back it up, whatever.', color: 'from-orange-600 to-orange-500' },
+                { icon: '📊', title: 'Job & profit tracking', desc: 'Log jobs fast. See revenue, expenses, and real profit per job. Track labor costs when you have help.' },
+                { icon: '🧾', title: 'Tax set-aside calculator', desc: 'Set your tax rate (default 30%). We show you what to put away from each job so you\'re never surprised.' },
+                { icon: '📋', title: 'Quote builder', desc: 'Create professional PDF quotes with your business info. Volume pricing, specialty items, the works.' },
+                { icon: '📈', title: 'Monthly goals', desc: 'Set a revenue target. Watch your progress. Know exactly where you stand at any moment.' },
+                { icon: '📣', title: 'Lead source tracking', desc: 'Tag where each customer came from—Google, Yelp, referral. See what\'s actually bringing in work.' },
+                { icon: '📥', title: 'Export your data', desc: 'Download everything as CSV anytime. Your data is yours. Give it to your accountant, back it up, whatever.' },
               ].map((feature, i) => (
                 <div 
                   key={i} 
-                  className="flex gap-4 p-6 bg-white border border-orange-100 rounded-2xl hover:border-orange-200 hover:shadow-lg hover:shadow-orange-500/5 transition-all"
+                  className="flex gap-4 p-5 bg-white border border-gray-200 rounded-xl hover:border-orange-200 hover:shadow-md transition-all"
                 >
-                  <div className={`w-12 h-12 bg-gradient-to-br ${feature.color} rounded-xl flex items-center justify-center text-xl flex-shrink-0 shadow-lg`}>
+                  <div className="w-11 h-11 bg-gradient-to-br from-orange-500 to-amber-500 rounded-xl flex items-center justify-center text-lg flex-shrink-0 shadow-md shadow-orange-500/15">
                     {feature.icon}
                   </div>
                   <div>
-                    <h3 className="text-lg font-bold text-slate-800 mb-1">{feature.title}</h3>
-                    <p className="text-slate-600 text-sm leading-relaxed">{feature.desc}</p>
+                    <h3 className="text-base font-bold text-gray-900 mb-1">{feature.title}</h3>
+                    <p className="text-gray-600 text-sm leading-relaxed">{feature.desc}</p>
                   </div>
                 </div>
               ))}
@@ -452,15 +452,15 @@ export default function LandingPage() {
         <section className="py-20 px-6">
           <div className="max-w-5xl mx-auto">
             <div className="text-center mb-12">
-              <div className="inline-flex items-center gap-2 px-3 py-1 bg-orange-100 border border-orange-200 rounded-full text-orange-600 text-xs font-bold uppercase tracking-wider mb-4">
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-orange-100 border border-orange-200 rounded-full text-orange-600 text-xs font-bold uppercase tracking-wider mb-4">
                 Real users
               </div>
-              <h2 className="text-3xl sm:text-4xl font-bold text-slate-800">
+              <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 tracking-tight">
                 From haulers like you
               </h2>
             </div>
             
-            <div className="grid md:grid-cols-3 gap-6">
+            <div className="grid md:grid-cols-3 gap-5">
               {[
                 { 
                   name: 'Marcus T.', 
@@ -481,22 +481,22 @@ export default function LandingPage() {
                   business: 'Clean Sweep Junk'
                 },
               ].map((testimonial, i) => (
-                <div key={i} className="bg-white border border-orange-100 rounded-2xl p-6 hover:border-orange-200 hover:shadow-lg hover:shadow-orange-500/5 transition-all">
-                  <div className="flex gap-1 mb-4">
+                <div key={i} className="bg-white border border-gray-200 rounded-2xl p-6 hover:border-orange-200 hover:shadow-md transition-all">
+                  <div className="flex gap-0.5 mb-4">
                     {[...Array(5)].map((_, i) => (
-                      <svg key={i} className="w-5 h-5 text-orange-400" fill="currentColor" viewBox="0 0 20 20">
+                      <svg key={i} className="w-4 h-4 text-orange-400" fill="currentColor" viewBox="0 0 20 20">
                         <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                       </svg>
                     ))}
                   </div>
-                  <p className="text-slate-600 mb-6 leading-relaxed">&ldquo;{testimonial.text}&rdquo;</p>
+                  <p className="text-gray-600 mb-6 leading-relaxed text-sm">&ldquo;{testimonial.text}&rdquo;</p>
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gradient-to-br from-orange-400 to-amber-500 rounded-full flex items-center justify-center text-white font-bold shadow-lg">
+                    <div className="w-9 h-9 bg-gradient-to-br from-orange-500 to-amber-500 rounded-full flex items-center justify-center text-white text-sm font-bold shadow-md shadow-orange-500/15">
                       {testimonial.name.charAt(0)}
                     </div>
                     <div>
-                      <div className="font-semibold text-slate-800">{testimonial.name}</div>
-                      <div className="text-sm text-slate-500">{testimonial.business} • {testimonial.location}</div>
+                      <div className="font-semibold text-gray-900 text-sm">{testimonial.name}</div>
+                      <div className="text-xs text-gray-500">{testimonial.business} • {testimonial.location}</div>
                     </div>
                   </div>
                 </div>
@@ -506,16 +506,16 @@ export default function LandingPage() {
         </section>
 
         {/* Pricing Section */}
-        <section id="pricing" className="py-20 px-6 bg-gradient-to-b from-orange-50 to-white">
+        <section id="pricing" className="py-20 px-6 bg-gradient-to-b from-orange-50/50 to-[#fafafa]">
           <div className="max-w-4xl mx-auto">
             <div className="text-center mb-12">
-              <div className="inline-flex items-center gap-2 px-3 py-1 bg-orange-100 border border-orange-200 rounded-full text-orange-600 text-xs font-bold uppercase tracking-wider mb-4">
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-orange-100 border border-orange-200 rounded-full text-orange-600 text-xs font-bold uppercase tracking-wider mb-4">
                 Pricing
               </div>
-              <h2 className="text-3xl sm:text-4xl font-bold text-slate-800 mb-4">
+              <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4 tracking-tight">
                 Simple pricing. No surprises.
               </h2>
-              <p className="text-slate-600 text-lg">No hidden fees. Cancel anytime. 14-day money-back guarantee.</p>
+              <p className="text-gray-600 text-lg">No hidden fees. Cancel anytime. 14-day money-back guarantee.</p>
             </div>
 
             {/* Coupon Input */}
@@ -542,19 +542,19 @@ export default function LandingPage() {
               )}
             </div>
             
-            <div className="grid md:grid-cols-2 gap-6 max-w-3xl mx-auto">
+            <div className="grid md:grid-cols-2 gap-5 max-w-3xl mx-auto">
               {/* Monthly */}
-              <div className="bg-white border border-orange-200 rounded-3xl p-8 hover:shadow-lg hover:shadow-orange-500/10 transition-all">
-                <h3 className="text-2xl font-bold text-slate-800 mb-1">Monthly</h3>
-                <p className="text-slate-500 text-sm mb-6">Pay as you go</p>
+              <div className="bg-white border border-gray-200 rounded-2xl p-8 hover:shadow-lg hover:border-gray-300 transition-all">
+                <h3 className="text-2xl font-bold text-gray-900 mb-1">Monthly</h3>
+                <p className="text-gray-500 text-sm mb-6">Pay as you go</p>
                 <div className="flex items-baseline gap-1 mb-8">
-                  <span className="text-5xl font-bold text-slate-800">$12.99</span>
-                  <span className="text-slate-400">/mo</span>
+                  <span className="text-5xl font-bold text-gray-900 tracking-tight">$12.99</span>
+                  <span className="text-gray-400">/mo</span>
                 </div>
                 <ul className="space-y-3 mb-8">
                   {['Unlimited job tracking', 'Profit & expense dashboard', 'Tax set-aside calculator', 'Quote builder with PDF', 'Lead source tracking', 'CSV data export'].map((feature, i) => (
-                    <li key={i} className="flex items-center gap-3 text-sm text-slate-600">
-                      <div className="w-5 h-5 rounded-full bg-gradient-to-r from-orange-500 to-amber-500 flex items-center justify-center flex-shrink-0">
+                    <li key={i} className="flex items-center gap-3 text-sm text-gray-600">
+                      <div className="w-5 h-5 rounded-full bg-gradient-to-r from-orange-500 to-amber-500 flex items-center justify-center flex-shrink-0 shadow-sm">
                         <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                         </svg>
@@ -566,28 +566,28 @@ export default function LandingPage() {
                 <button 
                   onClick={() => checkout('monthly')}
                   disabled={loading === 'monthly'}
-                  className="w-full py-4 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-2xl font-semibold transition disabled:opacity-50"
+                  className="w-full py-3.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-semibold transition disabled:opacity-50"
                 >
                   {loading === 'monthly' ? 'Redirecting...' : 'Start Monthly'}
                 </button>
               </div>
 
               {/* Annual */}
-              <div className="relative bg-gradient-to-br from-orange-50 to-amber-50 border-2 border-orange-400 rounded-3xl p-8 shadow-xl shadow-orange-500/10">
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-orange-500 to-amber-500 text-white px-4 py-1 rounded-full text-xs font-bold shadow-lg">
+              <div className="relative bg-white border-2 border-orange-400 rounded-2xl p-8 shadow-lg shadow-orange-500/10">
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-orange-500 to-amber-500 text-white px-4 py-1.5 rounded-full text-xs font-bold shadow-md">
                   BEST VALUE — SAVE $36
                 </div>
-                <h3 className="text-2xl font-bold text-slate-800 mb-1">Annual</h3>
-                <p className="text-slate-500 text-sm mb-6">2 months free</p>
+                <h3 className="text-2xl font-bold text-gray-900 mb-1">Annual</h3>
+                <p className="text-gray-500 text-sm mb-6">2 months free</p>
                 <div className="flex items-baseline gap-1 mb-2">
-                  <span className="text-5xl font-bold text-slate-800">$119</span>
-                  <span className="text-slate-400">/year</span>
+                  <span className="text-5xl font-bold text-gray-900 tracking-tight">$119</span>
+                  <span className="text-gray-400">/year</span>
                 </div>
-                <p className="text-orange-600 text-sm font-medium mb-6">= $9.92/month</p>
+                <p className="text-orange-600 text-sm font-semibold mb-6">= $9.92/month</p>
                 <ul className="space-y-3 mb-8">
                   {['Everything in Monthly', 'Priority email support', 'Early access to new features', 'Price locked forever'].map((feature, i) => (
-                    <li key={i} className="flex items-center gap-3 text-sm text-slate-600">
-                      <div className="w-5 h-5 rounded-full bg-gradient-to-r from-orange-500 to-amber-500 flex items-center justify-center flex-shrink-0">
+                    <li key={i} className="flex items-center gap-3 text-sm text-gray-600">
+                      <div className="w-5 h-5 rounded-full bg-gradient-to-r from-orange-500 to-amber-500 flex items-center justify-center flex-shrink-0 shadow-sm">
                         <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                         </svg>
@@ -599,7 +599,7 @@ export default function LandingPage() {
                 <button 
                   onClick={() => checkout('annual')}
                   disabled={loading === 'annual'}
-                  className="w-full py-4 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 text-white rounded-2xl font-bold shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 transition-all disabled:opacity-50"
+                  className="w-full py-3.5 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-xl font-bold shadow-lg shadow-orange-500/20 hover:shadow-orange-500/30 hover:-translate-y-0.5 active:translate-y-0 transition-all disabled:opacity-50"
                 >
                   {loading === 'annual' ? 'Redirecting...' : 'Start Annual — Save $36'}
                 </button>
@@ -612,10 +612,10 @@ export default function LandingPage() {
         <section id="faq" className="py-20 px-6">
           <div className="max-w-3xl mx-auto">
             <div className="text-center mb-12">
-              <div className="inline-flex items-center gap-2 px-3 py-1 bg-orange-100 border border-orange-200 rounded-full text-orange-600 text-xs font-bold uppercase tracking-wider mb-4">
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-orange-100 border border-orange-200 rounded-full text-orange-600 text-xs font-bold uppercase tracking-wider mb-4">
                 FAQ
               </div>
-              <h2 className="text-3xl sm:text-4xl font-bold text-slate-800">Questions?</h2>
+              <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 tracking-tight">Questions?</h2>
             </div>
             
             <div className="space-y-3">
@@ -629,15 +629,15 @@ export default function LandingPage() {
               ].map((faq, i) => (
                 <div 
                   key={i} 
-                  className="border border-orange-100 rounded-2xl overflow-hidden bg-white hover:border-orange-200 transition-all"
+                  className="border border-gray-200 rounded-xl overflow-hidden bg-white hover:border-gray-300 transition-all"
                 >
                   <button
                     onClick={() => setOpenFaq(openFaq === i ? null : i)}
-                    className="w-full px-6 py-4 text-left flex justify-between items-center hover:bg-orange-50/50 transition"
+                    className="w-full px-5 py-4 text-left flex justify-between items-center hover:bg-gray-50 transition"
                   >
-                    <span className="font-semibold text-slate-800">{faq.q}</span>
+                    <span className="font-semibold text-gray-900 text-sm sm:text-base">{faq.q}</span>
                     <svg 
-                      className={`w-5 h-5 text-orange-500 transition-transform ${openFaq === i ? 'rotate-180' : ''}`} 
+                      className={`w-5 h-5 text-gray-400 transition-transform flex-shrink-0 ml-4 ${openFaq === i ? 'rotate-180' : ''}`} 
                       fill="none" 
                       stroke="currentColor" 
                       viewBox="0 0 24 24"
@@ -646,8 +646,8 @@ export default function LandingPage() {
                     </svg>
                   </button>
                   {openFaq === i && (
-                    <div className="px-6 pb-4">
-                      <p className="text-slate-600 leading-relaxed">{faq.a}</p>
+                    <div className="px-5 pb-4">
+                      <p className="text-gray-600 leading-relaxed text-sm">{faq.a}</p>
                     </div>
                   )}
                 </div>
@@ -684,21 +684,22 @@ export default function LandingPage() {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-orange-100 py-12 px-6 bg-gradient-to-b from-white to-orange-50/50">
+      <footer className="border-t border-gray-200 py-10 px-6 bg-white">
         <div className="max-w-6xl mx-auto">
           <div className="flex flex-col md:flex-row justify-between items-center gap-6">
             <Image 
               src="/dyia-logo-full.png" 
               alt="dyia" 
-              width={80} 
-              height={28}
+              width={72} 
+              height={26}
+              className="opacity-80"
             />
             <div className="flex flex-wrap justify-center gap-6 text-sm">
-              <a href="mailto:support@dyia.co" className="text-slate-500 hover:text-orange-600 transition">support@dyia.co</a>
-              <a href="#" className="text-slate-500 hover:text-orange-600 transition">Terms</a>
-              <a href="#" className="text-slate-500 hover:text-orange-600 transition">Privacy</a>
+              <a href="mailto:support@dyia.co" className="text-gray-500 hover:text-orange-600 transition">support@dyia.co</a>
+              <a href="#" className="text-gray-500 hover:text-orange-600 transition">Terms</a>
+              <a href="#" className="text-gray-500 hover:text-orange-600 transition">Privacy</a>
             </div>
-            <div className="text-slate-400 text-sm">
+            <div className="text-gray-400 text-sm">
               © 2026 dyia
             </div>
           </div>

@@ -360,7 +360,7 @@ export function FollowUps({ userId, businessName = 'dyia', showSuccess }: Follow
                     </div>
 
                     <div className="text-xs sm:text-sm text-[var(--color-text-muted)] mb-2 sm:mb-3">
-                      Estimate: <span className="font-semibold text-emerald-600">
+                      Estimate: <span className="font-semibold text-orange-600 dark:text-orange-400">
                         {formatCurrency(row.quote.estimateLow)} - {formatCurrency(row.quote.estimateHigh)}
                       </span>
                     </div>

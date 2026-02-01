@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { AppJob } from '@/types/database'
 import { formatCurrency } from '@/lib/utils'
@@ -40,9 +40,32 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
   const [saving, setSaving] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [sourceFilter, setSourceFilter] = useState<string>('all')
+  const [hasCheckedMonth, setHasCheckedMonth] = useState(false)
 
   const supabase = createClient()
   const { confirm, alert } = useConfirm()
+  
+  // Auto-navigate to most recent job's month if current month has no jobs (on initial load)
+  useEffect(() => {
+    if (hasCheckedMonth || jobs.length === 0) return
+    
+    // Check if current selected month has any jobs
+    const currentMonthJobs = jobs.filter(job => {
+      const jobDate = new Date(job.date)
+      return jobDate.getMonth() === selectedMonth.getMonth() &&
+             jobDate.getFullYear() === selectedMonth.getFullYear()
+    })
+    
+    if (currentMonthJobs.length === 0) {
+      // Find the most recent job and navigate to its month
+      const sortedJobs = [...jobs].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      if (sortedJobs.length > 0) {
+        const mostRecentDate = new Date(sortedJobs[0].date)
+        setSelectedMonth(new Date(mostRecentDate.getFullYear(), mostRecentDate.getMonth(), 1))
+      }
+    }
+    setHasCheckedMonth(true)
+  }, [jobs, selectedMonth, hasCheckedMonth, setSelectedMonth])
 
   // Filter jobs by month
   const monthJobs = useMemo(() => {

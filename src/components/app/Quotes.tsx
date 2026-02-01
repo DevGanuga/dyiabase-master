@@ -132,8 +132,8 @@ export function Quotes({ quotes, setQuotes, jobs, userId, settings, onCreateQuot
 
       y += 10
 
-      // Estimate box - using emerald/teal colors
-      doc.setFillColor(16, 185, 129) // emerald-500
+      // Estimate box - using brand orange color
+      doc.setFillColor(249, 115, 22) // orange-500
       doc.rect(20, y, 170, 30, 'F')
       doc.setTextColor(255, 255, 255)
       doc.setFontSize(14)
@@ -361,7 +361,7 @@ export function Quotes({ quotes, setQuotes, jobs, userId, settings, onCreateQuot
                         {new Date(quote.createdAt).toLocaleDateString()}
                       </td>
                       <td className="text-right">
-                        <span className="font-semibold text-emerald-600">
+                        <span className="font-semibold text-orange-600 dark:text-orange-400">
                           {formatCurrency(quote.estimateRange.low)} - {formatCurrency(quote.estimateRange.high)}
                         </span>
                       </td>
@@ -374,7 +374,7 @@ export function Quotes({ quotes, setQuotes, jobs, userId, settings, onCreateQuot
                         <div className="flex justify-end gap-2">
                           <button
                             onClick={() => downloadQuotePDF(quote)}
-                            className="p-2 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-900/30 dark:hover:bg-emerald-900/50 text-emerald-600 rounded-lg transition"
+                            className="p-2 bg-orange-50 hover:bg-orange-100 dark:bg-orange-900/30 dark:hover:bg-orange-900/50 text-orange-600 dark:text-orange-400 rounded-lg transition"
                             title="Download PDF"
                           >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -383,7 +383,7 @@ export function Quotes({ quotes, setQuotes, jobs, userId, settings, onCreateQuot
                           </button>
                           <button
                             onClick={() => deleteQuote(quote.id)}
-                            className="p-2 bg-red-50 hover:bg-red-100 dark:bg-red-900/30 dark:hover:bg-red-900/50 text-red-600 rounded-lg transition"
+                            className="p-2 bg-red-50 hover:bg-red-100 dark:bg-red-900/30 dark:hover:bg-red-900/50 text-red-600 dark:text-red-400 rounded-lg transition"
                             title="Delete"
                           >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -473,9 +473,9 @@ export function Quotes({ quotes, setQuotes, jobs, userId, settings, onCreateQuot
                     {formatCurrency(job.revenue)}
                   </span>
                 </div>
-                <span className={`text-xs px-2 py-0.5 rounded-full ${
+                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                   quoteCount > 0 
-                    ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400' 
+                    ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400' 
                     : 'bg-slate-100 dark:bg-slate-800 text-[var(--color-text-muted)]'
                 }`}>
                   {quoteCount} quote{quoteCount !== 1 ? 's' : ''}

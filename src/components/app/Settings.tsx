@@ -237,10 +237,10 @@ export function Settings({ settings, setSettings, userId, showSuccess }: Setting
               </div>
             ) : (
               <label className="cursor-pointer block">
-                <div className="w-full max-w-xs aspect-video bg-[var(--color-bg-subtle)] border-2 border-dashed border-slate-300 rounded-xl flex flex-col items-center justify-center gap-2 hover:border-emerald-500 hover:bg-emerald-50/50 transition-all">
+                <div className="w-full max-w-xs aspect-video bg-[var(--color-bg-subtle)] border-2 border-dashed border-[var(--color-border)] rounded-xl flex flex-col items-center justify-center gap-2 hover:border-orange-500 hover:bg-orange-50/50 dark:hover:bg-orange-900/20 transition-all">
                   {uploadingLogo ? (
                     <>
-                      <div className="w-8 h-8 border-2 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin" />
+                      <div className="w-8 h-8 border-2 border-orange-500/30 border-t-orange-500 rounded-full animate-spin" />
                       <span className="text-sm text-[var(--color-text-muted)]">Uploading...</span>
                     </>
                   ) : (
@@ -292,7 +292,7 @@ export function Settings({ settings, setSettings, userId, showSuccess }: Setting
             </div>
           </div>
           <div className="text-center sm:text-right">
-            <div className="text-4xl font-bold text-emerald-600">{taxPercentage}%</div>
+            <div className="text-4xl font-bold text-orange-600">{taxPercentage}%</div>
             <p className="text-sm text-[var(--color-text-muted)]">of profit</p>
           </div>
         </div>

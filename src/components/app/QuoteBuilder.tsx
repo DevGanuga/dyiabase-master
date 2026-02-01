@@ -435,13 +435,13 @@ export function QuoteBuilder({ quotes, setQuotes, userId, selectedJob, onBack, s
         </div>
 
         {/* Live Estimate Preview */}
-        <div className="app-card mb-4 sm:mb-5 p-4 sm:p-6 bg-gradient-to-r from-emerald-50 to-teal-50 border-2 border-emerald-500">
+        <div className="app-card mb-4 sm:mb-5 p-4 sm:p-6 bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-900/20 dark:to-amber-900/20 border-2 border-orange-500">
           <div className="text-center py-2 sm:py-4">
-            <div className="text-[10px] sm:text-xs font-bold text-emerald-600 uppercase tracking-wider mb-1 sm:mb-2">Live Estimate Preview</div>
-            <div className="text-2xl sm:text-4xl font-bold text-emerald-700 mb-1 sm:mb-2">
+            <div className="text-[10px] sm:text-xs font-bold text-orange-600 dark:text-orange-400 uppercase tracking-wider mb-1 sm:mb-2">Live Estimate Preview</div>
+            <div className="text-2xl sm:text-4xl font-bold text-orange-700 dark:text-orange-300 mb-1 sm:mb-2">
               {formatCurrency(rangeLow)} - {formatCurrency(rangeHigh)}
             </div>
-            <div className="text-xs sm:text-sm text-emerald-600/70">
+            <div className="text-xs sm:text-sm text-orange-600/70 dark:text-orange-400/70">
               Base total: <strong>{formatCurrency(total)}</strong> (±10% range)
             </div>
           </div>

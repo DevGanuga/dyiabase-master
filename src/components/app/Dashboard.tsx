@@ -14,6 +14,7 @@ interface DashboardProps {
   pendingFollowUps?: number
   fixedMonthlyExpenses?: number
   isPro?: boolean
+  taxPercentage?: number
 }
 
 export function Dashboard({ 
@@ -24,7 +25,8 @@ export function Dashboard({
   onNavigate,
   pendingFollowUps = 0,
   fixedMonthlyExpenses = 0,
-  isPro = false
+  isPro = false,
+  taxPercentage = 30
 }: DashboardProps) {
   
   // Get greeting based on time of day
@@ -67,19 +69,27 @@ export function Dashboard({
 
     const quoteValue = pendingQuotes.reduce((sum, q) => sum + (q.total || 0), 0)
 
+    const grossProfit = totalRevenue - totalExpenses
+    const netProfit = grossProfit - fixedMonthlyExpenses
+    const taxSetAside = netProfit > 0 ? netProfit * (taxPercentage / 100) : 0
+    const takeHome = netProfit - taxSetAside
+
     return {
       jobsThisWeek: thisWeek.length,
       jobsThisMonth: thisMonth.length,
       revenueThisMonth: totalRevenue,
       jobExpenses: totalExpenses,
-      profitThisMonth: totalRevenue - totalExpenses - fixedMonthlyExpenses,
+      grossProfit,
+      netProfit,
+      taxSetAside,
+      takeHome,
       pendingQuotes: pendingQuotes.length,
       quoteValue,
       goalProgress: settings.monthlyGoal > 0
         ? Math.round((totalRevenue / settings.monthlyGoal) * 100)
         : 0
     }
-  }, [jobs, quotes, settings.monthlyGoal, fixedMonthlyExpenses])
+  }, [jobs, quotes, settings.monthlyGoal, fixedMonthlyExpenses, taxPercentage])
 
   return (
     <div className="space-y-8 animate-view-enter">
@@ -176,20 +186,72 @@ export function Dashboard({
             <p className="text-[10px] sm:text-xs text-[var(--color-text-muted)] mt-1">Monthly fixed</p>
           </button>
 
-          {/* Profit */}
+          {/* Take Home (after tax) */}
           <div className="stagger-card stat-highlight bg-[var(--color-bg-card)] border-l-4 border-l-purple-500 border border-[var(--color-border)] rounded-xl p-3 sm:p-5 hover:shadow-md transition-all duration-200">
             <div className="flex items-center justify-between mb-2 sm:mb-3">
-              <span className="text-[10px] sm:text-xs font-medium text-purple-600 uppercase tracking-wide">Profit</span>
+              <span className="text-[10px] sm:text-xs font-medium text-purple-600 uppercase tracking-wide">Take Home</span>
             </div>
             <div className="flex items-baseline gap-2">
-              <span className={`stat-number text-2xl sm:text-3xl font-bold ${stats.profitThisMonth >= 0 ? 'text-[var(--color-text-primary)]' : 'text-red-600'}`}>
-                {formatCurrency(stats.profitThisMonth)}
+              <span className={`stat-number text-2xl sm:text-3xl font-bold ${stats.takeHome >= 0 ? 'text-[var(--color-text-primary)]' : 'text-red-600'}`}>
+                {formatCurrency(stats.takeHome)}
               </span>
             </div>
-            <p className="text-[10px] sm:text-xs text-[var(--color-text-muted)] mt-1">This month (net)</p>
+            <p className="text-[10px] sm:text-xs text-[var(--color-text-muted)] mt-1">After {taxPercentage}% tax</p>
           </div>
         </div>
       </div>
+
+      {/* Monthly Financial Breakdown */}
+      {stats.revenueThisMonth > 0 && (
+        <div className="animate-fade-in delay-fade-2 bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl sm:rounded-2xl p-4 sm:p-6" style={{ animationFillMode: 'both' }}>
+          <h2 className="text-xs sm:text-sm font-semibold text-[var(--color-text-muted)] uppercase tracking-wide mb-3 sm:mb-4">
+            Monthly Breakdown
+          </h2>
+          <div className="space-y-2 sm:space-y-3">
+            {/* Revenue */}
+            <div className="flex justify-between items-center py-2 border-b border-[var(--color-border-light)]">
+              <span className="text-sm text-[var(--color-text-secondary)]">Revenue</span>
+              <span className="text-sm font-semibold text-green-600">{formatCurrency(stats.revenueThisMonth)}</span>
+            </div>
+            {/* Variable Expenses */}
+            <div className="flex justify-between items-center py-2 border-b border-[var(--color-border-light)]">
+              <span className="text-sm text-[var(--color-text-secondary)]">Job Expenses (variable)</span>
+              <span className="text-sm font-medium text-red-500">-{formatCurrency(stats.jobExpenses)}</span>
+            </div>
+            {/* Gross Profit */}
+            <div className="flex justify-between items-center py-2 border-b border-[var(--color-border-light)] bg-slate-50/50 dark:bg-slate-800/30 -mx-4 sm:-mx-6 px-4 sm:px-6">
+              <span className="text-sm font-medium text-[var(--color-text-primary)]">Gross Profit</span>
+              <span className={`text-sm font-semibold ${stats.grossProfit >= 0 ? 'text-[var(--color-text-primary)]' : 'text-red-600'}`}>
+                {formatCurrency(stats.grossProfit)}
+              </span>
+            </div>
+            {/* Fixed Expenses */}
+            <div className="flex justify-between items-center py-2 border-b border-[var(--color-border-light)]">
+              <span className="text-sm text-[var(--color-text-secondary)]">Fixed Expenses (overhead)</span>
+              <span className="text-sm font-medium text-red-500">-{formatCurrency(fixedMonthlyExpenses)}</span>
+            </div>
+            {/* Net Profit */}
+            <div className="flex justify-between items-center py-2 border-b border-[var(--color-border-light)] bg-slate-50/50 dark:bg-slate-800/30 -mx-4 sm:-mx-6 px-4 sm:px-6">
+              <span className="text-sm font-medium text-[var(--color-text-primary)]">Net Profit</span>
+              <span className={`text-sm font-semibold ${stats.netProfit >= 0 ? 'text-[var(--color-text-primary)]' : 'text-red-600'}`}>
+                {formatCurrency(stats.netProfit)}
+              </span>
+            </div>
+            {/* Tax Set-Aside */}
+            <div className="flex justify-between items-center py-2 border-b border-[var(--color-border-light)]">
+              <span className="text-sm text-[var(--color-text-secondary)]">Tax Set-Aside ({taxPercentage}%)</span>
+              <span className="text-sm font-medium text-amber-600">-{formatCurrency(stats.taxSetAside)}</span>
+            </div>
+            {/* Take Home */}
+            <div className="flex justify-between items-center py-3 bg-gradient-to-r from-purple-50 to-violet-50 dark:from-purple-900/20 dark:to-violet-900/20 -mx-4 sm:-mx-6 px-4 sm:px-6 rounded-b-xl">
+              <span className="text-sm font-semibold text-purple-700 dark:text-purple-300">Take Home</span>
+              <span className={`text-lg font-bold ${stats.takeHome >= 0 ? 'text-purple-700 dark:text-purple-300' : 'text-red-600'}`}>
+                {formatCurrency(stats.takeHome)}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Quick Actions */}
       <div className="animate-fade-in delay-fade-2" style={{ animationFillMode: 'both' }}>
