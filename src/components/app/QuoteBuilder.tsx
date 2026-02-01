@@ -164,7 +164,10 @@ export function QuoteBuilder({ quotes, setQuotes, userId, selectedJob, onBack, s
         .select()
         .single()
 
-      if (error) throw error
+      if (error) {
+        console.error('Supabase insert error:', error.message, error.code, error.details, error.hint)
+        throw error
+      }
 
       // Auto-create a follow-up for this quote
       await supabase

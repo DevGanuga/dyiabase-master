@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { formatCurrency } from '@/lib/utils'
 import { useConfirm } from '@/components/providers/ConfirmProvider'
+import KanbanBoard, { type KanbanColumn, type KanbanFollowUp } from '@/components/ui/kanban-board'
 
 type FollowUpStatus = 'pending' | 'contacted' | 'converted' | 'lost' | 'snoozed'
 type FollowUpPriority = 'hot' | 'warm' | 'cold'
@@ -41,14 +42,6 @@ interface FollowUpsProps {
   showSuccess?: (message: string) => void
 }
 
-const STATUS_OPTIONS: { value: FollowUpStatus; label: string }[] = [
-  { value: 'pending', label: 'Pending' },
-  { value: 'contacted', label: 'Contacted' },
-  { value: 'converted', label: 'Converted' },
-  { value: 'lost', label: 'Lost' },
-  { value: 'snoozed', label: 'Snoozed' },
-]
-
 const PRIORITY_OPTIONS: { value: FollowUpPriority | 'all'; label: string }[] = [
   { value: 'all', label: 'All priorities' },
   { value: 'hot', label: 'Hot 🔥' },
@@ -56,26 +49,10 @@ const PRIORITY_OPTIONS: { value: FollowUpPriority | 'all'; label: string }[] = [
   { value: 'cold', label: 'Cold ❄️' },
 ]
 
-const STATUS_FILTERS: { value: FollowUpStatus | 'all'; label: string }[] = [
-  { value: 'all', label: 'All statuses' },
-  { value: 'pending', label: 'Pending' },
-  { value: 'contacted', label: 'Contacted' },
-  { value: 'converted', label: 'Converted' },
-  { value: 'lost', label: 'Lost' },
-  { value: 'snoozed', label: 'Snoozed' },
-]
-
 function getPriority(daysSinceQuote: number): FollowUpPriority {
   if (daysSinceQuote <= 3) return 'hot'
   if (daysSinceQuote <= 7) return 'warm'
   return 'cold'
-}
-
-function formatDateInput(iso?: string | null): string {
-  if (!iso) return ''
-  const date = new Date(iso)
-  if (Number.isNaN(date.getTime())) return ''
-  return date.toISOString().split('T')[0]
 }
 
 function generateFollowUpMessage(quote: QuoteSummary, businessName: string) {
@@ -88,7 +65,6 @@ export function FollowUps({ userId, businessName = 'dyia', showSuccess }: Follow
   const { alert } = useConfirm()
   const [rows, setRows] = useState<FollowUpRow[]>([])
   const [loading, setLoading] = useState(true)
-  const [statusFilter, setStatusFilter] = useState<FollowUpStatus | 'all'>('all')
   const [priorityFilter, setPriorityFilter] = useState<FollowUpPriority | 'all'>('all')
 
   useEffect(() => {
@@ -150,19 +126,6 @@ export function FollowUps({ userId, businessName = 'dyia', showSuccess }: Follow
 
     loadFollowUps()
   }, [supabase, userId])
-
-  const filteredRows = useMemo(() => {
-    return rows.filter((row) => {
-      const status = row.followUp?.status || 'pending'
-      if (statusFilter === 'all') {
-        if (status === 'converted' || status === 'lost') return false
-      } else if (status !== statusFilter) {
-        return false
-      }
-      if (priorityFilter !== 'all' && row.priority !== priorityFilter) return false
-      return true
-    })
-  }, [rows, statusFilter, priorityFilter])
 
   const persistFollowUp = async (
     row: FollowUpRow,
@@ -232,24 +195,50 @@ export function FollowUps({ userId, businessName = 'dyia', showSuccess }: Follow
     await updateRow(row, updates)
   }
 
-  const handleSnoozeChange = async (row: FollowUpRow, dateValue: string) => {
-    const isoDate = dateValue ? new Date(`${dateValue}T00:00:00`).toISOString() : null
-    await updateRow(row, { status: 'snoozed', next_follow_up_at: isoDate })
+  const KANBAN_COLUMN_CONFIG: { id: FollowUpStatus; title: string; color: string }[] = [
+    { id: 'pending', title: 'Pending', color: '#f97316' },
+    { id: 'contacted', title: 'Contacted', color: '#3b82f6' },
+    { id: 'snoozed', title: 'Snoozed', color: '#eab308' },
+    { id: 'converted', title: 'Converted', color: '#22c55e' },
+    { id: 'lost', title: 'Lost', color: '#ef4444' },
+  ]
+
+  const kanbanColumns = useMemo<KanbanColumn[]>(() => {
+    const kanbanRows = priorityFilter === 'all'
+      ? rows
+      : rows.filter((r) => r.priority === priorityFilter)
+
+    return KANBAN_COLUMN_CONFIG.map((col) => ({
+      ...col,
+      items: kanbanRows
+        .filter((r) => (r.followUp?.status || 'pending') === col.id)
+        .map((r): KanbanFollowUp => ({
+          id: r.followUp?.id || r.quote.id,
+          quoteId: r.quote.id,
+          customerName: r.quote.customerName,
+          phone: r.quote.phone,
+          jobDescription: r.quote.jobDescription,
+          estimateLow: r.quote.estimateLow,
+          estimateHigh: r.quote.estimateHigh,
+          status: (r.followUp?.status || 'pending') as FollowUpStatus,
+          priority: r.priority,
+          daysSinceQuote: r.daysSinceQuote,
+          contactCount: r.followUp?.contact_count || 0,
+          notes: r.followUp?.notes,
+          nextFollowUpAt: r.followUp?.next_follow_up_at,
+        })),
+    }))
+  }, [rows, priorityFilter])
+
+  const handleKanbanStatusChange = async (item: KanbanFollowUp, newStatus: FollowUpStatus) => {
+    const row = rows.find((r) => r.quote.id === item.quoteId)
+    if (!row) return
+    await handleStatusChange(row, newStatus)
   }
 
-  const handleNotesChange = (row: FollowUpRow, value: string) => {
-    setRows((prev) =>
-      prev.map((r) =>
-        r.quote.id === row.quote.id
-          ? { ...r, followUp: { ...(r.followUp || { quote_id: r.quote.id, id: '' } as FollowUpRecord), notes: value } }
-          : r
-      )
-    )
-  }
-
-  const handleNotesBlur = async (row: FollowUpRow) => {
-    const notes = row.followUp?.notes || ''
-    await updateRow(row, { notes })
+  const handleKanbanCopyMessage = (item: KanbanFollowUp) => {
+    const row = rows.find((r) => r.quote.id === item.quoteId)
+    if (row) copyMessage(row)
   }
 
   const copyMessage = async (row: FollowUpRow) => {
@@ -278,28 +267,14 @@ export function FollowUps({ userId, businessName = 'dyia', showSuccess }: Follow
   return (
     <div className="animate-fade-in">
       <div className="page-header">
-        <div>
-          <h1 className="page-title text-xl sm:text-3xl">Follow-Ups</h1>
-          <p className="page-subtitle text-sm sm:text-base">{filteredRows.length} quote{filteredRows.length !== 1 ? 's' : ''} to follow up</p>
-        </div>
-      </div>
-
-      <div className="app-card mb-4 sm:mb-6 p-4 sm:p-6">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+        <div className="flex items-center justify-between w-full">
           <div>
-            <label className="app-label">Status</label>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as FollowUpStatus | 'all')}
-              className="app-select"
-            >
-              {STATUS_FILTERS.map((opt) => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </select>
+            <h1 className="page-title text-xl sm:text-3xl">Follow-Ups</h1>
+            <p className="page-subtitle text-sm sm:text-base">
+              {`${rows.length} total follow-up${rows.length !== 1 ? 's' : ''}`}
+            </p>
           </div>
-          <div>
-            <label className="app-label">Priority</label>
+          <div className="w-full sm:w-48">
             <select
               value={priorityFilter}
               onChange={(e) => setPriorityFilter(e.target.value as FollowUpPriority | 'all')}
@@ -320,114 +295,12 @@ export function FollowUps({ userId, businessName = 'dyia', showSuccess }: Follow
             <span className="text-[var(--color-text-muted)]">Loading follow-ups...</span>
           </div>
         </div>
-      ) : filteredRows.length === 0 ? (
-        <div className="app-card">
-          <div className="empty-state py-10">
-            <div className="empty-state-icon">📬</div>
-            <h3 className="empty-state-title">No follow-ups found</h3>
-            <p className="empty-state-desc">Create quotes to start tracking follow-ups.</p>
-          </div>
-        </div>
       ) : (
-        <div className="space-y-3 sm:space-y-4">
-          {filteredRows.map((row) => {
-            const status = row.followUp?.status || 'pending'
-            const priorityBadge =
-              row.priority === 'hot' ? 'badge-error' :
-              row.priority === 'warm' ? 'badge-warning' : 'badge-info'
-
-            const statusBadge =
-              status === 'converted' ? 'badge-success' :
-              status === 'lost' ? 'badge-error' :
-              status === 'contacted' ? 'badge-info' :
-              status === 'snoozed' ? 'badge-warning' : 'badge-success'
-
-            return (
-              <div key={row.quote.id} className="app-card p-4 sm:p-6">
-                <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 sm:gap-6">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mb-2">
-                      <h3 className="text-base sm:text-lg font-semibold text-[var(--color-text-primary)]">{row.quote.customerName}</h3>
-                      <span className={`badge text-[10px] sm:text-xs ${priorityBadge}`}>
-                        {row.priority === 'hot' ? 'Hot 🔥' : row.priority === 'warm' ? 'Warm 🌡️' : 'Cold ❄️'}
-                      </span>
-                      <span className={`badge text-[10px] sm:text-xs ${statusBadge}`}>
-                        {STATUS_OPTIONS.find((opt) => opt.value === status)?.label || 'Pending'}
-                      </span>
-                      <span className="text-[10px] sm:text-xs text-[var(--color-text-faint)]">
-                        {row.daysSinceQuote}d ago
-                      </span>
-                    </div>
-
-                    <div className="text-xs sm:text-sm text-[var(--color-text-muted)] mb-2 sm:mb-3">
-                      Estimate: <span className="font-semibold text-orange-600 dark:text-orange-400">
-                        {formatCurrency(row.quote.estimateLow)} - {formatCurrency(row.quote.estimateHigh)}
-                      </span>
-                    </div>
-
-                    {row.quote.phone && (
-                      <div className="text-xs sm:text-sm text-[var(--color-text-muted)] mb-2 sm:mb-3">
-                        Phone:{' '}
-                        <a href={`tel:${row.quote.phone}`} className="text-orange-600 hover:text-orange-700 font-medium">
-                          {row.quote.phone}
-                        </a>
-                      </div>
-                    )}
-
-                    <div className="text-xs sm:text-sm text-[var(--color-text-muted)] mb-3 sm:mb-4 line-clamp-2 sm:line-clamp-none">
-                      {row.quote.jobDescription || 'No job description provided.'}
-                    </div>
-
-                    <div className="flex flex-wrap gap-2">
-                      <button onClick={() => copyMessage(row)} className="app-btn-ghost text-xs sm:text-sm px-2 sm:px-4 py-1.5 sm:py-2">
-                        📋 Copy message
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="w-full lg:w-72 space-y-3 sm:space-y-4">
-                    <div>
-                      <label className="app-label">Status</label>
-                      <select
-                        value={status}
-                        onChange={(e) => handleStatusChange(row, e.target.value as FollowUpStatus)}
-                        className="app-select"
-                      >
-                        {STATUS_OPTIONS.map((opt) => (
-                          <option key={opt.value} value={opt.value}>{opt.label}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {(status === 'snoozed' || row.followUp?.next_follow_up_at) && (
-                      <div>
-                        <label className="app-label">Snooze until</label>
-                        <input
-                          type="date"
-                          value={formatDateInput(row.followUp?.next_follow_up_at)}
-                          onChange={(e) => handleSnoozeChange(row, e.target.value)}
-                          className="app-input"
-                        />
-                      </div>
-                    )}
-
-                    <div>
-                      <label className="app-label">Notes</label>
-                      <textarea
-                        rows={3}
-                        value={row.followUp?.notes || ''}
-                        onChange={(e) => handleNotesChange(row, e.target.value)}
-                        onBlur={() => handleNotesBlur(row)}
-                        className="app-input resize-none"
-                        placeholder="Add follow-up notes..."
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )
-          })}
-        </div>
+        <KanbanBoard
+          columns={kanbanColumns}
+          onStatusChange={handleKanbanStatusChange}
+          onCopyMessage={handleKanbanCopyMessage}
+        />
       )}
     </div>
   )

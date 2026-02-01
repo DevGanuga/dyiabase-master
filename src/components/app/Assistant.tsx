@@ -279,7 +279,7 @@ export function Assistant({ userId, showSuccess }: AssistantProps) {
           <div className="p-3 border-b border-[var(--color-border)] whitespace-nowrap flex items-center justify-between">
             <button
               onClick={handleNewConversation}
-              className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-[var(--color-text-secondary)] hover:bg-slate-100 rounded-lg transition-colors"
+              className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-[var(--color-text-secondary)] hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -288,7 +288,7 @@ export function Assistant({ userId, showSuccess }: AssistantProps) {
             </button>
             <button
               onClick={() => setShowThreads(false)}
-              className="sm:hidden p-2 hover:bg-slate-100 rounded-lg"
+              className="sm:hidden p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -309,7 +309,7 @@ export function Assistant({ userId, showSuccess }: AssistantProps) {
         <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-[var(--color-border)] flex items-center gap-2 sm:gap-3 bg-[var(--color-bg-card)]">
           <button
             onClick={() => setShowThreads(!showThreads)}
-            className="p-1.5 sm:p-2 hover:bg-slate-100 rounded-lg transition-colors text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]"
+            className="p-1.5 sm:p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]"
             title={showThreads ? 'Hide conversations' : 'Show conversations'}
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -381,7 +381,7 @@ export function Assistant({ userId, showSuccess }: AssistantProps) {
                 <button
                   key={idx}
                   onClick={() => handleQuickAction(action.prompt)}
-                  className="px-2.5 sm:px-3 py-1 sm:py-1.5 bg-slate-100 hover:bg-orange-50 hover:text-orange-700 text-slate-600 text-xs sm:text-sm rounded-full transition-colors"
+                  className="px-2.5 sm:px-3 py-1 sm:py-1.5 bg-slate-100 dark:bg-slate-700 hover:bg-orange-50 dark:hover:bg-orange-900/30 hover:text-orange-700 dark:hover:text-orange-300 text-slate-600 dark:text-slate-300 text-xs sm:text-sm rounded-full transition-colors"
                 >
                   {action.label}
                 </button>

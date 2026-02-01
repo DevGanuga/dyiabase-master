@@ -283,7 +283,7 @@ export function Quotes({ quotes, setQuotes, jobs, userId, settings, onCreateQuot
               <h1 className="page-title">{selectedJob.customerName}</h1>
               <p className="page-subtitle">
                 {new Date(selectedJob.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
-                {selectedJob.source && <span className="text-orange-600"> · {selectedJob.source}</span>}
+                {selectedJob.source && <span className="text-orange-600 dark:text-orange-400"> · {selectedJob.source}</span>}
               </p>
             </div>
           </div>

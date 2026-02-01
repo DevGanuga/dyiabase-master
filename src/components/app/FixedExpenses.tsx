@@ -245,9 +245,9 @@ export function FixedExpenses({ userId, showSuccess }: FixedExpensesProps) {
 
       {/* Monthly/Yearly Totals */}
       <div className="grid grid-cols-2 gap-4 mb-6">
-        <div className="bg-gradient-to-br from-orange-50 to-amber-50 rounded-xl p-4 border border-orange-100">
-          <p className="text-sm text-orange-600 font-medium mb-1">Monthly Total</p>
-          <p className="text-2xl font-bold text-orange-700">{formatCurrency(monthlyTotal)}</p>
+        <div className="bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-950/30 dark:to-amber-950/30 rounded-xl p-4 border border-orange-100 dark:border-orange-800/30">
+          <p className="text-sm text-orange-600 dark:text-orange-400 font-medium mb-1">Monthly Total</p>
+          <p className="text-2xl font-bold text-orange-700 dark:text-orange-300">{formatCurrency(monthlyTotal)}</p>
         </div>
         <div className="bg-[var(--color-bg-subtle)] rounded-xl p-4 border border-[var(--color-border)]">
           <p className="text-sm text-[var(--color-text-muted)] font-medium mb-1">Yearly Total</p>
@@ -374,7 +374,7 @@ export function FixedExpenses({ userId, showSuccess }: FixedExpensesProps) {
               >
                 {/* Category Icon */}
                 <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-lg ${
-                  expense.isActive ? 'bg-orange-50' : 'bg-slate-100'
+                  expense.isActive ? 'bg-orange-50 dark:bg-orange-900/30' : 'bg-slate-100 dark:bg-slate-800'
                 }`}>
                   {category.emoji}
                 </div>
@@ -386,7 +386,7 @@ export function FixedExpenses({ userId, showSuccess }: FixedExpensesProps) {
                       {expense.name}
                     </h4>
                     {!expense.isActive && (
-                      <span className="text-xs bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full">
+                      <span className="text-xs bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400 px-2 py-0.5 rounded-full">
                         Paused
                       </span>
                     )}
@@ -415,8 +415,8 @@ export function FixedExpenses({ userId, showSuccess }: FixedExpensesProps) {
                     onClick={() => handleToggleActive(expense)}
                     className={`p-2 rounded-lg transition ${
                       expense.isActive 
-                        ? 'text-[var(--color-text-faint)] hover:text-orange-600 hover:bg-orange-50' 
-                        : 'text-[var(--color-text-faint)] hover:text-green-600 hover:bg-green-50'
+                        ? 'text-[var(--color-text-faint)] hover:text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-900/30'
+                        : 'text-[var(--color-text-faint)] hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/30'
                     }`}
                     title={expense.isActive ? 'Pause expense' : 'Activate expense'}
                   >
@@ -433,7 +433,7 @@ export function FixedExpenses({ userId, showSuccess }: FixedExpensesProps) {
                   </button>
                   <button
                     onClick={() => handleEdit(expense)}
-                    className="p-2 text-[var(--color-text-faint)] hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                    className="p-2 text-[var(--color-text-faint)] hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition"
                     title="Edit expense"
                   >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -442,7 +442,7 @@ export function FixedExpenses({ userId, showSuccess }: FixedExpensesProps) {
                   </button>
                   <button
                     onClick={() => handleDelete(expense.id)}
-                    className="p-2 text-[var(--color-text-faint)] hover:text-red-600 hover:bg-red-50 rounded-lg transition"
+                    className="p-2 text-[var(--color-text-faint)] hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition"
                     title="Delete expense"
                   >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -458,8 +458,8 @@ export function FixedExpenses({ userId, showSuccess }: FixedExpensesProps) {
 
       {/* Tip */}
       {expenses.length > 0 && (
-        <div className="mt-6 bg-amber-50 border border-amber-100 rounded-xl p-4">
-          <p className="text-sm text-amber-800">
+        <div className="mt-6 bg-amber-50 dark:bg-amber-950/30 border border-amber-100 dark:border-amber-800/30 rounded-xl p-4">
+          <p className="text-sm text-amber-800 dark:text-amber-300">
             💡 <strong>Tip:</strong> Fixed expenses are subtracted from your net profit calculations on the dashboard. Pause expenses you&apos;re not currently paying.
           </p>
         </div>

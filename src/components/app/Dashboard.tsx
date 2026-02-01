@@ -120,8 +120,8 @@ export function Dashboard({
             className="stagger-card interactive-card stat-highlight bg-[var(--color-bg-card)] border-l-4 border-l-blue-500 border border-[var(--color-border)] rounded-xl p-3 sm:p-5 text-left group"
           >
             <div className="flex items-center justify-between mb-2 sm:mb-3">
-              <span className="text-[10px] sm:text-xs font-medium text-blue-600 uppercase tracking-wide">Quotes</span>
-              <svg className="w-3 h-3 sm:w-4 sm:h-4 text-slate-300 group-hover:text-blue-500 group-hover:translate-x-0.5 transition-all duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <span className="text-[10px] sm:text-xs font-medium text-blue-600 dark:text-blue-400 uppercase tracking-wide">Quotes</span>
+              <svg className="w-3 h-3 sm:w-4 sm:h-4 text-slate-300 dark:text-slate-600 group-hover:text-blue-500 group-hover:translate-x-0.5 transition-all duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
             </div>
@@ -138,8 +138,8 @@ export function Dashboard({
             className="stagger-card interactive-card stat-highlight bg-[var(--color-bg-card)] border-l-4 border-l-amber-500 border border-[var(--color-border)] rounded-xl p-3 sm:p-5 text-left group"
           >
             <div className="flex items-center justify-between mb-2 sm:mb-3">
-              <span className="text-[10px] sm:text-xs font-medium text-amber-600 uppercase tracking-wide">Follow-ups</span>
-              <svg className="w-3 h-3 sm:w-4 sm:h-4 text-slate-300 group-hover:text-amber-500 group-hover:translate-x-0.5 transition-all duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <span className="text-[10px] sm:text-xs font-medium text-amber-600 dark:text-amber-400 uppercase tracking-wide">Follow-ups</span>
+              <svg className="w-3 h-3 sm:w-4 sm:h-4 text-slate-300 dark:text-slate-600 group-hover:text-amber-500 group-hover:translate-x-0.5 transition-all duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
             </div>
@@ -155,8 +155,8 @@ export function Dashboard({
             className="stagger-card interactive-card stat-highlight bg-[var(--color-bg-card)] border-l-4 border-l-green-500 border border-[var(--color-border)] rounded-xl p-3 sm:p-5 text-left group"
           >
             <div className="flex items-center justify-between mb-2 sm:mb-3">
-              <span className="text-[10px] sm:text-xs font-medium text-green-600 uppercase tracking-wide">Jobs</span>
-              <svg className="w-3 h-3 sm:w-4 sm:h-4 text-slate-300 group-hover:text-green-500 group-hover:translate-x-0.5 transition-all duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <span className="text-[10px] sm:text-xs font-medium text-green-600 dark:text-green-400 uppercase tracking-wide">Jobs</span>
+              <svg className="w-3 h-3 sm:w-4 sm:h-4 text-slate-300 dark:text-slate-600 group-hover:text-green-500 group-hover:translate-x-0.5 transition-all duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
             </div>
@@ -173,8 +173,8 @@ export function Dashboard({
             className="stagger-card interactive-card stat-highlight bg-[var(--color-bg-card)] border-l-4 border-l-red-400 border border-[var(--color-border)] rounded-xl p-3 sm:p-5 text-left group hidden sm:block"
           >
             <div className="flex items-center justify-between mb-2 sm:mb-3">
-              <span className="text-[10px] sm:text-xs font-medium text-red-500 uppercase tracking-wide">Overhead</span>
-              <svg className="w-3 h-3 sm:w-4 sm:h-4 text-slate-300 group-hover:text-red-400 group-hover:translate-x-0.5 transition-all duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <span className="text-[10px] sm:text-xs font-medium text-red-500 dark:text-red-400 uppercase tracking-wide">Overhead</span>
+              <svg className="w-3 h-3 sm:w-4 sm:h-4 text-slate-300 dark:text-slate-600 group-hover:text-red-400 group-hover:translate-x-0.5 transition-all duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
             </div>
@@ -189,10 +189,10 @@ export function Dashboard({
           {/* Take Home (after tax) */}
           <div className="stagger-card stat-highlight bg-[var(--color-bg-card)] border-l-4 border-l-purple-500 border border-[var(--color-border)] rounded-xl p-3 sm:p-5 hover:shadow-md transition-all duration-200">
             <div className="flex items-center justify-between mb-2 sm:mb-3">
-              <span className="text-[10px] sm:text-xs font-medium text-purple-600 uppercase tracking-wide">Take Home</span>
+              <span className="text-[10px] sm:text-xs font-medium text-purple-600 dark:text-purple-400 uppercase tracking-wide">Take Home</span>
             </div>
             <div className="flex items-baseline gap-2">
-              <span className={`stat-number text-2xl sm:text-3xl font-bold ${stats.takeHome >= 0 ? 'text-[var(--color-text-primary)]' : 'text-red-600'}`}>
+              <span className={`stat-number text-2xl sm:text-3xl font-bold ${stats.takeHome >= 0 ? 'text-[var(--color-text-primary)]' : 'text-red-600 dark:text-red-400'}`}>
                 {formatCurrency(stats.takeHome)}
               </span>
             </div>
@@ -211,41 +211,41 @@ export function Dashboard({
             {/* Revenue */}
             <div className="flex justify-between items-center py-2 border-b border-[var(--color-border-light)]">
               <span className="text-sm text-[var(--color-text-secondary)]">Revenue</span>
-              <span className="text-sm font-semibold text-green-600">{formatCurrency(stats.revenueThisMonth)}</span>
+              <span className="text-sm font-semibold text-green-600 dark:text-green-400">{formatCurrency(stats.revenueThisMonth)}</span>
             </div>
             {/* Variable Expenses */}
             <div className="flex justify-between items-center py-2 border-b border-[var(--color-border-light)]">
               <span className="text-sm text-[var(--color-text-secondary)]">Job Expenses (variable)</span>
-              <span className="text-sm font-medium text-red-500">-{formatCurrency(stats.jobExpenses)}</span>
+              <span className="text-sm font-medium text-red-500 dark:text-red-400">-{formatCurrency(stats.jobExpenses)}</span>
             </div>
             {/* Gross Profit */}
             <div className="flex justify-between items-center py-2 border-b border-[var(--color-border-light)] bg-slate-50/50 dark:bg-slate-800/30 -mx-4 sm:-mx-6 px-4 sm:px-6">
               <span className="text-sm font-medium text-[var(--color-text-primary)]">Gross Profit</span>
-              <span className={`text-sm font-semibold ${stats.grossProfit >= 0 ? 'text-[var(--color-text-primary)]' : 'text-red-600'}`}>
+              <span className={`text-sm font-semibold ${stats.grossProfit >= 0 ? 'text-[var(--color-text-primary)]' : 'text-red-600 dark:text-red-400'}`}>
                 {formatCurrency(stats.grossProfit)}
               </span>
             </div>
             {/* Fixed Expenses */}
             <div className="flex justify-between items-center py-2 border-b border-[var(--color-border-light)]">
               <span className="text-sm text-[var(--color-text-secondary)]">Fixed Expenses (overhead)</span>
-              <span className="text-sm font-medium text-red-500">-{formatCurrency(fixedMonthlyExpenses)}</span>
+              <span className="text-sm font-medium text-red-500 dark:text-red-400">-{formatCurrency(fixedMonthlyExpenses)}</span>
             </div>
             {/* Net Profit */}
             <div className="flex justify-between items-center py-2 border-b border-[var(--color-border-light)] bg-slate-50/50 dark:bg-slate-800/30 -mx-4 sm:-mx-6 px-4 sm:px-6">
               <span className="text-sm font-medium text-[var(--color-text-primary)]">Net Profit</span>
-              <span className={`text-sm font-semibold ${stats.netProfit >= 0 ? 'text-[var(--color-text-primary)]' : 'text-red-600'}`}>
+              <span className={`text-sm font-semibold ${stats.netProfit >= 0 ? 'text-[var(--color-text-primary)]' : 'text-red-600 dark:text-red-400'}`}>
                 {formatCurrency(stats.netProfit)}
               </span>
             </div>
             {/* Tax Set-Aside */}
             <div className="flex justify-between items-center py-2 border-b border-[var(--color-border-light)]">
               <span className="text-sm text-[var(--color-text-secondary)]">Tax Set-Aside ({taxPercentage}%)</span>
-              <span className="text-sm font-medium text-amber-600">-{formatCurrency(stats.taxSetAside)}</span>
+              <span className="text-sm font-medium text-amber-600 dark:text-amber-400">-{formatCurrency(stats.taxSetAside)}</span>
             </div>
             {/* Take Home */}
             <div className="flex justify-between items-center py-3 bg-gradient-to-r from-purple-50 to-violet-50 dark:from-purple-900/20 dark:to-violet-900/20 -mx-4 sm:-mx-6 px-4 sm:px-6 rounded-b-xl">
               <span className="text-sm font-semibold text-purple-700 dark:text-purple-300">Take Home</span>
-              <span className={`text-lg font-bold ${stats.takeHome >= 0 ? 'text-purple-700 dark:text-purple-300' : 'text-red-600'}`}>
+              <span className={`text-lg font-bold ${stats.takeHome >= 0 ? 'text-purple-700 dark:text-purple-300' : 'text-red-600 dark:text-red-400'}`}>
                 {formatCurrency(stats.takeHome)}
               </span>
             </div>
@@ -270,7 +270,7 @@ export function Dashboard({
           </button>
           <button 
             onClick={() => onNavigate('quotes')}
-            className="btn-press inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-[var(--color-bg-card)] border border-[var(--color-border)] hover:border-slate-300 hover:bg-[var(--color-bg-subtle)] hover:shadow-md text-[var(--color-text-secondary)] text-sm sm:text-base font-medium rounded-lg sm:rounded-xl transition-all duration-200 group"
+            className="btn-press inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-[var(--color-bg-card)] border border-[var(--color-border)] hover:border-slate-300 dark:hover:border-slate-600 hover:bg-[var(--color-bg-subtle)] hover:shadow-md text-[var(--color-text-secondary)] text-sm sm:text-base font-medium rounded-lg sm:rounded-xl transition-all duration-200 group"
           >
             <svg className="w-4 h-4 sm:w-5 sm:h-5 group-hover:scale-110 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
@@ -279,7 +279,7 @@ export function Dashboard({
           </button>
           <button 
             onClick={() => onNavigate('assistant')}
-            className="btn-press inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-[var(--color-bg-card)] border border-[var(--color-border)] hover:border-slate-300 hover:bg-[var(--color-bg-subtle)] hover:shadow-md text-[var(--color-text-secondary)] text-sm sm:text-base font-medium rounded-lg sm:rounded-xl transition-all duration-200 group"
+            className="btn-press inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-[var(--color-bg-card)] border border-[var(--color-border)] hover:border-slate-300 dark:hover:border-slate-600 hover:bg-[var(--color-bg-subtle)] hover:shadow-md text-[var(--color-text-secondary)] text-sm sm:text-base font-medium rounded-lg sm:rounded-xl transition-all duration-200 group"
           >
             <svg className="w-4 h-4 sm:w-5 sm:h-5 group-hover:scale-110 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
@@ -301,7 +301,7 @@ export function Dashboard({
               </p>
             </div>
             <div className="text-right">
-              <span className={`text-xl sm:text-2xl font-bold transition-colors duration-300 ${stats.goalProgress >= 100 ? 'text-green-600' : 'text-[var(--color-text-primary)]'}`}>
+              <span className={`text-xl sm:text-2xl font-bold transition-colors duration-300 ${stats.goalProgress >= 100 ? 'text-green-600 dark:text-green-400' : 'text-[var(--color-text-primary)]'}`}>
                 {stats.goalProgress}%
               </span>
             </div>
@@ -333,7 +333,7 @@ export function Dashboard({
             </h2>
             <button 
               onClick={() => onNavigate('jobs')}
-              className="text-xs sm:text-sm text-orange-600 hover:text-orange-700 font-medium hover:underline transition-all duration-200"
+              className="text-xs sm:text-sm text-orange-600 dark:text-orange-400 hover:text-orange-700 dark:hover:text-orange-300 font-medium hover:underline transition-all duration-200"
             >
               View all
             </button>

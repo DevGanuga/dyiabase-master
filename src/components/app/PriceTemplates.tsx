@@ -438,7 +438,7 @@ export function PriceTemplates({ userId, showSuccess }: PriceTemplatesProps) {
               key={template.id}
               className={`p-4 rounded-xl border transition ${
                 template.isDefault
-                  ? 'bg-orange-50 border-orange-200'
+                  ? 'bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800/30'
                   : 'bg-[var(--color-bg-card)] border-[var(--color-border)]'
               }`}
             >
@@ -455,7 +455,7 @@ export function PriceTemplates({ userId, showSuccess }: PriceTemplatesProps) {
                   {!template.isDefault && (
                     <button
                       onClick={() => handleSetDefault(template.id)}
-                      className="p-2 text-[var(--color-text-faint)] hover:text-orange-600 hover:bg-orange-50 rounded-lg transition"
+                      className="p-2 text-[var(--color-text-faint)] hover:text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-900/30 rounded-lg transition"
                       title="Set as default"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -465,7 +465,7 @@ export function PriceTemplates({ userId, showSuccess }: PriceTemplatesProps) {
                   )}
                   <button
                     onClick={() => handleEdit(template)}
-                    className="p-2 text-[var(--color-text-faint)] hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                    className="p-2 text-[var(--color-text-faint)] hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition"
                     title="Edit"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -475,7 +475,7 @@ export function PriceTemplates({ userId, showSuccess }: PriceTemplatesProps) {
                   {!template.isDefault && (
                     <button
                       onClick={() => handleDelete(template.id)}
-                      className="p-2 text-[var(--color-text-faint)] hover:text-red-600 hover:bg-red-50 rounded-lg transition"
+                      className="p-2 text-[var(--color-text-faint)] hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition"
                       title="Delete"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -528,8 +528,8 @@ export function PriceTemplates({ userId, showSuccess }: PriceTemplatesProps) {
 
       {/* Tip */}
       {templates.length > 0 && (
-        <div className="mt-6 bg-amber-50 border border-amber-100 rounded-xl p-4">
-          <p className="text-sm text-amber-800">
+        <div className="mt-6 bg-amber-50 dark:bg-amber-950/30 border border-amber-100 dark:border-amber-800/30 rounded-xl p-4">
+          <p className="text-sm text-amber-800 dark:text-amber-300">
             💡 <strong>Tip:</strong> Your default template will auto-fill the Quote Builder. You can always adjust prices for individual quotes.
           </p>
         </div>

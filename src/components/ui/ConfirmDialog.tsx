@@ -20,27 +20,27 @@ const variantStyles: Record<DialogVariant, { icon: string; buttonClass: string; 
   danger: {
     icon: '⚠️',
     buttonClass: 'bg-red-500 hover:bg-red-600 text-white',
-    iconBg: 'bg-red-50',
+    iconBg: 'bg-red-50 dark:bg-red-900/30',
   },
   error: {
     icon: '❌',
     buttonClass: 'bg-red-500 hover:bg-red-600 text-white',
-    iconBg: 'bg-red-50',
+    iconBg: 'bg-red-50 dark:bg-red-900/30',
   },
   warning: {
     icon: '⚠️',
     buttonClass: 'bg-amber-500 hover:bg-amber-600 text-white',
-    iconBg: 'bg-amber-50',
+    iconBg: 'bg-amber-50 dark:bg-amber-900/30',
   },
   info: {
     icon: 'ℹ️',
     buttonClass: 'bg-orange-500 hover:bg-orange-600 text-white',
-    iconBg: 'bg-blue-50',
+    iconBg: 'bg-blue-50 dark:bg-blue-900/30',
   },
   default: {
     icon: '❓',
     buttonClass: 'bg-orange-500 hover:bg-orange-600 text-white',
-    iconBg: 'bg-orange-50',
+    iconBg: 'bg-orange-50 dark:bg-orange-900/30',
   },
 }
 

@@ -287,7 +287,7 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
             <h1 className="text-xl sm:text-2xl font-bold text-[var(--color-text-primary)]">{isEditing ? 'Edit Job' : 'Log Jobs'}</h1>
             <p className="text-sm sm:text-base text-[var(--color-text-muted)]">{isEditing ? 'Update job details' : 'Log one or multiple customers from the same trip'}</p>
           </div>
-          <button onClick={cancelForm} className="px-3 py-1.5 text-sm text-slate-600 hover:text-[var(--color-text-primary)] flex-shrink-0">
+          <button onClick={cancelForm} className="px-3 py-1.5 text-sm text-slate-600 dark:text-slate-400 hover:text-[var(--color-text-primary)] flex-shrink-0">
             Cancel
           </button>
         </div>
@@ -312,7 +312,7 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
             {!isEditing && (
               <button 
                 onClick={addCustomerRow} 
-                className="text-xs sm:text-sm text-orange-600 hover:text-orange-700 font-medium"
+                className="text-xs sm:text-sm text-orange-600 dark:text-orange-400 hover:text-orange-700 dark:hover:text-orange-300 font-medium"
               >
                 + Add Another
               </button>
@@ -328,7 +328,7 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
                 {!isEditing && tempCustomers.length > 1 && (
                   <button
                     onClick={() => removeCustomerRow(index)}
-                    className="absolute top-2 right-2 sm:top-3 sm:right-3 w-6 h-6 sm:w-7 sm:h-7 bg-red-100 hover:bg-red-200 text-red-600 rounded-lg text-xs sm:text-sm flex items-center justify-center"
+                    className="absolute top-2 right-2 sm:top-3 sm:right-3 w-6 h-6 sm:w-7 sm:h-7 bg-red-100 dark:bg-red-900/40 hover:bg-red-200 dark:hover:bg-red-900/60 text-red-600 dark:text-red-400 rounded-lg text-xs sm:text-sm flex items-center justify-center"
                   >
                     ×
                   </button>
@@ -336,7 +336,7 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
                 
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
                   <div>
-                    <label className="block text-xs sm:text-sm font-medium text-slate-600 mb-1">Customer Name *</label>
+                    <label className="block text-xs sm:text-sm font-medium text-slate-600 dark:text-slate-400 mb-1">Customer Name *</label>
                     <input
                       type="text"
                       value={customer.name}
@@ -346,7 +346,7 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
                     />
                   </div>
                   <div>
-                    <label className="block text-xs sm:text-sm font-medium text-slate-600 mb-1">Revenue *</label>
+                    <label className="block text-xs sm:text-sm font-medium text-slate-600 dark:text-slate-400 mb-1">Revenue *</label>
                     <div className="relative">
                       <span className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)] text-sm">$</span>
                       <input
@@ -360,7 +360,7 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
                     </div>
                   </div>
                   <div className="sm:col-span-2 md:col-span-1">
-                    <label className="block text-xs sm:text-sm font-medium text-slate-600 mb-1">Lead Source</label>
+                    <label className="block text-xs sm:text-sm font-medium text-slate-600 dark:text-slate-400 mb-1">Lead Source</label>
                     <select
                       value={customer.source}
                       onChange={(e) => updateCustomer(index, 'source', e.target.value)}
@@ -393,7 +393,7 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
               { key: 'additional', label: 'Other' },
             ].map(({ key, label }) => (
               <div key={key}>
-                <label className="block text-xs sm:text-sm font-medium text-slate-600 mb-1">{label}</label>
+                <label className="block text-xs sm:text-sm font-medium text-slate-600 dark:text-slate-400 mb-1">{label}</label>
                 <div className="relative">
                   <span className="absolute left-2.5 sm:left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)] text-sm">$</span>
                   <input
@@ -409,8 +409,8 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
           </div>
 
           {!isEditing && tempCustomers.length > 1 && totalExpenses > 0 && (
-            <div className="bg-blue-50 border border-blue-100 rounded-lg sm:rounded-xl p-3 sm:p-4 mt-3 sm:mt-4">
-              <p className="text-xs sm:text-sm text-blue-800">
+            <div className="bg-blue-50 dark:bg-blue-900/30 border border-blue-100 dark:border-blue-800/50 rounded-lg sm:rounded-xl p-3 sm:p-4 mt-3 sm:mt-4">
+              <p className="text-xs sm:text-sm text-blue-800 dark:text-blue-300">
                 <strong>Expense Split:</strong> {formatCurrency(totalExpenses)} ÷ {tempCustomers.length} = <strong>{formatCurrency(expensePerCustomer)}</strong> per customer
               </p>
             </div>
@@ -469,15 +469,15 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
         </div>
         <div className="stagger-card stat-highlight bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-lg sm:rounded-xl p-3 sm:p-4 hover:shadow-md transition-all duration-200">
           <p className="text-xs sm:text-sm text-[var(--color-text-muted)]">Revenue</p>
-          <p className="stat-number text-xl sm:text-2xl font-bold text-green-600">{formatCurrency(stats.totalRevenue)}</p>
+          <p className="stat-number text-xl sm:text-2xl font-bold text-green-600 dark:text-green-400">{formatCurrency(stats.totalRevenue)}</p>
         </div>
         <div className="stagger-card stat-highlight bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-lg sm:rounded-xl p-3 sm:p-4 hover:shadow-md transition-all duration-200">
           <p className="text-xs sm:text-sm text-[var(--color-text-muted)]">Expenses</p>
-          <p className="stat-number text-xl sm:text-2xl font-bold text-red-500">{formatCurrency(stats.totalExpenses)}</p>
+          <p className="stat-number text-xl sm:text-2xl font-bold text-red-500 dark:text-red-400">{formatCurrency(stats.totalExpenses)}</p>
         </div>
         <div className="stagger-card stat-highlight bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-lg sm:rounded-xl p-3 sm:p-4 hover:shadow-md transition-all duration-200">
           <p className="text-xs sm:text-sm text-[var(--color-text-muted)]">Profit</p>
-          <p className={`stat-number text-xl sm:text-2xl font-bold ${stats.profit >= 0 ? 'text-purple-600' : 'text-red-600'}`}>
+          <p className={`stat-number text-xl sm:text-2xl font-bold ${stats.profit >= 0 ? 'text-purple-600 dark:text-purple-400' : 'text-red-600 dark:text-red-400'}`}>
             {formatCurrency(stats.profit)}
           </p>
         </div>

@@ -9,7 +9,7 @@ export default async function AppLayout({
 }) {
   // Check for demo mode cookie
   const cookieStore = await cookies()
-  const isDemoMode = cookieStore.get('dyia_demo_access')?.value === 'true'
+  const isDemoMode = !!cookieStore.get('dyia_demo_access')?.value
 
   // If not in demo mode, require Clerk authentication
   if (!isDemoMode) {
