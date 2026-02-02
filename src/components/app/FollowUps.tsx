@@ -193,6 +193,53 @@ export function FollowUps({ userId, businessName = 'dyia', showSuccess }: Follow
       updates.next_follow_up_at = null
     }
     await updateRow(row, updates)
+
+    // When converted, create a job from the quote and mark the quote as accepted
+    if (status === 'converted') {
+      await convertQuoteToJob(row)
+    }
+  }
+
+  const convertQuoteToJob = async (row: FollowUpRow) => {
+    try {
+      const q = row.quote
+      const avgEstimate = Math.round((q.estimateLow + q.estimateHigh) / 2)
+
+      // Create a new job pre-filled from the quote
+      const { data: job, error: jobError } = await supabase
+        .from('dyia_jobs')
+        .insert({
+          user_id: userId,
+          date: new Date().toISOString().split('T')[0],
+          customer_name: q.customerName,
+          source: 'Quote',
+          revenue: avgEstimate,
+          labor: 0,
+          gas: 0,
+          dump_fee: 0,
+          dumpster_rental: 0,
+          additional_expense: 0,
+          num_workers: 1,
+          cost_per_worker: 0,
+          notes: q.jobDescription || null,
+        })
+        .select()
+        .single()
+
+      if (jobError) throw jobError
+
+      // Link the quote to the new job and mark it accepted
+      await supabase
+        .from('dyia_quotes')
+        .update({ job_id: job.id, status: 'accepted' })
+        .eq('id', q.id)
+        .eq('user_id', userId)
+
+      showSuccess?.('Quote converted to job!')
+    } catch (error) {
+      console.error('Error converting quote to job:', error)
+      await alert({ title: 'Error', message: 'Follow-up marked as converted, but failed to create the job. You can create it manually from the Jobs tab.', variant: 'error' })
+    }
   }
 
   const KANBAN_COLUMN_CONFIG: { id: FollowUpStatus; title: string; color: string }[] = [

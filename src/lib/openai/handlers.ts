@@ -99,6 +99,7 @@ async function generateQuote(args: Record<string, unknown>, dyiaUserId: string):
         estimate_low: estimateLow,
         estimate_high: estimateHigh,
         total: total,
+        status: 'draft',
         photo_urls: []
       })
       .select()
@@ -482,6 +483,54 @@ async function updateFollowUpStatus(args: Record<string, unknown>, dyiaUserId: s
 
     if (error) throw error
 
+    // When converted, create a job from the quote and mark quote as accepted
+    if (status === 'converted') {
+      // Look up the quote via the follow-up
+      const { data: followUpData } = await supabase
+        .from('dyia_follow_ups')
+        .select('quote_id')
+        .eq('id', followUpId)
+        .single()
+
+      if (followUpData?.quote_id) {
+        const { data: quoteData } = await supabase
+          .from('dyia_quotes')
+          .select('*')
+          .eq('id', followUpData.quote_id)
+          .single()
+
+        if (quoteData) {
+          const avgEstimate = Math.round(((parseFloat(quoteData.estimate_low) || 0) + (parseFloat(quoteData.estimate_high) || 0)) / 2)
+          const { data: newJob } = await supabase
+            .from('dyia_jobs')
+            .insert({
+              user_id: dyiaUserId,
+              date: new Date().toISOString().split('T')[0],
+              customer_name: quoteData.customer_name,
+              source: 'Quote',
+              revenue: avgEstimate,
+              labor: 0,
+              gas: 0,
+              dump_fee: 0,
+              dumpster_rental: 0,
+              additional_expense: 0,
+              num_workers: 1,
+              cost_per_worker: 0,
+              notes: quoteData.job_description || null,
+            })
+            .select()
+            .single()
+
+          if (newJob) {
+            await supabase
+              .from('dyia_quotes')
+              .update({ job_id: newJob.id, status: 'accepted' })
+              .eq('id', followUpData.quote_id)
+          }
+        }
+      }
+    }
+
     const statusEmoji = {
       contacted: '📞',
       converted: '🎉',
@@ -508,6 +557,74 @@ async function updateFollowUpStatus(args: Record<string, unknown>, dyiaUserId: s
       error: String(error),
       message: 'Failed to update follow-up. Please try again.'
     }
+  }
+}
+
+async function convertQuoteToJob(args: Record<string, unknown>, dyiaUserId: string): Promise<HandlerResult> {
+  const supabase = getSupabase()
+  try {
+    const quoteId = args.quote_id as string
+    const jobDate = (args.date as string) || new Date().toISOString().split('T')[0]
+
+    // Fetch the quote
+    const { data: quote, error: quoteError } = await supabase
+      .from('dyia_quotes')
+      .select('*')
+      .eq('id', quoteId)
+      .eq('user_id', dyiaUserId)
+      .single()
+
+    if (quoteError || !quote) {
+      return { success: false, error: 'Quote not found', message: 'Could not find that quote. Please check the ID and try again.' }
+    }
+
+    const avgEstimate = Math.round(((parseFloat(quote.estimate_low) || 0) + (parseFloat(quote.estimate_high) || 0)) / 2)
+    const revenue = (args.revenue as number) || avgEstimate
+
+    // Create the job
+    const { data: job, error: jobError } = await supabase
+      .from('dyia_jobs')
+      .insert({
+        user_id: dyiaUserId,
+        date: jobDate,
+        customer_name: quote.customer_name,
+        source: 'Quote',
+        revenue,
+        labor: 0,
+        gas: 0,
+        dump_fee: 0,
+        dumpster_rental: 0,
+        additional_expense: 0,
+        num_workers: 1,
+        cost_per_worker: 0,
+        notes: quote.job_description || null,
+      })
+      .select()
+      .single()
+
+    if (jobError) throw jobError
+
+    // Link the quote to the job and mark accepted
+    await supabase
+      .from('dyia_quotes')
+      .update({ job_id: job.id, status: 'accepted' })
+      .eq('id', quoteId)
+
+    // Also mark any follow-up as converted
+    await supabase
+      .from('dyia_follow_ups')
+      .update({ status: 'converted' })
+      .eq('quote_id', quoteId)
+      .eq('user_id', dyiaUserId)
+
+    return {
+      success: true,
+      data: { jobId: job.id, quoteId, customer: quote.customer_name, revenue },
+      message: `✅ Quote for ${quote.customer_name} converted to a job!\n\n💰 Revenue: $${revenue.toLocaleString()}\n📅 Date: ${jobDate}\n🔗 Quote is now linked to the new job.`
+    }
+  } catch (error) {
+    console.error('Error converting quote to job:', error)
+    return { success: false, error: String(error), message: 'Failed to convert quote to job. Please try again.' }
   }
 }
 
@@ -691,7 +808,10 @@ export async function handleFunctionCall(
     
     case 'update_follow_up_status':
       return updateFollowUpStatus(args, dyiaUserId)
-    
+
+    case 'convert_quote_to_job':
+      return convertQuoteToJob(args, dyiaUserId)
+
     case 'get_business_summary':
       return getBusinessSummary(args, dyiaUserId)
     

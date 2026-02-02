@@ -136,7 +136,7 @@ export default function AppPage() {
       if (quotesData) {
         setQuotes(quotesData.map(q => ({
           id: q.id,
-          jobId: q.job_id || undefined,  // Include job reference
+          jobId: q.job_id || undefined,
           createdAt: new Date(q.created_at).getTime(),
           customer: {
             name: q.customer_name,
@@ -148,7 +148,9 @@ export default function AppPage() {
           pricing: q.pricing || {},
           photos: q.photo_urls || [],
           estimateRange: { low: parseFloat(q.estimate_low) || 0, high: parseFloat(q.estimate_high) || 0 },
-          total: parseFloat(q.total) || 0
+          total: parseFloat(q.total) || 0,
+          status: q.status || 'draft',
+          sentAt: q.sent_at ? new Date(q.sent_at).getTime() : undefined
         })))
       }
 
@@ -359,11 +361,10 @@ export default function AppPage() {
             jobs={jobs}
             userId={userProfile?.id || ''}
             settings={settings}
-            onCreateQuote={(job: AppJob) => {
-              setSelectedJobForQuote(job)
+            onCreateQuote={(job?: AppJob) => {
+              setSelectedJobForQuote(job || null)
               setCurrentView('quoteBuilder')
             }}
-            onNavigateToJobs={() => setCurrentView('jobs')}
             showSuccess={showSuccess}
           />
         )

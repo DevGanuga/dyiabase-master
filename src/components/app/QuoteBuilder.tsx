@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import type { AppQuote, AppPriceTemplate, AppJob } from '@/types/database'
+import type { AppQuote, AppPriceTemplate, AppJob, QuoteStatus } from '@/types/database'
 import { formatCurrency, compressImage } from '@/lib/utils'
 import { useConfirm } from '@/components/providers/ConfirmProvider'
 
@@ -142,7 +142,7 @@ export function QuoteBuilder({ quotes, setQuotes, userId, selectedJob, onBack, s
 
       const quoteData = {
         user_id: userId,
-        job_id: selectedJob?.id || null,  // Link quote to job
+        job_id: selectedJob?.id || null,
         customer_name: customer.name,
         customer_phone: customer.phone || null,
         customer_email: customer.email || null,
@@ -155,6 +155,7 @@ export function QuoteBuilder({ quotes, setQuotes, userId, selectedJob, onBack, s
         estimate_low: rangeLow,
         estimate_high: rangeHigh,
         total,
+        status: 'draft',
         photo_urls: photos.filter(p => p) as string[]
       }
 
@@ -181,7 +182,7 @@ export function QuoteBuilder({ quotes, setQuotes, userId, selectedJob, onBack, s
 
       const newQuote: AppQuote = {
         id: data.id,
-        jobId: selectedJob?.id,  // Include job reference
+        jobId: selectedJob?.id,
         createdAt: new Date(data.created_at).getTime(),
         customer: {
           name: customer.name,
@@ -193,7 +194,8 @@ export function QuoteBuilder({ quotes, setQuotes, userId, selectedJob, onBack, s
         pricing: quoteData.pricing,
         photos: quoteData.photo_urls,
         estimateRange: { low: rangeLow, high: rangeHigh },
-        total
+        total,
+        status: 'draft' as QuoteStatus
       }
 
       setQuotes([newQuote, ...quotes])

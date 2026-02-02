@@ -248,6 +248,31 @@ export const DYIA_TOOLS: FunctionTool[] = [
   },
   {
     type: 'function',
+    name: 'convert_quote_to_job',
+    description: 'Convert an accepted quote into a logged job. Use when a customer has agreed to a quote and the user wants to create a job from it.',
+    parameters: {
+      type: 'object',
+      properties: {
+        quote_id: {
+          type: 'string',
+          description: 'The ID of the quote to convert into a job'
+        },
+        revenue: {
+          type: 'number',
+          description: 'Final agreed revenue in dollars. If not provided, uses the average of the quote estimate range.'
+        },
+        date: {
+          type: 'string',
+          description: 'Job date in YYYY-MM-DD format. Defaults to today.'
+        }
+      },
+      required: ['quote_id', 'revenue', 'date'],
+      additionalProperties: false
+    },
+    strict: true
+  },
+  {
+    type: 'function',
     name: 'get_business_summary',
     description: 'Get a comprehensive business summary including revenue trends, top sources, expense breakdown. Use for weekly/monthly reviews or when user wants an overview.',
     parameters: {
@@ -267,7 +292,7 @@ export const DYIA_TOOLS: FunctionTool[] = [
 ]
 
 // Export function names for type checking
-export type DyiaFunctionName = 
+export type DyiaFunctionName =
   | 'create_job'
   | 'generate_quote'
   | 'log_expense'
@@ -275,4 +300,5 @@ export type DyiaFunctionName =
   | 'get_pending_follow_ups'
   | 'suggest_quote_price'
   | 'update_follow_up_status'
+  | 'convert_quote_to_job'
   | 'get_business_summary'

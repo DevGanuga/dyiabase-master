@@ -17,10 +17,12 @@ export interface Job {
   updated_at: string
 }
 
+export type QuoteStatus = 'draft' | 'sent' | 'accepted' | 'declined' | 'expired'
+
 export interface Quote {
   id: string
   user_id: string
-  job_id?: string | null  // Reference to the parent job
+  job_id?: string | null  // Optional link to a job
   customer_name: string
   customer_phone?: string | null
   customer_email?: string | null
@@ -30,7 +32,8 @@ export interface Quote {
   estimate_low: number
   estimate_high: number
   total: number
-  estimate_type?: string | null
+  status: QuoteStatus
+  sent_at?: string | null
   photo_urls: string[]
   created_at: string
   updated_at: string
@@ -87,7 +90,7 @@ export interface AppJob {
 
 export interface AppQuote {
   id: string
-  jobId?: string  // Reference to the parent job
+  jobId?: string  // Optional link to a job
   createdAt: number
   customer: {
     name: string
@@ -100,6 +103,8 @@ export interface AppQuote {
   photos: string[]
   estimateRange: { low: number; high: number }
   total: number
+  status: QuoteStatus
+  sentAt?: number
 }
 
 export interface AppSettings {
