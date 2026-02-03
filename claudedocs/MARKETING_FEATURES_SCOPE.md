@@ -1,237 +1,128 @@
-# Marketing Features Scope
+# dyia - Additional Features Scope
 
 **Date:** February 3, 2026  
-**Requested by:** Marco Ayyala  
-**Status:** Proposed for Final Milestone
+**For:** Marco Ayyala  
+**Status:** Final Milestone Addition
 
 ---
 
-## Overview
+## New Features Overview
 
-Add a dedicated **Marketing** page to dyia that helps service business owners track their marketing spend, measure ROI by channel, and see which lead sources generate the most revenue.
+Based on your feedback, we're adding a **Marketing** section and **Review Request** system to help you track marketing ROI and collect customer reviews.
 
 ---
 
-## Features
+## 1. Marketing Page
 
-### 1. Marketing Page (New Section in Sidebar)
+A new dedicated page in the sidebar for tracking marketing spend and measuring results.
 
-A dedicated page accessible from the sidebar that consolidates all marketing-related data.
+### What You Get:
+- **Marketing Spend Tracker** — Log how much you spend on each channel (Google Ads, Facebook Ads, Yard Signs, Thumbtack, etc.)
+- **ROI Dashboard** — See revenue generated vs. money spent per channel with automatic ROI calculation
+- **Lead Source Breakdown** — View which marketing channels bring the most jobs and highest average job value
+- **Time Period Filters** — View data by month, quarter, or all-time
 
-#### 1.1 Marketing Spend Tracker
+### Deliverables:
+- New "Marketing" section in sidebar navigation
 - Add/edit/delete marketing expenses by channel
-- Predefined channels: Google Ads, Meta/Facebook Ads, Yard Signs, Thumbtack, Yelp Ads, Other/Custom
-- Track spend per month (or date range)
-- Separate from fixed expenses for cleaner reporting
+- ROI calculations displayed per channel
+- Summary cards showing total spend, total revenue from marketing, and overall ROI percentage
 
-#### 1.2 Marketing ROI Dashboard
-- Revenue generated per marketing source (from jobs with that source)
-- Cost per channel (from marketing spend tracker)
-- Auto-calculated ROI: `((Revenue - Cost) / Cost) × 100`
-- Visual breakdown: bar chart or table
-- Time period selector (this month, last 3 months, YTD, all time)
-
-#### 1.3 Lead Source Analytics
-- Which sources bring the most jobs
-- Average job value by source
-- Conversion insights (if quote → job tracking enabled)
-
-**Estimated Hours:** 6-8h
+**Hours: 8**
 
 ---
 
-### 2. Marketing Source on Jobs (Enhancement)
+## 2. Marketing Source on Jobs
 
-The `source` field already exists on `dyia_jobs` but needs better UX.
+When logging a job, you'll be able to tag how the customer found you.
 
-#### Changes:
-- Dropdown with preset options: Google, Facebook, Yard Sign, Referral, Word of Mouth, Thumbtack, Craigslist, Custom
-- Custom input fallback for unlisted sources
-- Source shown on job cards and in job list
-- Filterable by source in Jobs view
+### What You Get:
+- **Preset Options** — Google, Facebook, Yard Sign, Referral, Word of Mouth, Thumbtack, Craigslist, Other
+- **Custom Input** — Add your own source if not in the list
+- **Source Display** — See the source on job cards and in the job list
+- **Filtering** — Filter jobs by marketing source
 
-**Estimated Hours:** 1.5-2h
-
----
-
-### 3. Marketing Expenses (Standalone or Integrated)
-
-#### Option A: Integrate into Marketing Page (Recommended)
-- Marketing spend lives on the Marketing page
-- Separate from Fixed Expenses (which is for overhead like insurance, rent)
-- Can be recurring (monthly budget) or one-time (yard signs purchase)
-
-#### Option B: Enhance Fixed Expenses
-- Add sub-categories under "Marketing" category
-- Filter fixed expenses by category on existing page
-
-**Estimated Hours:** 2-3h
+**Hours: 2**
 
 ---
 
-### 4. Review Request System
+## 3. Review Request System
 
-Help users collect reviews from satisfied customers.
+Easily request reviews from customers after completing a job.
 
-#### 4.1 Review Templates (Copy/Paste)
-- Pre-written templates for Google, Yelp, Facebook
-- Customizable with business name
-- One-click copy to clipboard
-- Accessible from completed jobs or quotes
+### What You Get:
+- **Review Templates** — Pre-written messages for Google, Yelp, and Facebook reviews
+- **One-Click Copy** — Copy the template to your clipboard, ready to text or email
+- **Customizable** — Templates include your business name automatically
+- **Request Tracking** — Track which customers you've asked for reviews (date, platform)
+- **Access Point** — "Request Review" button on completed jobs
 
-#### 4.2 Review Request Tracking
-- Track which customers received review requests
-- Date sent, platform, response status (optional)
-- "Request Review" button on completed jobs
+### Deliverables:
+- Review request modal with platform selection
+- Copy-to-clipboard functionality
+- Review request history per customer
+- Settings area to add your Google/Yelp/Facebook review page links
 
-#### 4.3 Review Link Generator (Optional Enhancement)
-- Store business review URLs in Settings
-- Generate short links or QR codes for review pages
-
-**Estimated Hours:** 3-4h (templates + tracking), +2h for link generator
+**Hours: 4**
 
 ---
 
-### 5. AI Credits System (Separate from Marketing)
+## 4. AI Credits System
 
-Prevent AI abuse and monetize AI usage.
+Manage AI usage with monthly limits and the option to purchase additional credits.
 
-#### 5.1 Usage Tracking
-- New table: `dyia_ai_usage` (user_id, month, messages_used, tokens_used)
-- Middleware to track each AI chat message
-- Dashboard widget showing usage
+### What You Get:
 
-#### 5.2 Pro Plan Limits
-- Monthly limit (e.g., 150 AI messages)
-- Soft warning at 80%, hard stop at 100%
-- Option to purchase additional credits
+**For Pro Plan:**
+- **Monthly Limit** — 150 AI messages included per month
+- **Usage Display** — See how many credits you've used in the AI chat
+- **Low Credit Warning** — Notification when approaching your limit
+- **Purchase More** — Buy 100 additional credits for $4.99 when needed
 
-#### 5.3 Credit Packs (Stripe Integration)
-- Product: 100 credits for $4.99
-- One-time purchase, adds to balance
-- Webhook handles credit fulfillment
+**For Basic Plan:**
+- **Free Credits** — 10 free AI messages per month to try the feature
+- **Upgrade Prompt** — Clear path to upgrade when credits are used
 
-#### 5.4 Basic Plan Free Credits
-- Give basic users 5-10 free AI messages/month
-- Taste of AI features without full subscription
-- Upgrade CTA when credits exhausted
+### Deliverables:
+- AI usage tracking per user
+- Credit balance display in chat interface
+- Stripe integration for credit pack purchases
+- Usage reset on monthly billing cycle
 
-**Estimated Hours:** 10-14h total
+**Hours: 12**
 
 ---
 
-## Summary: Hour Estimates
+## Summary
 
-| Feature | Hours | Priority |
-|---------|-------|----------|
-| Marketing Page (spend tracker + ROI dashboard) | 6-8h | High |
-| Marketing Source Presets on Jobs | 1.5-2h | High |
-| Marketing Expenses Integration | 2-3h | High |
-| Review Templates (copy/paste) | 2-3h | High |
-| Review Request Tracking | 1-2h | Medium |
-| Review Link Generator | 2h | Low |
-| AI Credits System (full) | 10-14h | Medium |
+| Feature | Hours |
+|---------|-------|
+| Marketing Page (spend tracker + ROI dashboard) | 8 |
+| Marketing Source on Jobs | 2 |
+| Review Request System | 4 |
+| AI Credits System | 12 |
+| **Total** | **26** |
 
 ---
 
-## Recommended Scope for Final Milestone
+## Recommended Prioritization
 
-### Core Marketing Features (11-15 hours)
-- [ ] Marketing Page with spend tracker
-- [ ] ROI dashboard showing revenue vs cost per channel
-- [ ] Marketing source presets on job form
-- [ ] Review request templates with copy/paste
+### Include in Final Milestone (14 hours)
+1. Marketing Page with spend tracker and ROI dashboard
+2. Marketing Source presets on job form
+3. Review Request System with templates and tracking
 
-### Nice-to-Have (+4-6 hours)
-- [ ] Review request tracking (who was asked, when)
-- [ ] Lead source analytics (avg job value by source)
-
-### Post-Launch (+10-14 hours)
-- [ ] AI credits system with Stripe integration
-- [ ] Basic tier free credits
+### Post-Launch Addition (12 hours)
+4. AI Credits System with Stripe integration
 
 ---
 
-## Database Changes Required
+## Timeline Impact
 
-```sql
--- New table for marketing spend (if separate from fixed_expenses)
-CREATE TABLE dyia_marketing_spend (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id TEXT NOT NULL REFERENCES dyia_users(clerk_id),
-  channel TEXT NOT NULL, -- 'google_ads', 'meta_ads', 'yard_signs', etc.
-  amount DECIMAL(10,2) NOT NULL,
-  month DATE NOT NULL, -- First of month for monthly tracking
-  notes TEXT,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
-);
+Adding the Marketing and Review features (14 hours) would extend the final milestone by approximately **2-3 days** depending on review cycles.
 
--- Review request tracking
-CREATE TABLE dyia_review_requests (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id TEXT NOT NULL REFERENCES dyia_users(clerk_id),
-  job_id UUID REFERENCES dyia_jobs(id),
-  customer_name TEXT NOT NULL,
-  customer_email TEXT,
-  customer_phone TEXT,
-  platform TEXT NOT NULL, -- 'google', 'yelp', 'facebook'
-  sent_at TIMESTAMPTZ DEFAULT NOW(),
-  status TEXT DEFAULT 'sent' -- 'sent', 'clicked', 'reviewed'
-);
-
--- AI usage tracking (for credits system)
-CREATE TABLE dyia_ai_usage (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id TEXT NOT NULL REFERENCES dyia_users(clerk_id),
-  month DATE NOT NULL, -- First of month
-  messages_used INTEGER DEFAULT 0,
-  tokens_used INTEGER DEFAULT 0,
-  credits_purchased INTEGER DEFAULT 0,
-  updated_at TIMESTAMPTZ DEFAULT NOW(),
-  UNIQUE(user_id, month)
-);
-```
+The AI Credits System can be added as a fast-follow after launch to avoid delaying the initial release.
 
 ---
 
-## UI Mockup Concepts
-
-### Marketing Page Layout
-```
-┌─────────────────────────────────────────────────────────┐
-│ Marketing                                               │
-├─────────────────────────────────────────────────────────┤
-│                                                         │
-│  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐       │
-│  │ Total Spend │ │ Total Rev   │ │ Overall ROI │       │
-│  │   $450      │ │   $3,200    │ │    611%     │       │
-│  └─────────────┘ └─────────────┘ └─────────────┘       │
-│                                                         │
-│  ROI by Channel                    This Month ▼        │
-│  ┌─────────────────────────────────────────────┐       │
-│  │ Google Ads    $200 spend  →  $1,400 rev  600%│       │
-│  │ Yard Signs    $150 spend  →  $1,200 rev  700%│       │
-│  │ Facebook      $100 spend  →  $600 rev    500%│       │
-│  └─────────────────────────────────────────────┘       │
-│                                                         │
-│  [+ Add Marketing Spend]                               │
-│                                                         │
-│  Lead Sources (Jobs)                                   │
-│  ┌─────────────────────────────────────────────┐       │
-│  │ Referral      12 jobs    $4,200    $350 avg │       │
-│  │ Google        8 jobs     $2,800    $350 avg │       │
-│  │ Yard Sign     6 jobs     $1,800    $300 avg │       │
-│  └─────────────────────────────────────────────┘       │
-│                                                         │
-└─────────────────────────────────────────────────────────┘
-```
-
----
-
-## Notes
-
-- Marketing source field already exists on jobs (`source` column)
-- Fixed expenses already has `marketing` category but lacks channel granularity
-- Review system should be simple: copy template, mark as sent
-- AI credits can be deferred to post-launch if timeline is tight
+*Let me know if you'd like any adjustments to this scope.*
