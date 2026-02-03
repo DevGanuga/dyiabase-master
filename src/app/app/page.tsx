@@ -36,7 +36,7 @@ const DEMO_JOBS: AppJob[] = [
 const DEMO_SETTINGS: AppSettings = {
   taxPercentage: 30,
   monthlyGoal: 8000,
-  businessInfo: { name: 'Demo Junk Co', phone: '(555) 123-4567', email: 'demo@dyia.co', address: '123 Demo Street', logo: null },
+  businessInfo: { name: 'Demo Junk Co', phone: '(555) 123-4567', email: 'demo@dyia.co', address: '123 Demo Street', logo: null, reviewUrl: null },
   onboardingCompleted: true,
   onboardingSkipped: false,
   onboardingCompletedAt: null
@@ -55,7 +55,7 @@ export default function AppPage() {
   const [settings, setSettings] = useState<AppSettings>({
     taxPercentage: 30,
     monthlyGoal: 0,
-    businessInfo: { name: '', phone: '', email: '', address: '', logo: null },
+    businessInfo: { name: '', phone: '', email: '', address: '', logo: null, reviewUrl: null },
     onboardingCompleted: false,
     onboardingSkipped: false,
     onboardingCompletedAt: null
@@ -170,7 +170,8 @@ export default function AppPage() {
             phone: settingsData.business_phone || '',
             email: settingsData.business_email || '',
             address: settingsData.business_address || '',
-            logo: settingsData.business_logo || null
+            logo: settingsData.business_logo || null,
+            reviewUrl: settingsData.review_url ?? null
           },
           onboardingCompleted: settingsData.onboarding_completed || false,
           onboardingSkipped: settingsData.onboarding_skipped || false,

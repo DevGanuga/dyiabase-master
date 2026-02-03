@@ -17,7 +17,7 @@ export interface Job {
   updated_at: string
 }
 
-export type QuoteStatus = 'draft' | 'sent' | 'accepted' | 'declined' | 'expired'
+export type QuoteStatus = 'draft' | 'sent' | 'accepted' | 'declined' | 'expired' | 'completed'
 
 export interface Quote {
   id: string
@@ -49,6 +49,7 @@ export interface Settings {
   business_email?: string | null
   business_address?: string | null
   business_logo?: string | null
+  review_url?: string | null
   onboarding_completed: boolean
   onboarding_skipped: boolean
   onboarding_completed_at?: string | null
@@ -67,8 +68,66 @@ export interface UserProfile {
   subscription_status: 'active' | 'inactive' | 'canceled' | 'past_due' | 'trialing'
   subscription_plan?: 'monthly' | 'annual' | null
   subscription_ends_at?: string | null
+  ai_credits_balance: number
+  ai_credits_used_lifetime: number
   created_at: string
   updated_at: string
+}
+
+// ============================================
+// CREDIT TRANSACTIONS
+// ============================================
+export interface CreditTransaction {
+  id: string
+  user_id: string
+  type: 'purchase' | 'usage' | 'grant' | 'refund'
+  amount: number
+  balance_after: number
+  description: string | null
+  stripe_payment_id: string | null
+  message_id: string | null
+  metadata: Record<string, unknown>
+  created_at: string
+}
+
+export interface AppCreditTransaction {
+  id: string
+  type: CreditTransaction['type']
+  amount: number
+  balanceAfter: number
+  description: string | null
+  createdAt: Date
+}
+
+// ============================================
+// MARKETING SPEND
+// ============================================
+export interface MarketingSpend {
+  id: string
+  user_id: string
+  source: string
+  month: string
+  amount: number
+  notes: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface AppMarketingSpend {
+  id: string
+  source: string
+  month: Date
+  amount: number
+  notes: string | null
+}
+
+export interface SourceROI {
+  source: string
+  spend: number
+  revenue: number
+  jobs: number
+  roi: number
+  costPerJob: number
 }
 
 // App-side transformed types (camelCase)
@@ -116,6 +175,7 @@ export interface AppSettings {
     email: string
     address: string
     logo: string | null
+    reviewUrl: string | null
   }
   onboardingCompleted: boolean
   onboardingSkipped: boolean
@@ -221,6 +281,7 @@ export interface Message {
   tool_calls: Record<string, unknown>[] | null
   tool_results: Record<string, unknown>[] | null
   tokens_used: number | null
+  credit_cost: number | null
   created_at: string
 }
 

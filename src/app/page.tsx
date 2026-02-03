@@ -68,7 +68,8 @@ function DyiaAvatar({ className = "w-10 h-10" }: { className?: string }) {
 }
 
 export default function LandingPage() {
-  const { isSignedIn } = useUser()
+  const { isSignedIn, user, isLoaded } = useUser()
+  const checkoutReady = !isSignedIn || (isLoaded && user)
   const [mounted, setMounted] = useState(false)
   const [loading, setLoading] = useState<string | null>(null)
   const [couponInput, setCouponInput] = useState('')
@@ -88,15 +89,32 @@ export default function LandingPage() {
       window.location.href = `/sign-up?redirect_url=/app?plan=${plan}&tier=${tier}`
       return
     }
+    if (!user) {
+      setLoading(null)
+      return
+    }
+    const userEmail = user.primaryEmailAddress?.emailAddress
+    if (!userEmail) {
+      alert('Please add an email to your account to checkout.')
+      setLoading(null)
+      return
+    }
     try {
       const response = await fetch('/api/stripe/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ priceId: STRIPE_PRICES[plan], couponCode: couponInput || undefined, tier }),
+        body: JSON.stringify({
+          priceId: STRIPE_PRICES[plan],
+          clerkUserId: user.id,
+          userEmail,
+          couponCode: couponInput || undefined,
+          tier,
+        }),
       })
       const data = await response.json()
       if (data.error) { alert('Error: ' + data.error); setLoading(null); return }
-      window.location.href = data.url
+      if (data.url) window.location.href = data.url
+      else setLoading(null)
     } catch { alert('Checkout error'); setLoading(null) }
   }
 
@@ -578,8 +596,8 @@ export default function LandingPage() {
                     </li>
                   ))}
                 </ul>
-                <button onClick={() => checkout(billingCycle, 'basic')} disabled={!!loading} className="w-full py-3.5 bg-white/5 hover:bg-white/10 text-white rounded-xl font-semibold transition border border-white/10">
-                  {loading === `basic-${billingCycle}` ? 'Redirecting...' : 'Get Basic'}
+                <button onClick={() => checkout(billingCycle, 'basic')} disabled={!!loading || !checkoutReady} className="w-full py-3.5 bg-white/5 hover:bg-white/10 text-white rounded-xl font-semibold transition border border-white/10">
+                  {loading === `basic-${billingCycle}` ? 'Redirecting...' : !checkoutReady && isSignedIn ? 'Loading...' : 'Get Basic'}
                 </button>
               </div>
 

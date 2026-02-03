@@ -4,6 +4,7 @@ import { createClient } from '@supabase/supabase-js'
 import { getOpenAI, DYIA_INSTRUCTIONS, DYIA_MODEL, DYIA_MODEL_MINI } from '@/lib/openai/client'
 import { DYIA_TOOLS, DyiaFunctionName, isProposalFunction } from '@/lib/openai/functions'
 import { handleFunctionCall, HandlerResult } from '@/lib/openai/handlers'
+import { getProMonthlyCreditsCap } from '@/lib/ai-credits'
 
 // Initialize Supabase with service role for server operations
 const supabase = createClient(
@@ -25,6 +26,11 @@ interface OutputItem {
 interface ResponseData {
   id: string
   output: OutputItem[]
+  usage?: {
+    input_tokens?: number
+    output_tokens?: number
+    total_tokens?: number
+  }
 }
 
 export async function POST(req: NextRequest) {
@@ -38,7 +44,7 @@ export async function POST(req: NextRequest) {
     // 2. Get user profile and check subscription
     const { data: userProfile, error: userError } = await supabase
       .from('dyia_users')
-      .select('id, subscription_status')
+      .select('id, subscription_status, ai_credits_balance, ai_credits_used_lifetime')
       .eq('clerk_user_id', clerkUserId)
       .single()
 
@@ -46,11 +52,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
-    // 3. Check Pro access (allow trialing and active)
+    // 3. Check AI access (Pro users OR users with credits)
     const isPro = ['active', 'trialing'].includes(userProfile.subscription_status)
-    if (!isPro) {
+    const hasCredits = (userProfile.ai_credits_balance || 0) > 0
+    const proCap = getProMonthlyCreditsCap()
+    // When Pro monthly cap is set: check Pro credits used this month (e.g. from dyia_credit_transactions type 'usage') and deny if over cap
+    const canUseAI = isPro || hasCredits
+
+    if (!canUseAI) {
       return NextResponse.json(
-        { error: 'Pro subscription required for AI Assistant' },
+        { error: 'AI credits required. Purchase credits or upgrade to Pro.', needsCredits: true },
         { status: 403 }
       )
     }
@@ -160,7 +171,40 @@ export async function POST(req: NextRequest) {
       responseText = 'I processed your request.'
     }
 
-    // 8. Generate smart thread title based on content
+    // 8. Calculate and deduct AI credits for non-pro users
+    const usage = response.usage || { total_tokens: 0 }
+    const totalTokens = usage.total_tokens || 0
+    // Credit cost: 1 credit per 500 tokens (minimum 1 credit if tokens used)
+    const creditCost = isPro ? 0 : (totalTokens > 0 ? Math.max(1, Math.ceil(totalTokens / 500)) : 0)
+
+    // Deduct credits for non-pro users
+    if (!isPro && creditCost > 0) {
+      const currentBalance = userProfile.ai_credits_balance || 0
+      const newBalance = Math.max(0, currentBalance - creditCost)
+
+      // Update user credit balance
+      await supabase
+        .from('dyia_users')
+        .update({
+          ai_credits_balance: newBalance,
+          ai_credits_used_lifetime: (userProfile.ai_credits_used_lifetime || 0) + creditCost
+        })
+        .eq('id', userProfile.id)
+
+      // Log credit transaction
+      await supabase
+        .from('dyia_credit_transactions')
+        .insert({
+          user_id: userProfile.id,
+          type: 'usage',
+          amount: -creditCost,
+          balance_after: newBalance,
+          description: `AI chat (${totalTokens} tokens)`,
+          metadata: { tokens: totalTokens }
+        })
+    }
+
+    // 9. Generate smart thread title based on content
     const generateSmartTitle = (userMessage: string, toolResults: HandlerResult[]): string => {
       // Check if any tool results have relevant data for title
       for (const result of toolResults) {
@@ -300,7 +344,9 @@ export async function POST(req: NextRequest) {
           role: 'assistant',
           content: responseText,
           tool_calls: toolResults.length > 0 ? response.output.filter(i => i.type === 'function_call') : null,
-          tool_results: enhancedToolResults
+          tool_results: enhancedToolResults,
+          tokens_used: totalTokens || null,
+          credit_cost: creditCost || null
         }
       ])
 
@@ -319,13 +365,17 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 10. Return response with response ID for stateful continuation
+    // 11. Return response with response ID for stateful continuation
+    const remainingCredits = isPro ? null : Math.max(0, (userProfile.ai_credits_balance || 0) - creditCost)
+
     return NextResponse.json({
       success: true,
       threadId,
       message: responseText,
       toolResults: processedToolResults,
-      responseId: response.id
+      responseId: response.id,
+      creditsUsed: creditCost,
+      remainingCredits
     })
 
   } catch (error) {

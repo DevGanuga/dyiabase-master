@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
   try {
     const stripe = getStripe()
     const supabase = getSupabase()
-    const { priceId, clerkUserId, userEmail, couponCode } = await request.json()
+    const { priceId, clerkUserId, userEmail, couponCode, mode = 'subscription', creditsAmount = 100 } = await request.json()
 
     if (!priceId || !clerkUserId || !userEmail) {
       return NextResponse.json(
@@ -47,29 +47,39 @@ export async function POST(request: NextRequest) {
     }
 
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+    const isOneTime = mode === 'payment'
 
+    // Build session params based on mode
     const sessionParams: Stripe.Checkout.SessionCreateParams = {
-      mode: 'subscription',
+      mode: isOneTime ? 'payment' : 'subscription',
       payment_method_types: ['card'],
       line_items: [{ price: priceId, quantity: 1 }],
-      success_url: `${baseUrl}/app?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${baseUrl}/#pricing`,
+      success_url: isOneTime
+        ? `${baseUrl}/app/assistant?purchase=credits&session_id={CHECKOUT_SESSION_ID}`
+        : `${baseUrl}/app?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: isOneTime ? `${baseUrl}/app/assistant` : `${baseUrl}/#pricing`,
       customer_email: userEmail,
       client_reference_id: clerkUserId,
       metadata: {
         clerk_user_id: clerkUserId,
         dyia_user_id: dyiaUser.id,
+        purchase_type: isOneTime ? 'credits' : 'subscription',
+        credits_amount: isOneTime ? String(creditsAmount) : '',
       },
-      subscription_data: {
+    }
+
+    // Only add subscription_data for subscription mode
+    if (!isOneTime) {
+      sessionParams.subscription_data = {
         metadata: {
           clerk_user_id: clerkUserId,
           dyia_user_id: dyiaUser.id,
         },
-      },
+      }
     }
 
-    // Apply coupon if provided
-    if (couponCode) {
+    // Apply coupon if provided (only for subscriptions)
+    if (couponCode && !isOneTime) {
       sessionParams.discounts = [{ coupon: couponCode }]
     }
 
