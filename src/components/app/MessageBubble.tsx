@@ -37,17 +37,21 @@ export function MessageBubble({ message, isLatest }: MessageBubbleProps) {
     >
       <div className={`flex gap-3 ${isUser ? 'flex-row-reverse' : ''} max-w-[85%]`}>
         {/* Avatar */}
-        <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm ${
+        <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 shadow-md ${
           isUser 
             ? 'bg-gradient-to-br from-orange-500 to-amber-500 text-white' 
-            : 'bg-gradient-to-br from-orange-100 to-amber-100'
+            : 'bg-gradient-to-br from-orange-500 to-amber-500 ring-2 ring-orange-400/30'
         }`}>
           {isUser ? (
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
             </svg>
           ) : (
-            <span className="text-sm">✨</span>
+            <svg className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="3" fill="currentColor" stroke="none" />
+              <path d="M12 2v4m0 12v4M2 12h4m12 0h4" strokeLinecap="round" />
+              <path d="M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83" strokeLinecap="round" opacity="0.6" />
+            </svg>
           )}
         </div>
 

@@ -1,5 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import type { DyiaFunctionName } from './functions'
+import type { JobProposal, QuoteProposal, UserContext, ConfidenceLevel } from '@/types/database'
+import { generateEmbedding, buildJobEmbeddingText } from './client'
 
 // Create Supabase client with service role for server-side operations
 const getSupabase = () => createClient(
@@ -13,6 +15,11 @@ export interface HandlerResult {
   data?: Record<string, unknown>
   error?: string
   message: string
+  // For proposal handlers, this indicates the action needs user confirmation
+  pendingAction?: {
+    type: 'create_job' | 'generate_quote' | 'log_expense'
+    proposal: JobProposal | QuoteProposal | Record<string, unknown>
+  }
 }
 
 // =============================================
@@ -23,6 +30,9 @@ async function createJob(args: Record<string, unknown>, dyiaUserId: string): Pro
   const supabase = getSupabase()
   try {
     const jobDate = (args.date as string) || new Date().toISOString().split('T')[0]
+    const customerName = args.customer_name as string
+    const source = (args.source as string) || null
+    const notes = (args.notes as string) || null
     const revenue = args.revenue as number
     const labor = (args.labor as number) || 0
     const gas = (args.gas as number) || 0
@@ -35,8 +45,8 @@ async function createJob(args: Record<string, unknown>, dyiaUserId: string): Pro
       .insert({
         user_id: dyiaUserId,
         date: jobDate,
-        customer_name: args.customer_name as string,
-        source: (args.source as string) || null,
+        customer_name: customerName,
+        source: source,
         revenue: revenue,
         labor: labor,
         gas: gas,
@@ -45,7 +55,7 @@ async function createJob(args: Record<string, unknown>, dyiaUserId: string): Pro
         additional_expense: additionalExpense,
         num_workers: (args.num_workers as number) || 1,
         cost_per_worker: (args.cost_per_worker as number) || 0,
-        notes: (args.notes as string) || null
+        notes: notes
       })
       .select()
       .single()
@@ -56,18 +66,48 @@ async function createJob(args: Record<string, unknown>, dyiaUserId: string): Pro
     const profit = revenue - totalExpenses
     const margin = revenue > 0 ? Math.round((profit / revenue) * 100) : 0
 
+    // Generate embedding asynchronously (don't block the response)
+    // This enables semantic search for similar jobs later
+    if (data) {
+      const embeddingText = buildJobEmbeddingText({
+        customerName: customerName,
+        notes: notes,
+        source: source,
+        revenue: revenue
+      })
+      
+      // Fire and forget - embedding generation happens in background
+      generateEmbedding(embeddingText)
+        .then(async (embedding) => {
+          const updateSupabase = getSupabase()
+          // pgvector expects vector as string format: '[0.1, 0.2, ...]'
+          const vectorString = `[${embedding.join(',')}]`
+          await updateSupabase
+            .from('dyia_jobs')
+            .update({ 
+              embedding: vectorString,
+              embedding_text: embeddingText 
+            })
+            .eq('id', data.id)
+          console.log(`[Embedding] Job ${data.id} embedded successfully`)
+        })
+        .catch((err) => {
+          console.error(`[Embedding] Failed to embed job ${data.id}:`, err)
+        })
+    }
+
     return {
       success: true,
       data: { 
         jobId: data.id, 
         date: jobDate,
-        customer: args.customer_name,
+        customer: customerName,
         revenue,
         expenses: totalExpenses,
         profit,
         margin
       },
-      message: `✅ Job logged for ${args.customer_name}!\n\n💰 Revenue: $${revenue.toLocaleString()}\n📦 Expenses: $${totalExpenses.toLocaleString()}\n📈 Profit: $${profit.toLocaleString()} (${margin}% margin)`
+      message: `✅ Job logged for ${customerName}!\n\n💰 Revenue: $${revenue.toLocaleString()}\n📦 Expenses: $${totalExpenses.toLocaleString()}\n📈 Profit: $${profit.toLocaleString()} (${margin}% margin)`
     }
   } catch (error) {
     console.error('Error creating job:', error)
@@ -340,7 +380,50 @@ async function getPendingFollowUps(args: Record<string, unknown>, dyiaUserId: st
 async function suggestQuotePrice(args: Record<string, unknown>, dyiaUserId: string): Promise<HandlerResult> {
   const supabase = getSupabase()
   try {
-    // Get user's default price template
+    const jobDescription = args.job_description as string
+    const factors = (args.factors as string[]) || []
+    const desc = jobDescription.toLowerCase()
+    
+    // =============================================
+    // STEP 1: Try to find similar historical jobs first
+    // =============================================
+    const similarResult = await findSimilarJobs({ description: jobDescription, limit: 5 }, dyiaUserId)
+    const similarJobs = (similarResult.data?.jobs || []) as Array<{ revenue: number; profit_margin: number; customer_name: string; date: string }>
+    
+    // If we have enough similar jobs (3+), use history-based pricing
+    if (similarJobs.length >= 3) {
+      const revenues = similarJobs.map(j => Number(j.revenue))
+      const avgRevenue = revenues.reduce((a, b) => a + b, 0) / revenues.length
+      const minRevenue = Math.min(...revenues)
+      const maxRevenue = Math.max(...revenues)
+      const avgMargin = similarJobs.reduce((sum, j) => sum + Number(j.profit_margin), 0) / similarJobs.length
+      
+      // Calculate range based on historical data with some padding
+      const historyLow = Math.round(minRevenue * 0.95)
+      const historyHigh = Math.round(maxRevenue * 1.05)
+      
+      // Build example list
+      const examples = similarJobs.slice(0, 3).map(j => 
+        `• ${j.customer_name}: $${Number(j.revenue).toLocaleString()} - ${new Date(j.date).toLocaleDateString()}`
+      ).join('\n')
+      
+      return {
+        success: true,
+        data: {
+          suggestedLow: historyLow,
+          suggestedHigh: historyHigh,
+          avgRevenue: Math.round(avgRevenue),
+          avgMargin: Math.round(avgMargin),
+          similarJobs: similarJobs.length,
+          pricingMethod: 'history'
+        },
+        message: `💰 **Based on Your History**\n\n**$${historyLow.toLocaleString()} - $${historyHigh.toLocaleString()}**\n\n📊 Found ${similarJobs.length} similar jobs:\n${examples}\n\n**Average:** $${Math.round(avgRevenue).toLocaleString()} at **${Math.round(avgMargin)}% margin**\n\n💡 Price based on your actual job history!`
+      }
+    }
+    
+    // =============================================
+    // STEP 2: Fall back to template-based pricing
+    // =============================================
     const { data: template } = await supabase
       .from('dyia_price_templates')
       .select('prices')
@@ -358,8 +441,6 @@ async function suggestQuotePrice(args: Record<string, unknown>, dyiaUserId: stri
       surcharges: { trampoline: 100, hotTub: 200, piano: 150 }
     }
 
-    const desc = (args.job_description as string).toLowerCase()
-    const factors = (args.factors as string[]) || []
     let baseLow = prices.minimumFee || 75
     let baseHigh = prices.minimumFee || 75
     const appliedFactors: string[] = []
@@ -426,15 +507,22 @@ async function suggestQuotePrice(args: Record<string, unknown>, dyiaUserId: stri
 
     const suggestedLow = Math.round(baseLow)
     const suggestedHigh = Math.round(baseHigh)
+    
+    // Include a note about building history if we have some but not enough similar jobs
+    const historyNote = similarJobs.length > 0 
+      ? `\n\n📈 Found ${similarJobs.length} similar job${similarJobs.length === 1 ? '' : 's'} in your history. Log more jobs to get personalized pricing!`
+      : '\n\n📈 Log more jobs to get pricing suggestions based on your actual history!'
 
     return {
       success: true,
       data: {
         suggestedLow,
         suggestedHigh,
-        factors: appliedFactors
+        factors: appliedFactors,
+        similarJobsFound: similarJobs.length,
+        pricingMethod: 'template'
       },
-      message: `💰 **Suggested Price Range**\n\n**$${suggestedLow.toLocaleString()} - $${suggestedHigh.toLocaleString()}**\n\n${appliedFactors.length > 0 ? `📋 Factors considered:\n• ${appliedFactors.join('\n• ')}\n\n` : ''}💡 Adjust based on specific job conditions, customer budget, and your availability.`
+      message: `💰 **Suggested Price Range**\n\n**$${suggestedLow.toLocaleString()} - $${suggestedHigh.toLocaleString()}**\n\n${appliedFactors.length > 0 ? `📋 Factors considered:\n• ${appliedFactors.join('\n• ')}\n\n` : ''}💡 Based on your pricing template.${historyNote}`
     }
   } catch (error) {
     console.error('Error suggesting price:', error)
@@ -759,6 +847,879 @@ async function getBusinessSummary(args: Record<string, unknown>, dyiaUserId: str
 }
 
 // =============================================
+// PROPOSAL HANDLERS (Return data for user confirmation)
+// =============================================
+
+async function proposeJob(args: Record<string, unknown>): Promise<HandlerResult> {
+  try {
+    const today = new Date().toISOString().split('T')[0]
+    
+    // Build confidence levels based on what was explicitly provided vs inferred
+    const confidence: Partial<Record<keyof Omit<JobProposal, 'confidence'>, ConfidenceLevel>> = {}
+    
+    // Date confidence
+    confidence.date = args.date && args.date !== today ? 'high' : 'inferred'
+    
+    // Customer name is always explicit if provided
+    confidence.customerName = args.customer_name ? 'high' : 'medium'
+    
+    // Revenue
+    confidence.revenue = typeof args.revenue === 'number' && args.revenue > 0 ? 'high' : 'medium'
+    
+    // Expenses - check which ones were explicitly mentioned
+    confidence.labor = typeof args.labor === 'number' && args.labor > 0 ? 'high' : 'inferred'
+    confidence.gas = typeof args.gas === 'number' && args.gas > 0 ? 'high' : 'inferred'
+    confidence.dumpFee = typeof args.dump_fee === 'number' && args.dump_fee > 0 ? 'high' : 'inferred'
+    confidence.dumpsterRental = typeof args.dumpster_rental === 'number' && args.dumpster_rental > 0 ? 'high' : 'inferred'
+    confidence.additionalExpense = typeof args.additional_expense === 'number' && args.additional_expense > 0 ? 'high' : 'inferred'
+    
+    // Workers
+    confidence.numWorkers = typeof args.num_workers === 'number' && args.num_workers !== 1 ? 'high' : 'inferred'
+    confidence.costPerWorker = typeof args.cost_per_worker === 'number' && args.cost_per_worker > 0 ? 'high' : 'inferred'
+    
+    // Source
+    confidence.source = args.source && args.source !== 'Unknown' ? 'high' : 'inferred'
+    
+    // Notes
+    confidence.notes = args.notes && (args.notes as string).length > 5 ? 'high' : 'inferred'
+
+    const proposal: JobProposal = {
+      date: (args.date as string) || today,
+      customerName: (args.customer_name as string) || 'Unknown Customer',
+      source: (args.source as string) || 'Unknown',
+      revenue: (args.revenue as number) || 0,
+      labor: (args.labor as number) || 0,
+      gas: (args.gas as number) || 0,
+      dumpFee: (args.dump_fee as number) || 0,
+      dumpsterRental: (args.dumpster_rental as number) || 0,
+      additionalExpense: (args.additional_expense as number) || 0,
+      numWorkers: (args.num_workers as number) || 1,
+      costPerWorker: (args.cost_per_worker as number) || 0,
+      notes: (args.notes as string) || '',
+      confidence
+    }
+
+    // Calculate profit for display
+    const totalExpenses = proposal.labor + proposal.gas + proposal.dumpFee + 
+                          proposal.dumpsterRental + proposal.additionalExpense +
+                          (proposal.numWorkers * proposal.costPerWorker)
+    const profit = proposal.revenue - totalExpenses
+    const margin = proposal.revenue > 0 ? Math.round((profit / proposal.revenue) * 100) : 0
+
+    return {
+      success: true,
+      data: {
+        proposal,
+        calculatedProfit: profit,
+        calculatedMargin: margin,
+        totalExpenses
+      },
+      message: `I've extracted the job details. Please review and confirm:`,
+      pendingAction: {
+        type: 'create_job',
+        proposal
+      }
+    }
+  } catch (error) {
+    console.error('Error proposing job:', error)
+    return {
+      success: false,
+      error: String(error),
+      message: 'Failed to extract job details. Please try again.'
+    }
+  }
+}
+
+async function proposeQuote(args: Record<string, unknown>): Promise<HandlerResult> {
+  try {
+    // Build confidence levels
+    const confidence: Partial<Record<keyof Omit<QuoteProposal, 'confidence'>, ConfidenceLevel>> = {}
+    
+    confidence.customerName = args.customer_name ? 'high' : 'medium'
+    confidence.customerPhone = args.customer_phone && (args.customer_phone as string).length > 0 ? 'high' : 'inferred'
+    confidence.customerEmail = args.customer_email && (args.customer_email as string).length > 0 ? 'high' : 'inferred'
+    confidence.customerAddress = args.customer_address && (args.customer_address as string).length > 0 ? 'high' : 'inferred'
+    confidence.jobDescription = args.job_description ? 'high' : 'medium'
+    confidence.estimateLow = typeof args.estimate_low === 'number' ? 'high' : 'medium'
+    confidence.estimateHigh = typeof args.estimate_high === 'number' ? 'high' : 'medium'
+
+    const proposal: QuoteProposal = {
+      customerName: (args.customer_name as string) || 'Unknown Customer',
+      customerPhone: (args.customer_phone as string) || '',
+      customerEmail: (args.customer_email as string) || '',
+      customerAddress: (args.customer_address as string) || '',
+      jobDescription: (args.job_description as string) || '',
+      estimateLow: (args.estimate_low as number) || 0,
+      estimateHigh: (args.estimate_high as number) || 0,
+      confidence
+    }
+
+    return {
+      success: true,
+      data: { proposal },
+      message: `I've prepared the quote. Please review and confirm:`,
+      pendingAction: {
+        type: 'generate_quote',
+        proposal
+      }
+    }
+  } catch (error) {
+    console.error('Error proposing quote:', error)
+    return {
+      success: false,
+      error: String(error),
+      message: 'Failed to extract quote details. Please try again.'
+    }
+  }
+}
+
+async function getUserContext(args: Record<string, unknown>, dyiaUserId: string): Promise<HandlerResult> {
+  const supabase = getSupabase()
+  try {
+    const includeRecentJobs = Math.min(Math.max((args.include_recent_jobs as number) || 5, 0), 10)
+
+    // Refresh user patterns in background (fire and forget)
+    updateUserPatterns(dyiaUserId).catch(err => 
+      console.error('[Patterns] Background update failed:', err)
+    )
+
+    // Get user profile for name
+    const { data: userProfile } = await supabase
+      .from('dyia_users')
+      .select('first_name, last_name')
+      .eq('id', dyiaUserId)
+      .single()
+
+    // Get user settings
+    const { data: settings } = await supabase
+      .from('dyia_settings')
+      .select('*')
+      .eq('user_id', dyiaUserId)
+      .single()
+
+    // Get default price template
+    const { data: template } = await supabase
+      .from('dyia_price_templates')
+      .select('*')
+      .eq('user_id', dyiaUserId)
+      .eq('is_default', true)
+      .single()
+
+    // Get recent jobs
+    const { data: jobs } = await supabase
+      .from('dyia_jobs')
+      .select('customer_name, revenue, date, source')
+      .eq('user_id', dyiaUserId)
+      .order('date', { ascending: false })
+      .limit(includeRecentJobs)
+
+    // Get total pending follow-ups count
+    const { count: pendingFollowUps } = await supabase
+      .from('dyia_follow_ups')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', dyiaUserId)
+      .in('status', ['pending', 'contacted'])
+
+    // Get hot follow-ups count (quotes from last 3 days)
+    const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString()
+    const { count: hotFollowUps } = await supabase
+      .from('dyia_follow_ups')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', dyiaUserId)
+      .eq('status', 'pending')
+      .gte('created_at', threeDaysAgo)
+
+    // Determine missing fields that should be filled in
+    const missingFields: string[] = []
+    if (!settings?.business_name) missingFields.push('business_name')
+    if (!settings?.business_phone) missingFields.push('business_phone')
+    if (!settings?.business_email) missingFields.push('business_email')
+    if (!settings?.business_address) missingFields.push('business_address')
+    if (!settings?.tax_percentage) missingFields.push('tax_percentage')
+    if (!settings?.monthly_goal) missingFields.push('monthly_goal')
+
+    const userName = userProfile?.first_name || undefined
+
+    const userContext: UserContext = {
+      settings: {
+        businessName: settings?.business_name || undefined,
+        businessPhone: settings?.business_phone || undefined,
+        businessEmail: settings?.business_email || undefined,
+        businessAddress: settings?.business_address || undefined,
+        taxPercentage: settings?.tax_percentage || 0,
+        monthlyGoal: settings?.monthly_goal || 0
+      },
+      defaultPriceTemplate: template ? {
+        id: template.id,
+        name: template.name,
+        isDefault: template.is_default,
+        prices: template.prices
+      } : undefined,
+      recentJobs: (jobs || []).map(job => ({
+        customerName: job.customer_name,
+        revenue: parseFloat(job.revenue) || 0,
+        date: job.date,
+        source: job.source || undefined
+      })),
+      missingFields
+    }
+
+    // Build a friendly context message
+    let contextMessage = ''
+    
+    // Personalized greeting
+    if (userName) {
+      contextMessage = `Hey ${userName}! `
+    }
+    
+    // Business context summary
+    if (userContext.settings.businessName) {
+      contextMessage += `Here's the context for ${userContext.settings.businessName}:\n\n`
+    } else {
+      contextMessage += `Here's your business context:\n\n`
+    }
+    
+    // Key stats
+    if (userContext.settings.monthlyGoal > 0) {
+      contextMessage += `🎯 Monthly Goal: $${userContext.settings.monthlyGoal.toLocaleString()}\n`
+    }
+    
+    if (userContext.settings.taxPercentage > 0) {
+      contextMessage += `💵 Tax Set-aside: ${userContext.settings.taxPercentage}%\n`
+    }
+
+    // Recent activity
+    if (userContext.recentJobs.length > 0) {
+      const totalRecent = userContext.recentJobs.reduce((sum, j) => sum + j.revenue, 0)
+      contextMessage += `📊 Recent Jobs: ${userContext.recentJobs.length} ($${totalRecent.toLocaleString()} revenue)\n`
+    }
+
+    // Follow-ups alert
+    if ((pendingFollowUps || 0) > 0) {
+      if ((hotFollowUps || 0) > 0) {
+        contextMessage += `\n🔥 **${hotFollowUps} hot follow-ups** waiting (${pendingFollowUps} total pending)\n`
+      } else {
+        contextMessage += `\n📞 ${pendingFollowUps} pending follow-ups\n`
+      }
+    }
+
+    // Missing info note
+    if (missingFields.length > 0) {
+      const friendlyFields = missingFields.map(f => f.replace(/_/g, ' ')).slice(0, 2)
+      contextMessage += `\n💡 Tip: Add your ${friendlyFields.join(' and ')} to personalize quotes.`
+    }
+
+    return {
+      success: true,
+      data: { 
+        context: userContext,
+        userName,
+        pendingFollowUps: pendingFollowUps || 0,
+        hotFollowUps: hotFollowUps || 0
+      },
+      message: contextMessage
+    }
+  } catch (error) {
+    console.error('Error getting user context:', error)
+    return {
+      success: false,
+      error: String(error),
+      message: 'Failed to load your business context.'
+    }
+  }
+}
+
+// =============================================
+// SIMILARITY SEARCH HANDLER
+// =============================================
+
+async function findSimilarJobs(args: Record<string, unknown>, dyiaUserId: string): Promise<HandlerResult> {
+  const supabase = getSupabase()
+  try {
+    const description = args.description as string
+    const limit = Math.min(Math.max((args.limit as number) || 5, 1), 10)
+    
+    // Generate embedding for the search query
+    const queryEmbedding = await generateEmbedding(description)
+    
+    // Format embedding as vector string for pgvector: '[0.1, 0.2, ...]'
+    const vectorString = `[${queryEmbedding.join(',')}]`
+    
+    // Similarity search using pgvector's match_jobs function
+    const { data: similarJobs, error } = await supabase.rpc('match_jobs', {
+      query_embedding: vectorString,
+      match_user_id: dyiaUserId,
+      match_count: limit,
+      match_threshold: 0.5 // Lower threshold to get more results
+    })
+    
+    if (error) {
+      console.error('Similarity search error:', error)
+      // Fall back to keyword-based search if vector search fails
+      const { data: fallbackJobs } = await supabase
+        .from('dyia_jobs')
+        .select('id, customer_name, notes, revenue, labor, gas, dump_fee, dumpster_rental, additional_expense, date, source')
+        .eq('user_id', dyiaUserId)
+        .ilike('notes', `%${description.split(' ')[0]}%`)
+        .order('date', { ascending: false })
+        .limit(limit)
+      
+      if (!fallbackJobs?.length) {
+        return {
+          success: true,
+          data: { jobs: [], avgRevenue: 0, avgMargin: 0, searchMethod: 'fallback' },
+          message: `No similar jobs found for "${description}". As you log more jobs, I'll be able to give you better suggestions based on your history.`
+        }
+      }
+      
+      const jobsWithMargin = fallbackJobs.map(j => {
+        const expenses = (j.labor || 0) + (j.gas || 0) + (j.dump_fee || 0) + (j.dumpster_rental || 0) + (j.additional_expense || 0)
+        const margin = j.revenue > 0 ? ((j.revenue - expenses) / j.revenue * 100) : 0
+        return { ...j, profit_margin: margin, similarity: 0.5 }
+      })
+      
+      const avgRevenue = jobsWithMargin.reduce((sum, j) => sum + j.revenue, 0) / jobsWithMargin.length
+      const avgMargin = jobsWithMargin.reduce((sum, j) => sum + j.profit_margin, 0) / jobsWithMargin.length
+      
+      return {
+        success: true,
+        data: { jobs: jobsWithMargin, avgRevenue, avgMargin, searchMethod: 'keyword' },
+        message: `Found ${jobsWithMargin.length} potentially similar jobs. Average revenue: **$${avgRevenue.toFixed(0)}**, Average margin: **${avgMargin.toFixed(0)}%**`
+      }
+    }
+    
+    if (!similarJobs?.length) {
+      return {
+        success: true,
+        data: { jobs: [], avgRevenue: 0, avgMargin: 0, searchMethod: 'vector' },
+        message: `No similar jobs found for "${description}". As you log more jobs with detailed notes, I'll be able to find better matches.`
+      }
+    }
+    
+    const avgRevenue = similarJobs.reduce((sum: number, j: { revenue: number }) => sum + Number(j.revenue), 0) / similarJobs.length
+    const avgMargin = similarJobs.reduce((sum: number, j: { profit_margin: number }) => sum + Number(j.profit_margin), 0) / similarJobs.length
+    
+    // Build a nice response message
+    const jobList = similarJobs.slice(0, 3).map((j: { customer_name: string; revenue: number; profit_margin: number; date: string }) => 
+      `• ${j.customer_name}: $${Number(j.revenue).toLocaleString()} (${Number(j.profit_margin).toFixed(0)}% margin) - ${new Date(j.date).toLocaleDateString()}`
+    ).join('\n')
+    
+    return {
+      success: true,
+      data: { jobs: similarJobs, avgRevenue, avgMargin, searchMethod: 'vector' },
+      message: `Found **${similarJobs.length} similar jobs** 📊\n\n**Average revenue:** $${avgRevenue.toFixed(0)}\n**Average margin:** ${avgMargin.toFixed(0)}%\n\nTop matches:\n${jobList}`
+    }
+  } catch (error) {
+    console.error('Error finding similar jobs:', error)
+    return {
+      success: false,
+      error: String(error),
+      message: 'Had trouble searching your job history. Try describing the job differently.'
+    }
+  }
+}
+
+// =============================================
+// USER PATTERN CACHING (Internal Helper)
+// =============================================
+
+/**
+ * Calculate and cache user patterns for faster lookups
+ * Called internally when fetching context or on demand
+ */
+async function updateUserPatterns(dyiaUserId: string): Promise<void> {
+  const supabase = getSupabase()
+  
+  try {
+    // Get all user jobs from last 6 months
+    const sixMonthsAgo = new Date()
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6)
+    
+    const { data: jobs } = await supabase
+      .from('dyia_jobs')
+      .select('*')
+      .eq('user_id', dyiaUserId)
+      .gte('date', sixMonthsAgo.toISOString().split('T')[0])
+    
+    if (!jobs || jobs.length < 5) return // Not enough data
+    
+    // Calculate pricing patterns by source
+    const sourceStats: Record<string, { count: number; totalRevenue: number; totalProfit: number }> = {}
+    
+    for (const job of jobs) {
+      const source = job.source || 'Unknown'
+      const revenue = Number(job.revenue) || 0
+      const expenses = (Number(job.labor) || 0) + (Number(job.gas) || 0) + 
+                       (Number(job.dump_fee) || 0) + (Number(job.dumpster_rental) || 0) + 
+                       (Number(job.additional_expense) || 0)
+      const profit = revenue - expenses
+      
+      if (!sourceStats[source]) {
+        sourceStats[source] = { count: 0, totalRevenue: 0, totalProfit: 0 }
+      }
+      sourceStats[source].count++
+      sourceStats[source].totalRevenue += revenue
+      sourceStats[source].totalProfit += profit
+    }
+    
+    // Calculate averages
+    const pricingPatterns = Object.entries(sourceStats).map(([source, stats]) => ({
+      source,
+      jobCount: stats.count,
+      avgRevenue: Math.round(stats.totalRevenue / stats.count),
+      avgProfit: Math.round(stats.totalProfit / stats.count),
+      avgMargin: Math.round((stats.totalProfit / stats.totalRevenue) * 100)
+    })).sort((a, b) => b.jobCount - a.jobCount)
+    
+    // Calculate overall stats
+    const totalRevenue = jobs.reduce((sum, j) => sum + (Number(j.revenue) || 0), 0)
+    const avgJobRevenue = Math.round(totalRevenue / jobs.length)
+    
+    // Store pricing patterns
+    await supabase
+      .from('dyia_user_patterns')
+      .upsert({
+        user_id: dyiaUserId,
+        pattern_type: 'pricing',
+        pattern_data: {
+          avgJobRevenue,
+          totalJobs: jobs.length,
+          bySource: pricingPatterns,
+          lastUpdated: new Date().toISOString()
+        },
+        calculated_at: new Date().toISOString()
+      }, { onConflict: 'user_id,pattern_type' })
+    
+    // Get follow-up data for conversion patterns
+    const { data: followUps } = await supabase
+      .from('dyia_follow_ups')
+      .select('status, created_at, updated_at, contact_count')
+      .eq('user_id', dyiaUserId)
+    
+    if (followUps && followUps.length >= 5) {
+      const converted = followUps.filter(f => f.status === 'converted')
+      const lost = followUps.filter(f => f.status === 'lost')
+      const total = converted.length + lost.length
+      
+      const conversionPatterns = {
+        conversionRate: total > 0 ? Math.round((converted.length / total) * 100) : 30,
+        avgDaysToConvert: converted.length > 0 
+          ? Math.round(converted.reduce((sum, f) => {
+              const days = (new Date(f.updated_at).getTime() - new Date(f.created_at).getTime()) / (1000 * 60 * 60 * 24)
+              return sum + days
+            }, 0) / converted.length)
+          : 5,
+        avgContactsToConvert: converted.length > 0
+          ? Math.round(converted.reduce((sum, f) => sum + (f.contact_count || 1), 0) / converted.length * 10) / 10
+          : 2,
+        totalConverted: converted.length,
+        totalLost: lost.length,
+        lastUpdated: new Date().toISOString()
+      }
+      
+      await supabase
+        .from('dyia_user_patterns')
+        .upsert({
+          user_id: dyiaUserId,
+          pattern_type: 'conversions',
+          pattern_data: conversionPatterns,
+          calculated_at: new Date().toISOString()
+        }, { onConflict: 'user_id,pattern_type' })
+    }
+    
+    console.log(`[Patterns] Updated patterns for user ${dyiaUserId}`)
+  } catch (error) {
+    console.error(`[Patterns] Failed to update patterns for user ${dyiaUserId}:`, error)
+  }
+}
+
+// =============================================
+// REVENUE FORECASTING HANDLER
+// =============================================
+
+async function getRevenueForecast(args: Record<string, unknown>, dyiaUserId: string): Promise<HandlerResult> {
+  const supabase = getSupabase()
+  try {
+    const period = args.period as 'this_week' | 'this_month' | 'next_week' | 'next_month'
+    const now = new Date()
+    
+    // Calculate date ranges for historical analysis
+    const getWeekStart = (date: Date) => {
+      const d = new Date(date)
+      const day = d.getDay()
+      const diff = d.getDate() - day + (day === 0 ? -6 : 1)
+      return new Date(d.setDate(diff))
+    }
+    
+    const thisWeekStart = getWeekStart(now)
+    const lastWeekStart = new Date(thisWeekStart)
+    lastWeekStart.setDate(lastWeekStart.getDate() - 7)
+    const twoWeeksAgoStart = new Date(lastWeekStart)
+    twoWeeksAgoStart.setDate(twoWeeksAgoStart.getDate() - 7)
+    
+    const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+    const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+    const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0)
+    const twoMonthsAgoStart = new Date(now.getFullYear(), now.getMonth() - 2, 1)
+    const twoMonthsAgoEnd = new Date(now.getFullYear(), now.getMonth() - 1, 0)
+    
+    // Fetch historical job data (last 3 months)
+    const threeMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 3, 1)
+    const { data: historicalJobs } = await supabase
+      .from('dyia_jobs')
+      .select('date, revenue')
+      .eq('user_id', dyiaUserId)
+      .gte('date', threeMonthsAgo.toISOString().split('T')[0])
+      .order('date', { ascending: true })
+    
+    if (!historicalJobs || historicalJobs.length < 5) {
+      return {
+        success: true,
+        data: { insufficient_data: true },
+        message: `📊 **Not enough data for forecasting yet**\n\nI need at least 5 jobs to make predictions. You have ${historicalJobs?.length || 0} jobs in the last 3 months.\n\nKeep logging jobs and I'll be able to forecast your revenue soon!`
+      }
+    }
+    
+    // Calculate metrics by period
+    const calcPeriodRevenue = (jobs: typeof historicalJobs, start: Date, end: Date) => {
+      return jobs
+        .filter(j => {
+          const d = new Date(j.date)
+          return d >= start && d <= end
+        })
+        .reduce((sum, j) => sum + Number(j.revenue), 0)
+    }
+    
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const _calcPeriodJobCount = (jobs: typeof historicalJobs, start: Date, end: Date) => {
+      return jobs.filter(j => {
+        const d = new Date(j.date)
+        return d >= start && d <= end
+      }).length
+    }
+    
+    let forecastedRevenue: number
+    let confidence: 'high' | 'medium' | 'low'
+    let reasoning: string
+    let currentProgress: number | null = null
+    let daysRemaining: number | null = null
+    
+    if (period === 'this_week' || period === 'next_week') {
+      // Weekly forecasting
+      const lastWeekRevenue = calcPeriodRevenue(historicalJobs, lastWeekStart, thisWeekStart)
+      const twoWeeksAgoRevenue = calcPeriodRevenue(historicalJobs, twoWeeksAgoStart, lastWeekStart)
+      const thisWeekSoFar = calcPeriodRevenue(historicalJobs, thisWeekStart, now)
+      
+      // Average of last 2 weeks
+      const weeklyAverage = (lastWeekRevenue + twoWeeksAgoRevenue) / 2
+      
+      // Trend (is revenue growing or shrinking?)
+      const trend = lastWeekRevenue > 0 ? (lastWeekRevenue - twoWeeksAgoRevenue) / twoWeeksAgoRevenue : 0
+      
+      if (period === 'this_week') {
+        // How many days into the week are we?
+        const dayOfWeek = now.getDay() || 7 // Sunday = 7
+        daysRemaining = 7 - dayOfWeek
+        const daysPassed = dayOfWeek
+        
+        // Project based on current pace
+        const dailyPace = daysPassed > 0 ? thisWeekSoFar / daysPassed : 0
+        const pacedForecast = thisWeekSoFar + (dailyPace * daysRemaining)
+        
+        // Blend with historical average
+        forecastedRevenue = Math.round((pacedForecast * 0.6) + (weeklyAverage * 0.4))
+        currentProgress = thisWeekSoFar
+        confidence = daysPassed >= 3 ? 'high' : 'medium'
+        reasoning = `Based on your current pace ($${Math.round(dailyPace).toLocaleString()}/day) and last 2 weeks avg ($${Math.round(weeklyAverage).toLocaleString()})`
+      } else {
+        // Next week: use trend-adjusted average
+        forecastedRevenue = Math.round(weeklyAverage * (1 + (trend * 0.5)))
+        confidence = Math.abs(trend) < 0.2 ? 'medium' : 'low'
+        reasoning = `Based on 2-week average${trend > 0.1 ? ' with upward trend' : trend < -0.1 ? ' with downward trend' : ''}`
+      }
+    } else {
+      // Monthly forecasting
+      const lastMonthRevenue = calcPeriodRevenue(historicalJobs, lastMonthStart, lastMonthEnd)
+      const twoMonthsAgoRevenue = calcPeriodRevenue(historicalJobs, twoMonthsAgoStart, twoMonthsAgoEnd)
+      const thisMonthSoFar = calcPeriodRevenue(historicalJobs, thisMonthStart, now)
+      
+      // Average of last 2 months
+      const monthlyAverage = (lastMonthRevenue + twoMonthsAgoRevenue) / 2
+      
+      // Trend
+      const trend = twoMonthsAgoRevenue > 0 ? (lastMonthRevenue - twoMonthsAgoRevenue) / twoMonthsAgoRevenue : 0
+      
+      if (period === 'this_month') {
+        // How many days into the month are we?
+        const dayOfMonth = now.getDate()
+        const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()
+        daysRemaining = daysInMonth - dayOfMonth
+        
+        // Project based on current pace
+        const dailyPace = dayOfMonth > 0 ? thisMonthSoFar / dayOfMonth : 0
+        const pacedForecast = thisMonthSoFar + (dailyPace * daysRemaining)
+        
+        // Blend with historical average (more weight to pace as month progresses)
+        const paceWeight = Math.min(dayOfMonth / daysInMonth + 0.3, 0.8)
+        forecastedRevenue = Math.round((pacedForecast * paceWeight) + (monthlyAverage * (1 - paceWeight)))
+        currentProgress = thisMonthSoFar
+        confidence = dayOfMonth >= 15 ? 'high' : dayOfMonth >= 7 ? 'medium' : 'low'
+        reasoning = `Based on your current pace ($${Math.round(dailyPace * 30).toLocaleString()}/mo) and historical average`
+      } else {
+        // Next month: use trend-adjusted average
+        forecastedRevenue = Math.round(monthlyAverage * (1 + (trend * 0.5)))
+        confidence = Math.abs(trend) < 0.15 ? 'medium' : 'low'
+        reasoning = `Based on 2-month average${trend > 0.1 ? ' with upward trend' : trend < -0.1 ? ' with downward trend' : ''}`
+      }
+    }
+    
+    // Build response message
+    const confidenceEmoji = confidence === 'high' ? '🎯' : confidence === 'medium' ? '📊' : '🔮'
+    const periodLabel = period.replace('_', ' ').replace('this', 'This').replace('next', 'Next')
+    
+    let message = `${confidenceEmoji} **${periodLabel} Forecast**\n\n`
+    message += `**Projected Revenue:** $${forecastedRevenue.toLocaleString()}\n`
+    
+    if (currentProgress !== null) {
+      message += `**So far:** $${currentProgress.toLocaleString()}\n`
+      message += `**Remaining to hit forecast:** $${(forecastedRevenue - currentProgress).toLocaleString()}`
+      if (daysRemaining !== null && daysRemaining > 0) {
+        message += ` (${daysRemaining} days left)\n`
+      } else {
+        message += '\n'
+      }
+    }
+    
+    message += `\n*${reasoning}*\n`
+    message += `\n**Confidence:** ${confidence.charAt(0).toUpperCase() + confidence.slice(1)}`
+    
+    return {
+      success: true,
+      data: {
+        period,
+        forecastedRevenue,
+        currentProgress,
+        daysRemaining,
+        confidence,
+        reasoning
+      },
+      message
+    }
+  } catch (error) {
+    console.error('Error forecasting revenue:', error)
+    return {
+      success: false,
+      error: String(error),
+      message: 'Had trouble calculating the forecast. Try again in a moment.'
+    }
+  }
+}
+
+// =============================================
+// FOLLOW-UP RISK ANALYSIS HANDLER
+// =============================================
+
+async function getFollowUpRiskAnalysis(args: Record<string, unknown>, dyiaUserId: string): Promise<HandlerResult> {
+  const supabase = getSupabase()
+  try {
+    const includeAll = args.include_all as boolean
+    
+    // Get pending follow-ups with quote details
+    const { data: followUps, error } = await supabase
+      .from('dyia_follow_ups')
+      .select(`
+        id,
+        status,
+        created_at,
+        contact_count,
+        last_contact_at,
+        notes,
+        quote:dyia_quotes (
+          id,
+          customer_name,
+          estimate_low,
+          estimate_high,
+          job_description,
+          created_at
+        )
+      `)
+      .eq('user_id', dyiaUserId)
+      .in('status', ['pending', 'contacted', 'snoozed'])
+      .order('created_at', { ascending: true })
+    
+    if (error) throw error
+    
+    if (!followUps || followUps.length === 0) {
+      return {
+        success: true,
+        data: { followUps: [], summary: {} },
+        message: '✅ **No pending follow-ups!**\n\nAll your quotes have been followed up on. Nice work staying on top of things!'
+      }
+    }
+    
+    // Get historical conversion data for this user
+    const { data: convertedFollowUps } = await supabase
+      .from('dyia_follow_ups')
+      .select('created_at, updated_at, status, contact_count')
+      .eq('user_id', dyiaUserId)
+      .eq('status', 'converted')
+    
+    // Calculate user's average conversion metrics
+    let avgDaysToConvert = 3 // default
+    let avgContactsToConvert = 2 // default
+    let conversionRate = 0.3 // default 30%
+    
+    if (convertedFollowUps && convertedFollowUps.length >= 3) {
+      const conversionTimes = convertedFollowUps.map(f => {
+        const created = new Date(f.created_at)
+        const updated = new Date(f.updated_at)
+        return (updated.getTime() - created.getTime()) / (1000 * 60 * 60 * 24)
+      })
+      avgDaysToConvert = conversionTimes.reduce((a, b) => a + b, 0) / conversionTimes.length
+      // Track contacts for future use
+      avgContactsToConvert = convertedFollowUps.reduce((sum, f) => sum + (f.contact_count || 1), 0) / convertedFollowUps.length
+      void avgContactsToConvert // Will be used when expanding conversion insights
+      
+      // Calculate conversion rate
+      const { count: totalFollowUps } = await supabase
+        .from('dyia_follow_ups')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', dyiaUserId)
+        .in('status', ['converted', 'lost'])
+      
+      if (totalFollowUps && totalFollowUps > 0) {
+        conversionRate = convertedFollowUps.length / totalFollowUps
+      }
+    }
+    
+    // Analyze each follow-up for risk
+    const now = new Date()
+    type QuoteData = { id: string; customer_name: string; estimate_low: number; estimate_high: number; job_description: string; created_at: string }
+    const analyzedFollowUps = followUps.map(f => {
+      // Supabase returns the joined quote as a single object (not an array) for single relations
+      const quoteData = f.quote as unknown as QuoteData | null
+      const createdAt = new Date(f.created_at)
+      const daysSinceCreated = (now.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24)
+      const contactCount = f.contact_count || 0
+      
+      // Calculate conversion probability
+      // Decreases with time, increases with contact attempts (up to a point)
+      let conversionProbability: number
+      
+      if (daysSinceCreated <= 3) {
+        // Fresh quote - high probability
+        conversionProbability = 0.6 - (daysSinceCreated * 0.05)
+      } else if (daysSinceCreated <= 7) {
+        // Warm quote - medium probability
+        conversionProbability = 0.45 - ((daysSinceCreated - 3) * 0.05)
+      } else if (daysSinceCreated <= 14) {
+        // Getting cold
+        conversionProbability = 0.2 - ((daysSinceCreated - 7) * 0.02)
+      } else {
+        // Cold quote
+        conversionProbability = Math.max(0.05, 0.1 - ((daysSinceCreated - 14) * 0.005))
+      }
+      
+      // Adjust for contact attempts
+      if (contactCount > 0 && contactCount <= 3) {
+        conversionProbability *= (1 + (contactCount * 0.1))
+      } else if (contactCount > 3) {
+        conversionProbability *= 0.8 // Over-contact penalty
+      }
+      
+      // Adjust based on user's historical conversion rate
+      conversionProbability *= (conversionRate / 0.3) // Normalize to their actual rate
+      conversionProbability = Math.min(0.95, Math.max(0.02, conversionProbability))
+      
+      // Determine risk level
+      let riskLevel: 'critical' | 'high' | 'medium' | 'low'
+      if (daysSinceCreated > 10 || conversionProbability < 0.1) {
+        riskLevel = 'critical'
+      } else if (daysSinceCreated > 7 || conversionProbability < 0.2) {
+        riskLevel = 'high'
+      } else if (daysSinceCreated > 3 || conversionProbability < 0.4) {
+        riskLevel = 'medium'
+      } else {
+        riskLevel = 'low'
+      }
+      
+      return {
+        ...f,
+        quote: quoteData,
+        daysSinceCreated: Math.round(daysSinceCreated),
+        conversionProbability: Math.round(conversionProbability * 100),
+        riskLevel,
+        estimateValue: quoteData ? (quoteData.estimate_low + quoteData.estimate_high) / 2 : 0
+      }
+    })
+    
+    // Filter if not including all
+    const filteredFollowUps = includeAll 
+      ? analyzedFollowUps 
+      : analyzedFollowUps.filter(f => f.riskLevel === 'critical' || f.riskLevel === 'high')
+    
+    // Sort by risk (critical first)
+    const riskOrder = { critical: 0, high: 1, medium: 2, low: 3 }
+    filteredFollowUps.sort((a, b) => riskOrder[a.riskLevel] - riskOrder[b.riskLevel])
+    
+    // Calculate summary stats
+    const criticalCount = analyzedFollowUps.filter(f => f.riskLevel === 'critical').length
+    const highRiskCount = analyzedFollowUps.filter(f => f.riskLevel === 'high').length
+    const atRiskValue = analyzedFollowUps
+      .filter(f => f.riskLevel === 'critical' || f.riskLevel === 'high')
+      .reduce((sum, f) => sum + f.estimateValue, 0)
+    
+    // Build response message
+    let message = '🎯 **Follow-Up Risk Analysis**\n\n'
+    
+    if (criticalCount > 0 || highRiskCount > 0) {
+      message += `⚠️ **${criticalCount + highRiskCount} quotes at risk** ($${Math.round(atRiskValue).toLocaleString()} potential revenue)\n\n`
+    }
+    
+    // Show top priority items
+    const topItems = filteredFollowUps.slice(0, 5)
+    for (const item of topItems) {
+      const emoji = item.riskLevel === 'critical' ? '🔴' : item.riskLevel === 'high' ? '🟠' : item.riskLevel === 'medium' ? '🟡' : '🟢'
+      const customerName = item.quote?.customer_name || 'Unknown'
+      message += `${emoji} **${customerName}** - ${item.daysSinceCreated}d old, ${item.conversionProbability}% chance\n`
+    }
+    
+    if (filteredFollowUps.length > 5) {
+      message += `\n...and ${filteredFollowUps.length - 5} more\n`
+    }
+    
+    message += `\n📊 **Your stats:** ${Math.round(conversionRate * 100)}% conversion rate, avg ${Math.round(avgDaysToConvert)} days to close`
+    
+    if (criticalCount > 0) {
+      message += `\n\n💡 **Tip:** Call your critical leads TODAY - after 10 days, conversion drops to under 10%`
+    }
+    
+    return {
+      success: true,
+      data: {
+        followUps: filteredFollowUps,
+        summary: {
+          total: analyzedFollowUps.length,
+          critical: criticalCount,
+          highRisk: highRiskCount,
+          atRiskValue,
+          userConversionRate: Math.round(conversionRate * 100),
+          avgDaysToConvert: Math.round(avgDaysToConvert)
+        }
+      },
+      message
+    }
+  } catch (error) {
+    console.error('Error analyzing follow-up risk:', error)
+    return {
+      success: false,
+      error: String(error),
+      message: 'Had trouble analyzing your follow-ups. Try again in a moment.'
+    }
+  }
+}
+
+// =============================================
 // MAIN HANDLER ROUTER
 // =============================================
 
@@ -788,6 +1749,14 @@ export async function handleFunctionCall(
 
   // Route to appropriate handler
   switch (functionName) {
+    // Proposal handlers (return data for user confirmation)
+    case 'propose_job':
+      return proposeJob(args)
+    
+    case 'propose_quote':
+      return proposeQuote(args)
+
+    // Direct execution handlers
     case 'create_job':
       return createJob(args, dyiaUserId)
     
@@ -814,6 +1783,18 @@ export async function handleFunctionCall(
 
     case 'get_business_summary':
       return getBusinessSummary(args, dyiaUserId)
+
+    case 'get_user_context':
+      return getUserContext(args, dyiaUserId)
+    
+    case 'find_similar_jobs':
+      return findSimilarJobs(args, dyiaUserId)
+    
+    case 'get_revenue_forecast':
+      return getRevenueForecast(args, dyiaUserId)
+    
+    case 'get_follow_up_risk_analysis':
+      return getFollowUpRiskAnalysis(args, dyiaUserId)
     
     default:
       return {

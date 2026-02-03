@@ -4,6 +4,9 @@ import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { MessageBubble } from './MessageBubble'
 import { ThreadList } from './ThreadList'
+import { JobPreviewCard } from './JobPreviewCard'
+import { QuotePreviewCard } from './QuotePreviewCard'
+import type { JobProposal, QuoteProposal, PendingAction } from '@/types/database'
 
 interface AssistantProps {
   userId: string
@@ -15,6 +18,11 @@ export interface ToolResult {
   message: string
   data?: Record<string, unknown>
   type?: string
+  // For proposal results, this contains the pending action info
+  pendingAction?: {
+    type: 'create_job' | 'generate_quote' | 'log_expense'
+    proposal: JobProposal | QuoteProposal | Record<string, unknown>
+  }
 }
 
 export interface Message {
@@ -23,6 +31,8 @@ export interface Message {
   content: string
   timestamp: Date
   toolResults?: ToolResult[]
+  // Track if this message has a pending action that needs confirmation
+  hasPendingAction?: boolean
 }
 
 export interface Thread {
@@ -35,26 +45,34 @@ export interface Thread {
 const WELCOME_MESSAGE: Message = {
   id: 'welcome',
   role: 'assistant',
-  content: `Hey! 👋 I'm your Dyia Assistant. I can actually **do things** for you, not just chat.
+  content: `Hey! I'm **Dyia** — your business partner in your pocket.
 
-**Try saying:**
-• "Log a job for John Smith, $450 from a garage cleanout"
-• "How did I do this week?"
-• "Create a quote for a basement cleanout, $300-400"
-• "What should I charge for a hot tub removal?"
-• "Show me my follow-ups"
-• "Give me a business summary for this month"
+I don't just answer questions. I actually **do things** for you:
 
-What can I help with?`,
+• Log jobs and track your profit
+• Create and send quotes
+• Remind you to follow up
+• Suggest prices based on your history
+• Show you how your business is doing
+
+Just tell me what you need.`,
   timestamp: new Date(),
 }
 
-const QUICK_ACTIONS = [
-  { label: '📊 This week\'s stats', prompt: 'How did I do this week?' },
-  { label: '📍 Pending follow-ups', prompt: 'Show me pending follow-ups' },
-  { label: '💰 Suggest a price', prompt: 'What should I charge for a full truck load?' },
-  { label: '📋 Monthly summary', prompt: 'Give me a business summary for this month' },
+// Default quick actions (fallback)
+const DEFAULT_QUICK_ACTIONS = [
+  { id: 'stats', label: "📊 This week's stats", prompt: 'How did I do this week?', icon: '📊' },
+  { id: 'follow-ups', label: '📞 Pending follow-ups', prompt: 'Show me pending follow-ups', icon: '📞' },
+  { id: 'pricing', label: '💰 Suggest a price', prompt: 'What should I charge for a full truck load?', icon: '💰' },
+  { id: 'summary', label: '📋 Monthly summary', prompt: 'Give me a business summary for this month', icon: '📋' },
 ]
+
+interface QuickAction {
+  id: string
+  label: string
+  prompt: string
+  icon?: string
+}
 
 export function Assistant({ userId, showSuccess }: AssistantProps) {
   const [threads, setThreads] = useState<Thread[]>([])
@@ -65,6 +83,14 @@ export function Assistant({ userId, showSuccess }: AssistantProps) {
   const [isSending, setIsSending] = useState(false)
   const [showThreads, setShowThreads] = useState(false)
   const [lastResponseId, setLastResponseId] = useState<string | null>(null) // For stateful conversation
+  
+  // Dynamic quick actions fetched from API
+  const [quickActions, setQuickActions] = useState<QuickAction[]>(DEFAULT_QUICK_ACTIONS)
+  const [quickActionsLoading, setQuickActionsLoading] = useState(false)
+  
+  // Pending action state for confirmations
+  const [pendingAction, setPendingAction] = useState<PendingAction | null>(null)
+  const [isConfirming, setIsConfirming] = useState(false)
   
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
@@ -98,6 +124,43 @@ export function Assistant({ userId, showSuccess }: AssistantProps) {
 
     loadThreads()
   }, [userId])
+
+  // Track if we've fetched quick actions for this session
+  const [quickActionsFetched, setQuickActionsFetched] = useState(false)
+
+  // Fetch dynamic quick actions ONCE on mount (not on every message)
+  useEffect(() => {
+    const fetchQuickActions = async () => {
+      // Only fetch once per session
+      if (quickActionsFetched) return
+      
+      setQuickActionsLoading(true)
+      try {
+        const response = await fetch('/api/ai/quick-actions')
+        if (response.ok) {
+          const data = await response.json()
+          if (data.actions && data.actions.length > 0) {
+            // Format actions with icons in labels
+            const formattedActions = data.actions.map((a: { id: string; label: string; prompt: string; icon?: string }) => ({
+              id: a.id,
+              label: a.icon ? `${a.icon} ${a.label}` : a.label,
+              prompt: a.prompt,
+              icon: a.icon
+            }))
+            setQuickActions(formattedActions)
+          }
+        }
+        setQuickActionsFetched(true)
+      } catch (error) {
+        console.error('Error fetching quick actions:', error)
+        // Keep default actions on error
+      } finally {
+        setQuickActionsLoading(false)
+      }
+    }
+
+    fetchQuickActions()
+  }, [quickActionsFetched])
 
   // Load messages when thread changes
   useEffect(() => {
@@ -206,6 +269,9 @@ export function Assistant({ userId, showSuccess }: AssistantProps) {
         setLastResponseId(data.responseId)
       }
 
+      // Check if there's a pending action in the response
+      const pendingActionResult = data.toolResults?.find((r: ToolResult) => r.pendingAction)
+      
       // Add assistant response
       const assistantMessage: Message = {
         id: data.messageId || `resp-${Date.now()}`,
@@ -213,15 +279,42 @@ export function Assistant({ userId, showSuccess }: AssistantProps) {
         content: data.message,
         timestamp: new Date(),
         toolResults: data.toolResults,
+        hasPendingAction: !!pendingActionResult,
       }
       setMessages(prev => [...prev, assistantMessage])
 
-      // Show success if action was taken
-      if (data.toolResults?.some((r: ToolResult) => r.success)) {
-        const successActions = data.toolResults.filter((r: ToolResult) => r.success)
+      // If there's a pending action, set it up for confirmation AND save to database
+      if (pendingActionResult?.pendingAction) {
+        const action = pendingActionResult.pendingAction
+        const pendingId = `pending-${Date.now()}`
+        
+        setPendingAction({
+          id: pendingId,
+          type: action.type,
+          data: action.proposal as JobProposal | QuoteProposal,
+          status: 'pending',
+          messageId: assistantMessage.id,
+          createdAt: Date.now()
+        })
+
+        // Save to database for persistence (fire and forget)
+        fetch('/api/pending-actions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            actionType: action.type,
+            proposalData: action.proposal,
+            threadId: data.threadId || currentThreadId,
+            originalMessage: content,
+            aiResponse: data.message?.substring(0, 200)
+          })
+        }).catch(err => console.error('Failed to save pending action:', err))
+      } else if (data.toolResults?.some((r: ToolResult) => r.success && !r.pendingAction)) {
+        // Show success only for non-pending actions that completed
+        const successActions = data.toolResults.filter((r: ToolResult) => r.success && !r.pendingAction)
         if (successActions.length === 1) {
           showSuccess('Action completed!')
-        } else {
+        } else if (successActions.length > 1) {
           showSuccess(`${successActions.length} actions completed!`)
         }
       }
@@ -253,6 +346,196 @@ export function Assistant({ userId, showSuccess }: AssistantProps) {
 
   const handleQuickAction = (prompt: string) => {
     handleSend(prompt)
+  }
+
+  // Handle confirming a pending job
+  const handleConfirmJob = async (jobData: JobProposal) => {
+    if (!pendingAction || isConfirming) return
+    
+    setIsConfirming(true)
+    
+    try {
+      const response = await fetch('/api/ai/chat/confirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          actionType: 'create_job',
+          data: {
+            date: jobData.date,
+            customer_name: jobData.customerName,
+            source: jobData.source || 'Unknown',
+            revenue: jobData.revenue,
+            labor: jobData.labor,
+            gas: jobData.gas,
+            dump_fee: jobData.dumpFee,
+            dumpster_rental: jobData.dumpsterRental,
+            additional_expense: jobData.additionalExpense,
+            num_workers: jobData.numWorkers,
+            cost_per_worker: jobData.costPerWorker,
+            notes: jobData.notes || ''
+          },
+          conversationId: currentThreadId,
+        }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to save job')
+      }
+
+      // Update the thread ID if it changed
+      if (result.threadId && !currentThreadId) {
+        setCurrentThreadId(result.threadId)
+      }
+
+      // Add confirmation message
+      const confirmMessage: Message = {
+        id: `confirm-${Date.now()}`,
+        role: 'assistant',
+        content: result.message || 'Job saved successfully!',
+        timestamp: new Date(),
+        toolResults: result.toolResults,
+      }
+      setMessages(prev => [...prev, confirmMessage])
+
+      // Clear the pending action
+      setPendingAction(null)
+      showSuccess('Job saved!')
+
+      // Refresh thread list
+      const threadsResponse = await fetch('/api/threads')
+      if (threadsResponse.ok) {
+        const threadsData = await threadsResponse.json()
+        setThreads(threadsData.threads?.map((t: { id: string; title: string; last_message_at: string }) => ({
+          id: t.id,
+          title: t.title || 'New Conversation',
+          lastMessageAt: new Date(t.last_message_at),
+          preview: ''
+        })) || [])
+      }
+    } catch (error) {
+      console.error('Error confirming job:', error)
+      setMessages(prev => [...prev, {
+        id: `error-${Date.now()}`,
+        role: 'assistant',
+        content: `Sorry, I couldn't save the job: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`,
+        timestamp: new Date(),
+      }])
+    } finally {
+      setIsConfirming(false)
+    }
+  }
+
+  // Handle confirming a pending quote
+  const handleConfirmQuote = async (quoteData: QuoteProposal, downloadPdf?: boolean) => {
+    if (!pendingAction || isConfirming) return
+    
+    setIsConfirming(true)
+    
+    try {
+      const response = await fetch('/api/ai/chat/confirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          actionType: 'generate_quote',
+          data: {
+            customer_name: quoteData.customerName,
+            customer_phone: quoteData.customerPhone || '',
+            customer_email: quoteData.customerEmail || '',
+            customer_address: quoteData.customerAddress || '',
+            job_description: quoteData.jobDescription || '',
+            estimate_low: quoteData.estimateLow,
+            estimate_high: quoteData.estimateHigh,
+          },
+          conversationId: currentThreadId,
+          downloadPdf,
+        }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to save quote')
+      }
+
+      // Update the thread ID if it changed
+      if (result.threadId && !currentThreadId) {
+        setCurrentThreadId(result.threadId)
+      }
+
+      // Add confirmation message
+      const confirmMessage: Message = {
+        id: `confirm-${Date.now()}`,
+        role: 'assistant',
+        content: result.message || 'Quote saved successfully!',
+        timestamp: new Date(),
+        toolResults: result.toolResults,
+      }
+      setMessages(prev => [...prev, confirmMessage])
+
+      // Clear the pending action
+      setPendingAction(null)
+      showSuccess(downloadPdf ? 'Quote saved & PDF downloaded!' : 'Quote saved!')
+
+      // Refresh thread list
+      const threadsResponse = await fetch('/api/threads')
+      if (threadsResponse.ok) {
+        const threadsData = await threadsResponse.json()
+        setThreads(threadsData.threads?.map((t: { id: string; title: string; last_message_at: string }) => ({
+          id: t.id,
+          title: t.title || 'New Conversation',
+          lastMessageAt: new Date(t.last_message_at),
+          preview: ''
+        })) || [])
+      }
+    } catch (error) {
+      console.error('Error confirming quote:', error)
+      setMessages(prev => [...prev, {
+        id: `error-${Date.now()}`,
+        role: 'assistant',
+        content: `Sorry, I couldn't save the quote: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`,
+        timestamp: new Date(),
+      }])
+    } finally {
+      setIsConfirming(false)
+    }
+  }
+
+  // Handle canceling a pending action
+  const handleCancelPendingAction = async () => {
+    // Mark as cancelled in database
+    if (pendingAction?.id) {
+      fetch('/api/pending-actions', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          actionId: pendingAction.id,
+          status: 'cancelled'
+        })
+      }).catch(err => console.error('Failed to cancel pending action:', err))
+    }
+    
+    setPendingAction(null)
+    // Add a message acknowledging the cancellation
+    setMessages(prev => [...prev, {
+      id: `cancel-${Date.now()}`,
+      role: 'assistant',
+      content: 'No problem! I\'ve cancelled that. What else can I help you with?',
+      timestamp: new Date(),
+    }])
+  }
+
+  // Check if pending action is a job
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const isJobProposal = (data: any): data is JobProposal => {
+    return data && 'revenue' in data && 'customerName' in data && 'date' in data
+  }
+
+  // Check if pending action is a quote
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const isQuoteProposal = (data: any): data is QuoteProposal => {
+    return data && 'estimateLow' in data && 'estimateHigh' in data
   }
 
   return (
@@ -321,13 +604,20 @@ export function Assistant({ userId, showSuccess }: AssistantProps) {
             </svg>
           </button>
           <div className="flex items-center gap-1.5 sm:gap-2 flex-1 min-w-0">
-            <span className="text-base sm:text-lg">✨</span>
-            <span className="font-medium text-[var(--color-text-primary)] text-xs sm:text-sm">Dyia Assistant</span>
+            {/* Dyia Avatar */}
+            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center shadow-md ring-2 ring-orange-400/30">
+              <svg className="w-4 h-4 sm:w-5 sm:h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="3" fill="currentColor" stroke="none" />
+                <path d="M12 2v4m0 12v4M2 12h4m12 0h4" strokeLinecap="round" />
+                <path d="M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83" strokeLinecap="round" opacity="0.6" />
+              </svg>
+            </div>
+            <span className="font-semibold text-[var(--color-text-primary)] text-sm sm:text-base">Dyia</span>
             <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
               isSending ? 'bg-orange-500 animate-pulse' : 'bg-green-500'
             }`} />
             {isSending && (
-              <span className="text-[10px] sm:text-xs text-[var(--color-text-faint)] truncate">Working...</span>
+              <span className="text-[10px] sm:text-xs text-[var(--color-text-faint)] truncate">thinking...</span>
             )}
           </div>
         </div>
@@ -352,11 +642,46 @@ export function Assistant({ userId, showSuccess }: AssistantProps) {
                   />
                 ))}
 
+                {/* Pending Action Cards */}
+                {pendingAction && pendingAction.status === 'pending' && (
+                  <div className="flex justify-start">
+                    <div className="flex gap-3 w-full max-w-md">
+                      <div className="w-8 h-8 bg-gradient-to-br from-orange-500 to-amber-500 rounded-full flex items-center justify-center shadow-md flex-shrink-0 ring-2 ring-orange-400/30">
+                        <svg className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <circle cx="12" cy="12" r="3" fill="currentColor" stroke="none" />
+                          <path d="M12 2v4m0 12v4M2 12h4m12 0h4" strokeLinecap="round" />
+                        </svg>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        {pendingAction.type === 'create_job' && isJobProposal(pendingAction.data) && (
+                          <JobPreviewCard
+                            proposal={pendingAction.data}
+                            onConfirm={handleConfirmJob}
+                            onCancel={handleCancelPendingAction}
+                            isSubmitting={isConfirming}
+                          />
+                        )}
+                        {pendingAction.type === 'generate_quote' && isQuoteProposal(pendingAction.data) && (
+                          <QuotePreviewCard
+                            proposal={pendingAction.data}
+                            onConfirm={handleConfirmQuote}
+                            onCancel={handleCancelPendingAction}
+                            isSubmitting={isConfirming}
+                          />
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {isSending && (
                   <div className="flex justify-start">
-                    <div className="flex gap-3">
-                      <div className="w-8 h-8 bg-gradient-to-br from-orange-100 to-amber-100 rounded-lg flex items-center justify-center shadow-sm">
-                        <span className="text-sm">✨</span>
+                    <div className="flex gap-3 items-center">
+                      <div className="w-8 h-8 bg-gradient-to-br from-orange-500 to-amber-500 rounded-full flex items-center justify-center shadow-md ring-2 ring-orange-400/30 animate-pulse">
+                        <svg className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <circle cx="12" cy="12" r="3" fill="currentColor" stroke="none" />
+                          <path d="M12 2v4m0 12v4M2 12h4m12 0h4" strokeLinecap="round" />
+                        </svg>
                       </div>
                       <div className="typing-indicator">
                         <div className="typing-dot" />
@@ -377,15 +702,27 @@ export function Assistant({ userId, showSuccess }: AssistantProps) {
         {messages.length <= 1 && !isSending && (
           <div className="px-3 sm:px-4 pb-2">
             <div className="max-w-3xl mx-auto flex flex-wrap gap-1.5 sm:gap-2 justify-center">
-              {QUICK_ACTIONS.map((action, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => handleQuickAction(action.prompt)}
-                  className="px-2.5 sm:px-3 py-1 sm:py-1.5 bg-slate-100 dark:bg-slate-700 hover:bg-orange-50 dark:hover:bg-orange-900/30 hover:text-orange-700 dark:hover:text-orange-300 text-slate-600 dark:text-slate-300 text-xs sm:text-sm rounded-full transition-colors"
-                >
-                  {action.label}
-                </button>
-              ))}
+              {quickActionsLoading ? (
+                // Loading skeleton for quick actions
+                <>
+                  {[1, 2, 3, 4].map((i) => (
+                    <div
+                      key={i}
+                      className="px-2.5 sm:px-3 py-1 sm:py-1.5 bg-slate-100 dark:bg-slate-700 rounded-full animate-pulse w-24 sm:w-32 h-6 sm:h-7"
+                    />
+                  ))}
+                </>
+              ) : (
+                quickActions.map((action) => (
+                  <button
+                    key={action.id}
+                    onClick={() => handleQuickAction(action.prompt)}
+                    className="px-2.5 sm:px-3 py-1 sm:py-1.5 bg-slate-100 dark:bg-slate-700 hover:bg-orange-50 dark:hover:bg-orange-900/30 hover:text-orange-700 dark:hover:text-orange-300 text-slate-600 dark:text-slate-300 text-xs sm:text-sm rounded-full transition-colors"
+                  >
+                    {action.label}
+                  </button>
+                ))
+              )}
             </div>
           </div>
         )}

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { createClient } from '@supabase/supabase-js'
 import { getOpenAI, DYIA_INSTRUCTIONS, DYIA_MODEL, DYIA_MODEL_MINI } from '@/lib/openai/client'
-import { DYIA_TOOLS, DyiaFunctionName } from '@/lib/openai/functions'
+import { DYIA_TOOLS, DyiaFunctionName, isProposalFunction } from '@/lib/openai/functions'
 import { handleFunctionCall, HandlerResult } from '@/lib/openai/handlers'
 
 // Initialize Supabase with service role for server operations
@@ -160,17 +160,89 @@ export async function POST(req: NextRequest) {
       responseText = 'I processed your request.'
     }
 
-    // 8. Save to database for thread persistence
+    // 8. Generate smart thread title based on content
+    const generateSmartTitle = (userMessage: string, toolResults: HandlerResult[]): string => {
+      // Check if any tool results have relevant data for title
+      for (const result of toolResults) {
+        if (result.pendingAction) {
+          const action = result.pendingAction
+          if (action.type === 'create_job' && action.proposal) {
+            const proposal = action.proposal as Record<string, unknown>
+            return `Job: ${proposal.customerName || 'New Job'}`
+          }
+          if (action.type === 'generate_quote' && action.proposal) {
+            const proposal = action.proposal as Record<string, unknown>
+            return `Quote: ${proposal.customerName || 'New Quote'}`
+          }
+        }
+        // Check for stats requests
+        if (result.data?.period) {
+          return `Stats: ${result.data.period}`
+        }
+        // Check for follow-ups
+        if (result.data?.followUps) {
+          return 'Follow-ups Review'
+        }
+        // Check for price suggestion
+        if (result.data?.suggestedLow) {
+          return 'Price Suggestion'
+        }
+        // Check for business summary
+        if (result.data?.topSources) {
+          return `Summary: ${result.data.period || 'Business Overview'}`
+        }
+      }
+      
+      // Analyze message content for common patterns
+      const lowerMessage = userMessage.toLowerCase()
+      
+      if (lowerMessage.includes('job') && (lowerMessage.includes('did') || lowerMessage.includes('completed') || lowerMessage.includes('finished'))) {
+        // Extract customer name if present
+        const nameMatch = userMessage.match(/for\s+([A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+)?)/i)
+        if (nameMatch) return `Job: ${nameMatch[1]}`
+        return 'New Job'
+      }
+      
+      if (lowerMessage.includes('quote') || lowerMessage.includes('estimate')) {
+        const nameMatch = userMessage.match(/for\s+([A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+)?)/i)
+        if (nameMatch) return `Quote: ${nameMatch[1]}`
+        return 'New Quote'
+      }
+      
+      if (lowerMessage.includes('how did') || lowerMessage.includes('stats') || lowerMessage.includes('performance')) {
+        return 'Performance Check'
+      }
+      
+      if (lowerMessage.includes('follow') || lowerMessage.includes('pending')) {
+        return 'Follow-ups'
+      }
+      
+      if (lowerMessage.includes('charge') || lowerMessage.includes('price') || lowerMessage.includes('pricing')) {
+        return 'Pricing Help'
+      }
+      
+      if (lowerMessage.includes('summary') || lowerMessage.includes('overview')) {
+        return 'Business Summary'
+      }
+      
+      // Default: first 40 chars of message
+      return userMessage.slice(0, 40) + (userMessage.length > 40 ? '...' : '')
+    }
+
+    // Save to database for thread persistence
     let threadId = conversationId
 
     if (!threadId) {
+      // Generate a smart title
+      const smartTitle = generateSmartTitle(message, toolResults)
+      
       // Create new thread
       const { data: newThread, error: threadError } = await supabase
         .from('dyia_threads')
         .insert({
           user_id: userProfile.id,
           openai_thread_id: response.id,
-          title: message.slice(0, 50) + (message.length > 50 ? '...' : ''),
+          title: smartTitle.slice(0, 50),
           message_count: 2,
           last_message_at: new Date().toISOString()
         })
@@ -192,8 +264,31 @@ export async function POST(req: NextRequest) {
         .eq('id', threadId)
     }
 
-    // Save messages
+    // 9. Build tool results with pending action info preserved
+    const processedToolResults = toolResults.map(r => {
+      // Include pendingAction if present (from proposal handlers)
+      const result: Record<string, unknown> = {
+        success: r.success,
+        message: r.message,
+        data: r.data,
+        error: r.error
+      }
+      if (r.pendingAction) {
+        result.pendingAction = r.pendingAction
+      }
+      return result
+    }).filter(r => r.success || r.error)
+
+    // Save messages with rich context
     if (threadId) {
+      // Build enhanced tool results with pending action flags
+      const enhancedToolResults = processedToolResults.length > 0 
+        ? processedToolResults.map(r => ({
+            ...r,
+            status: r.pendingAction ? 'pending_confirmation' : 'completed'
+          }))
+        : null
+
       await supabase.from('dyia_messages').insert([
         {
           thread_id: threadId,
@@ -205,17 +300,31 @@ export async function POST(req: NextRequest) {
           role: 'assistant',
           content: responseText,
           tool_calls: toolResults.length > 0 ? response.output.filter(i => i.type === 'function_call') : null,
-          tool_results: toolResults.length > 0 ? toolResults : null
+          tool_results: enhancedToolResults
         }
       ])
+
+      // Update thread message count (simple increment)
+      const { data: threadData } = await supabase
+        .from('dyia_threads')
+        .select('message_count')
+        .eq('id', threadId)
+        .single()
+      
+      if (threadData) {
+        await supabase
+          .from('dyia_threads')
+          .update({ message_count: (threadData.message_count || 0) + 2 })
+          .eq('id', threadId)
+      }
     }
 
-    // 9. Return response with response ID for stateful continuation
+    // 10. Return response with response ID for stateful continuation
     return NextResponse.json({
       success: true,
       threadId,
       message: responseText,
-      toolResults: toolResults.filter(r => r.success || r.error),
+      toolResults: processedToolResults,
       responseId: response.id
     })
 

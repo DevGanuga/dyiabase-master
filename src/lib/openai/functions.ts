@@ -21,10 +21,119 @@ export interface FunctionTool {
 }
 
 export const DYIA_TOOLS: FunctionTool[] = [
+  // ============================================
+  // PROPOSAL TOOLS (Require User Confirmation)
+  // These extract data and show a preview card for confirmation
+  // ============================================
+  {
+    type: 'function',
+    name: 'propose_job',
+    description: 'Extract job information from the conversation and propose saving it. ALWAYS use this instead of create_job. This shows the user a preview of the extracted data with a confirmation button. Only after user confirms will the job be saved.',
+    parameters: {
+      type: 'object',
+      properties: {
+        date: {
+          type: 'string',
+          description: 'Job date in YYYY-MM-DD format. Use today if not specified.'
+        },
+        customer_name: {
+          type: 'string',
+          description: 'Customer name extracted from conversation'
+        },
+        source: {
+          type: 'string',
+          description: 'How the customer found them (Google, Yelp, Referral, Facebook, Website, etc.). Use "Unknown" if not mentioned.'
+        },
+        revenue: {
+          type: 'number',
+          description: 'Total revenue/payment received in dollars'
+        },
+        labor: {
+          type: 'number',
+          description: 'Labor costs paid to workers. Default to 0 if not mentioned.'
+        },
+        gas: {
+          type: 'number',
+          description: 'Gas/fuel costs. Default to 0 if not mentioned.'
+        },
+        dump_fee: {
+          type: 'number',
+          description: 'Dump/disposal fees. Default to 0 if not mentioned.'
+        },
+        dumpster_rental: {
+          type: 'number',
+          description: 'Dumpster rental costs. Default to 0 if not mentioned.'
+        },
+        additional_expense: {
+          type: 'number',
+          description: 'Any other expenses. Default to 0 if not mentioned.'
+        },
+        num_workers: {
+          type: 'number',
+          description: 'Number of workers. Default to 1 if not mentioned.'
+        },
+        cost_per_worker: {
+          type: 'number',
+          description: 'Cost per worker. Default to 0 if not mentioned.'
+        },
+        notes: {
+          type: 'string',
+          description: 'Notes about the job (type of work, items removed, special circumstances). Summarize from conversation.'
+        }
+      },
+      required: ['date', 'customer_name', 'source', 'revenue', 'labor', 'gas', 'dump_fee', 'dumpster_rental', 'additional_expense', 'num_workers', 'cost_per_worker', 'notes'],
+      additionalProperties: false
+    },
+    strict: true
+  },
+  {
+    type: 'function',
+    name: 'propose_quote',
+    description: 'Extract quote information from the conversation and propose creating it. ALWAYS use this instead of generate_quote. This shows the user a preview with a "Save Quote" or "Save & Download PDF" confirmation button.',
+    parameters: {
+      type: 'object',
+      properties: {
+        customer_name: {
+          type: 'string',
+          description: 'Customer name extracted from conversation'
+        },
+        customer_phone: {
+          type: 'string',
+          description: 'Customer phone number. Use empty string if not provided.'
+        },
+        customer_email: {
+          type: 'string',
+          description: 'Customer email address. Use empty string if not provided.'
+        },
+        customer_address: {
+          type: 'string',
+          description: 'Job location/address. Use empty string if not provided.'
+        },
+        job_description: {
+          type: 'string',
+          description: 'Description of the work to be done'
+        },
+        estimate_low: {
+          type: 'number',
+          description: 'Low end of the estimate range in dollars'
+        },
+        estimate_high: {
+          type: 'number',
+          description: 'High end of the estimate range in dollars'
+        }
+      },
+      required: ['customer_name', 'customer_phone', 'customer_email', 'customer_address', 'job_description', 'estimate_low', 'estimate_high'],
+      additionalProperties: false
+    },
+    strict: true
+  },
+  // ============================================
+  // DIRECT EXECUTION TOOLS (Used after confirmation or for read-only ops)
+  // ============================================
   {
     type: 'function',
     name: 'create_job',
-    description: 'Log a completed job with revenue and expenses. Use when the user mentions completing a job, getting paid, or wants to record work done.',
+    description: 'INTERNAL: Only used after user confirms a job proposal. Do NOT call directly - use propose_job instead.',
     parameters: {
       type: 'object',
       properties: {
@@ -85,7 +194,7 @@ export const DYIA_TOOLS: FunctionTool[] = [
   {
     type: 'function',
     name: 'generate_quote',
-    description: 'Create a quote/estimate for a potential customer. Use when user wants to create, make, or generate a quote or estimate.',
+    description: 'INTERNAL: Only used after user confirms a quote proposal. Do NOT call directly - use propose_quote instead.',
     parameters: {
       type: 'object',
       properties: {
@@ -288,11 +397,86 @@ export const DYIA_TOOLS: FunctionTool[] = [
       additionalProperties: false
     },
     strict: true
+  },
+  {
+    type: 'function',
+    name: 'get_user_context',
+    description: 'Get user business settings and context. Call this early in conversations to personalize responses and check for missing business details. Returns settings, default price template, recent jobs, and a list of fields the user should fill in.',
+    parameters: {
+      type: 'object',
+      properties: {
+        include_recent_jobs: {
+          type: 'number',
+          description: 'Number of recent jobs to include for context (0-10). Default 5.'
+        }
+      },
+      required: ['include_recent_jobs'],
+      additionalProperties: false
+    },
+    strict: true
+  },
+  {
+    type: 'function',
+    name: 'find_similar_jobs',
+    description: 'Find similar past jobs based on job description using semantic search. Use this to help with pricing suggestions, reference past work, or show the user relevant job history. Returns jobs ranked by similarity with revenue and profit margin data.',
+    parameters: {
+      type: 'object',
+      properties: {
+        description: {
+          type: 'string',
+          description: 'Job description to match against (e.g., "garage cleanout", "hot tub removal", "estate cleanout")'
+        },
+        limit: {
+          type: 'number',
+          description: 'Maximum number of similar jobs to return (1-10). Default 5.'
+        }
+      },
+      required: ['description', 'limit'],
+      additionalProperties: false
+    },
+    strict: true
+  },
+  {
+    type: 'function',
+    name: 'get_revenue_forecast',
+    description: 'Get a revenue forecast for the current or next period based on historical trends. Use when user asks about projected earnings, what they might make, or future revenue predictions.',
+    parameters: {
+      type: 'object',
+      properties: {
+        period: {
+          type: 'string',
+          enum: ['this_week', 'this_month', 'next_week', 'next_month'],
+          description: 'The period to forecast revenue for'
+        }
+      },
+      required: ['period'],
+      additionalProperties: false
+    },
+    strict: true
+  },
+  {
+    type: 'function',
+    name: 'get_follow_up_risk_analysis',
+    description: 'Analyze follow-ups for conversion risk. Identifies which quotes are at risk of going cold and provides conversion probability estimates based on historical data.',
+    parameters: {
+      type: 'object',
+      properties: {
+        include_all: {
+          type: 'boolean',
+          description: 'If true, include all pending follow-ups. If false, only show high-risk ones.'
+        }
+      },
+      required: ['include_all'],
+      additionalProperties: false
+    },
+    strict: true
   }
 ]
 
 // Export function names for type checking
 export type DyiaFunctionName =
+  | 'propose_job'
+  | 'propose_quote'
   | 'create_job'
   | 'generate_quote'
   | 'log_expense'
@@ -302,3 +486,15 @@ export type DyiaFunctionName =
   | 'update_follow_up_status'
   | 'convert_quote_to_job'
   | 'get_business_summary'
+  | 'get_user_context'
+  | 'find_similar_jobs'
+  | 'get_revenue_forecast'
+  | 'get_follow_up_risk_analysis'
+
+// Proposal function names (require user confirmation)
+export type ProposalFunctionName = 'propose_job' | 'propose_quote'
+
+// Check if a function is a proposal function
+export function isProposalFunction(name: string): name is ProposalFunctionName {
+  return name === 'propose_job' || name === 'propose_quote'
+}

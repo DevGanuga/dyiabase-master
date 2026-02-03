@@ -4,6 +4,7 @@ import { useMemo } from 'react'
 import type { AppJob, AppQuote, AppSettings } from '@/types/database'
 import { formatCurrency } from '@/lib/utils'
 import { AIInsights } from './AIInsights'
+import { PendingActionsCard } from './PendingActionsCard'
 
 interface DashboardProps {
   jobs: AppJob[]
@@ -15,6 +16,7 @@ interface DashboardProps {
   fixedMonthlyExpenses?: number
   isPro?: boolean
   taxPercentage?: number
+  onResumePendingAction?: (action: unknown) => void
 }
 
 export function Dashboard({ 
@@ -26,7 +28,8 @@ export function Dashboard({
   pendingFollowUps = 0,
   fixedMonthlyExpenses = 0,
   isPro = false,
-  taxPercentage = 30
+  taxPercentage = 30,
+  onResumePendingAction
 }: DashboardProps) {
   
   // Get greeting based on time of day
@@ -107,6 +110,22 @@ export function Dashboard({
       {isPro && jobs.length > 0 && (
         <AIInsights type="dashboard" compact autoRefresh className="animate-fade-in delay-fade-1" />
       )}
+
+      {/* Pending Actions from Dyia */}
+      <div className="animate-fade-in delay-fade-1">
+        <PendingActionsCard 
+          onResume={(action) => {
+            if (onResumePendingAction) {
+              onResumePendingAction(action)
+            } else {
+              onNavigate('assistant')
+            }
+          }}
+          onDismiss={() => {
+            // Optionally show a toast or notification
+          }}
+        />
+      </div>
 
       {/* Workflow Pipeline */}
       <div className="animate-fade-in delay-fade-1" style={{ animationFillMode: 'both' }}>

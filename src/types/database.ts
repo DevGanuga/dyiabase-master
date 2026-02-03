@@ -290,3 +290,101 @@ export interface EmailPreferences {
   productUpdates: boolean
   marketingEmails: boolean
 }
+
+// ============================================
+// AI PENDING ACTIONS (Confirmation System)
+// ============================================
+
+export type PendingActionType = 'create_job' | 'generate_quote' | 'log_expense' | 'update_follow_up'
+export type PendingActionStatus = 'pending' | 'confirmed' | 'cancelled' | 'edited'
+export type ConfidenceLevel = 'high' | 'medium' | 'inferred'
+
+// Job Proposal - Data extracted from conversation, awaiting confirmation
+export interface JobProposal {
+  date: string
+  customerName: string
+  source?: string
+  revenue: number
+  labor: number
+  gas: number
+  dumpFee: number
+  dumpsterRental: number
+  additionalExpense: number
+  numWorkers: number
+  costPerWorker: number
+  notes?: string
+  // Confidence levels indicate how the data was extracted
+  confidence: Partial<Record<keyof Omit<JobProposal, 'confidence'>, ConfidenceLevel>>
+}
+
+// Quote Proposal - Data extracted from conversation, awaiting confirmation
+export interface QuoteProposal {
+  customerName: string
+  customerPhone?: string
+  customerEmail?: string
+  customerAddress?: string
+  jobDescription?: string
+  estimateLow: number
+  estimateHigh: number
+  // Confidence levels indicate how the data was extracted
+  confidence: Partial<Record<keyof Omit<QuoteProposal, 'confidence'>, ConfidenceLevel>>
+}
+
+// Expense Proposal - Data extracted from conversation, awaiting confirmation
+export interface ExpenseProposal {
+  name: string
+  amount: number
+  frequency: 'monthly' | 'yearly'
+  category: string
+  // Confidence levels indicate how the data was extracted
+  confidence: Partial<Record<keyof Omit<ExpenseProposal, 'confidence'>, ConfidenceLevel>>
+}
+
+// Union type for all proposal data
+export type ProposalData = JobProposal | QuoteProposal | ExpenseProposal
+
+// Pending Action - Wraps proposal with metadata
+export interface PendingAction {
+  id: string
+  type: PendingActionType
+  data: JobProposal | QuoteProposal | ExpenseProposal
+  status: PendingActionStatus
+  messageId?: string  // Links to the message that created this action
+  createdAt: number
+}
+
+// Type guards for proposal discrimination
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function isJobProposal(data: any): data is JobProposal {
+  return data && 'revenue' in data && 'customerName' in data && 'date' in data
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function isQuoteProposal(data: any): data is QuoteProposal {
+  return data && 'estimateLow' in data && 'estimateHigh' in data
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function isExpenseProposal(data: any): data is ExpenseProposal {
+  return data && 'frequency' in data && 'category' in data && !('revenue' in data)
+}
+
+// User Context - Business settings for AI awareness
+export interface UserContext {
+  settings: {
+    businessName?: string
+    businessPhone?: string
+    businessEmail?: string
+    businessAddress?: string
+    taxPercentage: number
+    monthlyGoal: number
+  }
+  defaultPriceTemplate?: AppPriceTemplate
+  recentJobs: Array<{
+    customerName: string
+    revenue: number
+    date: string
+    source?: string
+  }>
+  missingFields: string[]  // Fields the user should fill in
+}
