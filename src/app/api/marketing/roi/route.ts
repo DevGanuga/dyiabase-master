@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
-import { createClient } from '@supabase/supabase-js'
+import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import type { SourceROI } from '@/types/database'
 
 function getSupabase() {
@@ -13,13 +13,13 @@ function getSupabase() {
   )
 }
 
-async function getDyiaUserId(supabase: ReturnType<typeof createClient>, clerkUserId: string): Promise<string | null> {
+async function getDyiaUserId(supabase: SupabaseClient, clerkUserId: string): Promise<string | null> {
   const { data } = await supabase
     .from('dyia_users')
     .select('id')
     .eq('clerk_user_id', clerkUserId)
     .single()
-  return data?.id ?? null
+  return (data as { id: string } | null)?.id ?? null
 }
 
 /** GET: ROI by marketing source for a month. Query: month (YYYY-MM) required. */
@@ -63,17 +63,22 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: jobsRes.error.message }, { status: 500 })
     }
 
+    type SpendRow = { source: string; amount: number }
+    type JobRow = { source: string | null; revenue: number }
+    const spendRows = (spendRes.data ?? []) as SpendRow[]
+    const jobRows = (jobsRes.data ?? []) as JobRow[]
+
     const spendBySource: Record<string, number> = {}
-    for (const row of spendRes.data || []) {
+    for (const row of spendRows) {
       const src = (row.source || '').trim() || 'Unknown'
-      spendBySource[src] = (spendBySource[src] || 0) + (parseFloat(row.amount) || 0)
+      spendBySource[src] = (spendBySource[src] || 0) + (parseFloat(String(row.amount)) || 0)
     }
 
     const revenueBySource: Record<string, number> = {}
     const jobsBySource: Record<string, number> = {}
-    for (const row of jobsRes.data || []) {
+    for (const row of jobRows) {
       const src = (row.source || '').trim() || 'Unknown'
-      revenueBySource[src] = (revenueBySource[src] || 0) + (parseFloat(row.revenue) || 0)
+      revenueBySource[src] = (revenueBySource[src] || 0) + (parseFloat(String(row.revenue)) || 0)
       jobsBySource[src] = (jobsBySource[src] || 0) + 1
     }
 
