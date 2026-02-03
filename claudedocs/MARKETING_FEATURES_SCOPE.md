@@ -1,14 +1,14 @@
-# dyia - Additional Features Scope
+# dyia - Final Milestone Additions
 
 **Date:** February 3, 2026  
 **For:** Marco Ayyala  
-**Status:** Final Milestone Addition
+**Status:** Scope for Final Milestone (Milestone 5)
 
 ---
 
-## New Features Overview
+## Overview
 
-Based on your feedback, we're adding a **Marketing** section and **Review Request** system to help you track marketing ROI and collect customer reviews.
+This document outlines all additional features discussed for the final milestone before market launch, including recent feedback on marketing tracking, review requests, and AI usage controls.
 
 ---
 
@@ -67,7 +67,34 @@ Easily request reviews from customers after completing a job.
 
 ---
 
-## 4. AI Credits System
+## 4. Logo Design
+
+Final logo options for dyia branding.
+
+### What You Get:
+- 2-3 logo variations based on current brand direction
+- App icon version (favicon)
+- Full logo for landing page and headers
+- Consistent with existing orange/amber brand colors
+
+**Hours: 2**
+
+---
+
+## 5. Gumroad Buyer Coupon
+
+Reward existing Gumroad customers with a discount on Pro.
+
+### What You Get:
+- Coupon code for Gumroad buyers
+- Applies to Annual Pro tier (first year only)
+- Stripe coupon integration
+
+**Hours: 1**
+
+---
+
+## 6. AI Credits System
 
 Manage AI usage with monthly limits and the option to purchase additional credits.
 
@@ -93,6 +120,39 @@ Manage AI usage with monthly limits and the option to purchase additional credit
 
 ---
 
+## 7. User Notifications Infrastructure
+
+Email notifications for key user events.
+
+### What You Get:
+- **Welcome Email** — Sent on signup
+- **Trial Expiring** — Reminder before trial ends
+- **Weekly/Monthly Reports** — PDF summary of dashboard stats and quotes (already discussed Jan 21)
+- **Follow-up Reminders** — Email nudges for pending follow-ups
+
+### Deliverables:
+- Resend email templates
+- Scheduled email triggers
+- PDF report generation for weekly/monthly summaries
+
+**Hours: 4**
+
+---
+
+## 8. Account Management
+
+User profile and account settings.
+
+### What You Get:
+- **Profile Settings** — Update business name, contact info
+- **Subscription Management** — View current plan, billing history
+- **Cancel/Downgrade Flow** — Self-service subscription changes
+- **Data Export** — Download jobs, quotes, expenses as CSV
+
+**Hours: 3**
+
+---
+
 ## Summary
 
 | Feature | Hours |
@@ -100,29 +160,65 @@ Manage AI usage with monthly limits and the option to purchase additional credit
 | Marketing Page (spend tracker + ROI dashboard) | 8 |
 | Marketing Source on Jobs | 2 |
 | Review Request System | 4 |
+| Logo Design | 2 |
+| Gumroad Buyer Coupon | 1 |
 | AI Credits System | 12 |
-| **Total** | **26** |
+| User Notifications Infrastructure | 4 |
+| Account Management | 3 |
+| **Total** | **36** |
 
 ---
 
 ## Recommended Prioritization
 
-### Include in Final Milestone (14 hours)
-1. Marketing Page with spend tracker and ROI dashboard
-2. Marketing Source presets on job form
-3. Review Request System with templates and tracking
+### Priority 1: Include in Final Milestone (17 hours)
+1. Marketing Page with spend tracker and ROI dashboard — 8h
+2. Marketing Source presets on job form — 2h
+3. Review Request System with templates and tracking — 4h
+4. Logo Design — 2h
+5. Gumroad Buyer Coupon — 1h
 
-### Post-Launch Addition (12 hours)
-4. AI Credits System with Stripe integration
+### Priority 2: Launch Week (7 hours)
+6. User Notifications Infrastructure — 4h
+7. Account Management — 3h
 
----
-
-## Timeline Impact
-
-Adding the Marketing and Review features (14 hours) would extend the final milestone by approximately **2-3 days** depending on review cycles.
-
-The AI Credits System can be added as a fast-follow after launch to avoid delaying the initial release.
+### Priority 3: Post-Launch (12 hours)
+8. AI Credits System with Stripe integration — 12h
 
 ---
 
-*Let me know if you'd like any adjustments to this scope.*
+## Timeline
+
+| Phase | Hours | Target |
+|-------|-------|--------|
+| Final Milestone (Priority 1) | 17 | Feb 4-5 |
+| Launch Week (Priority 2) | 7 | Feb 5-6 |
+| Post-Launch (Priority 3) | 12 | Week of Feb 10 |
+
+---
+
+## Already Completed (Previous Milestones)
+
+For reference, these items from our discussions have already been built:
+
+- ✅ Fixed expenses (monthly + yearly)
+- ✅ Dashboard monthly overview (revenue, fixed, variable, tax, net profit)
+- ✅ Follow-up system (copy-to-text messaging)
+- ✅ Basic vs Pro tier gating
+- ✅ AI Assistant with chat interface
+- ✅ Pricing templates (min, 1/4, 1/2, 3/4, full load)
+- ✅ AI insights (weekly/monthly)
+- ✅ Quote follow-up intelligence
+- ✅ Revenue forecasting
+- ✅ Thread persistence
+- ✅ Annual pricing with 2 months free discount
+
+---
+
+## Post-Launch Support
+
+As discussed, 2 weeks of free support post-launch for bugs and edge cases is included.
+
+---
+
+*Please confirm which features to include in the final milestone.*
