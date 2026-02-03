@@ -187,16 +187,6 @@ User profile and account settings.
 
 ---
 
-## Timeline
-
-| Phase | Hours | Target |
-|-------|-------|--------|
-| Final Milestone (Priority 1) | 17 | Feb 4-5 |
-| Launch Week (Priority 2) | 7 | Feb 5-6 |
-| Post-Launch (Priority 3) | 12 | Week of Feb 10 |
-
----
-
 ## Already Completed (Previous Milestones)
 
 For reference, these items from our discussions have already been built:
