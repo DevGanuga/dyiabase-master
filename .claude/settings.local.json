@@ -3,5 +3,8 @@
     "allow": [
       "Bash(npx @playwright/mcp@latest:*)"
     ]
-  }
+  },
+  "enabledMcpjsonServers": [
+    "supabase"
+  ]
 }
