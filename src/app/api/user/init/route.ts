@@ -1,6 +1,8 @@
 import { auth } from '@clerk/nextjs/server'
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
+import { sendEmail, isResendConfigured } from '@/lib/resend/client'
+import { welcomeEmail } from '@/lib/resend/templates'
 
 function getSupabaseAdmin() {
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
@@ -64,6 +66,20 @@ export async function POST(req: Request) {
       await supabase
         .from('dyia_settings')
         .insert({ user_id: newProfile.id })
+
+      // Send welcome email if Resend is configured (covers case when app loads before Clerk webhook)
+      if (isResendConfigured() && newProfile.email) {
+        try {
+          await sendEmail(
+            newProfile.email,
+            'Welcome to Dyia! 🎉',
+            welcomeEmail(newProfile.first_name || 'there'),
+            'welcome'
+          )
+        } catch (emailErr) {
+          console.error('Welcome email failed:', emailErr)
+        }
+      }
     }
 
     return NextResponse.json({ profile: newProfile })

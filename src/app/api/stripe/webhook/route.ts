@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
+import { sendEmail, isResendConfigured } from '@/lib/resend/client'
+import { subscriptionConfirmedEmail } from '@/lib/resend/templates'
 
 function getStripe() {
   if (!process.env.STRIPE_SECRET_KEY) {
@@ -50,7 +52,12 @@ export async function POST(request: NextRequest) {
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session
-        await handleCheckoutComplete(stripe, supabase, session)
+        // Check if this is a credit purchase vs subscription
+        if (session.mode === 'payment' && session.metadata?.purchase_type === 'credits') {
+          await handleCreditPurchase(supabase, session)
+        } else {
+          await handleCheckoutComplete(stripe, supabase, session)
+        }
         break
       }
 
@@ -137,6 +144,27 @@ async function handleCheckoutComplete(stripe: Stripe, supabase: any, session: St
     throw error
   }
 
+  // Send subscription confirmed email if Resend is configured
+  if (isResendConfigured()) {
+    try {
+      const { data: u } = await supabase
+        .from('dyia_users')
+        .select('email, first_name')
+        .eq('id', dyiaUserId)
+        .single()
+      if (u?.email) {
+        await sendEmail(
+          u.email,
+          'Welcome to Dyia Pro! 🚀',
+          subscriptionConfirmedEmail(u.first_name || 'there', plan),
+          'subscription_confirmed'
+        )
+      }
+    } catch (emailErr) {
+      console.error('Subscription confirmed email failed:', emailErr)
+    }
+  }
+
   console.log(`Subscription activated for dyia user ${dyiaUserId}`)
 }
 
@@ -213,4 +241,66 @@ async function handlePaymentFailed(supabase: any, invoice: Stripe.Invoice) {
   }
 
   console.log(`Payment failed for customer ${customerId}`)
+}
+
+// One-time credit purchase: add credits to user and log transaction.
+// Metadata: purchase_type='credits', credits_amount=<number>, dyia_user_id (or clerk_user_id).
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function handleCreditPurchase(supabase: any, session: Stripe.Checkout.Session) {
+  let dyiaUserId = session.metadata?.dyia_user_id
+  const clerkUserId = session.metadata?.clerk_user_id || session.client_reference_id
+  const creditsAmount = parseInt(session.metadata?.credits_amount as string || '0', 10)
+
+  if (!dyiaUserId && clerkUserId) {
+    const { data: user } = await supabase
+      .from('dyia_users')
+      .select('id')
+      .eq('clerk_user_id', clerkUserId)
+      .single()
+    if (user) dyiaUserId = user.id
+  }
+
+  if (!dyiaUserId || creditsAmount <= 0) {
+    console.error('Credit purchase: missing dyia_user_id or invalid credits_amount', { dyiaUserId, creditsAmount })
+    return
+  }
+
+  const paymentId = session.payment_intent?.toString() || session.id
+
+  const { data: user, error: fetchError } = await supabase
+    .from('dyia_users')
+    .select('ai_credits_balance')
+    .eq('id', dyiaUserId)
+    .single()
+
+  if (fetchError || !user) {
+    console.error('Credit purchase: user not found', dyiaUserId, fetchError)
+    return
+  }
+
+  const currentBalance = user.ai_credits_balance ?? 0
+  const newBalance = currentBalance + creditsAmount
+
+  const { error: updateError } = await supabase
+    .from('dyia_users')
+    .update({ ai_credits_balance: newBalance })
+    .eq('id', dyiaUserId)
+
+  if (updateError) {
+    console.error('Credit purchase: failed to update balance', updateError)
+    throw updateError
+  }
+
+  await supabase.from('dyia_credit_transactions').insert({
+    user_id: dyiaUserId,
+    type: 'purchase',
+    amount: creditsAmount,
+    balance_after: newBalance,
+    description: `Purchased ${creditsAmount} AI credits`,
+    stripe_payment_id: paymentId,
+    message_id: null,
+    metadata: {},
+  })
+
+  console.log(`Credits added for user ${dyiaUserId}: +${creditsAmount}, balance ${newBalance}`)
 }

@@ -20,6 +20,7 @@ export function Settings({ settings, setSettings, userId, showSuccess }: Setting
   const [businessPhone, setBusinessPhone] = useState(settings.businessInfo.phone)
   const [businessEmail, setBusinessEmail] = useState(settings.businessInfo.email)
   const [businessAddress, setBusinessAddress] = useState(settings.businessInfo.address)
+  const [reviewUrl, setReviewUrl] = useState(settings.businessInfo.reviewUrl ?? '')
   const [taxPercentage, setTaxPercentage] = useState(settings.taxPercentage)
   const [monthlyGoal, setMonthlyGoal] = useState(settings.monthlyGoal)
   const [saving, setSaving] = useState(false)
@@ -39,7 +40,8 @@ export function Settings({ settings, setSettings, userId, showSuccess }: Setting
         business_phone: businessPhone || null,
         business_email: businessEmail || null,
         business_address: businessAddress || null,
-        business_logo: settings.businessInfo.logo
+        business_logo: settings.businessInfo.logo,
+        review_url: reviewUrl?.trim() || null
       }
 
       const { error } = await supabase
@@ -57,7 +59,8 @@ export function Settings({ settings, setSettings, userId, showSuccess }: Setting
           phone: businessPhone,
           email: businessEmail,
           address: businessAddress,
-          logo: settings.businessInfo.logo
+          logo: settings.businessInfo.logo,
+          reviewUrl: reviewUrl?.trim() || null
         },
         onboardingCompleted: settings.onboardingCompleted,
         onboardingSkipped: settings.onboardingSkipped,
@@ -198,6 +201,18 @@ export function Settings({ settings, setSettings, userId, showSuccess }: Setting
               className="app-input"
               placeholder="123 Main St, City, State"
             />
+          </div>
+
+          <div>
+            <label className="app-label">Review link (for completed jobs)</label>
+            <input
+              type="url"
+              value={reviewUrl}
+              onChange={(e) => setReviewUrl(e.target.value)}
+              className="app-input"
+              placeholder="https://g.page/your-business/review"
+            />
+            <p className="mt-1 text-xs text-slate-500">Used for copy-paste review requests on completed quotes.</p>
           </div>
 
           {/* Logo Upload */}

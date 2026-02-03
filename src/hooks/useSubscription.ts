@@ -14,6 +14,8 @@ interface SubscriptionState {
   plan: SubscriptionPlan
   daysRemaining: number
   isPro: boolean
+  aiCredits: number
+  canUseAI: boolean
   isLoading: boolean
 }
 
@@ -29,6 +31,8 @@ export function useSubscription(): SubscriptionState {
     plan: null,
     daysRemaining: 0,
     isPro: false,
+    aiCredits: 0,
+    canUseAI: false,
     isLoading: true,
   })
 
@@ -43,7 +47,7 @@ export function useSubscription(): SubscriptionState {
       try {
         const { data, error } = await supabase
           .from('dyia_users')
-          .select('subscription_status, subscription_plan, subscription_ends_at')
+          .select('subscription_status, subscription_plan, subscription_ends_at, ai_credits_balance')
           .eq('clerk_user_id', user.id)
           .single()
 
@@ -63,12 +67,18 @@ export function useSubscription(): SubscriptionState {
             ? 'pro'
             : 'basic'
 
+        const aiCredits = data?.ai_credits_balance || 0
+        const isPro = PRO_STATUSES.includes(status)
+        const canUseAI = isPro || aiCredits > 0
+
         setState({
           tier,
           status,
           plan,
           daysRemaining,
-          isPro: PRO_STATUSES.includes(status),
+          isPro,
+          aiCredits,
+          canUseAI,
           isLoading: false,
         })
       } catch (error) {
