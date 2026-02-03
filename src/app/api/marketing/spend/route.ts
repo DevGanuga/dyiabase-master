@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
-import { createClient } from '@supabase/supabase-js'
+import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 
 function getSupabase() {
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
@@ -12,13 +12,13 @@ function getSupabase() {
   )
 }
 
-async function getDyiaUserId(supabase: ReturnType<typeof createClient>, clerkUserId: string): Promise<string | null> {
+async function getDyiaUserId(supabase: SupabaseClient, clerkUserId: string): Promise<string | null> {
   const { data } = await supabase
     .from('dyia_users')
     .select('id')
     .eq('clerk_user_id', clerkUserId)
     .single()
-  return data?.id ?? null
+  return (data as { id: string } | null)?.id ?? null
 }
 
 /** GET: list marketing spend for the user. Query: month (YYYY-MM) optional. */
@@ -93,7 +93,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'month is required (YYYY-MM)' }, { status: 400 })
     }
     const monthStart = `${month.slice(0, 7)}-01`
-    const amountNum = typeof amount === 'number' ? amount : parseFloat(amount)
+    const amountNum = typeof amount === 'number' ? amount : parseFloat(String(amount ?? ''))
     if (Number.isNaN(amountNum) || amountNum < 0) {
       return NextResponse.json({ error: 'amount must be a non-negative number' }, { status: 400 })
     }

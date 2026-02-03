@@ -85,6 +85,8 @@ export default function AppPage() {
           clerk_user_id: 'demo',
           email: 'demo@dyia.co',
           subscription_status: 'active',
+          ai_credits_balance: 0,
+          ai_credits_used_lifetime: 0,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         })

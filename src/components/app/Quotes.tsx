@@ -23,6 +23,7 @@ const STATUS_CONFIG: Record<QuoteStatus, { label: string; color: string; bg: str
   accepted: { label: 'Accepted', color: 'text-green-600 dark:text-green-400', bg: 'bg-green-100 dark:bg-green-900/30' },
   declined: { label: 'Declined', color: 'text-red-600 dark:text-red-400', bg: 'bg-red-100 dark:bg-red-900/30' },
   expired: { label: 'Expired', color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-100 dark:bg-amber-900/30' },
+  completed: { label: 'Completed', color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-100 dark:bg-emerald-900/30' },
 }
 
 export function Quotes({ quotes, setQuotes, jobs, userId, settings, onCreateQuote, showSuccess }: QuotesProps) {
