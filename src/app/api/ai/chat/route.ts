@@ -67,17 +67,21 @@ export async function POST(req: NextRequest) {
     }
 
     // 4. Parse request
-    const { message, conversationId, previousResponseId } = await req.json()
+    const { message, conversationId, previousResponseId, fileUrl, fileName } = await req.json()
 
     if (!message || typeof message !== 'string') {
       return NextResponse.json({ error: 'Message is required' }, { status: 400 })
     }
 
+    const effectiveMessage = fileUrl
+      ? `${message}\n\n[User attached a file: ${fileName || 'file'} — ${fileUrl}]`
+      : message
+
     // 5. Build request params - use Record type to allow dynamic properties
     const requestParams: Record<string, unknown> = {
       model: DYIA_MODEL,
       instructions: DYIA_INSTRUCTIONS,
-      input: message,
+      input: effectiveMessage,
       tools: DYIA_TOOLS,
       temperature: 0.7,
       max_output_tokens: 1024,

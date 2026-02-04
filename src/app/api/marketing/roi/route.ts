@@ -22,7 +22,7 @@ async function getDyiaUserId(supabase: SupabaseClient, clerkUserId: string): Pro
   return (data as { id: string } | null)?.id ?? null
 }
 
-/** GET: ROI by marketing source for a month. Query: month (YYYY-MM) required. */
+/** GET: ROI by marketing source. Query: month (YYYY-MM) optional; omit for all-time. */
 export async function GET(req: NextRequest) {
   try {
     const { userId: clerkUserId } = await auth()
@@ -34,25 +34,27 @@ export async function GET(req: NextRequest) {
 
     const { searchParams } = new URL(req.url)
     const monthParam = searchParams.get('month')
-    if (!monthParam) return NextResponse.json({ error: 'month (YYYY-MM) is required' }, { status: 400 })
-    const monthStart = `${monthParam.slice(0, 7)}-01`
-    const [year, month] = monthStart.split('-').map(Number)
-    const nextMonth = month === 12 ? [year + 1, 1] : [year, month + 1]
-    const monthEnd = `${nextMonth[0]}-${String(nextMonth[1]).padStart(2, '0')}-01`
+    const allTime = !monthParam || monthParam === 'all'
 
-    const [spendRes, jobsRes] = await Promise.all([
-      supabase
-        .from('dyia_marketing_spend')
-        .select('source, amount')
-        .eq('user_id', dyiaUserId)
-        .eq('month', monthStart),
-      supabase
-        .from('dyia_jobs')
-        .select('source, revenue')
-        .eq('user_id', dyiaUserId)
-        .gte('date', monthStart)
-        .lt('date', monthEnd),
-    ])
+    let spendQuery = supabase
+      .from('dyia_marketing_spend')
+      .select('source, amount')
+      .eq('user_id', dyiaUserId)
+    let jobsQuery = supabase
+      .from('dyia_jobs')
+      .select('source, revenue')
+      .eq('user_id', dyiaUserId)
+
+    if (!allTime) {
+      const monthStart = `${monthParam!.slice(0, 7)}-01`
+      const [year, month] = monthStart.split('-').map(Number)
+      const nextMonth = month === 12 ? [year + 1, 1] : [year, month + 1]
+      const monthEnd = `${nextMonth[0]}-${String(nextMonth[1]).padStart(2, '0')}-01`
+      spendQuery = spendQuery.eq('month', monthStart)
+      jobsQuery = jobsQuery.gte('date', monthStart).lt('date', monthEnd)
+    }
+
+    const [spendRes, jobsRes] = await Promise.all([spendQuery, jobsQuery])
 
     if (spendRes.error) {
       console.error('Marketing ROI spend fetch:', spendRes.error)
@@ -94,6 +96,7 @@ export async function GET(req: NextRequest) {
 
     roi.sort((a, b) => b.revenue - a.revenue)
 
+    const monthStart = allTime ? null : `${monthParam!.slice(0, 7)}-01`
     return NextResponse.json({ month: monthStart, items: roi })
   } catch (err) {
     console.error('Marketing ROI GET:', err)

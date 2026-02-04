@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { AppQuote, AppSettings, AppJob, QuoteStatus } from '@/types/database'
 import { formatCurrency } from '@/lib/utils'
+import { getReviewRequestMessage } from '@/lib/reviews'
 import { jsPDF } from 'jspdf'
 import { useConfirm } from '@/components/providers/ConfirmProvider'
 
@@ -26,10 +27,16 @@ const STATUS_CONFIG: Record<QuoteStatus, { label: string; color: string; bg: str
   completed: { label: 'Completed', color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-100 dark:bg-emerald-900/30' },
 }
 
+const REVIEW_PLATFORMS = ['Google', 'Yelp', 'Facebook'] as const
+
 export function Quotes({ quotes, setQuotes, jobs, userId, settings, onCreateQuote, showSuccess }: QuotesProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<QuoteStatus | 'all'>('all')
   const [linkingQuoteId, setLinkingQuoteId] = useState<string | null>(null)
+  const [reviewModalQuote, setReviewModalQuote] = useState<AppQuote | null>(null)
+  const [reviewPlatform, setReviewPlatform] = useState<string>(REVIEW_PLATFORMS[0])
+  const [reviewCopied, setReviewCopied] = useState(false)
+  const [reviewHistory, setReviewHistory] = useState<{ platform: string; requestedAt: string }[]>([])
 
   const supabase = createClient()
   const { confirm, alert } = useConfirm()
@@ -70,6 +77,18 @@ export function Quotes({ quotes, setQuotes, jobs, userId, settings, onCreateQuot
     })
     return counts
   }, [quotes])
+
+  useEffect(() => {
+    if (!reviewModalQuote?.customer?.name) {
+      setReviewHistory([])
+      return
+    }
+    const name = reviewModalQuote.customer.name.trim()
+    fetch(`/api/review-requests?customerName=${encodeURIComponent(name)}`)
+      .then(r => r.json())
+      .then(data => setReviewHistory((data.items || []).map((i: { platform: string; requestedAt: string }) => ({ platform: i.platform, requestedAt: i.requestedAt }))))
+      .catch(() => setReviewHistory([]))
+  }, [reviewModalQuote?.customer?.name])
 
   const updateQuoteStatus = async (quoteId: string, newStatus: QuoteStatus) => {
     try {
@@ -507,6 +526,18 @@ export function Quotes({ quotes, setQuotes, jobs, userId, settings, onCreateQuot
                 </div>
 
                 <div className="flex gap-1.5">
+                  {/* Request Review (completed only) */}
+                  {quote.status === 'completed' && (
+                    <button
+                      onClick={() => { setReviewModalQuote(quote); setReviewPlatform(REVIEW_PLATFORMS[0]); setReviewCopied(false) }}
+                      className="p-1.5 text-[var(--color-text-faint)] hover:text-amber-500 rounded-lg transition"
+                      title="Request review"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                      </svg>
+                    </button>
+                  )}
                   {/* Link to job */}
                   {!quote.jobId && !isLinking && (
                     <button
@@ -552,6 +583,69 @@ export function Quotes({ quotes, setQuotes, jobs, userId, settings, onCreateQuot
           <p className="text-[var(--color-text-muted)]">
             No quotes match your filters.
           </p>
+        </div>
+      )}
+
+      {/* Request Review modal */}
+      {reviewModalQuote && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={() => setReviewModalQuote(null)}>
+          <div
+            className="bg-[var(--color-bg)] border border-[var(--color-border)] rounded-xl shadow-xl max-w-md w-full p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-semibold text-[var(--color-text-primary)] mb-2">Request review</h3>
+            <p className="text-sm text-[var(--color-text-muted)] mb-4">Copy the message and send it to {reviewModalQuote.customer.name} (e.g. by text or email).</p>
+            {reviewHistory.length > 0 && (
+              <p className="text-xs text-[var(--color-text-muted)] mb-3">
+                Previously requested: {reviewHistory.map(h => `${h.platform} (${new Date(h.requestedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })})`).join(', ')}
+              </p>
+            )}
+            <div className="mb-4">
+              <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1">Platform</label>
+              <select
+                value={reviewPlatform}
+                onChange={(e) => setReviewPlatform(e.target.value)}
+                className="app-input w-full"
+              >
+                {REVIEW_PLATFORMS.map(p => <option key={p} value={p}>{p}</option>)}
+              </select>
+            </div>
+            <div className="mb-4">
+              <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1">Message</label>
+              <textarea
+                readOnly
+                rows={4}
+                value={getReviewRequestMessage(reviewModalQuote, settings.businessInfo, reviewPlatform)}
+                className="app-input w-full resize-none text-sm"
+              />
+            </div>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={async () => {
+                  const msg = getReviewRequestMessage(reviewModalQuote, settings.businessInfo, reviewPlatform)
+                  await navigator.clipboard.writeText(msg)
+                  setReviewCopied(true)
+                  showSuccess('Copied to clipboard')
+                  try {
+                    await fetch('/api/review-requests', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        quoteId: reviewModalQuote.id,
+                        customerName: reviewModalQuote.customer.name,
+                        platform: reviewPlatform,
+                      }),
+                    })
+                  } catch (_) { /* ignore */ }
+                }}
+                className="app-btn-primary flex-1"
+              >
+                {reviewCopied ? 'Copied!' : 'Copy & record'}
+              </button>
+              <button type="button" onClick={() => setReviewModalQuote(null)} className="app-btn-secondary">Done</button>
+            </div>
+          </div>
         </div>
       )}
     </div>

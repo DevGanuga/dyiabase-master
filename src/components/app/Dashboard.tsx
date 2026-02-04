@@ -59,6 +59,26 @@ export function Dashboard({
       return d >= weekAgo
     })
 
+    const todayStr = now.toISOString().split('T')[0]
+    const todayJobs = jobs.filter(j => j.date === todayStr)
+    const todayRevenue = todayJobs.reduce((sum, j) => sum + (j.revenue || 0), 0)
+
+    // Best week (by job count) in last 12 weeks
+    const weekCounts: number[] = []
+    for (let w = 0; w < 12; w++) {
+      const weekStart = new Date(now)
+      weekStart.setDate(weekStart.getDate() - 7 * (w + 1))
+      const weekEnd = new Date(weekStart)
+      weekEnd.setDate(weekEnd.getDate() + 7)
+      const count = jobs.filter(j => {
+        const d = new Date(j.date)
+        return d >= weekStart && d < weekEnd
+      }).length
+      weekCounts.push(count)
+    }
+    const bestWeekJobs = Math.max(0, ...weekCounts)
+    const jobsAwayFromBest = bestWeekJobs > thisWeek.length ? bestWeekJobs - thisWeek.length : 0
+
     const totalRevenue = thisMonth.reduce((sum, j) => sum + (j.revenue || 0), 0)
     const totalExpenses = thisMonth.reduce((sum, j) => 
       sum + (j.labor || 0) + (j.gas || 0) + (j.dumpFee || 0) + 
@@ -78,7 +98,10 @@ export function Dashboard({
     const takeHome = netProfit - taxSetAside
 
     return {
+      todayJobs: todayJobs.length,
+      todayRevenue,
       jobsThisWeek: thisWeek.length,
+      jobsAwayFromBest,
       jobsThisMonth: thisMonth.length,
       revenueThisMonth: totalRevenue,
       jobExpenses: totalExpenses,
@@ -125,6 +148,28 @@ export function Dashboard({
             // Optionally show a toast or notification
           }}
         />
+      </div>
+
+      {/* Today card */}
+      <div className="animate-fade-in delay-fade-1 bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl p-4 sm:p-5">
+        <h2 className="text-xs sm:text-sm font-semibold text-[var(--color-text-muted)] uppercase tracking-wide mb-3">
+          Today
+        </h2>
+        <div className="flex flex-wrap items-center gap-4 sm:gap-6">
+          <div>
+            <p className="text-2xl sm:text-3xl font-bold text-[var(--color-text-primary)]">{stats.todayJobs}</p>
+            <p className="text-xs sm:text-sm text-[var(--color-text-muted)]">Jobs</p>
+          </div>
+          <div>
+            <p className="text-2xl sm:text-3xl font-bold text-[var(--color-text-primary)]">{formatCurrency(stats.todayRevenue)}</p>
+            <p className="text-xs sm:text-sm text-[var(--color-text-muted)]">Expected revenue</p>
+          </div>
+          {stats.jobsAwayFromBest > 0 && stats.jobsThisWeek > 0 && (
+            <p className="text-sm text-[var(--color-text-muted)]">
+              You&apos;re <span className="font-medium text-[var(--color-text-primary)]">{stats.jobsAwayFromBest}</span> job{stats.jobsAwayFromBest !== 1 ? 's' : ''} away from your best week.
+            </p>
+          )}
+        </div>
       </div>
 
       {/* Workflow Pipeline */}

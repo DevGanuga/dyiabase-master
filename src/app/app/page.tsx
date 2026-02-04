@@ -13,11 +13,14 @@ import { QuoteBuilder } from '@/components/app/QuoteBuilder'
 import { Settings } from '@/components/app/Settings'
 import { FollowUps } from '@/components/app/FollowUps'
 import { Reports } from '@/components/app/Reports'
+import { Marketing } from '@/components/app/Marketing'
+import { Customers } from '@/components/app/Customers'
+import { MassEmail } from '@/components/app/MassEmail'
 import { Assistant } from '@/components/app/Assistant'
 import { TrialBanner } from '@/components/app/TrialBanner'
 import { ConfirmProvider } from '@/components/providers/ConfirmProvider'
 
-type View = 'dashboard' | 'jobs' | 'quotes' | 'quoteBuilder' | 'followUps' | 'reports' | 'assistant' | 'settings'
+type View = 'dashboard' | 'jobs' | 'quotes' | 'quoteBuilder' | 'followUps' | 'reports' | 'marketing' | 'customers' | 'massEmail' | 'assistant' | 'settings'
 
 // Track selected job for quote building
 interface QuoteBuilderState {
@@ -36,7 +39,7 @@ const DEMO_JOBS: AppJob[] = [
 const DEMO_SETTINGS: AppSettings = {
   taxPercentage: 30,
   monthlyGoal: 8000,
-  businessInfo: { name: 'Demo Junk Co', phone: '(555) 123-4567', email: 'demo@dyia.co', address: '123 Demo Street', logo: null, reviewUrl: null },
+  businessInfo: { name: 'Demo Junk Co', phone: '(555) 123-4567', email: 'demo@dyia.co', address: '123 Demo Street', logo: null, reviewUrl: null, reviewUrlGoogle: null, reviewUrlYelp: null, reviewUrlFacebook: null },
   onboardingCompleted: true,
   onboardingSkipped: false,
   onboardingCompletedAt: null
@@ -55,7 +58,7 @@ export default function AppPage() {
   const [settings, setSettings] = useState<AppSettings>({
     taxPercentage: 30,
     monthlyGoal: 0,
-    businessInfo: { name: '', phone: '', email: '', address: '', logo: null, reviewUrl: null },
+    businessInfo: { name: '', phone: '', email: '', address: '', logo: null, reviewUrl: null, reviewUrlGoogle: null, reviewUrlYelp: null, reviewUrlFacebook: null },
     onboardingCompleted: false,
     onboardingSkipped: false,
     onboardingCompletedAt: null
@@ -173,7 +176,10 @@ export default function AppPage() {
             email: settingsData.business_email || '',
             address: settingsData.business_address || '',
             logo: settingsData.business_logo || null,
-            reviewUrl: settingsData.review_url ?? null
+            reviewUrl: settingsData.review_url ?? null,
+            ...(Object.prototype.hasOwnProperty.call(settingsData, 'review_url_google') && { reviewUrlGoogle: settingsData.review_url_google ?? null }),
+            ...(Object.prototype.hasOwnProperty.call(settingsData, 'review_url_yelp') && { reviewUrlYelp: settingsData.review_url_yelp ?? null }),
+            ...(Object.prototype.hasOwnProperty.call(settingsData, 'review_url_facebook') && { reviewUrlFacebook: settingsData.review_url_facebook ?? null })
           },
           onboardingCompleted: settingsData.onboarding_completed || false,
           onboardingSkipped: settingsData.onboarding_skipped || false,
@@ -364,6 +370,7 @@ export default function AppPage() {
             userId={userProfile?.id || ''}
             selectedMonth={selectedMonth}
             setSelectedMonth={setSelectedMonth}
+            settings={settings}
             showSuccess={showSuccess}
           />
         )
@@ -389,6 +396,7 @@ export default function AppPage() {
             setQuotes={setQuotes}
             userId={userProfile?.id || ''}
             selectedJob={selectedJobForQuote}
+            customerNames={[...new Set(jobs.map(j => j.customerName).filter(Boolean))]}
             onBack={() => {
               setSelectedJobForQuote(null)
               setCurrentView('quotes')
@@ -422,6 +430,20 @@ export default function AppPage() {
             isPro={['active', 'trialing'].includes(userProfile?.subscription_status || '')}
           />
         )
+      case 'marketing':
+        return <Marketing showSuccess={showSuccess} />
+      case 'customers':
+        return (
+          <Customers
+            jobs={jobs}
+            isPro={['active', 'trialing'].includes(userProfile?.subscription_status || '')}
+            onNavigate={(view) => setCurrentView(view as View)}
+            onCreateQuote={(job) => { setSelectedJobForQuote(job ?? null); setCurrentView('quoteBuilder') }}
+            showSuccess={showSuccess}
+          />
+        )
+      case 'massEmail':
+        return <MassEmail />
       case 'assistant':
         return (
           <Assistant

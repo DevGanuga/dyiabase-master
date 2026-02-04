@@ -76,11 +76,14 @@ export default function LandingPage() {
   const [openFaq, setOpenFaq] = useState<number | null>(null)
   const [hasDemoCookie, setHasDemoCookie] = useState(false)
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly')
+  const [useFoundersCoupon, setUseFoundersCoupon] = useState(false)
 
   useEffect(() => {
     setMounted(true)
     const cookies = document.cookie.split(';')
     setHasDemoCookie(cookies.some(c => c.trim().startsWith('dyia_demo_access=')))
+    const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '')
+    if (params.get('founders') === '1') setUseFoundersCoupon(true)
   }, [])
 
   async function checkout(plan: 'monthly' | 'annual', tier: 'basic' | 'pro' = 'pro') {
@@ -108,6 +111,7 @@ export default function LandingPage() {
           clerkUserId: user.id,
           userEmail,
           couponCode: couponInput || undefined,
+          useFoundersCoupon: useFoundersCoupon || undefined,
           tier,
         }),
       })
@@ -563,7 +567,7 @@ export default function LandingPage() {
             <div className="text-center mb-12">
               <p className="text-orange-400 text-sm font-medium uppercase tracking-wider mb-3">Pricing</p>
               <h2 className="text-4xl sm:text-5xl font-bold text-white mb-4">Start free. Upgrade when ready.</h2>
-              <p className="text-xl text-slate-400">7-day Pro trial included. No credit card required.</p>
+              <p className="text-xl text-slate-400">14-day Pro trial included. No credit card required.</p>
             </div>
 
             {/* Toggle */}
@@ -633,7 +637,7 @@ export default function LandingPage() {
                   ))}
                 </ul>
                 <button onClick={startFreeTrial} className="w-full py-3.5 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-xl font-bold shadow-lg shadow-orange-500/20 hover:-translate-y-0.5 transition-all">
-                  Start 7-Day Free Trial
+                  Start 14-Day Free Trial
                 </button>
                 <p className="text-xs text-slate-500 text-center mt-3">No credit card required</p>
               </div>
@@ -667,7 +671,7 @@ export default function LandingPage() {
 
             <div className="space-y-3">
               {[
-                { q: 'Is the free trial actually free?', a: '100%. 7 days of full Pro access. No credit card required. After the trial, you can continue with Basic (still useful!) or upgrade to keep Pro features.' },
+                { q: 'Is the free trial actually free?', a: '100%. 14 days of full Pro access. No credit card required. After the trial, you can continue with Basic (still useful!) or upgrade to keep Pro features.' },
                 { q: 'What\'s the difference between Basic and Pro?', a: 'Basic has everything for profit tracking: jobs, expenses, quotes, tax calculator, follow-ups. Pro adds Dyia AI — log jobs by chatting, get smart pricing suggestions, revenue forecasts, and AI-powered insights.' },
                 { q: 'Can I use this on my phone?', a: 'Yes. dyia works in any browser — iPhone, Android, tablet, laptop. Log jobs from your truck, check numbers anywhere. No app download needed.' },
                 { q: 'What if I want to cancel?', a: 'Cancel anytime in settings. No phone calls, no retention team. You keep access until your billing period ends. We hold your data for 90 days if you want to come back.' },
@@ -708,7 +712,7 @@ export default function LandingPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
               </svg>
             </button>
-            <p className="text-slate-600 text-sm mt-6">7 days free • No credit card • Cancel anytime</p>
+            <p className="text-slate-600 text-sm mt-6">14 days free • No credit card • Cancel anytime</p>
           </div>
         </section>
       </main>

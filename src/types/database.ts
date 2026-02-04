@@ -50,6 +50,9 @@ export interface Settings {
   business_address?: string | null
   business_logo?: string | null
   review_url?: string | null
+  review_url_google?: string | null
+  review_url_yelp?: string | null
+  review_url_facebook?: string | null
   onboarding_completed: boolean
   onboarding_skipped: boolean
   onboarding_completed_at?: string | null
@@ -130,6 +133,23 @@ export interface SourceROI {
   costPerJob: number
 }
 
+export interface ReviewRequest {
+  id: string
+  user_id: string
+  quote_id: string | null
+  customer_name: string
+  platform: string
+  requested_at: string
+}
+
+export interface AppReviewRequest {
+  id: string
+  quoteId: string | null
+  customerName: string
+  platform: string
+  requestedAt: Date
+}
+
 // App-side transformed types (camelCase)
 export interface AppJob {
   id: string
@@ -176,6 +196,9 @@ export interface AppSettings {
     address: string
     logo: string | null
     reviewUrl: string | null
+    reviewUrlGoogle?: string | null
+    reviewUrlYelp?: string | null
+    reviewUrlFacebook?: string | null
   }
   onboardingCompleted: boolean
   onboardingSkipped: boolean

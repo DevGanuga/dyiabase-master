@@ -11,6 +11,7 @@ interface QuoteBuilderProps {
   setQuotes: (quotes: AppQuote[]) => void
   userId: string
   selectedJob: AppJob | null  // Job context for the quote
+  customerNames?: string[]  // For name autocomplete
   onBack: () => void
   showSuccess: (message: string) => void
 }
@@ -21,7 +22,7 @@ const PRICE_FIELDS = [
   'laborFee', 'heavyItemFee', 'distanceFee', 'timeFee', 'hazardFee', 'customFee'
 ]
 
-export function QuoteBuilder({ quotes, setQuotes, userId, selectedJob, onBack, showSuccess }: QuoteBuilderProps) {
+export function QuoteBuilder({ quotes, setQuotes, userId, selectedJob, customerNames = [], onBack, showSuccess }: QuoteBuilderProps) {
   // Pre-fill customer info from the selected job
   const [customer, setCustomer] = useState(() => ({
     name: selectedJob?.customerName || '',
@@ -243,6 +244,7 @@ export function QuoteBuilder({ quotes, setQuotes, userId, selectedJob, onBack, s
             <div>
               <label className="app-label">Customer Name *</label>
               <input
+                list="quote-customer-names"
                 type="text"
                 value={customer.name}
                 onChange={(e) => setCustomer({ ...customer, name: e.target.value })}
@@ -250,6 +252,9 @@ export function QuoteBuilder({ quotes, setQuotes, userId, selectedJob, onBack, s
                 placeholder="John Smith"
                 required
               />
+              <datalist id="quote-customer-names">
+                {customerNames.map(n => <option key={n} value={n} />)}
+              </datalist>
             </div>
             <div>
               <label className="app-label">Phone</label>

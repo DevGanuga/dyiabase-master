@@ -138,3 +138,37 @@ export async function POST(req: NextRequest) {
     )
   }
 }
+
+/** DELETE: remove one marketing spend row by id. */
+export async function DELETE(req: NextRequest) {
+  try {
+    const { userId: clerkUserId } = await auth()
+    if (!clerkUserId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    const supabase = getSupabase()
+    const dyiaUserId = await getDyiaUserId(supabase, clerkUserId)
+    if (!dyiaUserId) return NextResponse.json({ error: 'User not found' }, { status: 404 })
+
+    const { searchParams } = new URL(req.url)
+    const id = searchParams.get('id')
+    if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 })
+
+    const { error } = await supabase
+      .from('dyia_marketing_spend')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', dyiaUserId)
+
+    if (error) {
+      console.error('Marketing spend DELETE error:', error)
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+    return NextResponse.json({ ok: true })
+  } catch (err) {
+    console.error('Marketing spend DELETE:', err)
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : 'Unknown error' },
+      { status: 500 }
+    )
+  }
+}

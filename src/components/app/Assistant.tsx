@@ -91,6 +91,12 @@ export function Assistant({ userId, showSuccess }: AssistantProps) {
   // Pending action state for confirmations
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null)
   const [isConfirming, setIsConfirming] = useState(false)
+
+  // File attachment for upload & extraction
+  const [attachmentUrl, setAttachmentUrl] = useState<string | null>(null)
+  const [attachmentName, setAttachmentName] = useState<string | null>(null)
+  const [isUploading, setIsUploading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
@@ -211,9 +217,29 @@ export function Assistant({ userId, showSuccess }: AssistantProps) {
     setShowThreads(false)
   }, [])
 
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    e.target.value = ''
+    setIsUploading(true)
+    try {
+      const form = new FormData()
+      form.append('file', file)
+      const res = await fetch('/api/ai/upload', { method: 'POST', body: form })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Upload failed')
+      setAttachmentUrl(data.url)
+      setAttachmentName(data.fileName || file.name)
+    } catch (err) {
+      showSuccess(err instanceof Error ? err.message : 'Upload failed')
+    } finally {
+      setIsUploading(false)
+    }
+  }
+
   const handleSend = async (customMessage?: string) => {
     const content = (customMessage || inputValue).trim()
-    if (!content || isSending) return
+    if ((!content && !attachmentUrl) || isSending) return
 
     // Add user message immediately
     const userMessage: Message = {
@@ -231,14 +257,22 @@ export function Assistant({ userId, showSuccess }: AssistantProps) {
       inputRef.current.style.height = 'auto'
     }
 
+    const urlToSend = attachmentUrl
+    const nameToSend = attachmentName
+    if (attachmentUrl) {
+      setAttachmentUrl(null)
+      setAttachmentName(null)
+    }
+
     try {
       const response = await fetch('/api/ai/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          message: content,
+          message: content || '(see attached file)',
           conversationId: currentThreadId,
           previousResponseId: lastResponseId,
+          ...(urlToSend && { fileUrl: urlToSend, fileName: nameToSend || 'file' }),
         }),
       })
 
@@ -730,7 +764,42 @@ export function Assistant({ userId, showSuccess }: AssistantProps) {
         {/* Input Area */}
         <div className="p-3 sm:p-4 border-t border-[var(--color-border)] bg-[var(--color-bg-card)]">
           <div className="max-w-3xl mx-auto">
+            {attachmentUrl && (
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-xs text-[var(--color-text-muted)]">Attached: {attachmentName}</span>
+                <button
+                  type="button"
+                  onClick={() => { setAttachmentUrl(null); setAttachmentName(null) }}
+                  className="text-[var(--color-text-faint)] hover:text-red-500 text-xs"
+                >
+                  Remove
+                </button>
+              </div>
+            )}
             <div className="chat-input-wrapper">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*,.pdf,.csv,.txt,.xlsx,.xls"
+                className="hidden"
+                onChange={handleFileSelect}
+                disabled={isUploading}
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isSending || isUploading}
+                className="p-2 text-[var(--color-text-faint)] hover:text-orange-500 rounded-lg transition-colors flex-shrink-0"
+                title="Attach file (image, PDF, CSV)"
+              >
+                {isUploading ? (
+                  <div className="w-5 h-5 border-2 border-orange-500/30 border-t-orange-500 rounded-full animate-spin" />
+                ) : (
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.414a2 2 0 00-2.828-2.828l-6.586 6.586a4 4 0 105.656 5.656l6.414-6.414a2 2 0 000-2.828l-2.828-2.828a2 2 0 00-2.828 0l-6.414 6.414a4 4 0 01-5.656-5.656l6.414-6.414" />
+                  </svg>
+                )}
+              </button>
               <textarea
                 ref={inputRef}
                 value={inputValue}
@@ -743,7 +812,7 @@ export function Assistant({ userId, showSuccess }: AssistantProps) {
               />
               <button
                 onClick={() => handleSend()}
-                disabled={!inputValue.trim() || isSending}
+                disabled={(!inputValue.trim() && !attachmentUrl) || isSending}
                 className="chat-send-btn"
                 title="Send message"
               >

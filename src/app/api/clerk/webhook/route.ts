@@ -70,10 +70,10 @@ export async function POST(req: Request) {
         const { id, email_addresses, first_name, last_name } = evt.data
         const primaryEmail = email_addresses?.[0]?.email_address || ''
 
-        // Calculate 7-day trial end date
-        const trialEndsAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+        // Calculate 14-day trial end date
+        const trialEndsAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
 
-        // Create user profile in Supabase with automatic 7-day trial
+        // Create user profile in Supabase with automatic 14-day trial
         const { data: newUser, error } = await supabase
           .from('dyia_users')
           .insert({

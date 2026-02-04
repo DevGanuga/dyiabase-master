@@ -21,19 +21,61 @@ export function Settings({ settings, setSettings, userId, showSuccess }: Setting
   const [businessEmail, setBusinessEmail] = useState(settings.businessInfo.email)
   const [businessAddress, setBusinessAddress] = useState(settings.businessInfo.address)
   const [reviewUrl, setReviewUrl] = useState(settings.businessInfo.reviewUrl ?? '')
+  const [reviewUrlGoogle, setReviewUrlGoogle] = useState(settings.businessInfo.reviewUrlGoogle ?? '')
+  const [reviewUrlYelp, setReviewUrlYelp] = useState(settings.businessInfo.reviewUrlYelp ?? '')
+  const [reviewUrlFacebook, setReviewUrlFacebook] = useState(settings.businessInfo.reviewUrlFacebook ?? '')
   const [taxPercentage, setTaxPercentage] = useState(settings.taxPercentage)
   const [monthlyGoal, setMonthlyGoal] = useState(settings.monthlyGoal)
   const [saving, setSaving] = useState(false)
   const [uploadingLogo, setUploadingLogo] = useState(false)
+  const [portalLoading, setPortalLoading] = useState(false)
+  const [exportLoading, setExportLoading] = useState(false)
 
   const supabase = createClient()
   const { confirm, alert } = useConfirm()
+
+  const openBillingPortal = async () => {
+    setPortalLoading(true)
+    try {
+      const res = await fetch('/api/stripe/portal', { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) {
+        await alert({ title: 'Billing', message: data.error || 'Could not open billing', variant: 'warning' })
+        return
+      }
+      if (data.url) window.location.href = data.url
+    } catch {
+      await alert({ title: 'Error', message: 'Failed to open billing portal', variant: 'error' })
+    } finally {
+      setPortalLoading(false)
+    }
+  }
+
+  const exportData = async () => {
+    setExportLoading(true)
+    try {
+      const res = await fetch('/api/export/data')
+      if (!res.ok) throw new Error('Export failed')
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `dyia-export-${new Date().toISOString().split('T')[0]}.csv`
+      a.click()
+      URL.revokeObjectURL(url)
+      showSuccess('Export downloaded')
+    } catch {
+      await alert({ title: 'Error', message: 'Failed to export data', variant: 'error' })
+    } finally {
+      setExportLoading(false)
+    }
+  }
 
   const saveSettings = async () => {
     setSaving(true)
 
     try {
-      const dbSettings = {
+      const dbSettings: Record<string, unknown> = {
         tax_percentage: taxPercentage,
         monthly_goal: Math.max(0, monthlyGoal),
         business_name: businessName || null,
@@ -42,6 +84,12 @@ export function Settings({ settings, setSettings, userId, showSuccess }: Setting
         business_address: businessAddress || null,
         business_logo: settings.businessInfo.logo,
         review_url: reviewUrl?.trim() || null
+      }
+      // Only include per-platform review URLs when migration 011 has been applied
+      if (Object.prototype.hasOwnProperty.call(settings.businessInfo, 'reviewUrlGoogle')) {
+        dbSettings.review_url_google = reviewUrlGoogle?.trim() || null
+        dbSettings.review_url_yelp = reviewUrlYelp?.trim() || null
+        dbSettings.review_url_facebook = reviewUrlFacebook?.trim() || null
       }
 
       const { error } = await supabase
@@ -60,7 +108,12 @@ export function Settings({ settings, setSettings, userId, showSuccess }: Setting
           email: businessEmail,
           address: businessAddress,
           logo: settings.businessInfo.logo,
-          reviewUrl: reviewUrl?.trim() || null
+          reviewUrl: reviewUrl?.trim() || null,
+          ...(Object.prototype.hasOwnProperty.call(settings.businessInfo, 'reviewUrlGoogle') && {
+            reviewUrlGoogle: reviewUrlGoogle?.trim() || null,
+            reviewUrlYelp: reviewUrlYelp?.trim() || null,
+            reviewUrlFacebook: reviewUrlFacebook?.trim() || null
+          })
         },
         onboardingCompleted: settings.onboardingCompleted,
         onboardingSkipped: settings.onboardingSkipped,
@@ -214,6 +267,43 @@ export function Settings({ settings, setSettings, userId, showSuccess }: Setting
             />
             <p className="mt-1 text-xs text-slate-500">Used for copy-paste review requests on completed quotes.</p>
           </div>
+          {Object.prototype.hasOwnProperty.call(settings.businessInfo, 'reviewUrlGoogle') && (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label className="app-label">Review link — Google</label>
+                  <input
+                    type="url"
+                    value={reviewUrlGoogle}
+                    onChange={(e) => setReviewUrlGoogle(e.target.value)}
+                    className="app-input"
+                    placeholder="https://g.page/..."
+                  />
+                </div>
+                <div>
+                  <label className="app-label">Review link — Yelp</label>
+                  <input
+                    type="url"
+                    value={reviewUrlYelp}
+                    onChange={(e) => setReviewUrlYelp(e.target.value)}
+                    className="app-input"
+                    placeholder="https://yelp.com/..."
+                  />
+                </div>
+                <div>
+                  <label className="app-label">Review link — Facebook</label>
+                  <input
+                    type="url"
+                    value={reviewUrlFacebook}
+                    onChange={(e) => setReviewUrlFacebook(e.target.value)}
+                    className="app-input"
+                    placeholder="https://facebook.com/..."
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-slate-500 mt-1">Optional. When set, the selected platform in the review modal uses this link.</p>
+            </>
+          )}
 
           {/* Logo Upload */}
           <div>
@@ -349,6 +439,35 @@ export function Settings({ settings, setSettings, userId, showSuccess }: Setting
               = <strong>{formatCurrency(monthlyGoal / 4)}</strong>/week or <strong>{formatCurrency(monthlyGoal / 30)}</strong>/day
             </div>
           )}
+        </div>
+      </div>
+
+      {/* Account: Plan & Billing, Export */}
+      <div className="app-card mb-6">
+        <div className="flex items-center gap-3 mb-6">
+          <span className="text-2xl">👤</span>
+          <div>
+            <h3 className="font-semibold text-[var(--color-text-primary)]">Account & data</h3>
+            <p className="text-sm text-[var(--color-text-muted)]">Manage subscription and export your data</p>
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-3">
+          <button
+            type="button"
+            onClick={openBillingPortal}
+            disabled={portalLoading}
+            className="app-btn-secondary"
+          >
+            {portalLoading ? 'Opening…' : 'Manage subscription & billing'}
+          </button>
+          <button
+            type="button"
+            onClick={exportData}
+            disabled={exportLoading}
+            className="app-btn-secondary"
+          >
+            {exportLoading ? 'Preparing…' : 'Export data (CSV)'}
+          </button>
         </div>
       </div>
 

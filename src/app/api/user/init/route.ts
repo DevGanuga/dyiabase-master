@@ -41,10 +41,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ profile: existingUser })
     }
 
-    // Calculate 7-day trial end date
-    const trialEndsAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+    // Calculate 14-day trial end date
+    const trialEndsAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
 
-    // Create user profile with automatic 7-day trial
+    // Create user profile with automatic 14-day trial
     const { data: newProfile, error: createError } = await supabase
       .from('dyia_users')
       .insert({

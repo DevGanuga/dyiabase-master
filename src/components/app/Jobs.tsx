@@ -2,9 +2,12 @@
 
 import { useState, useMemo, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import type { AppJob } from '@/types/database'
+import type { AppJob, AppSettings } from '@/types/database'
 import { formatCurrency } from '@/lib/utils'
+import { getReviewRequestMessage } from '@/lib/reviews'
 import { useConfirm } from '@/components/providers/ConfirmProvider'
+
+const REVIEW_PLATFORMS = ['Google', 'Yelp', 'Facebook'] as const
 
 interface JobsProps {
   jobs: AppJob[]
@@ -12,6 +15,7 @@ interface JobsProps {
   userId: string
   selectedMonth: Date
   setSelectedMonth: (date: Date) => void
+  settings?: AppSettings
   showSuccess: (message: string) => void
 }
 
@@ -32,7 +36,7 @@ interface TempExpenses {
 
 const MARKETING_SOURCES = ['Google', 'Facebook', 'Referral', 'Repeat Customer', 'Yelp', 'Craigslist', 'Instagram', 'Nextdoor', 'Thumbtack', 'HomeAdvisor', 'Website', 'Other']
 
-export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, showSuccess }: JobsProps) {
+export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, settings, showSuccess }: JobsProps) {
   const [editingJob, setEditingJob] = useState<AppJob | 'new' | null>(null)
   const [tempCustomers, setTempCustomers] = useState<TempCustomer[]>([])
   const [tempExpenses, setTempExpenses] = useState<TempExpenses>({ labor: 0, gas: 0, dumpFee: 0, dumpsterRental: 0, additional: 0 })
@@ -41,6 +45,9 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
   const [searchQuery, setSearchQuery] = useState('')
   const [sourceFilter, setSourceFilter] = useState<string>('all')
   const [hasCheckedMonth, setHasCheckedMonth] = useState(false)
+  const [reviewModalJob, setReviewModalJob] = useState<AppJob | null>(null)
+  const [reviewPlatform, setReviewPlatform] = useState<string>(REVIEW_PLATFORMS[0])
+  const [reviewCopied, setReviewCopied] = useState(false)
 
   const supabase = createClient()
   const { confirm, alert } = useConfirm()
@@ -77,6 +84,15 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
   }, [jobs, selectedMonth])
 
   // Apply search and source filters
+  const customerNameSuggestions = useMemo(() => {
+    const names = new Set<string>()
+    jobs.forEach(j => {
+      const n = (j.customerName || '').trim()
+      if (n) names.add(n)
+    })
+    return [...names].sort()
+  }, [jobs])
+
   const filteredJobs = useMemo(() => {
     return monthJobs.filter(job => {
       const matchesSearch = searchQuery === '' || 
@@ -338,12 +354,16 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
                   <div>
                     <label className="block text-xs sm:text-sm font-medium text-slate-600 dark:text-slate-400 mb-1">Customer Name *</label>
                     <input
+                      list={`customer-names-${index}`}
                       type="text"
                       value={customer.name}
                       onChange={(e) => updateCustomer(index, 'name', e.target.value)}
                       className="w-full px-3 sm:px-4 py-2 sm:py-2.5 bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 text-sm"
                       placeholder="John Smith"
                     />
+                    <datalist id={`customer-names-${index}`}>
+                      {customerNameSuggestions.map(n => <option key={n} value={n} />)}
+                    </datalist>
                   </div>
                   <div>
                     <label className="block text-xs sm:text-sm font-medium text-slate-600 dark:text-slate-400 mb-1">Revenue *</label>
@@ -618,6 +638,17 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
                       <p className="text-xs text-[var(--color-text-faint)]">{margin}% margin</p>
                     </div>
                     <div className="flex gap-0.5 sm:gap-1">
+                      {settings && (
+                        <button
+                          onClick={() => { setReviewModalJob(job); setReviewPlatform(REVIEW_PLATFORMS[0]); setReviewCopied(false) }}
+                          className="icon-btn p-1.5 sm:p-2 text-[var(--color-text-faint)] hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/30 rounded-lg transition-all duration-200"
+                          title="Request review"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                          </svg>
+                        </button>
+                      )}
                       <button 
                         onClick={() => startEditJob(job)} 
                         className="icon-btn p-1.5 sm:p-2 text-[var(--color-text-faint)] hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-all duration-200"
@@ -642,6 +673,64 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
           </div>
         )}
       </div>
+
+      {/* Request Review modal (from job) */}
+      {reviewModalJob && settings && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={() => setReviewModalJob(null)}>
+          <div
+            className="bg-[var(--color-bg)] border border-[var(--color-border)] rounded-xl shadow-xl max-w-md w-full p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-semibold text-[var(--color-text-primary)] mb-2">Request review</h3>
+            <p className="text-sm text-[var(--color-text-muted)] mb-4">Copy the message and send it to {reviewModalJob.customerName} (e.g. by text or email).</p>
+            <div className="mb-4">
+              <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1">Platform</label>
+              <select
+                value={reviewPlatform}
+                onChange={(e) => setReviewPlatform(e.target.value)}
+                className="app-input w-full"
+              >
+                {REVIEW_PLATFORMS.map(p => <option key={p} value={p}>{p}</option>)}
+              </select>
+            </div>
+            <div className="mb-4">
+              <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1">Message</label>
+              <textarea
+                readOnly
+                rows={4}
+                value={getReviewRequestMessage(reviewModalJob.customerName, settings.businessInfo, reviewPlatform)}
+                className="app-input w-full resize-none text-sm"
+              />
+            </div>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={async () => {
+                  const msg = getReviewRequestMessage(reviewModalJob.customerName, settings.businessInfo, reviewPlatform)
+                  await navigator.clipboard.writeText(msg)
+                  setReviewCopied(true)
+                  showSuccess('Copied to clipboard')
+                  try {
+                    await fetch('/api/review-requests', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        quoteId: null,
+                        customerName: reviewModalJob.customerName,
+                        platform: reviewPlatform,
+                      }),
+                    })
+                  } catch (_) { /* ignore */ }
+                }}
+                className="app-btn-primary flex-1"
+              >
+                {reviewCopied ? 'Copied!' : 'Copy & record'}
+              </button>
+              <button type="button" onClick={() => setReviewModalJob(null)} className="app-btn-secondary">Done</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
   try {
     const stripe = getStripe()
     const supabase = getSupabase()
-    const { priceId, clerkUserId, userEmail, couponCode, mode = 'subscription', creditsAmount = 100 } = await request.json()
+    const { priceId, clerkUserId, userEmail, couponCode, useFoundersCoupon, mode = 'subscription', creditsAmount = 100 } = await request.json()
 
     if (!priceId || !clerkUserId || !userEmail) {
       return NextResponse.json(
@@ -76,11 +76,18 @@ export async function POST(request: NextRequest) {
           dyia_user_id: dyiaUser.id,
         },
       }
+      // Let customers enter a promotion code at checkout (e.g. Gumroad, founders)
+      sessionParams.allow_promotion_codes = true
     }
 
-    // Apply coupon if provided (only for subscriptions)
-    if (couponCode && !isOneTime) {
-      sessionParams.discounts = [{ coupon: couponCode }]
+    // Apply coupon (only for subscriptions): explicit code from client or founders coupon from env
+    const foundersCouponId = process.env.STRIPE_FOUNDERS_COUPON_ID
+    if (!isOneTime) {
+      if (useFoundersCoupon && foundersCouponId) {
+        sessionParams.discounts = [{ coupon: foundersCouponId }]
+      } else if (couponCode) {
+        sessionParams.discounts = [{ coupon: couponCode }]
+      }
     }
 
     const session = await stripe.checkout.sessions.create(sessionParams)
