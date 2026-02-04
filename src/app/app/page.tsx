@@ -296,32 +296,43 @@ export default function AppPage() {
     await signOut()
   }
 
+  const needsOnboarding = !loading && !isDemoMode && !!userProfile && !settings.onboardingCompleted && !settings.onboardingSkipped
+
   // Redirect to onboarding for new users (after loading completes)
   useEffect(() => {
-    if (!loading && !isDemoMode && userProfile && !settings.onboardingCompleted && !settings.onboardingSkipped) {
+    if (needsOnboarding) {
       router.push('/app/onboarding')
     }
-  }, [loading, isDemoMode, userProfile, settings.onboardingCompleted, settings.onboardingSkipped, router])
+  }, [needsOnboarding, router])
 
   const handleReopenOnboarding = () => {
     router.push('/app/onboarding')
   }
 
+  const loadingOrRedirecting = (
+    <div className="min-h-screen bg-gradient-to-br from-orange-50/30 via-white to-amber-50/30 flex items-center justify-center">
+      <div className="text-center">
+        <img
+          src="/dyia-logo-full.png"
+          alt="dyia logo"
+          className="h-10 mb-4 mx-auto animate-pulse"
+        />
+        <div className="loading-spinner mx-auto mb-4" />
+        <p className="text-[var(--color-text-muted)] font-medium">
+          {needsOnboarding ? 'Taking you to setup...' : 'Loading your dashboard...'}
+        </p>
+      </div>
+    </div>
+  )
+
   // Loading State
   if ((!isLoaded && !isDemoMode) || loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-orange-50/30 via-white to-amber-50/30 flex items-center justify-center">
-        <div className="text-center">
-          <img 
-            src="/dyia-logo-full.png" 
-            alt="dyia logo" 
-            className="h-10 mb-4 mx-auto animate-pulse"
-          />
-          <div className="loading-spinner mx-auto mb-4" />
-          <p className="text-[var(--color-text-muted)] font-medium">Loading your dashboard...</p>
-        </div>
-      </div>
-    )
+    return loadingOrRedirecting
+  }
+
+  // Don't flash dashboard: show loading-style screen until redirect to onboarding
+  if (needsOnboarding) {
+    return loadingOrRedirecting
   }
 
   // This shouldn't happen due to middleware, but just in case
