@@ -318,7 +318,6 @@ Return a JSON object with:
         { role: 'system', content: systemPrompt },
         { role: 'user', content: prompts[type] },
       ],
-      temperature: 0.7,
       max_completion_tokens: 500,
       response_format: { type: 'json_object' },
     })

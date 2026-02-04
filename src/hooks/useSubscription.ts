@@ -49,7 +49,7 @@ export function useSubscription(): SubscriptionState {
           .from('dyia_users')
           .select('subscription_status, subscription_plan, subscription_ends_at, ai_credits_balance')
           .eq('clerk_user_id', user.id)
-          .single()
+          .maybeSingle()
 
         if (error) throw error
 
@@ -82,7 +82,8 @@ export function useSubscription(): SubscriptionState {
           isLoading: false,
         })
       } catch (error) {
-        console.error('Error loading subscription:', error)
+        const err = error as { message?: string; code?: string }
+        console.error('Error loading subscription:', err?.message ?? err?.code ?? error)
         setState((prev) => ({ ...prev, isLoading: false }))
       }
     }
