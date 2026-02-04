@@ -492,9 +492,7 @@ export type DyiaFunctionName =
   | 'get_follow_up_risk_analysis'
 
 // Proposal function names (require user confirmation)
-export type ProposalFunctionName = 'propose_job' | 'propose_quote'
-
-// Check if a function is a proposal function
+export type ProposalFunctionName = 'propose_job' | 'propose_quote'// Check if a function is a proposal function
 export function isProposalFunction(name: string): name is ProposalFunctionName {
   return name === 'propose_job' || name === 'propose_quote'
 }

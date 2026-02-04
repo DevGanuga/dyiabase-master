@@ -1,32 +1,32 @@
 # dyia - Final Milestone Additions
 
-**Date:** February 3, 2026  
+**Date:** February 4, 2026  
 **For:** Marco Ayyala  
-**Status:** Scope for Final Milestone (Milestone 5)
+**Status:** Confirmed Scope for Final Milestone
 
 ---
 
 ## Overview
 
-This document outlines all additional features discussed for the final milestone before market launch, including recent feedback on marketing tracking, review requests, and AI usage controls.
+This document outlines all confirmed additional features for the final milestone before market launch.
 
 ---
 
-## 1. Marketing Page
+## 1. Marketing Page (Pro)
 
-A new dedicated page in the sidebar for tracking marketing spend and measuring results.
+A dedicated page for tracking marketing spend and measuring ROI.
 
 ### What You Get:
-- **Marketing Spend Tracker** — Log how much you spend on each channel (Google Ads, Facebook Ads, Yard Signs, Thumbtack, etc.)
-- **ROI Dashboard** — See revenue generated vs. money spent per channel with automatic ROI calculation
-- **Lead Source Breakdown** — View which marketing channels bring the most jobs and highest average job value
-- **Time Period Filters** — View data by month, quarter, or all-time
+- **Marketing Spend Tracker** — Log spend by channel (Google Ads, Facebook Ads, Yard Signs, Thumbtack, etc.)
+- **ROI Dashboard** — Revenue generated vs. money spent per channel with automatic ROI calculation
+- **Lead Source Breakdown** — Which channels bring the most jobs and highest average job value
+- **Time Period Filters** — View by month, quarter, or all-time
 
 ### Deliverables:
-- New "Marketing" section in sidebar navigation
+- New "Marketing" section in sidebar (Pro only)
 - Add/edit/delete marketing expenses by channel
-- ROI calculations displayed per channel
-- Summary cards showing total spend, total revenue from marketing, and overall ROI percentage
+- ROI calculations per channel
+- Summary cards: total spend, total revenue, overall ROI %
 
 **Hours: 8**
 
@@ -34,181 +34,232 @@ A new dedicated page in the sidebar for tracking marketing spend and measuring r
 
 ## 2. Marketing Source on Jobs
 
-When logging a job, you'll be able to tag how the customer found you.
+Tag how customers found you when logging a job.
 
 ### What You Get:
 - **Preset Options** — Google, Facebook, Yard Sign, Referral, Word of Mouth, Thumbtack, Craigslist, Other
-- **Custom Input** — Add your own source if not in the list
-- **Source Display** — See the source on job cards and in the job list
+- **Custom Input** — Add your own source if not listed
+- **Source Display** — Visible on job cards and job list
 - **Filtering** — Filter jobs by marketing source
 
 **Hours: 2**
 
 ---
 
-## 3. Review Request System
+## 3. Review Request System (Pro)
 
-Easily request reviews from customers after completing a job.
+Request reviews from customers after completing a job.
 
 ### What You Get:
-- **Review Templates** — Pre-written messages for Google, Yelp, and Facebook reviews
-- **One-Click Copy** — Copy the template to your clipboard, ready to text or email
-- **Customizable** — Templates include your business name automatically
-- **Request Tracking** — Track which customers you've asked for reviews (date, platform)
+- **Review Templates** — Pre-written messages for Google, Yelp, and Facebook
+- **One-Click Copy** — Copy to clipboard, ready to text or email
+- **Customizable** — Templates include business name automatically
+- **Request Tracking** — Track which customers were asked (date, platform)
 - **Access Point** — "Request Review" button on completed jobs
 
 ### Deliverables:
 - Review request modal with platform selection
 - Copy-to-clipboard functionality
 - Review request history per customer
-- Settings area to add your Google/Yelp/Facebook review page links
+- Settings area for review page links
 
 **Hours: 4**
 
 ---
 
-## 4. Logo Design
+## 4. Customer Database (Basic)
 
-Final logo options for dyia branding.
+Store and manage customer information with job history.
 
 ### What You Get:
-- 2-3 logo variations based on current brand direction
-- App icon version (favicon)
-- Full logo for landing page and headers
-- Consistent with existing orange/amber brand colors
+- **Auto-Save Customers** — When you log a job, customer info is saved
+- **Auto-Fill** — Start typing a name, it auto-completes from your database
+- **Customer Profile** — See all past jobs for a customer, total lifetime value
+- **Quick Re-Quote** — Start a new quote for an existing customer with one tap
+
+### Pro Enhancement:
+- AI insights on customer value: "This customer has spent $2,400 over 6 jobs — consider offering a loyalty discount"
+
+**Hours: 5**
+
+---
+
+## 5. "Today" Dashboard Card
+
+Quick view of today's business activity.
+
+### What You Get:
+- **Today's Jobs** — Jobs scheduled for today
+- **Expected Revenue** — Projected revenue for the day
+- **Motivational Stat** — e.g., "You're 3 jobs away from your best week ever"
 
 **Hours: 2**
 
 ---
 
-## 5. Gumroad Buyer Coupon
+## 6. Mass Email Blast (Pro)
 
-Reward existing Gumroad customers with a discount on Pro.
+Send promotional emails to your customer database through Gmail/Outlook integration.
 
 ### What You Get:
-- Coupon code for Gumroad buyers
-- Applies to Annual Pro tier (first year only)
-- Stripe coupon integration
+- **Gmail/Outlook OAuth Integration** — Users connect their own email account
+- **Customer Selection** — Select all customers or filter by criteria
+- **Email Composition** — Write message directly in dyia
+- **One-Click Send** — Emails sent through user's own email account
+- **Personal Delivery** — Emails come from user's business email, not a generic address
+- **Send Tracking** — Track which customers were emailed and when
+
+### Pro Enhancement:
+- AI writes promo copy and suggests messaging
+- AI generates personalized variations per customer
+
+### Deliverables:
+- Gmail OAuth integration
+- Outlook OAuth integration
+- Email composition UI
+- Customer selection interface
+- Send tracking and history
+- Error handling for failed sends
+
+**Hours: 7**
+
+---
+
+## 7. Onboarding Questionnaire
+
+Quick questions on signup to give Dyia context about the business.
+
+### What You Get:
+- 3-4 questions: business type, average job size, pricing style, monthly goal
+- Answers feed into AI context from day one
+- Skippable but encouraged
+
+**Hours: 2**
+
+---
+
+## 8. Logo Design
+
+Final logo options for dyia branding.
+
+### What You Get:
+- 2-3 logo variations
+- App icon (favicon)
+- Full logo for landing page and headers
+
+**Hours: 2**
+
+---
+
+## 9. Gumroad Buyer Coupon
+
+Reward existing Gumroad customers.
+
+### What You Get:
+- Coupon code for Annual Pro (first year only)
+- First 50 users get founders rate ($19.99/mo)
 
 **Hours: 1**
 
 ---
 
-## 6. AI Credits System
+## 10. User Notifications
 
-Manage AI usage with monthly limits and the option to purchase additional credits.
-
-### What You Get:
-
-**For Pro Plan:**
-- **Monthly Limit** — 150 AI messages included per month
-- **Usage Display** — See how many credits you've used in the AI chat
-- **Low Credit Warning** — Notification when approaching your limit
-- **Purchase More** — Buy 100 additional credits for $4.99 when needed
-
-**For Basic Plan:**
-- **Free Credits** — 10 free AI messages per month to try the feature
-- **Upgrade Prompt** — Clear path to upgrade when credits are used
-
-### Deliverables:
-- AI usage tracking per user
-- Credit balance display in chat interface
-- Stripe integration for credit pack purchases
-- Usage reset on monthly billing cycle
-
-**Hours: 12**
-
----
-
-## 7. User Notifications Infrastructure
-
-Email notifications for key user events.
+Email notifications for key events.
 
 ### What You Get:
-- **Welcome Email** — Sent on signup
-- **Trial Expiring** — Reminder before trial ends
-- **Weekly/Monthly Reports** — PDF summary of dashboard stats and quotes (already discussed Jan 21)
-- **Follow-up Reminders** — Email nudges for pending follow-ups
-
-### Deliverables:
-- Resend email templates
-- Scheduled email triggers
-- PDF report generation for weekly/monthly summaries
+- Welcome email on signup
+- Trial expiring reminder
+- Weekly/monthly PDF report summaries
+- Follow-up reminders
 
 **Hours: 4**
 
 ---
 
-## 8. Account Management
+## 11. Account Management
 
-User profile and account settings.
+User profile and subscription settings.
 
 ### What You Get:
-- **Profile Settings** — Update business name, contact info
-- **Subscription Management** — View current plan, billing history
-- **Cancel/Downgrade Flow** — Self-service subscription changes
-- **Data Export** — Download jobs, quotes, expenses as CSV
+- Update business name and contact info
+- View current plan and billing history
+- Cancel/downgrade flow
+- Data export (CSV)
 
 **Hours: 3**
 
 ---
 
+## 12. 14-Day Free Trial
+
+Extended trial period for Pro features.
+
+### What You Get:
+- 14-day Pro trial (up from 7 days)
+- Full AI access during trial
+- Downgrade to Basic or cut off if no conversion
+
+**Hours: 1**
+
+---
+
 ## Summary
 
-| Feature | Hours |
-|---------|-------|
-| Marketing Page (spend tracker + ROI dashboard) | 8 |
-| Marketing Source on Jobs | 2 |
-| Review Request System | 4 |
-| Logo Design | 2 |
-| Gumroad Buyer Coupon | 1 |
-| AI Credits System | 12 |
-| User Notifications Infrastructure | 4 |
-| Account Management | 3 |
-| **Total** | **36** |
+| Feature | Tier | Hours |
+|---------|------|-------|
+| Marketing Page (spend + ROI) | Pro | 8 |
+| Marketing Source on Jobs | Basic | 2 |
+| Review Request System | Pro | 4 |
+| Customer Database | Basic | 5 |
+| "Today" Dashboard Card | Basic | 2 |
+| Mass Email Blast (Gmail/Outlook) | Pro | 7 |
+| Onboarding Questionnaire | All | 2 |
+| Logo Design | — | 2 |
+| Gumroad Coupon + Founders Rate | — | 1 |
+| User Notifications | All | 4 |
+| Account Management | All | 3 |
+| 14-Day Free Trial | — | 1 |
+| **Total** | | **41** |
 
 ---
 
-## Recommended Prioritization
+## Tier Breakdown
 
-### Priority 1: Include in Final Milestone (17 hours)
-1. Marketing Page with spend tracker and ROI dashboard — 8h
-2. Marketing Source presets on job form — 2h
-3. Review Request System with templates and tracking — 4h
-4. Logo Design — 2h
-5. Gumroad Buyer Coupon — 1h
+### Basic Plan ($14.99/mo)
+- Job tracking
+- Quote builder + PDF export
+- Fixed expenses
+- Dashboard + Reports
+- Follow-ups
+- **Customer Database** (NEW)
+- **"Today" Dashboard Card** (NEW)
 
-### Priority 2: Launch Week (7 hours)
-6. User Notifications Infrastructure — 4h
-7. Account Management — 3h
-
-### Priority 3: Post-Launch (12 hours)
-8. AI Credits System with Stripe integration — 12h
+### Pro Plan ($29.99/mo, Founders: $19.99/mo)
+- Everything in Basic
+- AI Assistant (chat interface)
+- AI Insights
+- Revenue forecasting
+- Smart pricing suggestions
+- **Marketing Page + ROI** (NEW)
+- **Review Request System** (NEW)
+- **Mass Email Blast with Gmail/Outlook** (NEW)
+- **Customer AI Insights** (NEW)
 
 ---
 
-## Already Completed (Previous Milestones)
+## Post-MVP Considerations
 
-For reference, these items from our discussions have already been built:
-
-- ✅ Fixed expenses (monthly + yearly)
-- ✅ Dashboard monthly overview (revenue, fixed, variable, tax, net profit)
-- ✅ Follow-up system (copy-to-text messaging)
-- ✅ Basic vs Pro tier gating
-- ✅ AI Assistant with chat interface
-- ✅ Pricing templates (min, 1/4, 1/2, 3/4, full load)
-- ✅ AI insights (weekly/monthly)
-- ✅ Quote follow-up intelligence
-- ✅ Revenue forecasting
-- ✅ Thread persistence
-- ✅ Annual pricing with 2 months free discount
+- **AI Credits System** — Usage tracking + credit purchases
+- **Business Tier** — Multi-user / team accounts (based on user feedback)
+- **Google/Meta Ads API Integration** — Direct ad spend syncing
 
 ---
 
 ## Post-Launch Support
 
-As discussed, 2 weeks of free support post-launch for bugs and edge cases is included.
+30 days of free support post-launch for bugs and edge cases.
 
 ---
 
-*Please confirm which features to include in the final milestone.*
+*Confirmed and ready for final milestone.*
