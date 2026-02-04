@@ -8,7 +8,17 @@
 
 ## Overview
 
-This document outlines all confirmed additional features for the final milestone before market launch.
+Additional features to be built on top of the base milestone scope.
+
+**Base Milestone (already scoped):**
+- Stripe billing logic (Basic, Pro, Founders pricing)
+- Annual plans with two-month discount
+- Gumroad coupon for Annual Pro (year one)
+- Trial flows
+- Resend email system (welcome, trial reminders, reports)
+- Full QA pass, UX polish, mobile audit, error handling, launch readiness
+
+**This document covers the additional features below.**
 
 ---
 
@@ -125,7 +135,34 @@ Send promotional emails to your customer database through Gmail/Outlook integrat
 
 ---
 
-## 7. Onboarding Questionnaire
+## 7. File Upload & Data Extraction (Pro)
+
+Upload files and documents for Dyia to extract data and perform tasks.
+
+### What You Get:
+- **File Upload** — Upload images, PDFs, spreadsheets, and documents directly to Dyia chat
+- **Data Extraction** — Dyia reads and extracts relevant information (customer details, job info, expenses, etc.)
+- **Auto-Action** — Dyia suggests or performs tasks based on extracted data (create job, generate quote, log expense)
+- **Reference Storage** — Files stored and referenced in conversation history
+
+### Supported File Types:
+- Images (PNG, JPG, JPEG)
+- PDFs (invoices, receipts, quotes)
+- Spreadsheets (CSV, Excel)
+- Documents (text files)
+
+### Deliverables:
+- File upload UI in chat interface
+- File processing and parsing logic
+- AI extraction prompts for different file types
+- Task suggestion based on extracted data
+- File storage and retrieval
+
+**Hours: 4**
+
+---
+
+## 8. Onboarding Questionnaire
 
 Quick questions on signup to give Dyia context about the business.
 
@@ -138,7 +175,7 @@ Quick questions on signup to give Dyia context about the business.
 
 ---
 
-## 8. Logo Design
+## 9. Logo Design
 
 Final logo options for dyia branding.
 
@@ -151,33 +188,7 @@ Final logo options for dyia branding.
 
 ---
 
-## 9. Gumroad Buyer Coupon
-
-Reward existing Gumroad customers.
-
-### What You Get:
-- Coupon code for Annual Pro (first year only)
-- First 50 users get founders rate ($19.99/mo)
-
-**Hours: 1**
-
----
-
-## 10. User Notifications
-
-Email notifications for key events.
-
-### What You Get:
-- Welcome email on signup
-- Trial expiring reminder
-- Weekly/monthly PDF report summaries
-- Follow-up reminders
-
-**Hours: 4**
-
----
-
-## 11. Account Management
+## 10. Account Management
 
 User profile and subscription settings.
 
@@ -191,19 +202,6 @@ User profile and subscription settings.
 
 ---
 
-## 12. 14-Day Free Trial
-
-Extended trial period for Pro features.
-
-### What You Get:
-- 14-day Pro trial (up from 7 days)
-- Full AI access during trial
-- Downgrade to Basic or cut off if no conversion
-
-**Hours: 1**
-
----
-
 ## Summary
 
 | Feature | Tier | Hours |
@@ -214,13 +212,11 @@ Extended trial period for Pro features.
 | Customer Database | Basic | 5 |
 | "Today" Dashboard Card | Basic | 2 |
 | Mass Email Blast (Gmail/Outlook) | Pro | 7 |
+| File Upload & Data Extraction | Pro | 4 |
 | Onboarding Questionnaire | All | 2 |
 | Logo Design | — | 2 |
-| Gumroad Coupon + Founders Rate | — | 1 |
-| User Notifications | All | 4 |
 | Account Management | All | 3 |
-| 14-Day Free Trial | — | 1 |
-| **Total** | | **41** |
+| **Total** | | **39** |
 
 ---
 
@@ -244,6 +240,7 @@ Extended trial period for Pro features.
 - **Marketing Page + ROI** (NEW)
 - **Review Request System** (NEW)
 - **Mass Email Blast with Gmail/Outlook** (NEW)
+- **File Upload & Data Extraction** (NEW)
 - **Customer AI Insights** (NEW)
 
 ---
