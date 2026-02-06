@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useUser } from '@clerk/nextjs'
 import Link from 'next/link'
+import BusinessTypes from '@/components/landing/BusinessTypes'
 
 const STRIPE_PRICES = {
   monthly: process.env.NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID,
@@ -479,30 +480,7 @@ export default function LandingPage() {
         </section>
 
         {/* ===== WHO IT'S FOR ===== */}
-        <section className="py-24 px-6">
-          <div className="max-w-5xl mx-auto">
-            <div className="text-center mb-16">
-              <h2 className="text-4xl sm:text-5xl font-bold text-white mb-4">Built for your business</h2>
-              <p className="text-xl text-slate-400">If you charge for jobs and have expenses, dyia is for you.</p>
-            </div>
-
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-              {[
-                { emoji: '🚛', name: 'Junk Removal' },
-                { emoji: '🌿', name: 'Lawn Care' },
-                { emoji: '🏠', name: 'Cleaning' },
-                { emoji: '📦', name: 'Moving' },
-                { emoji: '🔧', name: 'Handyman' },
-                { emoji: '🧹', name: 'Pressure Wash' },
-              ].map((item, i) => (
-                <div key={i} className="bg-white/[0.02] border border-white/[0.04] rounded-xl p-4 text-center hover:border-orange-500/20 transition-all">
-                  <span className="text-3xl block mb-2">{item.emoji}</span>
-                  <h3 className="font-medium text-white text-sm">{item.name}</h3>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
+        <BusinessTypes />
 
         {/* ===== COMPARISON ===== */}
         <section className="py-24 px-6 relative">
