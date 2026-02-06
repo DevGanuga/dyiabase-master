@@ -221,11 +221,10 @@ export function Marketing({ showSuccess }: MarketingProps) {
     const out: string[] = []
     const d = new Date()
     for (let i = 0; i < 24; i++) {
-      const y = d.getFullYear()
-      const m = d.getMonth() - i
-      const year = m < 0 ? y - 1 : y
-      const month = ((m % 12) + 12) % 12
-      out.push(`${year}-${String(month + 1).padStart(2, '0')}`)
+      const past = new Date(d.getFullYear(), d.getMonth() - i, 1)
+      const y = past.getFullYear()
+      const m = past.getMonth() + 1
+      out.push(`${y}-${String(m).padStart(2, '0')}`)
     }
     return out
   })()
