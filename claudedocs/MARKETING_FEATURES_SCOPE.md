@@ -260,3 +260,30 @@ User profile and subscription settings.
 ---
 
 *Confirmed and ready for final milestone.*
+
+---
+
+## Implementation Status (Updated Feb 5, 2026)
+
+### All 10 Features: COMPLETE
+
+| Feature | Status | Files |
+|---------|--------|-------|
+| Marketing Page | ✅ Complete | `Marketing.tsx`, `/api/marketing/*` |
+| Marketing Source on Jobs | ✅ Complete | `Jobs.tsx` (source field) |
+| Review Request System | ✅ Complete | `Jobs.tsx`, `Quotes.tsx`, `/api/review-requests` |
+| Customer Database | ✅ Complete | `Customers.tsx` |
+| "Today" Dashboard Card | ✅ Complete | `Dashboard.tsx` |
+| Mass Email Blast | ✅ Complete | `MassEmail.tsx`, `/api/email/*` |
+| File Upload & Extraction | ✅ Complete | `Assistant.tsx`, `/api/ai/upload` |
+| Onboarding Questionnaire | ✅ Complete | `/app/onboarding/page.tsx` |
+| Logo Design | ✅ Complete | `/public/dyia-logo*.png` |
+| Account Management | ✅ Complete | `Settings.tsx`, `/api/stripe/portal`, `/api/export/data` |
+
+### Mass Email Implementation Details
+
+- **Migration:** `012_mass_email.sql` - creates `dyia_email_connections`, `dyia_email_sends`, `dyia_email_campaigns`
+- **OAuth APIs:** `/api/email/connect/gmail`, `/api/email/connect/outlook` (+ callbacks)
+- **Send API:** `/api/email/send` - handles Gmail API and Microsoft Graph
+- **UI:** Full compose interface with customer selection, OAuth connection, send history
+- **Setup:** See SETUP.md section "5. Mass Email (Pro)" for OAuth configuration

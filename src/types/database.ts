@@ -472,3 +472,103 @@ export interface UserContext {
   }>
   missingFields: string[]  // Fields the user should fill in
 }
+
+// ============================================
+// MASS EMAIL
+// ============================================
+export type EmailProvider = 'gmail' | 'outlook'
+
+export interface EmailConnection {
+  id: string
+  user_id: string
+  provider: EmailProvider
+  email_address: string
+  access_token: string
+  refresh_token: string | null
+  token_expires_at: string | null
+  is_active: boolean
+  connected_at: string
+  last_used_at: string | null
+  metadata: Record<string, unknown>
+  created_at: string
+  updated_at: string
+}
+
+export interface AppEmailConnection {
+  id: string
+  provider: EmailProvider
+  emailAddress: string
+  isActive: boolean
+  connectedAt: Date
+  lastUsedAt: Date | null
+}
+
+export type EmailSendStatus = 'pending' | 'sent' | 'failed' | 'bounced'
+
+export interface EmailSend {
+  id: string
+  user_id: string
+  connection_id: string | null
+  campaign_id: string | null
+  recipient_email: string
+  recipient_name: string | null
+  subject: string
+  body_preview: string | null
+  status: EmailSendStatus
+  error_message: string | null
+  provider_message_id: string | null
+  sent_at: string | null
+  created_at: string
+}
+
+export interface AppEmailSend {
+  id: string
+  recipientEmail: string
+  recipientName: string | null
+  subject: string
+  status: EmailSendStatus
+  errorMessage: string | null
+  sentAt: Date | null
+  createdAt: Date
+}
+
+export type EmailCampaignStatus = 'draft' | 'sending' | 'completed' | 'failed'
+
+export interface EmailCampaign {
+  id: string
+  user_id: string
+  name: string | null
+  subject: string
+  body: string
+  recipient_count: number
+  sent_count: number
+  failed_count: number
+  status: EmailCampaignStatus
+  started_at: string | null
+  completed_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface AppEmailCampaign {
+  id: string
+  name: string | null
+  subject: string
+  body: string
+  recipientCount: number
+  sentCount: number
+  failedCount: number
+  status: EmailCampaignStatus
+  startedAt: Date | null
+  completedAt: Date | null
+  createdAt: Date
+}
+
+// Customer with email for mass email selection
+export interface CustomerWithEmail {
+  name: string
+  email: string
+  totalRevenue: number
+  jobCount: number
+  lastJobDate: string
+}

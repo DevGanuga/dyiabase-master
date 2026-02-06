@@ -65,6 +65,7 @@ export default function AppPage() {
   })
   const [selectedMonth, setSelectedMonth] = useState(new Date())
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [fixedMonthlyExpenses, setFixedMonthlyExpenses] = useState(0)
   const [pendingFollowUpsCount, setPendingFollowUpsCount] = useState(0)
   const [selectedJobForQuote, setSelectedJobForQuote] = useState<AppJob | null>(null)
@@ -102,6 +103,11 @@ export default function AppPage() {
   const showSuccess = useCallback((message: string) => {
     setSuccessMessage(message)
     setTimeout(() => setSuccessMessage(null), 3000)
+  }, [])
+
+  const showError = useCallback((message: string) => {
+    setErrorMessage(message)
+    setTimeout(() => setErrorMessage(null), 4000)
   }, [])
 
   const loadData = useCallback(async (userId: string) => {
@@ -443,7 +449,15 @@ export default function AppPage() {
           />
         )
       case 'massEmail':
-        return <MassEmail />
+        return (
+          <MassEmail
+            jobs={jobs}
+            quotes={quotes}
+            isPro={['active', 'trialing'].includes(userProfile?.subscription_status || '')}
+            showSuccess={showSuccess}
+            showError={showError}
+          />
+        )
       case 'assistant':
         return (
           <Assistant
@@ -512,6 +526,16 @@ export default function AppPage() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
           </svg>
           <span>{successMessage}</span>
+        </div>
+      )}
+
+      {/* Error Toast */}
+      {errorMessage && (
+        <div className="toast toast-error">
+          <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <span>{errorMessage}</span>
         </div>
       )}
     </div>

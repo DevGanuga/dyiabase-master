@@ -141,10 +141,35 @@ In Stripe Dashboard → Products, create:
 
 ### 5. Mass Email (Pro) — optional
 When you want to enable the “Email blast” feature (Gmail/Outlook):
-- Create a Google Cloud project and OAuth 2.0 Client (Web) for Gmail; add redirect URI `https://your-domain.com/api/auth/gmail/callback`.
-- Or create an Azure AD app for Outlook; add redirect URI for your app.
-- Set in env: `NEXT_PUBLIC_GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, and/or Outlook equivalents.
-- Implement `/api/email/connect` and `/api/email/send` (and optional `dyia_email_sends` table for tracking). The Mass Email UI is in place; plug in OAuth and send logic when ready.
+**Gmail Setup:**
+1. Go to [Google Cloud Console](https://console.cloud.google.com)
+2. Create a new project or select existing
+3. Enable the Gmail API
+4. Go to Credentials → Create OAuth 2.0 Client ID (Web application)
+5. Add authorized redirect URI: `https://your-domain.com/api/email/connect/gmail/callback`
+6. Copy Client ID and Secret to your env:
+   ```env
+   GMAIL_CLIENT_ID=your_gmail_client_id
+   GMAIL_CLIENT_SECRET=your_gmail_client_secret
+   ```
+
+**Outlook Setup:**
+1. Go to [Azure Portal](https://portal.azure.com) → Azure Active Directory
+2. App registrations → New registration
+3. Set redirect URI: `https://your-domain.com/api/email/connect/outlook/callback`
+4. Under API permissions, add Microsoft Graph → Delegated → `Mail.Send`, `openid`, `email`, `offline_access`
+5. Under Certificates & secrets, create a new client secret
+6. Copy Application (client) ID and secret to your env:
+   ```env
+   OUTLOOK_CLIENT_ID=your_outlook_client_id
+   OUTLOOK_CLIENT_SECRET=your_outlook_client_secret
+   ```
+
+**Database Migration:**
+Run migration `012_mass_email.sql` in Supabase SQL Editor to create:
+- `dyia_email_connections` - OAuth tokens
+- `dyia_email_sends` - Send tracking
+- `dyia_email_campaigns` - Campaign grouping
 
 ### 6. Logo & branding
 - **App logo**: Replace `public/dyia-logo.png` and `public/dyia-logo-full.png` with your final assets. The app references these paths.
