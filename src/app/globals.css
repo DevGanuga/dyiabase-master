@@ -839,30 +839,34 @@
     @apply hidden;
   }
 
-  .app-sidebar nav {
+  .app-sidebar .sidebar-desktop-nav {
+    @apply hidden;
+  }
+
+  .app-sidebar .sidebar-mobile-nav {
     @apply flex flex-row justify-around w-full py-2 px-1;
     @apply bg-slate-900 border-t border-slate-800;
   }
 
-  .app-sidebar nav .space-y-0\.5 {
+  .app-sidebar .sidebar-mobile-nav .space-y-0\.5 {
     @apply flex flex-row justify-around w-full space-y-0 gap-0;
   }
 
-  .app-sidebar nav button.nav-item-animated {
+  .app-sidebar .sidebar-mobile-nav button.nav-item-animated {
     @apply flex flex-col items-center justify-center px-2 py-2 gap-1 rounded-lg;
     @apply min-w-0 flex-1;
     max-width: 72px;
   }
 
-  .app-sidebar nav button.nav-item-animated span:first-child {
+  .app-sidebar .sidebar-mobile-nav button.nav-item-animated span:first-child {
     @apply scale-100;
   }
 
-  .app-sidebar nav button.nav-item-animated .sidebar-text {
+  .app-sidebar .sidebar-mobile-nav button.nav-item-animated .sidebar-text {
     @apply block text-[10px] leading-tight truncate;
   }
 
-  .app-sidebar nav button.nav-item-animated::after {
+  .app-sidebar .sidebar-mobile-nav button.nav-item-animated::after {
     @apply hidden;
   }
 
@@ -875,7 +879,7 @@
   }
 
   /* Hide certain nav items on mobile to fit */
-  .app-sidebar nav button[data-mobile-hide="true"] {
+  .app-sidebar .sidebar-mobile-nav button[data-mobile-hide="true"] {
     @apply hidden;
   }
 
@@ -889,12 +893,12 @@
 
 /* Small mobile devices */
 @media (max-width: 380px) {
-  .app-sidebar nav button.nav-item-animated {
+  .app-sidebar .sidebar-mobile-nav button.nav-item-animated {
     @apply px-1;
     max-width: 60px;
   }
 
-  .app-sidebar nav button.nav-item-animated .sidebar-text {
+  .app-sidebar .sidebar-mobile-nav button.nav-item-animated .sidebar-text {
     @apply text-[9px];
   }
 }

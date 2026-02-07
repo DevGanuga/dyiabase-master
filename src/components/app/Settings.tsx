@@ -2,20 +2,46 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import type { AppSettings } from '@/types/database'
+import type { AppSettings, UserProfile } from '@/types/database'
 import { compressImage, formatCurrency } from '@/lib/utils'
 import { FixedExpenses } from './FixedExpenses'
 import { PriceTemplates } from './PriceTemplates'
 import { useConfirm } from '@/components/providers/ConfirmProvider'
+import { useSubscription } from '@/hooks/useSubscription'
+import { useClerk } from '@clerk/nextjs'
 
 interface SettingsProps {
   settings: AppSettings
   setSettings: (settings: AppSettings) => void
   userId: string
   showSuccess: (message: string) => void
+  userProfile?: UserProfile | null
+  userEmail?: string
+  userImageUrl?: string
+  userName?: string
+  isDemoMode?: boolean
 }
 
-export function Settings({ settings, setSettings, userId, showSuccess }: SettingsProps) {
+export function Settings({ settings, setSettings, userId, showSuccess, userProfile, userEmail, userImageUrl, userName, isDemoMode = false }: SettingsProps) {
+  const hookSub = useSubscription()
+  const clerk = useClerk()
+
+  // Prefer userProfile-derived subscription data (handles demo mode correctly)
+  const subscription = userProfile ? {
+    ...hookSub,
+    tier: (userProfile.subscription_status === 'trialing' ? 'trial'
+      : ['active', 'trialing'].includes(userProfile.subscription_status) ? 'pro'
+        : 'basic') as 'basic' | 'trial' | 'pro',
+    isPro: ['active', 'trialing'].includes(userProfile.subscription_status),
+    status: userProfile.subscription_status,
+    plan: (userProfile.subscription_plan || null) as 'monthly' | 'annual' | null,
+    daysRemaining: userProfile.subscription_ends_at
+      ? Math.max(0, Math.ceil((new Date(userProfile.subscription_ends_at).getTime() - Date.now()) / 86400000))
+      : 0,
+    aiCredits: userProfile.ai_credits_balance || 0,
+    canUseAI: ['active', 'trialing'].includes(userProfile.subscription_status) || (userProfile.ai_credits_balance || 0) > 0,
+    isLoading: false,
+  } : hookSub
   const [businessName, setBusinessName] = useState(settings.businessInfo.name)
   const [businessPhone, setBusinessPhone] = useState(settings.businessInfo.phone)
   const [businessEmail, setBusinessEmail] = useState(settings.businessInfo.email)
@@ -191,16 +217,46 @@ export function Settings({ settings, setSettings, userId, showSuccess }: Setting
     showSuccess('🗑️ Logo removed!')
   }
 
+  const [activeTab, setActiveTab] = useState<'business' | 'financial' | 'expenses' | 'templates' | 'account'>('business')
+
+  const tabs = [
+    { id: 'business' as const, label: 'Business', icon: '🏢' },
+    { id: 'financial' as const, label: 'Financial', icon: '🐷' },
+    { id: 'expenses' as const, label: 'Expenses', icon: '📊' },
+    { id: 'templates' as const, label: 'Templates', icon: '📋' },
+    { id: 'account' as const, label: 'Account', icon: '👤' },
+  ]
+
   return (
     <div className="animate-fade-in">
-      <div className="page-header mb-8">
+      <div className="page-header mb-6">
         <div>
           <h1 className="page-title">Settings</h1>
           <p className="page-subtitle">Manage your business profile and preferences</p>
         </div>
       </div>
 
+      {/* Tab Navigation */}
+      <div className="flex gap-1 mb-6 overflow-x-auto pb-1 -mx-1 px-1">
+        {tabs.map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg whitespace-nowrap transition-all ${
+              activeTab === tab.id
+                ? 'bg-orange-500/10 text-orange-600 dark:text-orange-400'
+                : 'text-[var(--color-text-muted)] hover:bg-[var(--color-bg-secondary)] hover:text-[var(--color-text-primary)]'
+            }`}
+          >
+            <span className="text-base">{tab.icon}</span>
+            <span>{tab.label}</span>
+          </button>
+        ))}
+      </div>
+
       {/* Business Information */}
+      {activeTab === 'business' && (
+      <>
       <div className="app-card mb-6">
         <div className="flex items-center gap-3 mb-6">
           <span className="text-2xl">🏢</span>
@@ -370,7 +426,34 @@ export function Settings({ settings, setSettings, userId, showSuccess }: Setting
         </div>
       </div>
 
+      {/* Save Button - Business */}
+      <div className="flex justify-end mt-6">
+        <button 
+          onClick={saveSettings} 
+          disabled={saving} 
+          className="app-btn-primary"
+        >
+          {saving ? (
+            <>
+              <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              Saving...
+            </>
+          ) : (
+            <>
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              Save Settings
+            </>
+          )}
+        </button>
+      </div>
+      </>
+      )}
+
       {/* Tax & Savings */}
+      {activeTab === 'financial' && (
+      <>
       <div className="app-card mb-6">
         <div className="flex items-center gap-3 mb-6">
           <span className="text-2xl">🐷</span>
@@ -442,37 +525,8 @@ export function Settings({ settings, setSettings, userId, showSuccess }: Setting
         </div>
       </div>
 
-      {/* Account: Plan & Billing, Export */}
-      <div className="app-card mb-6">
-        <div className="flex items-center gap-3 mb-6">
-          <span className="text-2xl">👤</span>
-          <div>
-            <h3 className="font-semibold text-[var(--color-text-primary)]">Account & data</h3>
-            <p className="text-sm text-[var(--color-text-muted)]">Manage subscription and export your data</p>
-          </div>
-        </div>
-        <div className="flex flex-wrap gap-3">
-          <button
-            type="button"
-            onClick={openBillingPortal}
-            disabled={portalLoading}
-            className="app-btn-secondary"
-          >
-            {portalLoading ? 'Opening…' : 'Manage subscription & billing'}
-          </button>
-          <button
-            type="button"
-            onClick={exportData}
-            disabled={exportLoading}
-            className="app-btn-secondary"
-          >
-            {exportLoading ? 'Preparing…' : 'Export data (CSV)'}
-          </button>
-        </div>
-      </div>
-
-      {/* Save Button */}
-      <div className="flex justify-end mb-8">
+      {/* Save Button - Financial */}
+      <div className="flex justify-end">
         <button 
           onClick={saveSettings} 
           disabled={saving} 
@@ -493,16 +547,253 @@ export function Settings({ settings, setSettings, userId, showSuccess }: Setting
           )}
         </button>
       </div>
+      </>
+      )}
 
-      {/* Fixed Expenses Section */}
-      <div className="border-t border-[var(--color-border)] pt-8">
+      {/* Fixed Expenses */}
+      {activeTab === 'expenses' && (
         <FixedExpenses userId={userId} showSuccess={showSuccess} />
-      </div>
+      )}
 
-      {/* Pricing Templates Section */}
-      <div className="border-t border-[var(--color-border)] pt-8 mt-8">
+      {/* Pricing Templates */}
+      {activeTab === 'templates' && (
         <PriceTemplates userId={userId} showSuccess={showSuccess} />
-      </div>
+      )}
+
+      {/* Account Tab */}
+      {activeTab === 'account' && (
+      <>
+        {/* Profile Card */}
+        <div className="app-card mb-6">
+          <div className="flex items-center gap-3 mb-5">
+            <span className="text-2xl">👤</span>
+            <div>
+              <h3 className="font-semibold text-[var(--color-text-primary)]">Profile</h3>
+              <p className="text-sm text-[var(--color-text-muted)]">Your personal information</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-4">
+            {userImageUrl ? (
+              <img src={userImageUrl} alt="" className="w-16 h-16 rounded-full object-cover border-2 border-[var(--color-border)]" />
+            ) : (
+              <div className="w-16 h-16 bg-orange-500/10 rounded-full flex items-center justify-center border-2 border-[var(--color-border)]">
+                <span className="text-xl font-bold text-orange-500">
+                  {(userName || userEmail || 'U').charAt(0).toUpperCase()}
+                </span>
+              </div>
+            )}
+            <div className="flex-1 min-w-0">
+              {userName && (
+                <p className="text-lg font-semibold text-[var(--color-text-primary)] truncate">{userName}</p>
+              )}
+              {userEmail && (
+                <p className="text-sm text-[var(--color-text-muted)] truncate">{userEmail}</p>
+              )}
+            </div>
+          </div>
+          {!isDemoMode && (
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button
+                onClick={() => clerk.openUserProfile()}
+                className="app-btn-secondary text-sm"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+                Edit Profile
+              </button>
+              <button
+                onClick={() => clerk.openUserProfile({ customPages: [] })}
+                className="app-btn-secondary text-sm"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+                Security & Password
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Subscription Card */}
+        <div className="app-card mb-6">
+          <div className="flex items-center gap-3 mb-5">
+            <span className="text-2xl">💎</span>
+            <div>
+              <h3 className="font-semibold text-[var(--color-text-primary)]">Subscription</h3>
+              <p className="text-sm text-[var(--color-text-muted)]">Your current plan and billing</p>
+            </div>
+          </div>
+
+          {subscription.isLoading ? (
+            <div className="flex items-center gap-3 py-4">
+              <div className="w-5 h-5 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+              <span className="text-sm text-[var(--color-text-muted)]">Loading subscription...</span>
+            </div>
+          ) : (
+            <>
+              {/* Current Plan Display */}
+              <div className="flex flex-col sm:flex-row sm:items-center gap-4 p-4 rounded-xl bg-[var(--color-bg-subtle)] border border-[var(--color-border)] mb-5">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2.5 mb-1">
+                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${
+                      subscription.tier === 'pro' 
+                        ? 'bg-orange-500/15 text-orange-600 dark:text-orange-400' 
+                        : subscription.tier === 'trial'
+                          ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
+                          : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+                    }`}>
+                      {subscription.tier === 'pro' ? 'PRO' : subscription.tier === 'trial' ? 'TRIAL' : 'FREE'}
+                    </span>
+                    {subscription.plan && (
+                      <span className="text-xs text-[var(--color-text-muted)] capitalize">{subscription.plan}</span>
+                    )}
+                  </div>
+                  <p className="text-sm text-[var(--color-text-secondary)]">
+                    {subscription.tier === 'pro' 
+                      ? 'Full access to all features including AI assistant, reports, and marketing tools.'
+                      : subscription.tier === 'trial'
+                        ? `Your free trial is active. ${subscription.daysRemaining} day${subscription.daysRemaining !== 1 ? 's' : ''} remaining.`
+                        : 'Basic access. Upgrade to Pro for AI assistant, advanced reports, marketing tools, and email blasts.'}
+                  </p>
+                  {subscription.tier === 'trial' && (
+                    <div className="mt-2">
+                      <div className="h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden w-40">
+                        <div 
+                          className={`h-full rounded-full transition-all ${subscription.daysRemaining <= 3 ? 'bg-red-500' : 'bg-amber-500'}`}
+                          style={{ width: `${Math.max(5, (subscription.daysRemaining / 14) * 100)}%` }}
+                        />
+                      </div>
+                      <p className="text-xs text-[var(--color-text-faint)] mt-1">{subscription.daysRemaining} of 14 days remaining</p>
+                    </div>
+                  )}
+                </div>
+                {subscription.canUseAI && (
+                  <div className="text-center px-4 py-2 rounded-lg bg-[var(--color-bg-card)] border border-[var(--color-border)]">
+                    <p className="text-lg font-bold text-[var(--color-text-primary)]">{subscription.aiCredits}</p>
+                    <p className="text-xs text-[var(--color-text-muted)]">AI Credits</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Plan Comparison */}
+              {subscription.tier !== 'pro' && !isDemoMode && (
+                <div className="mb-5">
+                  <h4 className="text-sm font-semibold text-[var(--color-text-primary)] mb-3">Upgrade to Pro</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {/* Monthly */}
+                    <button
+                      onClick={async () => {
+                        const priceId = process.env.NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID
+                        if (!priceId) { await alert({ title: 'Error', message: 'Pricing not configured.', variant: 'error' }); return }
+                        try {
+                          const res = await fetch('/api/stripe/checkout', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              priceId,
+                              clerkUserId: userProfile?.clerk_user_id,
+                              userEmail: userProfile?.email || userEmail,
+                            }),
+                          })
+                          const data = await res.json()
+                          if (data.url) window.location.href = data.url
+                          else if (data.error) await alert({ title: 'Error', message: data.error, variant: 'error' })
+                        } catch { await alert({ title: 'Error', message: 'Could not start checkout.', variant: 'error' }) }
+                      }}
+                      className="flex flex-col items-center p-4 rounded-xl border-2 border-[var(--color-border)] hover:border-orange-500 transition-colors text-left group"
+                    >
+                      <span className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wide mb-1">Monthly</span>
+                      <span className="text-2xl font-bold text-[var(--color-text-primary)]">$29<span className="text-sm font-normal text-[var(--color-text-muted)]">/mo</span></span>
+                      <span className="text-xs text-[var(--color-text-muted)] mt-1">Cancel anytime</span>
+                    </button>
+                    {/* Annual */}
+                    <button
+                      onClick={async () => {
+                        const priceId = process.env.NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID
+                        if (!priceId) { await alert({ title: 'Error', message: 'Pricing not configured.', variant: 'error' }); return }
+                        try {
+                          const res = await fetch('/api/stripe/checkout', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              priceId,
+                              clerkUserId: userProfile?.clerk_user_id,
+                              userEmail: userProfile?.email || userEmail,
+                            }),
+                          })
+                          const data = await res.json()
+                          if (data.url) window.location.href = data.url
+                          else if (data.error) await alert({ title: 'Error', message: data.error, variant: 'error' })
+                        } catch { await alert({ title: 'Error', message: 'Could not start checkout.', variant: 'error' }) }
+                      }}
+                      className="relative flex flex-col items-center p-4 rounded-xl border-2 border-orange-500/50 hover:border-orange-500 bg-orange-500/5 transition-colors text-left group"
+                    >
+                      <span className="absolute -top-2.5 right-3 px-2 py-0.5 bg-orange-500 text-white text-[10px] font-bold rounded-full">SAVE 17%</span>
+                      <span className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wide mb-1">Annual</span>
+                      <span className="text-2xl font-bold text-[var(--color-text-primary)]">$24<span className="text-sm font-normal text-[var(--color-text-muted)]">/mo</span></span>
+                      <span className="text-xs text-[var(--color-text-muted)] mt-1">$288 billed yearly</span>
+                    </button>
+                  </div>
+                  <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs text-[var(--color-text-muted)]">
+                    <div className="flex items-center gap-1.5">
+                      <svg className="w-3.5 h-3.5 text-green-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                      AI Business Assistant
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <svg className="w-3.5 h-3.5 text-green-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                      Advanced Reports
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <svg className="w-3.5 h-3.5 text-green-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                      Marketing Tools
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <svg className="w-3.5 h-3.5 text-green-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                      Mass Email Blasts
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Manage Billing */}
+              {(subscription.tier === 'pro' || userProfile?.stripe_customer_id) && (
+                <button
+                  type="button"
+                  onClick={openBillingPortal}
+                  disabled={portalLoading}
+                  className="app-btn-secondary w-full sm:w-auto"
+                >
+                  {portalLoading ? 'Opening…' : 'Manage Billing & Invoices'}
+                </button>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* Data & Export Card */}
+        <div className="app-card mb-6">
+          <div className="flex items-center gap-3 mb-5">
+            <span className="text-2xl">📦</span>
+            <div>
+              <h3 className="font-semibold text-[var(--color-text-primary)]">Data</h3>
+              <p className="text-sm text-[var(--color-text-muted)]">Export your business data</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={exportData}
+            disabled={exportLoading}
+            className="app-btn-secondary"
+          >
+            {exportLoading ? 'Preparing…' : 'Export all data (CSV)'}
+          </button>
+          <p className="text-xs text-[var(--color-text-faint)] mt-2">
+            Download all your jobs, quotes, and customer data as a CSV file.
+          </p>
+        </div>
+      </>
+      )}
     </div>
   )
 }

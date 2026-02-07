@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useSearchParams } from 'next/navigation'
 import type { AppJob, AppQuote, AppEmailConnection, CustomerWithEmail } from '@/types/database'
 import { formatCurrency } from '@/lib/utils'
+import { createClient } from '@/lib/supabase/client'
 
 interface MassEmailProps {
   jobs: AppJob[]
@@ -49,16 +50,53 @@ export function MassEmail({ jobs, quotes, isPro = false, showSuccess, showError 
   }>>([])
   const [loadingHistory, setLoadingHistory] = useState(false)
 
-  // Extract customers with email addresses from quotes
+  // Customer database state
+  const [dbCustomers, setDbCustomers] = useState<Array<{ name: string; email: string }>>([])
+
+  // Load customers from database on mount
+  useEffect(() => {
+    const loadDbCustomers = async () => {
+      try {
+        const supabase = createClient()
+        const { data } = await supabase
+          .from('dyia_customers')
+          .select('name, email')
+          .not('email', 'is', null)
+        if (data) {
+          setDbCustomers(data.filter(c => c.email && c.email.includes('@')))
+        }
+      } catch (err) {
+        console.error('Failed to load customers from DB:', err)
+      }
+    }
+    if (isPro) loadDbCustomers()
+  }, [isPro])
+
+  // Extract customers with email addresses from quotes AND customer database
   const customersWithEmail = useMemo((): CustomerWithEmail[] => {
     const emailMap = new Map<string, CustomerWithEmail>()
     
-    // Get emails from quotes
+    // Get emails from customer database first (most reliable source)
+    for (const customer of dbCustomers) {
+      if (customer.email && customer.name) {
+        const email = customer.email.toLowerCase()
+        if (!emailMap.has(email)) {
+          emailMap.set(email, {
+            name: customer.name,
+            email,
+            totalRevenue: 0,
+            jobCount: 0,
+            lastJobDate: '',
+          })
+        }
+      }
+    }
+
+    // Get emails from quotes (may catch ones not in customer DB)
     for (const quote of quotes) {
       if (quote.customer?.email && quote.customer?.name) {
         const email = quote.customer.email.toLowerCase()
-        const existing = emailMap.get(email)
-        if (!existing) {
+        if (!emailMap.has(email)) {
           emailMap.set(email, {
             name: quote.customer.name,
             email,
@@ -73,8 +111,7 @@ export function MassEmail({ jobs, quotes, isPro = false, showSuccess, showError 
     // Enhance with job data
     for (const job of jobs) {
       const name = (job.customerName || '').trim()
-      // Find matching customer by name
-      for (const [email, customer] of emailMap) {
+      for (const [, customer] of emailMap) {
         if (customer.name.toLowerCase() === name.toLowerCase()) {
           customer.totalRevenue += job.revenue || 0
           customer.jobCount++
@@ -88,7 +125,7 @@ export function MassEmail({ jobs, quotes, isPro = false, showSuccess, showError 
     return Array.from(emailMap.values())
       .filter(c => c.email && c.email.includes('@'))
       .sort((a, b) => b.totalRevenue - a.totalRevenue)
-  }, [jobs, quotes])
+  }, [jobs, quotes, dbCustomers])
 
   // Fetch connections on mount
   const fetchConnections = useCallback(async () => {
@@ -490,7 +527,7 @@ export function MassEmail({ jobs, quotes, isPro = false, showSuccess, showError 
               
               {customersWithEmail.length === 0 ? (
                 <p className="text-[var(--color-text-muted)] text-center py-4">
-                  No customers with email addresses found. Add email addresses to quotes to build your list.
+                  No customers with email addresses found. Add emails to your customer database or include them in quotes.
                 </p>
               ) : (
                 <div className="max-h-64 overflow-y-auto space-y-2">

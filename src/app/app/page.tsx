@@ -1,8 +1,8 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { Suspense, useEffect, useState, useCallback } from 'react'
 import { useUser, useClerk } from '@clerk/nextjs'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import type { AppJob, AppQuote, AppSettings, UserProfile } from '@/types/database'
 import { Sidebar } from '@/components/app/Sidebar'
@@ -19,6 +19,7 @@ import { MassEmail } from '@/components/app/MassEmail'
 import { Assistant } from '@/components/app/Assistant'
 import { TrialBanner } from '@/components/app/TrialBanner'
 import { ConfirmProvider } from '@/components/providers/ConfirmProvider'
+import type { LaunchpadItem } from '@/components/app/Launchpad'
 
 type View = 'dashboard' | 'jobs' | 'quotes' | 'quoteBuilder' | 'followUps' | 'reports' | 'marketing' | 'customers' | 'massEmail' | 'assistant' | 'settings'
 
@@ -45,14 +46,37 @@ const DEMO_SETTINGS: AppSettings = {
   onboardingCompletedAt: null
 }
 
+const VALID_VIEWS: View[] = ['dashboard', 'jobs', 'quotes', 'quoteBuilder', 'followUps', 'reports', 'marketing', 'customers', 'massEmail', 'assistant', 'settings']
+
 export default function AppPage() {
+  return (
+    <Suspense fallback={
+      <div className="h-screen w-screen flex items-center justify-center bg-[var(--color-bg)]">
+        <div className="w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    }>
+      <AppPageContent />
+    </Suspense>
+  )
+}
+
+function AppPageContent() {
   const { user, isLoaded } = useUser()
   const { signOut } = useClerk()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const [isDemoMode, setIsDemoMode] = useState(false)
-  const [currentView, setCurrentView] = useState<View>('dashboard')
+
+  // URL-synced view state
+  const viewParam = searchParams.get('view') as View | null
+  const currentView: View = viewParam && VALID_VIEWS.includes(viewParam) ? viewParam : 'dashboard'
+  
+  const setCurrentView = useCallback((view: View) => {
+    const url = view === 'dashboard' ? '/app' : `/app?view=${view}`
+    router.push(url, { scroll: false })
+  }, [router])
   const [jobs, setJobs] = useState<AppJob[]>([])
   const [quotes, setQuotes] = useState<AppQuote[]>([])
   const [settings, setSettings] = useState<AppSettings>({
@@ -322,16 +346,16 @@ export default function AppPage() {
   }
 
   const loadingOrRedirecting = (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50/30 via-white to-amber-50/30 flex items-center justify-center">
+    <div className="min-h-screen flex items-center justify-center" style={{ background: 'linear-gradient(135deg, rgba(255,247,237,0.4), #fafafa 50%, rgba(255,251,235,0.3))' }}>
       <div className="text-center">
         <img
           src="/dyia-logo-full.png"
           alt="dyia logo"
-          className="h-10 mb-4 mx-auto animate-pulse"
+          className="h-8 mb-6 mx-auto opacity-80"
         />
-        <div className="loading-spinner mx-auto mb-4" />
-        <p className="text-[var(--color-text-muted)] font-medium">
-          {needsOnboarding ? 'Taking you to setup...' : 'Loading your dashboard...'}
+        <div className="w-8 h-8 border-2 border-orange-500/30 border-t-orange-500 rounded-full animate-spin mx-auto mb-4" />
+        <p className="text-sm text-slate-500 font-medium">
+          {needsOnboarding ? 'Setting up your account...' : 'Loading...'}
         </p>
       </div>
     </div>
@@ -352,6 +376,53 @@ export default function AppPage() {
     return null
   }
 
+  // Build launchpad items for both Sidebar and Dashboard
+  const launchpadItems: LaunchpadItem[] = [
+    {
+      id: 'onboarding',
+      label: 'Complete setup',
+      description: 'Set up your business profile',
+      completed: settings.onboardingCompleted,
+      action: settings.onboardingCompleted ? undefined : handleReopenOnboarding,
+    },
+    {
+      id: 'business-info',
+      label: 'Add business info',
+      description: 'Name, phone & email for quotes',
+      completed: !!(settings.businessInfo.name && settings.businessInfo.phone),
+      action: (settings.businessInfo.name && settings.businessInfo.phone) ? undefined : () => setCurrentView('settings'),
+    },
+    {
+      id: 'first-job',
+      label: 'Log your first job',
+      description: 'Track revenue and expenses',
+      completed: jobs.length > 0,
+      action: jobs.length > 0 ? undefined : () => setCurrentView('jobs'),
+    },
+    {
+      id: 'first-customer',
+      label: 'Add a customer',
+      description: 'Build your customer database',
+      completed: jobs.length > 0, // will be true once they have at least 1 job (auto-synced)
+      action: jobs.length > 0 ? undefined : () => setCurrentView('customers'),
+    },
+    {
+      id: 'first-quote',
+      label: 'Create a quote',
+      description: 'Send professional estimates',
+      completed: quotes.length > 0,
+      action: quotes.length > 0 ? undefined : () => setCurrentView('quoteBuilder'),
+    },
+    {
+      id: 'first-template',
+      label: 'Save a price template',
+      description: 'Speed up future quotes',
+      completed: priceTemplatesCount > 0,
+      action: priceTemplatesCount > 0 ? undefined : () => setCurrentView('settings'),
+    },
+  ]
+  const showLaunchpadOnDashboard = !isDemoMode && launchpadItems.some(item => !item.completed)
+
   const renderContent = () => {
     switch (currentView) {
       case 'dashboard':
@@ -366,6 +437,8 @@ export default function AppPage() {
             fixedMonthlyExpenses={fixedMonthlyExpenses}
             isPro={['active', 'trialing'].includes(userProfile?.subscription_status || '')}
             taxPercentage={settings.taxPercentage}
+            launchpadItems={launchpadItems}
+            showLaunchpad={showLaunchpadOnDashboard}
           />
         )
       case 'jobs':
@@ -417,6 +490,11 @@ export default function AppPage() {
             setSettings={setSettings}
             userId={userProfile?.id || ''}
             showSuccess={showSuccess}
+            userProfile={userProfile}
+            userEmail={isDemoMode ? 'demo@dyia.co' : (user?.primaryEmailAddress?.emailAddress || '')}
+            userImageUrl={isDemoMode ? undefined : user?.imageUrl}
+            userName={isDemoMode ? 'Demo User' : (userProfile?.first_name || user?.firstName || '')}
+            isDemoMode={isDemoMode}
           />
         )
       case 'followUps':
@@ -442,10 +520,12 @@ export default function AppPage() {
         return (
           <Customers
             jobs={jobs}
+            quotes={quotes}
             isPro={['active', 'trialing'].includes(userProfile?.subscription_status || '')}
             onNavigate={(view) => setCurrentView(view as View)}
             onCreateQuote={(job) => { setSelectedJobForQuote(job ?? null); setCurrentView('quoteBuilder') }}
             showSuccess={showSuccess}
+            isDemoMode={isDemoMode}
           />
         )
       case 'massEmail':
@@ -473,13 +553,13 @@ export default function AppPage() {
     <div className="app-layout">
       {/* Demo Mode Banner */}
       {isDemoMode && (
-        <div className="fixed top-0 left-0 right-0 z-50 bg-gradient-to-r from-orange-500 to-amber-500 text-white text-center py-2 px-4 text-sm font-medium shadow-lg">
-          🎯 Demo Mode — Data is sample only and won&apos;t be saved.{' '}
+        <div className="fixed top-0 left-0 right-0 z-50 bg-slate-900 text-white text-center py-2 px-4 text-xs sm:text-sm font-medium shadow-lg border-b border-orange-500/30">
+          <span className="text-orange-400">Demo Mode</span> — Sample data only, nothing is saved.{' '}
           <button 
             onClick={handleLogout}
-            className="underline hover:no-underline ml-2"
+            className="text-orange-400 hover:text-orange-300 underline underline-offset-2 ml-1"
           >
-            Exit Demo
+            Exit
           </button>
         </div>
       )}
@@ -488,24 +568,26 @@ export default function AppPage() {
         currentView={currentView}
         setCurrentView={setCurrentView}
         userEmail={isDemoMode ? 'demo@dyia.co' : (user?.primaryEmailAddress?.emailAddress || '')}
+        userName={isDemoMode ? 'Demo User' : (userProfile?.first_name || user?.firstName || '')}
+        userImageUrl={isDemoMode ? undefined : user?.imageUrl}
         onLogout={handleLogout}
-        jobs={jobs}
-        quotes={quotes}
-        showSuccess={showSuccess}
         isPro={['active', 'trialing'].includes(userProfile?.subscription_status || '')}
-        launchpadData={{
-          onboardingCompleted: settings.onboardingCompleted,
-          onboardingSkipped: settings.onboardingSkipped,
-          jobsCount: jobs.length,
-          quotesCount: quotes.length,
-          templatesCount: priceTemplatesCount,
-          onReopenOnboarding: handleReopenOnboarding,
-        }}
+        subscriptionTier={
+          userProfile?.subscription_status === 'trialing' ? 'trial'
+            : ['active', 'trialing'].includes(userProfile?.subscription_status || '') ? 'pro'
+              : 'basic'
+        }
+        trialDaysRemaining={
+          userProfile?.subscription_ends_at
+            ? Math.max(0, Math.ceil((new Date(userProfile.subscription_ends_at).getTime() - Date.now()) / 86400000))
+            : 0
+        }
+        launchpadItems={showLaunchpadOnDashboard ? launchpadItems : undefined}
         isDemoMode={isDemoMode}
       />
       
       <main className={`flex-1 flex flex-col overflow-hidden ${isDemoMode ? 'pt-16' : ''}`} style={{ animation: 'contentReveal 0.6s cubic-bezier(0.16, 1, 0.3, 1) both' }}>
-        <TrialBanner />
+        {!isDemoMode && <TrialBanner />}
         {currentView === 'assistant' ? (
           <div className="flex-1 min-h-0">
             {renderContent()}
@@ -521,21 +603,21 @@ export default function AppPage() {
 
       {/* Success Toast */}
       {successMessage && (
-        <div className="toast toast-success">
-          <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="toast toast-success" role="status">
+          <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
           </svg>
-          <span>{successMessage}</span>
+          <span className="text-sm">{successMessage}</span>
         </div>
       )}
 
       {/* Error Toast */}
       {errorMessage && (
-        <div className="toast toast-error">
-          <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="toast toast-error" role="alert">
+          <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
-          <span>{errorMessage}</span>
+          <span className="text-sm">{errorMessage}</span>
         </div>
       )}
     </div>

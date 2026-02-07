@@ -639,13 +639,7 @@ export function Assistant({ userId, showSuccess }: AssistantProps) {
           </button>
           <div className="flex items-center gap-1.5 sm:gap-2 flex-1 min-w-0">
             {/* Dyia Avatar */}
-            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center shadow-md ring-2 ring-orange-400/30">
-              <svg className="w-4 h-4 sm:w-5 sm:h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="12" r="3" fill="currentColor" stroke="none" />
-                <path d="M12 2v4m0 12v4M2 12h4m12 0h4" strokeLinecap="round" />
-                <path d="M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83" strokeLinecap="round" opacity="0.6" />
-              </svg>
-            </div>
+            <img src="/dyia-agent.png" alt="Dyia AI" className="w-7 h-7 sm:w-8 sm:h-8 rounded-full shadow-md ring-2 ring-orange-400/30 object-cover" />
             <span className="font-semibold text-[var(--color-text-primary)] text-sm sm:text-base">Dyia</span>
             <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
               isSending ? 'bg-orange-500 animate-pulse' : 'bg-green-500'

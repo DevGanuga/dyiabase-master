@@ -188,8 +188,13 @@ export function FollowUps({ userId, businessName = 'dyia', showSuccess }: Follow
       updates.last_contacted_at = new Date().toISOString()
       const currentCount = row.followUp?.contact_count || 0
       updates.contact_count = currentCount + 1
-    }
-    if (status !== 'snoozed') {
+      updates.next_follow_up_at = null
+    } else if (status === 'snoozed') {
+      // Set follow-up reminder 3 days from now
+      const snoozeUntil = new Date()
+      snoozeUntil.setDate(snoozeUntil.getDate() + 3)
+      updates.next_follow_up_at = snoozeUntil.toISOString()
+    } else {
       updates.next_follow_up_at = null
     }
     await updateRow(row, updates)
@@ -340,6 +345,30 @@ export function FollowUps({ userId, businessName = 'dyia', showSuccess }: Follow
           <div className="flex items-center gap-3">
             <div className="loading-spinner" />
             <span className="text-[var(--color-text-muted)]">Loading follow-ups...</span>
+          </div>
+        </div>
+      ) : rows.length === 0 ? (
+        <div className="app-card">
+          <div className="text-center py-12 px-6">
+            <div className="w-20 h-20 bg-amber-50 dark:bg-amber-900/30 rounded-2xl flex items-center justify-center mx-auto mb-6">
+              <svg className="w-10 h-10 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+              </svg>
+            </div>
+            <h3 className="text-xl font-semibold text-[var(--color-text-primary)] mb-3">
+              No Follow-Ups Yet
+            </h3>
+            <p className="text-[var(--color-text-muted)] mb-2 max-w-md mx-auto">
+              Follow-ups are automatically created when you send a quote to a customer. They help you track which leads need attention and when to reach out again.
+            </p>
+            <p className="text-sm text-[var(--color-text-muted)] mb-6 max-w-md mx-auto">
+              Create and send a quote to get started with your follow-up pipeline.
+            </p>
+            <div className="flex flex-wrap justify-center gap-3 text-xs text-[var(--color-text-muted)] mb-6">
+              <span className="px-2.5 py-1 bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400 rounded-full">Hot = sent recently</span>
+              <span className="px-2.5 py-1 bg-amber-100 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 rounded-full">Warm = a few days</span>
+              <span className="px-2.5 py-1 bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 rounded-full">Cold = over a week</span>
+            </div>
           </div>
         </div>
       ) : (

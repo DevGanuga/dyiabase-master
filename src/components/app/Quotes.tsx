@@ -321,11 +321,25 @@ export function Quotes({ quotes, setQuotes, jobs, userId, settings, onCreateQuot
               </svg>
             </div>
             <h3 className="text-xl font-semibold text-[var(--color-text-primary)] mb-3">
-              Create Your First Quote
+              Win More Jobs With Professional Quotes
             </h3>
-            <p className="text-[var(--color-text-muted)] mb-6 max-w-md mx-auto">
-              Build a professional estimate for a potential customer. You can optionally link it to an existing job later.
+            <p className="text-[var(--color-text-muted)] mb-4 max-w-md mx-auto">
+              Send polished estimates to potential customers with your branding, pricing, and photos. Quotes can be shared as PDFs and tracked through the follow-up pipeline.
             </p>
+            <div className="flex flex-wrap justify-center gap-4 text-sm text-[var(--color-text-muted)] mb-6">
+              <div className="flex items-center gap-1.5">
+                <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                PDF export
+              </div>
+              <div className="flex items-center gap-1.5">
+                <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                Photo attachments
+              </div>
+              <div className="flex items-center gap-1.5">
+                <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                Auto follow-ups
+              </div>
+            </div>
             <button
               onClick={() => onCreateQuote()}
               className="inline-flex items-center gap-2 px-5 py-2.5 bg-orange-500 hover:bg-orange-600 text-white font-medium rounded-xl transition-all duration-200 group"
@@ -333,7 +347,7 @@ export function Quotes({ quotes, setQuotes, jobs, userId, settings, onCreateQuot
               <svg className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
-              Create Quote
+              Create Your First Quote
             </button>
           </div>
         </div>

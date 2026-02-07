@@ -161,7 +161,7 @@ export default function LandingPage() {
 
       <main>
         {/* ===== HERO ===== */}
-        <section className="pt-32 pb-24 px-6">
+        <section className="pt-32 pb-20 px-6">
           <div className="max-w-6xl mx-auto">
             <div className="grid lg:grid-cols-2 gap-16 items-center">
               <div className={`transition-all duration-700 delay-100 ${mounted ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0'}`}>
@@ -180,12 +180,12 @@ export default function LandingPage() {
                 </h1>
                 
                 <p className="text-xl text-slate-400 mb-10 leading-relaxed max-w-xl">
-                  The AI-powered profit tracker for service businesses. Log jobs, track expenses, and finally know what you actually pocket — not what you think you made.
+                  The AI-powered business manager for service pros. Track jobs, build quotes, manage customers, and finally know what you actually take home — not what you think you made.
                 </p>
 
                 <div className="flex flex-wrap gap-4 mb-10">
                   <button onClick={startFreeTrial} className="group px-8 py-4 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-2xl font-bold text-lg shadow-lg shadow-orange-500/20 hover:shadow-xl hover:shadow-orange-500/30 hover:-translate-y-0.5 transition-all flex items-center gap-2">
-                    Start Free — 7 Day Trial
+                    Start Free — 14 Day Trial
                     <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
                     </svg>
@@ -246,6 +246,25 @@ export default function LandingPage() {
                   </div>
                 </div>
               </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ===== SOCIAL PROOF STRIP ===== */}
+        <section className="py-10 px-6 border-y border-white/[0.04]">
+          <div className="max-w-5xl mx-auto">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+              {[
+                { value: '30 sec', label: 'to log a job' },
+                { value: '100%', label: 'profit visibility' },
+                { value: '2 min', label: 'setup time' },
+                { value: '$0', label: 'to start' },
+              ].map((stat, i) => (
+                <div key={i}>
+                  <p className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-orange-400 to-amber-400 bg-clip-text text-transparent">{stat.value}</p>
+                  <p className="text-sm text-slate-500 mt-1">{stat.label}</p>
+                </div>
+              ))}
             </div>
           </div>
         </section>
@@ -324,8 +343,8 @@ export default function LandingPage() {
                 },
                 {
                   step: '03',
-                  title: 'Get smarter',
-                  desc: 'Dyia learns your business. Smart pricing suggestions, revenue forecasts, and insights you\'d never catch yourself.',
+                  title: 'Grow smarter',
+                  desc: 'Track customers, send quotes, follow up automatically. Dyia learns your business and helps you price, plan, and profit more.',
                   icon: <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
                 },
               ].map((item, i) => (
@@ -338,6 +357,82 @@ export default function LandingPage() {
                     <h3 className="text-xl font-bold text-white mb-3">{item.title}</h3>
                     <p className="text-slate-400 leading-relaxed">{item.desc}</p>
                   </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ===== FULL PLATFORM OVERVIEW ===== */}
+        <section id="features" className="py-24 px-6 relative">
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-orange-950/5 to-transparent" />
+          <div className="max-w-6xl mx-auto relative">
+            <div className="text-center mb-16">
+              <p className="text-orange-400 text-sm font-medium uppercase tracking-wider mb-3">The full platform</p>
+              <h2 className="text-4xl sm:text-5xl font-bold text-white mb-4">Everything you need to run your business</h2>
+              <p className="text-xl text-slate-400 max-w-2xl mx-auto">Not just tracking — a complete business operating system built for one-truck operators and growing teams alike.</p>
+            </div>
+
+            {/* Highlighted features - larger cards */}
+            <div className="grid md:grid-cols-2 gap-6 mb-6">
+              {[
+                {
+                  icon: <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>,
+                  title: 'Job Tracking & Profit Calculator',
+                  desc: 'Log every job in seconds with revenue, gas, dump fees, labor, materials, and dumpster costs. See your actual take-home pay instantly — not just gross revenue. Split expenses across multi-customer jobs automatically.',
+                  highlights: ['Per-job profit breakdown', 'Multi-customer splitting', 'Lead source tracking'],
+                },
+                {
+                  icon: <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>,
+                  title: 'Professional Quote Builder',
+                  desc: 'Create branded PDF quotes with your logo, volume-based pricing, specialty surcharges, and photo attachments. Send to customers and track status through accepted, declined, or expired. Auto-creates follow-ups.',
+                  highlights: ['Branded PDF export', 'Photo attachments', 'Auto follow-up creation'],
+                },
+                {
+                  icon: <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>,
+                  title: 'Customer Database & CRM',
+                  desc: 'Build a real customer database. Store contact info, notes, and tags. See each customer\'s lifetime value, job history, and quote history. Auto-fill customer details when creating jobs or quotes.',
+                  highlights: ['Lifetime value tracking', 'Job & quote history', 'Smart autocomplete'],
+                },
+                {
+                  icon: <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>,
+                  title: 'Follow-Up Pipeline',
+                  desc: 'Never lose a lead. Quotes automatically create follow-ups with hot, warm, and cold priority scoring. Drag-and-drop Kanban board to track contacted, snoozed, converted, and lost. Convert directly to a job with one click.',
+                  highlights: ['Auto-priority scoring', 'Kanban drag & drop', 'One-click conversion'],
+                },
+              ].map((f, i) => (
+                <div key={i} className="bg-white/[0.02] border border-white/[0.06] rounded-2xl p-6 hover:border-orange-500/20 transition-all">
+                  <div className="w-12 h-12 bg-orange-500/10 border border-orange-500/20 rounded-xl flex items-center justify-center text-orange-400 mb-4">
+                    {f.icon}
+                  </div>
+                  <h3 className="text-lg font-bold text-white mb-2">{f.title}</h3>
+                  <p className="text-slate-400 text-sm leading-relaxed mb-4">{f.desc}</p>
+                  <div className="flex flex-wrap gap-2">
+                    {f.highlights.map((h, j) => (
+                      <span key={j} className="text-xs px-2.5 py-1 bg-white/[0.04] border border-white/[0.06] rounded-full text-slate-400">{h}</span>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Grid of smaller features */}
+            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {[
+                { icon: '🧾', title: 'Tax Set-Aside', desc: 'Adjustable percentage automatically calculated on every job. Know exactly what to save for April.' },
+                { icon: '💳', title: 'Fixed Expenses', desc: 'Track monthly overhead — insurance, truck payment, tools, software. See true net profit.' },
+                { icon: '🎯', title: 'Monthly Goals', desc: 'Set revenue targets. Visual progress tracking on your dashboard with weekly breakdowns.' },
+                { icon: '📊', title: 'Reports & Analytics', desc: 'Revenue by source, expense breakdowns, monthly trends, and performance metrics.' },
+                { icon: '📧', title: 'Email Blasts', desc: 'Send targeted emails to your customer list. Connect Gmail or Outlook. Track campaigns.', pro: true },
+                { icon: '⭐', title: 'Review Requests', desc: 'Request Google, Yelp, or Facebook reviews after completed jobs with one-tap messages.' },
+                { icon: '📈', title: 'Marketing ROI', desc: 'Log ad spend by channel. See which marketing actually brings profitable customers.', pro: true },
+                { icon: '📥', title: 'Data Export', desc: 'Download all jobs, quotes, and customer data as CSV. Your data is always yours.' },
+              ].map((f, i) => (
+                <div key={i} className="bg-white/[0.02] border border-white/[0.04] rounded-xl p-4 hover:border-orange-500/20 transition-all relative">
+                  {f.pro && <div className="absolute top-3 right-3 px-1.5 py-0.5 bg-gradient-to-r from-orange-500 to-amber-500 rounded text-[9px] font-bold text-white">PRO</div>}
+                  <span className="text-xl mb-2 block">{f.icon}</span>
+                  <h3 className="font-semibold text-white text-sm mb-1">{f.title}</h3>
+                  <p className="text-slate-500 text-xs leading-relaxed">{f.desc}</p>
                 </div>
               ))}
             </div>
@@ -371,16 +466,14 @@ export default function LandingPage() {
                 </div>
                 
                 <div className="p-5 space-y-4">
-                  {/* User */}
                   <div className="flex justify-end">
                     <div className="bg-orange-500/10 border border-orange-500/20 rounded-2xl rounded-br-sm px-4 py-3 max-w-[85%]">
                       <p className="text-sm text-slate-200">What should I charge for a hot tub removal?</p>
                     </div>
                   </div>
                   
-                  {/* Dyia */}
                   <div className="flex gap-3">
-                    <DyiaAvatar className="w-7 h-7 flex-shrink-0 mt-1" />
+                    <DyiaAvatar className="w-7 h-7 shrink-0 mt-1" />
                     <div className="bg-white/[0.03] border border-white/[0.06] rounded-2xl rounded-bl-sm px-4 py-3 max-w-[85%]">
                       <p className="text-sm text-slate-300 leading-relaxed">
                         Based on your last 6 hot tub jobs, you&apos;ve averaged <span className="text-green-400 font-medium">$485</span> with a 71% margin. The lowest was $380 (ground level), highest $650 (stairs + disconnect).
@@ -393,18 +486,16 @@ export default function LandingPage() {
                     </div>
                   </div>
 
-                  {/* User */}
                   <div className="flex justify-end">
                     <div className="bg-orange-500/10 border border-orange-500/20 rounded-2xl rounded-br-sm px-4 py-3 max-w-[85%]">
                       <p className="text-sm text-slate-200">Log a job — Sarah, couch removal, $280, $35 dump fee</p>
                     </div>
                   </div>
 
-                  {/* Dyia */}
                   <div className="flex gap-3">
-                    <DyiaAvatar className="w-7 h-7 flex-shrink-0 mt-1" />
+                    <DyiaAvatar className="w-7 h-7 shrink-0 mt-1" />
                     <div className="bg-white/[0.03] border border-white/[0.06] rounded-2xl rounded-bl-sm px-4 py-3">
-                      <p className="text-sm text-slate-300 mb-3">Got it. Here&apos;s the breakdown:</p>
+                      <p className="text-sm text-slate-300 mb-3">&quot;Got it. Here&apos;s the breakdown:&quot;</p>
                       <div className="bg-green-500/5 border border-green-500/10 rounded-lg p-3 text-xs space-y-1">
                         <div className="flex justify-between"><span className="text-slate-400">Customer</span><span className="text-white">Sarah</span></div>
                         <div className="flex justify-between"><span className="text-slate-400">Revenue</span><span className="text-green-400 font-medium">$280</span></div>
@@ -420,21 +511,21 @@ export default function LandingPage() {
                 </div>
               </div>
 
-              {/* Features */}
+              {/* AI Features */}
               <div className="lg:col-span-2 space-y-3">
                 {[
-                  { icon: '💬', title: 'Natural language', desc: 'Just describe what happened. Dyia extracts the details.' },
-                  { icon: '💰', title: 'Smart pricing', desc: 'Get suggestions based on YOUR actual job history.' },
-                  { icon: '📊', title: 'Instant insights', desc: '"How\'s this month?" — real answers in seconds.' },
-                  { icon: '📈', title: 'Revenue forecasting', desc: 'Predict what you\'ll make based on trends.' },
-                  { icon: '🔔', title: 'Follow-up alerts', desc: 'Get notified when quotes are going cold.' },
-                  { icon: '📋', title: 'Quote generation', desc: 'Create professional PDFs from conversation.' },
+                  { icon: '💬', title: 'Natural language', desc: 'Just describe what happened. "Did a basement cleanout for Mike, $400, two dump runs." Dyia extracts every detail.' },
+                  { icon: '💰', title: 'Smart pricing', desc: 'Ask what to charge. Dyia analyzes YOUR past jobs by type, size, and difficulty to suggest the right price.' },
+                  { icon: '📊', title: 'Instant insights', desc: '"How am I doing this month?" — get real answers with revenue, profit margins, and comparisons to last month.' },
+                  { icon: '📈', title: 'Revenue forecasting', desc: 'Predict what you\'ll make based on your booking patterns, seasonal trends, and historical data.' },
+                  { icon: '🔔', title: 'Follow-up alerts', desc: 'Dyia monitors your quote pipeline and flags leads going cold before you lose them.' },
+                  { icon: '📋', title: 'Quote generation', desc: 'Describe the job in a message and Dyia generates a professional quote you can send as PDF.' },
                 ].map((f, i) => (
                   <div key={i} className="flex gap-3 p-4 bg-white/[0.02] border border-white/[0.04] rounded-xl hover:border-orange-500/20 transition-all">
-                    <span className="text-xl">{f.icon}</span>
+                    <span className="text-xl shrink-0">{f.icon}</span>
                     <div>
                       <h4 className="font-medium text-white text-sm">{f.title}</h4>
-                      <p className="text-slate-500 text-xs">{f.desc}</p>
+                      <p className="text-slate-500 text-xs leading-relaxed">{f.desc}</p>
                     </div>
                   </div>
                 ))}
@@ -443,36 +534,48 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* ===== FEATURES ===== */}
-        <section id="features" className="py-24 px-6 relative">
+        {/* ===== WHAT USERS ARE SAYING ===== */}
+        <section className="py-24 px-6 relative">
           <div className="absolute inset-0 bg-gradient-to-b from-transparent via-orange-950/5 to-transparent" />
-          <div className="max-w-6xl mx-auto relative">
+          <div className="max-w-5xl mx-auto relative">
             <div className="text-center mb-16">
-              <p className="text-orange-400 text-sm font-medium uppercase tracking-wider mb-3">Features</p>
-              <h2 className="text-4xl sm:text-5xl font-bold text-white mb-4">Everything you need</h2>
-              <p className="text-xl text-slate-400">Built by service business owners, for service business owners.</p>
+              <p className="text-orange-400 text-sm font-medium uppercase tracking-wider mb-3">Real talk</p>
+              <h2 className="text-4xl sm:text-5xl font-bold text-white mb-4">What owners are saying</h2>
             </div>
-
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
+            
+            <div className="grid md:grid-cols-3 gap-6">
               {[
-                { icon: '📊', title: 'Job Tracking', desc: 'Log jobs in seconds. Customer, revenue, all expenses. See profit instantly.', pro: false },
-                { icon: '💵', title: 'Expense Categories', desc: 'Gas, dump fees, labor, materials, dumpster rental — track it all.', pro: false },
-                { icon: '🧾', title: 'Tax Set-Aside', desc: 'Automatic 30% (adjustable) set aside. Never scramble in April again.', pro: false },
-                { icon: '📋', title: 'Quote Builder', desc: 'Professional PDF quotes with your logo and branding.', pro: false },
-                { icon: '🔥', title: 'Follow-Up System', desc: 'Hot, warm, cold badges. Never forget to follow up on a quote.', pro: false },
-                { icon: '📣', title: 'Lead Sources', desc: 'Track where customers come from. See what marketing works.', pro: false },
-                { icon: '💳', title: 'Fixed Expenses', desc: 'Monthly overhead tracking. Insurance, truck payment, software.', pro: false },
-                { icon: '🎯', title: 'Monthly Goals', desc: 'Set targets. Track progress. Visual motivation.', pro: false },
-                { icon: '📥', title: 'Data Export', desc: 'Download everything as CSV. Your data, always.', pro: false },
-                { icon: '🤖', title: 'Dyia AI', desc: 'Natural language logging. Smart pricing. Business insights.', pro: true },
-                { icon: '📈', title: 'Forecasting', desc: 'Revenue predictions based on your patterns.', pro: true },
-                { icon: '⚠️', title: 'Risk Alerts', desc: 'AI flags quotes going cold with conversion probability.', pro: true },
-              ].map((f, i) => (
-                <div key={i} className="bg-white/[0.02] border border-white/[0.04] rounded-xl p-5 hover:border-orange-500/20 transition-all relative group">
-                  {f.pro && <div className="absolute top-4 right-4 px-2 py-0.5 bg-gradient-to-r from-orange-500 to-amber-500 rounded text-[10px] font-bold text-white">PRO</div>}
-                  <span className="text-2xl mb-3 block">{f.icon}</span>
-                  <h3 className="font-semibold text-white mb-1">{f.title}</h3>
-                  <p className="text-slate-500 text-sm">{f.desc}</p>
+                {
+                  quote: 'I used to track everything in Notes. One month I thought I made $6K — turns out after expenses it was $2,800. dyia showed me that on day one.',
+                  name: 'Marcus R.',
+                  role: 'Junk removal, Atlanta',
+                  metric: 'Saved $3,200/yr in tax surprises',
+                },
+                {
+                  quote: 'The quote builder alone is worth it. I was texting estimates to people. Now I send a PDF with my logo that looks like a real company. Conversion went way up.',
+                  name: 'Jake T.',
+                  role: 'Hauling & demo, Phoenix',
+                  metric: '35% higher quote close rate',
+                },
+                {
+                  quote: 'I tried Jobber for a month. Spent more time setting it up than working. dyia took me 2 minutes and I was logging jobs from the truck.',
+                  name: 'Priya S.',
+                  role: 'Estate cleanout, Portland',
+                  metric: 'Switched from Jobber in a week',
+                },
+              ].map((t, i) => (
+                <div key={i} className="bg-white/[0.02] border border-white/[0.06] rounded-2xl p-6 flex flex-col">
+                  <div className="flex gap-1 mb-4">
+                    {[...Array(5)].map((_, j) => (
+                      <svg key={j} className="w-4 h-4 text-orange-400" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>
+                    ))}
+                  </div>
+                  <p className="text-slate-300 text-sm leading-relaxed mb-4 flex-1">&quot;{t.quote}&quot;</p>
+                  <div className="border-t border-white/[0.06] pt-4">
+                    <p className="text-white text-sm font-medium">{t.name}</p>
+                    <p className="text-slate-500 text-xs">{t.role}</p>
+                    <p className="text-orange-400 text-xs font-medium mt-1">{t.metric}</p>
+                  </div>
                 </div>
               ))}
             </div>
@@ -488,7 +591,7 @@ export default function LandingPage() {
           <div className="max-w-4xl mx-auto relative">
             <div className="text-center mb-16">
               <h2 className="text-4xl sm:text-5xl font-bold text-white mb-4">You don&apos;t need Jobber.</h2>
-              <p className="text-xl text-slate-400">Enterprise software for enterprise problems. You need something smarter.</p>
+              <p className="text-xl text-slate-400">Enterprise software for enterprise problems. You need something built for how you actually work.</p>
             </div>
 
             <div className="bg-[#0f0f11] border border-white/[0.06] rounded-2xl overflow-hidden">
@@ -507,10 +610,12 @@ export default function LandingPage() {
                       { feature: 'Starting price', jobber: '$349/mo', housecall: '$65/mo', dyia: '$14.99/mo' },
                       { feature: 'Job tracking', jobber: true, housecall: true, dyia: true },
                       { feature: 'Quote builder', jobber: true, housecall: true, dyia: true },
+                      { feature: 'Customer CRM', jobber: true, housecall: true, dyia: true },
                       { feature: 'Tax set-aside', jobber: false, housecall: false, dyia: true },
                       { feature: 'AI assistant', jobber: false, housecall: false, dyia: true },
                       { feature: 'Smart pricing', jobber: false, housecall: false, dyia: true },
                       { feature: 'Revenue forecasting', jobber: false, housecall: false, dyia: true },
+                      { feature: 'Email blasts', jobber: true, housecall: false, dyia: true },
                       { feature: 'Setup time', jobber: 'Hours', housecall: '30 min', dyia: '2 min' },
                     ].map((row, i) => (
                       <tr key={i} className="border-b border-white/[0.03]">
@@ -571,9 +676,9 @@ export default function LandingPage() {
                 </div>
                 {billingCycle === 'annual' && <p className="text-green-400 text-sm mb-6">$11.92/mo — save $36/year</p>}
                 <ul className="space-y-3 mb-8">
-                  {['Unlimited job tracking', 'Profit dashboard', 'Tax set-aside calculator', 'Quote builder + PDF', 'Follow-up tracking', 'Fixed expenses', 'Lead source analytics', 'CSV export'].map((f, i) => (
+                  {['Unlimited job tracking', 'Profit dashboard', 'Tax set-aside calculator', 'Quote builder + PDF export', 'Customer database & CRM', 'Follow-up pipeline', 'Fixed expense tracking', 'Review requests', 'Lead source analytics', 'CSV data export'].map((f, i) => (
                     <li key={i} className="flex items-center gap-3 text-sm text-slate-300">
-                      <svg className="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                      <svg className="w-4 h-4 text-slate-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
                       {f}
                     </li>
                   ))}
@@ -592,7 +697,7 @@ export default function LandingPage() {
                   <DyiaAvatar className="w-6 h-6" />
                   <h3 className="text-2xl font-bold text-white">Pro</h3>
                 </div>
-                <p className="text-slate-500 text-sm mb-6">Everything + Dyia AI</p>
+                <p className="text-slate-500 text-sm mb-6">Everything + Dyia AI + Marketing</p>
                 <div className="flex items-baseline gap-1 mb-6">
                   <span className="text-5xl font-bold text-white">${billingCycle === 'monthly' ? '24.99' : '239'}</span>
                   <span className="text-slate-500">/{billingCycle === 'monthly' ? 'mo' : 'year'}</span>
@@ -602,14 +707,16 @@ export default function LandingPage() {
                   {[
                     { text: 'Everything in Basic', highlight: false },
                     { text: 'Dyia AI Assistant', highlight: true },
-                    { text: 'Natural language logging', highlight: true },
-                    { text: 'Smart price suggestions', highlight: true },
+                    { text: 'Natural language job logging', highlight: true },
+                    { text: 'AI-powered price suggestions', highlight: true },
                     { text: 'Revenue forecasting', highlight: true },
                     { text: 'Follow-up risk alerts', highlight: true },
+                    { text: 'Mass email campaigns', highlight: true },
+                    { text: 'Marketing ROI tracking', highlight: true },
                     { text: 'Priority support', highlight: false },
                   ].map((f, i) => (
                     <li key={i} className="flex items-center gap-3 text-sm text-slate-300">
-                      <svg className={`w-4 h-4 ${f.highlight ? 'text-orange-400' : 'text-slate-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                      <svg className={`w-4 h-4 shrink-0 ${f.highlight ? 'text-orange-400' : 'text-slate-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
                       <span className={f.highlight ? 'text-orange-300' : ''}>{f.text}</span>
                     </li>
                   ))}
@@ -649,17 +756,19 @@ export default function LandingPage() {
 
             <div className="space-y-3">
               {[
-                { q: 'Is the free trial actually free?', a: '100%. 14 days of full Pro access. No credit card required. After the trial, you can continue with Basic (still useful!) or upgrade to keep Pro features.' },
-                { q: 'What\'s the difference between Basic and Pro?', a: 'Basic has everything for profit tracking: jobs, expenses, quotes, tax calculator, follow-ups. Pro adds Dyia AI — log jobs by chatting, get smart pricing suggestions, revenue forecasts, and AI-powered insights.' },
-                { q: 'Can I use this on my phone?', a: 'Yes. dyia works in any browser — iPhone, Android, tablet, laptop. Log jobs from your truck, check numbers anywhere. No app download needed.' },
-                { q: 'What if I want to cancel?', a: 'Cancel anytime in settings. No phone calls, no retention team. You keep access until your billing period ends. We hold your data for 90 days if you want to come back.' },
-                { q: 'Is my data safe?', a: 'Yes. Encrypted, backed up daily, stored on secure cloud servers. We never sell your data. You can export everything as CSV anytime.' },
-                { q: 'Do you offer refunds?', a: '14-day money-back guarantee. Not happy? Email support@dyia.co for a full refund. No questions asked.' },
+                { q: 'Is the free trial actually free?', a: '100%. 14 days of full Pro access including AI assistant, email blasts, and marketing tools. No credit card required. After the trial, you can continue with Basic (which is still powerful) or upgrade to keep Pro features.' },
+                { q: 'What\'s the difference between Basic and Pro?', a: 'Basic gives you everything for day-to-day operations: job tracking, profit calculator, quote builder with PDF, customer CRM, follow-up pipeline, tax set-aside, and review requests. Pro adds Dyia AI (natural language logging, smart pricing, forecasting), mass email campaigns, marketing ROI tracking, and priority support.' },
+                { q: 'Can I use this on my phone?', a: 'Yes. dyia is a progressive web app that works in any browser — iPhone, Android, tablet, laptop. Log jobs from your truck, check numbers at the dump, send quotes from your couch. No app download needed.' },
+                { q: 'How is this different from a spreadsheet?', a: 'A spreadsheet doesn\'t calculate profit per job automatically, generate branded PDF quotes, track customer history, manage your follow-up pipeline, set aside taxes, or give you AI insights. dyia does all of that in 30 seconds per job.' },
+                { q: 'Can I manage my customers in dyia?', a: 'Yes. dyia has a full customer database where you store contact info, notes, and tags. Every customer\'s lifetime value, job history, and quote history is tracked automatically. When you start a new job or quote, their info auto-fills.' },
+                { q: 'What if I want to cancel?', a: 'Cancel anytime from Settings > Account. No phone calls, no retention team. You keep access until your billing period ends. We hold your data for 90 days if you want to come back.' },
+                { q: 'Is my data safe?', a: 'Yes. Encrypted in transit and at rest, backed up daily, stored on secure cloud servers (Supabase/AWS). We never sell your data. You can export everything as CSV anytime — your data is always yours.' },
+                { q: 'Do you offer refunds?', a: '14-day money-back guarantee on all paid plans. Not happy? Email support@dyia.co for a full refund. No questions asked.' },
               ].map((faq, i) => (
                 <div key={i} className="border border-white/[0.06] rounded-xl overflow-hidden bg-white/[0.01]">
                   <button onClick={() => setOpenFaq(openFaq === i ? null : i)} className="w-full px-5 py-4 text-left flex justify-between items-center hover:bg-white/[0.02] transition">
                     <span className="font-medium text-white pr-4 text-sm">{faq.q}</span>
-                    <svg className={`w-5 h-5 text-slate-500 transition-transform flex-shrink-0 ${openFaq === i ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className={`w-5 h-5 text-slate-500 transition-transform shrink-0 ${openFaq === i ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                     </svg>
                   </button>
@@ -696,19 +805,45 @@ export default function LandingPage() {
       </main>
 
       {/* ===== FOOTER ===== */}
-      <footer className="border-t border-white/[0.04] py-12 px-6">
+      <footer className="border-t border-white/[0.04] py-16 px-6">
         <div className="max-w-5xl mx-auto">
-          <div className="flex flex-col md:flex-row justify-between items-center gap-6">
-            <div className="flex items-center gap-2">
-              <DyiaAvatar className="w-7 h-7" />
-              <span className="font-bold bg-gradient-to-r from-orange-400 to-amber-400 bg-clip-text text-transparent">dyia</span>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-12">
+            <div className="col-span-2 md:col-span-1">
+              <div className="flex items-center gap-2 mb-4">
+                <DyiaAvatar className="w-7 h-7" />
+                <span className="font-bold bg-gradient-to-r from-orange-400 to-amber-400 bg-clip-text text-transparent">dyia</span>
+              </div>
+              <p className="text-sm text-slate-500 leading-relaxed">Your day, decoded. The AI-powered business manager for service professionals.</p>
             </div>
-            <div className="flex flex-wrap justify-center gap-6 text-sm text-slate-500">
-              <a href="mailto:support@dyia.co" className="hover:text-orange-400 transition">Support</a>
-              <a href="#" className="hover:text-orange-400 transition">Privacy</a>
-              <a href="#" className="hover:text-orange-400 transition">Terms</a>
+            <div>
+              <h4 className="text-sm font-semibold text-white mb-4">Product</h4>
+              <ul className="space-y-2 text-sm text-slate-500">
+                <li><a href="#features" className="hover:text-orange-400 transition">Features</a></li>
+                <li><a href="#ai" className="hover:text-orange-400 transition">Dyia AI</a></li>
+                <li><a href="#pricing" className="hover:text-orange-400 transition">Pricing</a></li>
+                <li><a href="#faq" className="hover:text-orange-400 transition">FAQ</a></li>
+              </ul>
             </div>
-            <p className="text-slate-600 text-sm">© 2026 dyia</p>
+            <div>
+              <h4 className="text-sm font-semibold text-white mb-4">Company</h4>
+              <ul className="space-y-2 text-sm text-slate-500">
+                <li><a href="mailto:support@dyia.co" className="hover:text-orange-400 transition">Support</a></li>
+                <li><a href="#" className="hover:text-orange-400 transition">Privacy Policy</a></li>
+                <li><a href="#" className="hover:text-orange-400 transition">Terms of Service</a></li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="text-sm font-semibold text-white mb-4">Get Started</h4>
+              <ul className="space-y-2 text-sm text-slate-500">
+                <li><Link href="/sign-up" className="hover:text-orange-400 transition">Create Account</Link></li>
+                <li><Link href="/sign-in" className="hover:text-orange-400 transition">Sign In</Link></li>
+                <li><Link href="/app" className="hover:text-orange-400 transition">Dashboard</Link></li>
+              </ul>
+            </div>
+          </div>
+          <div className="border-t border-white/[0.04] pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
+            <p className="text-slate-600 text-sm">© 2026 dyia. All rights reserved.</p>
+            <p className="text-slate-600 text-xs">Built with care for service businesses everywhere.</p>
           </div>
           <DemoAccess />
         </div>

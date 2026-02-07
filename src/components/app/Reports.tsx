@@ -113,7 +113,9 @@ export function Reports({ jobs, quotes, fixedMonthlyExpenses, isPro = false }: R
       monthlyTrend,
       expenseBreakdown,
       quoteCount: quotes.length,
-      conversionRate: quotes.length > 0 ? (filteredJobs.length / quotes.length) * 100 : 0,
+      // Conversion rate: quotes that became jobs (accepted) / total quotes
+      convertedQuotes: quotes.filter(q => q.status === 'accepted').length,
+      conversionRate: quotes.length > 0 ? (quotes.filter(q => q.status === 'accepted').length / quotes.length) * 100 : 0,
     }
   }, [filteredJobs, fixedMonthlyExpenses, timeRange, quotes.length])
 
@@ -309,7 +311,7 @@ export function Reports({ jobs, quotes, fixedMonthlyExpenses, isPro = false }: R
             </div>
           </div>
           <p className="text-[10px] sm:text-xs text-blue-600 dark:text-blue-400">
-            {stats.jobCount} jobs from {stats.quoteCount} quotes
+            {stats.convertedQuotes} converted of {stats.quoteCount} quotes
           </p>
         </div>
 

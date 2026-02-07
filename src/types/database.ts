@@ -564,6 +564,41 @@ export interface AppEmailCampaign {
   createdAt: Date
 }
 
+// ============================================
+// CUSTOMERS (CRM)
+// ============================================
+export interface Customer {
+  id: string
+  user_id: string
+  name: string
+  email: string | null
+  phone: string | null
+  address: string | null
+  notes: string | null
+  tags: string[]
+  created_at: string
+  updated_at: string
+}
+
+export type CustomerInsert = Omit<Customer, 'id' | 'created_at' | 'updated_at'>
+
+export interface AppCustomer {
+  id: string
+  name: string
+  email: string | null
+  phone: string | null
+  address: string | null
+  notes: string | null
+  tags: string[]
+  createdAt: Date
+  updatedAt: Date
+  // Computed from jobs/quotes (not stored in DB)
+  totalRevenue?: number
+  jobCount?: number
+  quoteCount?: number
+  lastJobDate?: string
+}
+
 // Customer with email for mass email selection
 export interface CustomerWithEmail {
   name: string
