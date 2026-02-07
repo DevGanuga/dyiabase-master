@@ -231,7 +231,14 @@ export function Assistant({ userId, showSuccess }: AssistantProps) {
       setAttachmentUrl(data.url)
       setAttachmentName(data.fileName || file.name)
     } catch (err) {
-      showSuccess(err instanceof Error ? err.message : 'Upload failed')
+      // Show upload error as a system message in the chat
+      const errorMsg = err instanceof Error ? err.message : 'Upload failed'
+      setMessages(prev => [...prev, {
+        id: `error-${Date.now()}`,
+        role: 'assistant' as const,
+        content: `File upload failed: ${errorMsg}. Please try again.`,
+        timestamp: new Date(),
+      }])
     } finally {
       setIsUploading(false)
     }

@@ -168,28 +168,37 @@ export function Settings({ settings, setSettings, userId, showSuccess, userProfi
 
     const reader = new FileReader()
     reader.onload = async (event) => {
-      const dataUrl = event.target?.result as string
-      const compressed = await compressImage(dataUrl, 400, 0.8)
+      try {
+        const dataUrl = event.target?.result as string
+        const compressed = await compressImage(dataUrl, 400, 0.8)
 
-      const { error } = await supabase
-        .from('dyia_settings')
-        .update({ business_logo: compressed })
-        .eq('user_id', userId)
+        const { error } = await supabase
+          .from('dyia_settings')
+          .update({ business_logo: compressed })
+          .eq('user_id', userId)
 
-      setUploadingLogo(false)
+        if (error) {
+          console.error('Error uploading logo:', error)
+          await alert({ title: 'Error', message: 'Error uploading logo.', variant: 'error' })
+          return
+        }
 
-      if (error) {
-        console.error('Error uploading logo:', error)
-        await alert({ title: 'Error', message: 'Error uploading logo.', variant: 'error' })
-        return
+        setSettings({
+          ...settings,
+          businessInfo: { ...settings.businessInfo, logo: compressed }
+        })
+
+        showSuccess('✅ Logo uploaded!')
+      } catch (err) {
+        console.error('Error processing logo:', err)
+        await alert({ title: 'Error', message: 'Error processing logo image.', variant: 'error' })
+      } finally {
+        setUploadingLogo(false)
       }
-
-      setSettings({
-        ...settings,
-        businessInfo: { ...settings.businessInfo, logo: compressed }
-      })
-
-      showSuccess('✅ Logo uploaded!')
+    }
+    reader.onerror = () => {
+      setUploadingLogo(false)
+      alert({ title: 'Error', message: 'Error reading file. Please try again.', variant: 'error' })
     }
     reader.readAsDataURL(file)
   }

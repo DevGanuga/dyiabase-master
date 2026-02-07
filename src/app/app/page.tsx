@@ -515,7 +515,7 @@ function AppPageContent() {
           />
         )
       case 'marketing':
-        return <Marketing showSuccess={showSuccess} />
+        return <Marketing showSuccess={showSuccess} isPro={['active', 'trialing'].includes(userProfile?.subscription_status || '')} />
       case 'customers':
         return (
           <Customers

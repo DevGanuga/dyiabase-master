@@ -159,6 +159,13 @@ export function Quotes({ quotes, setQuotes, jobs, userId, settings, onCreateQuot
     if (!ok) return
 
     try {
+      // Delete associated follow-up first (if exists)
+      await supabase
+        .from('dyia_follow_ups')
+        .delete()
+        .eq('quote_id', id)
+        .eq('user_id', userId)
+
       const { error } = await supabase
         .from('dyia_quotes')
         .delete()
@@ -189,7 +196,8 @@ export function Quotes({ quotes, setQuotes, jobs, userId, settings, onCreateQuot
 
       if (businessInfo?.logo) {
         try {
-          doc.addImage(businessInfo.logo, 'PNG', 80, y, 50, 50)
+          const logoFormat = businessInfo.logo.startsWith('data:image/png') ? 'PNG' : 'JPEG'
+          doc.addImage(businessInfo.logo, logoFormat, 80, y, 50, 50)
           y += 55
         } catch (logoError) {
           console.error('Error adding logo to PDF:', logoError)
@@ -285,7 +293,8 @@ export function Quotes({ quotes, setQuotes, jobs, userId, settings, onCreateQuot
         for (let i = 0; i < quote.photos.length && i < 3; i++) {
           try {
             if (y + photoHeight > 280) { doc.addPage(); y = 20; x = 20 }
-            doc.addImage(quote.photos[i], 'JPEG', x, y, photoWidth, photoHeight)
+            const photoFormat = quote.photos[i].startsWith('data:image/png') ? 'PNG' : 'JPEG'
+            doc.addImage(quote.photos[i], photoFormat, x, y, photoWidth, photoHeight)
             x += photoWidth + 5
             if (x > 160) { x = 20; y += photoHeight + 5 }
           } catch (photoError) {

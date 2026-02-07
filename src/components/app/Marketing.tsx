@@ -33,9 +33,10 @@ interface MarketingSpendItem {
 
 interface MarketingProps {
   showSuccess: (message: string) => void
+  isPro?: boolean
 }
 
-export function Marketing({ showSuccess }: MarketingProps) {
+export function Marketing({ showSuccess, isPro = false }: MarketingProps) {
   const [spendItems, setSpendItems] = useState<MarketingSpendItem[]>([])
   const [roiItems, setRoiItems] = useState<SourceROI[]>([])
   const [loading, setLoading] = useState(true)
@@ -215,7 +216,7 @@ export function Marketing({ showSuccess }: MarketingProps) {
 
   const totalSpend = roiItems.reduce((s, i) => s + i.spend, 0)
   const totalRevenue = roiItems.reduce((s, i) => s + i.revenue, 0)
-  const overallRoi = totalSpend > 0 ? ((totalRevenue - totalSpend) / totalSpend) * 100 : (totalRevenue > 0 ? 100 : 0)
+  const overallRoi = totalSpend > 0 ? ((totalRevenue - totalSpend) / totalSpend) * 100 : null
 
   const monthOptions = (() => {
     const out: string[] = []
@@ -228,6 +229,30 @@ export function Marketing({ showSuccess }: MarketingProps) {
     }
     return out
   })()
+
+  if (!isPro) {
+    return (
+      <div className="space-y-8 animate-view-enter">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-[var(--color-text-primary)]">Marketing</h1>
+          <p className="text-sm text-[var(--color-text-muted)] mt-1">Track spend and ROI by channel</p>
+        </div>
+        <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl p-8 text-center">
+          <div className="w-16 h-16 bg-gradient-to-br from-orange-500 to-amber-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
+            </svg>
+          </div>
+          <h2 className="text-xl font-semibold text-[var(--color-text-primary)] mb-2">Pro Feature</h2>
+          <p className="text-[var(--color-text-muted)] mb-4">Upgrade to Pro to track marketing spend and see ROI by channel.</p>
+          <span className="inline-block bg-gradient-to-r from-orange-500 to-amber-500 text-white px-4 py-2 rounded-lg text-sm font-medium">
+            Upgrade to Pro
+          </span>
+        </div>
+      </div>
+    )
+  }
 
   if (loading) {
     return (
@@ -284,7 +309,7 @@ export function Marketing({ showSuccess }: MarketingProps) {
         </div>
         <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl p-4">
           <p className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wide">Overall ROI</p>
-          <p className="text-2xl font-bold text-[var(--color-text-primary)] mt-1">{overallRoi.toFixed(0)}%</p>
+          <p className="text-2xl font-bold text-[var(--color-text-primary)] mt-1">{overallRoi !== null ? `${overallRoi.toFixed(0)}%` : '—'}</p>
         </div>
       </div>
 

@@ -6,7 +6,11 @@ import { useSubscription } from '@/hooks/useSubscription'
 
 export function TrialBanner() {
   const { tier, daysRemaining, isLoading } = useSubscription()
-  const [dismissed, setDismissed] = useState(false)
+  const [dismissed, setDismissed] = useState(() => {
+    if (typeof window === 'undefined') return false
+    const stored = sessionStorage.getItem('dyia_trial_banner_dismissed')
+    return stored === 'true'
+  })
   const [hiding, setHiding] = useState(false)
   const [visible, setVisible] = useState(false)
 
@@ -25,7 +29,10 @@ export function TrialBanner() {
 
   const handleDismiss = () => {
     setHiding(true)
-    setTimeout(() => setDismissed(true), 400)
+    setTimeout(() => {
+      setDismissed(true)
+      sessionStorage.setItem('dyia_trial_banner_dismissed', 'true')
+    }, 400)
   }
 
   return (

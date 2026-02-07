@@ -153,7 +153,7 @@ function NavButton({
       }`}
       style={animDelay !== undefined ? { animationDelay: `${animDelay}s` } : undefined}
     >
-      <span className={`transition-all duration-200 flex-shrink-0 ${isActive ? 'text-orange-400 scale-110' : 'group-hover:scale-110'}`}>
+      <span className={`transition-all duration-200 flex-shrink-0 pointer-events-none ${isActive ? 'text-orange-400 scale-110' : 'group-hover:scale-110'}`}>
         {Icons[icon]}
       </span>
       <span className="sidebar-text text-sm truncate">{label}</span>

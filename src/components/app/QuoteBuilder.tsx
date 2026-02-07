@@ -287,14 +287,19 @@ export function QuoteBuilder({ quotes, setQuotes, userId, selectedJob, customerN
       }
 
       // Auto-create a follow-up for this quote
-      await supabase
-        .from('dyia_follow_ups')
-        .insert({
-          user_id: userId,
-          quote_id: data.id,
-          status: 'pending',
-          contact_count: 0
-        })
+      try {
+        await supabase
+          .from('dyia_follow_ups')
+          .insert({
+            user_id: userId,
+            quote_id: data.id,
+            status: 'pending',
+            contact_count: 0
+          })
+      } catch (followUpError) {
+        console.error('Error creating follow-up:', followUpError)
+        // Non-fatal: quote was saved, follow-up creation failed
+      }
 
       const newQuote: AppQuote = {
         id: data.id,
