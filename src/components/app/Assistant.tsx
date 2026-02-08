@@ -100,6 +100,7 @@ export function Assistant({ userId, showSuccess }: AssistantProps) {
   
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
+  const skipThreadLoadRef = useRef(false) // Skip load when threadId comes from chat response (we already have messages)
   const supabase = useMemo(() => createClient(), [])
 
   // Auto-scroll to bottom when messages change
@@ -168,12 +169,18 @@ export function Assistant({ userId, showSuccess }: AssistantProps) {
     fetchQuickActions()
   }, [quickActionsFetched])
 
-  // Load messages when thread changes
+  // Load messages when thread changes (e.g. user selects a different conversation)
   useEffect(() => {
     const loadMessages = async () => {
       if (!currentThreadId) {
         setMessages([WELCOME_MESSAGE])
         setLastResponseId(null)
+        return
+      }
+
+      // Skip load when threadId was just set from chat response - we already have messages in memory
+      if (skipThreadLoadRef.current) {
+        skipThreadLoadRef.current = false
         return
       }
 
@@ -289,8 +296,9 @@ export function Assistant({ userId, showSuccess }: AssistantProps) {
         throw new Error(data.error || 'Failed to send message')
       }
 
-      // Update thread ID if new conversation
+      // Update thread ID if new conversation (skip loadMessages effect - we already have messages)
       if (data.threadId && !currentThreadId) {
+        skipThreadLoadRef.current = true
         setCurrentThreadId(data.threadId)
         // Refresh thread list
         const threadsResponse = await fetch('/api/threads')
@@ -425,8 +433,9 @@ export function Assistant({ userId, showSuccess }: AssistantProps) {
         throw new Error(result.error || 'Failed to save job')
       }
 
-      // Update the thread ID if it changed
+      // Update the thread ID if it changed (skip load - we're about to add confirmation message)
       if (result.threadId && !currentThreadId) {
+        skipThreadLoadRef.current = true
         setCurrentThreadId(result.threadId)
       }
 
@@ -500,8 +509,9 @@ export function Assistant({ userId, showSuccess }: AssistantProps) {
         throw new Error(result.error || 'Failed to save quote')
       }
 
-      // Update the thread ID if it changed
+      // Update the thread ID if it changed (skip load - we're about to add confirmation message)
       if (result.threadId && !currentThreadId) {
+        skipThreadLoadRef.current = true
         setCurrentThreadId(result.threadId)
       }
 

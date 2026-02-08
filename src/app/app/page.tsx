@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useEffect, useState, useCallback } from 'react'
+import { Suspense, useEffect, useState, useCallback, useRef } from 'react'
 import { useUser, useClerk } from '@clerk/nextjs'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
@@ -104,8 +104,22 @@ function AppPageContent() {
   const [pendingFollowUpsCount, setPendingFollowUpsCount] = useState(0)
   const [selectedJobForQuote, setSelectedJobForQuote] = useState<AppJob | null>(null)
   const [priceTemplatesCount, setPriceTemplatesCount] = useState(0)
+  const [hasViewedAssistant, setHasViewedAssistant] = useState(false)
+  const contentScrollRef = useRef<HTMLDivElement>(null)
 
   const supabase = createClient()
+
+  // Track when user opens Assistant so we can keep it mounted (preserves conversation when switching views)
+  useEffect(() => {
+    if (currentView === 'assistant') setHasViewedAssistant(true)
+  }, [currentView])
+
+  // Scroll content area to top when switching views (smoother navigation)
+  useEffect(() => {
+    if (currentView !== 'assistant' && contentScrollRef.current) {
+      contentScrollRef.current.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+  }, [currentView])
   
   // Check for demo mode cookie
   useEffect(() => {
@@ -561,12 +575,7 @@ function AppPageContent() {
           />
         )
       case 'assistant':
-        return (
-          <Assistant
-            userId={userProfile?.id || ''}
-            showSuccess={showSuccess}
-          />
-        )
+        return null // Rendered separately in main - kept mounted for continuous chat experience
     }
   }
 
@@ -610,13 +619,26 @@ function AppPageContent() {
       
       <main className={`flex-1 flex flex-col overflow-hidden ${isDemoMode ? 'pt-16' : ''}`} style={{ animation: 'contentReveal 0.6s cubic-bezier(0.16, 1, 0.3, 1) both' }}>
         {!isDemoMode && <TrialBanner />}
-        {currentView === 'assistant' ? (
-          <div className="flex-1 min-h-0">
-            {renderContent()}
+        {/* Assistant: render when open; keep mounted after first visit so conversation persists when switching views */}
+        {(currentView === 'assistant' || hasViewedAssistant) && (
+          <div
+            className={`flex-1 min-h-0 flex flex-col ${currentView === 'assistant' ? 'animate-view-enter' : 'hidden'}`}
+          >
+            <Assistant
+              userId={userProfile?.id || ''}
+              showSuccess={showSuccess}
+            />
           </div>
-        ) : (
-          <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
-            <div className="max-w-6xl mx-auto">
+        )}
+        {currentView !== 'assistant' && (
+          <div
+            ref={contentScrollRef}
+            className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6 lg:p-8"
+          >
+            <div
+              key={currentView}
+              className="max-w-6xl mx-auto animate-view-enter"
+            >
               {renderContent()}
             </div>
           </div>

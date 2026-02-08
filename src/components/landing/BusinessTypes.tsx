@@ -11,8 +11,10 @@ const businessTypes = [
   { emoji: '🧹', name: 'Pressure Wash', available: false },
 ]
 
+const comingSoonTypes = businessTypes.filter((t) => !t.available)
+
 export default function BusinessTypes() {
-  const [selectedType, setSelectedType] = useState<string | null>(null)
+  const [selectedType, setSelectedType] = useState<string>(comingSoonTypes[0]?.name ?? '')
   const [email, setEmail] = useState('')
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
   const [errorMessage, setErrorMessage] = useState('')
@@ -68,7 +70,7 @@ export default function BusinessTypes() {
                 type="button"
                 onClick={() => {
                   if (isComingSoon) {
-                    setSelectedType(isSelected ? null : item.name)
+                    setSelectedType(item.name)
                     setStatus('idle')
                     setErrorMessage('')
                   }
@@ -104,12 +106,8 @@ export default function BusinessTypes() {
           })}
         </div>
 
-        {/* Waitlist signup form */}
-        <div
-          className={`overflow-hidden transition-all duration-300 ease-in-out ${
-            selectedType ? 'max-h-60 opacity-100 mt-10' : 'max-h-0 opacity-0 mt-0'
-          }`}
-        >
+        {/* Waitlist signup form - always visible for coming-soon types */}
+        <div className="mt-10">
           <div className="max-w-md mx-auto">
             {status === 'success' ? (
               <div className="text-center bg-green-500/10 border border-green-500/20 rounded-xl p-6">
@@ -120,10 +118,7 @@ export default function BusinessTypes() {
                 </p>
                 <button
                   type="button"
-                  onClick={() => {
-                    setSelectedType(null)
-                    setStatus('idle')
-                  }}
+                  onClick={() => setStatus('idle')}
                   className="text-sm text-slate-500 hover:text-slate-300 mt-3 transition-colors"
                 >
                   Close

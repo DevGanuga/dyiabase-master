@@ -146,7 +146,7 @@ function NavButton({
   return (
     <button
       onClick={onClick}
-      className={`nav-item-animated w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-all duration-200 group ${
+      className={`nav-item-animated w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-all duration-200 group active:scale-[0.98] ${
         isActive
           ? 'active bg-slate-800 text-white'
           : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'
@@ -225,21 +225,21 @@ export function Sidebar({ currentView, setCurrentView, userEmail, userName, user
             <div className="absolute left-4 right-4 top-full mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150">
               <button
                 onClick={() => { setCurrentView('jobs'); setCreateOpen(false) }}
-                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-300 hover:bg-slate-700 hover:text-white transition-colors"
+                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-300 hover:bg-slate-700 hover:text-white transition-all active:scale-[0.98]"
               >
                 {Icons.briefcase}
                 <span>Log Job</span>
               </button>
               <button
                 onClick={() => { setCurrentView('quoteBuilder'); setCreateOpen(false) }}
-                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-300 hover:bg-slate-700 hover:text-white transition-colors"
+                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-300 hover:bg-slate-700 hover:text-white transition-all active:scale-[0.98]"
               >
                 {Icons.document}
                 <span>New Quote</span>
               </button>
               <button
                 onClick={() => { setCurrentView('customers'); setCreateOpen(false) }}
-                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-300 hover:bg-slate-700 hover:text-white transition-colors"
+                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-300 hover:bg-slate-700 hover:text-white transition-all active:scale-[0.98]"
               >
                 {Icons.users}
                 <span>Add Customer</span>
@@ -289,7 +289,7 @@ export function Sidebar({ currentView, setCurrentView, userEmail, userName, user
                 <button
                   key={item.id}
                   onClick={() => setCurrentView(item.id)}
-                  className={`flex flex-col items-center gap-0.5 px-3 py-2 rounded-lg transition-all ${
+                  className={`flex flex-col items-center gap-0.5 px-3 py-2 rounded-lg transition-all active:scale-95 ${
                     isActive ? 'text-orange-400' : 'text-slate-400'
                   }`}
                 >
