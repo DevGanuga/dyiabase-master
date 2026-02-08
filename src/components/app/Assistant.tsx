@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect, useCallback, useMemo, useImperativeHandle, forwardRef } from 'react'
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { MessageBubble } from './MessageBubble'
 import { ThreadList } from './ThreadList'
@@ -11,8 +11,6 @@ import type { JobProposal, QuoteProposal, PendingAction } from '@/types/database
 interface AssistantProps {
   userId: string
   showSuccess: (message: string) => void
-  /** When true, hides the inner header & thread sidebar (parent provides its own chrome) */
-  embedded?: boolean
 }
 
 export interface ToolResult {
@@ -47,18 +45,26 @@ export interface Thread {
 const WELCOME_MESSAGE: Message = {
   id: 'welcome',
   role: 'assistant',
-  content: `Hey! I'm **Dyia** — tell me what you need and I'll do it.\n\nTry: *"Log a job for Sarah, $450, Thumbtack lead"* or tap an action below.`,
+  content: `Hey! I'm **Dyia** — your business partner in your pocket.
+
+I don't just answer questions. I actually **do things** for you:
+
+• Log jobs and track your profit
+• Create and send quotes
+• Remind you to follow up
+• Suggest prices based on your history
+• Show you how your business is doing
+
+Just tell me what you need.`,
   timestamp: new Date(),
 }
 
 // Default quick actions (fallback)
 const DEFAULT_QUICK_ACTIONS = [
-  { id: 'log-job', label: 'Log a job', prompt: 'I just finished a job and want to log it. Ask me for the customer name, revenue, date, and any expenses.', icon: 'briefcase' },
-  { id: 'create-quote', label: 'Create a quote', prompt: 'I need to create a quote for a customer. Walk me through it.', icon: 'document' },
-  { id: 'stats', label: "This week's stats", prompt: 'How did I do this week? Show me my job stats and revenue breakdown.', icon: 'chart' },
-  { id: 'follow-ups', label: 'Check follow-ups', prompt: 'Show me my pending follow-ups. Which ones are highest priority?', icon: 'bell' },
-  { id: 'pricing', label: 'Suggest a price', prompt: 'I have a job coming up. Based on my history, what should I charge?', icon: 'dollar' },
-  { id: 'summary', label: 'Monthly summary', prompt: 'Give me a full summary of how my business is doing this month.', icon: 'chart' },
+  { id: 'stats', label: "📊 This week's stats", prompt: 'How did I do this week?', icon: '📊' },
+  { id: 'follow-ups', label: '📞 Pending follow-ups', prompt: 'Show me pending follow-ups', icon: '📞' },
+  { id: 'pricing', label: '💰 Suggest a price', prompt: 'What should I charge for a full truck load?', icon: '💰' },
+  { id: 'summary', label: '📋 Monthly summary', prompt: 'Give me a business summary for this month', icon: '📋' },
 ]
 
 interface QuickAction {
@@ -68,11 +74,7 @@ interface QuickAction {
   icon?: string
 }
 
-export interface AssistantHandle {
-  sendMessage: (msg: string) => void
-}
-
-export const Assistant = forwardRef<AssistantHandle, AssistantProps>(function Assistant({ userId, showSuccess, embedded = false }, ref) {
+export function Assistant({ userId, showSuccess }: AssistantProps) {
   const [threads, setThreads] = useState<Thread[]>([])
   const [currentThreadId, setCurrentThreadId] = useState<string | null>(null)
   const [messages, setMessages] = useState<Message[]>([WELCOME_MESSAGE])
@@ -86,62 +88,25 @@ export const Assistant = forwardRef<AssistantHandle, AssistantProps>(function As
   const [quickActions, setQuickActions] = useState<QuickAction[]>(DEFAULT_QUICK_ACTIONS)
   const [quickActionsLoading, setQuickActionsLoading] = useState(false)
   
-  // Pending action state for confirmations — restore from sessionStorage on mount
-  const [pendingAction, setPendingActionRaw] = useState<PendingAction | null>(() => {
-    if (typeof window === 'undefined') return null
-    try {
-      const stored = sessionStorage.getItem('dyia_pending_action')
-      return stored ? JSON.parse(stored) : null
-    } catch { return null }
-  })
+  // Pending action state for confirmations
+  const [pendingAction, setPendingAction] = useState<PendingAction | null>(null)
   const [isConfirming, setIsConfirming] = useState(false)
-
-  // Wrapper that also persists to sessionStorage
-  const setPendingAction = useCallback((action: PendingAction | null) => {
-    setPendingActionRaw(action)
-    try {
-      if (action) {
-        sessionStorage.setItem('dyia_pending_action', JSON.stringify(action))
-      } else {
-        sessionStorage.removeItem('dyia_pending_action')
-      }
-    } catch { /* ignore storage errors */ }
-  }, [])
 
   // File attachment for upload & extraction
   const [attachmentUrl, setAttachmentUrl] = useState<string | null>(null)
   const [attachmentName, setAttachmentName] = useState<string | null>(null)
-  const [attachmentContent, setAttachmentContent] = useState<string | null>(null)
   const [isUploading, setIsUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
-  const handleSendRef = useRef<(msg?: string) => void>(() => {})
+  const skipThreadLoadRef = useRef(false) // Skip load when threadId comes from chat response (we already have messages)
   const supabase = useMemo(() => createClient(), [])
 
-  // Expose sendMessage to parent via ref
-  useImperativeHandle(ref, () => ({
-    sendMessage: (msg: string) => {
-      handleSendRef.current(msg)
-    }
-  }), [])
-
-  // Auto-scroll to bottom when messages change, but only if near the bottom already
-  const scrollContainerRef = useRef<HTMLDivElement>(null)
+  // Auto-scroll to bottom when messages change
   useEffect(() => {
-    const container = scrollContainerRef.current
-    if (!container) {
-      // Fallback: just scroll the sentinel into view
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-      return
-    }
-    const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight
-    // Only auto-scroll if user is within 150px of the bottom (or it's a new message from the user)
-    if (distanceFromBottom < 150) {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-    }
-  }, [messages, isSending])
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages])
 
   // Load threads on mount
   useEffect(() => {
@@ -204,12 +169,18 @@ export const Assistant = forwardRef<AssistantHandle, AssistantProps>(function As
     fetchQuickActions()
   }, [quickActionsFetched])
 
-  // Load messages when thread changes
+  // Load messages when thread changes (e.g. user selects a different conversation)
   useEffect(() => {
     const loadMessages = async () => {
       if (!currentThreadId) {
         setMessages([WELCOME_MESSAGE])
         setLastResponseId(null)
+        return
+      }
+
+      // Skip load when threadId was just set from chat response - we already have messages in memory
+      if (skipThreadLoadRef.current) {
+        skipThreadLoadRef.current = false
         return
       }
 
@@ -266,7 +237,6 @@ export const Assistant = forwardRef<AssistantHandle, AssistantProps>(function As
       if (!res.ok) throw new Error(data.error || 'Upload failed')
       setAttachmentUrl(data.url)
       setAttachmentName(data.fileName || file.name)
-      setAttachmentContent(data.extractedContent || null)
     } catch (err) {
       // Show upload error as a system message in the chat
       const errorMsg = err instanceof Error ? err.message : 'Upload failed'
@@ -296,23 +266,17 @@ export const Assistant = forwardRef<AssistantHandle, AssistantProps>(function As
     setInputValue('')
     setIsSending(true)
 
-    if (inputRef.current) inputRef.current.style.height = 'auto'
+    // Reset textarea height
+    if (inputRef.current) {
+      inputRef.current.style.height = 'auto'
+    }
 
     const urlToSend = attachmentUrl
     const nameToSend = attachmentName
-    const contentToSend = attachmentContent
-    if (attachmentUrl) { setAttachmentUrl(null); setAttachmentName(null); setAttachmentContent(null) }
-
-    // Create a placeholder assistant message that we'll stream into
-    const assistantMsgId = `resp-${Date.now()}`
-    const assistantMessage: Message = {
-      id: assistantMsgId,
-      role: 'assistant',
-      content: '',
-      timestamp: new Date(),
-      toolResults: [],
+    if (attachmentUrl) {
+      setAttachmentUrl(null)
+      setAttachmentName(null)
     }
-    setMessages(prev => [...prev, assistantMessage])
 
     try {
       const response = await fetch('/api/ai/chat', {
@@ -322,141 +286,99 @@ export const Assistant = forwardRef<AssistantHandle, AssistantProps>(function As
           message: content || '(see attached file)',
           conversationId: currentThreadId,
           previousResponseId: lastResponseId,
-          ...(urlToSend && { fileUrl: urlToSend, fileName: nameToSend || 'file', fileContent: contentToSend }),
+          ...(urlToSend && { fileUrl: urlToSend, fileName: nameToSend || 'file' }),
         }),
       })
 
+      const data = await response.json()
+
       if (!response.ok) {
-        // Non-streaming error (auth, credits, etc.)
-        const errData = await response.json().catch(() => ({ error: 'Request failed' }))
-        throw new Error(errData.error || 'Failed to send message')
+        throw new Error(data.error || 'Failed to send message')
       }
 
-      // ── Read SSE stream ──
-      const reader = response.body?.getReader()
-      if (!reader) throw new Error('No response stream')
-
-      const decoder = new TextDecoder()
-      let buffer = ''
-      let streamedText = ''
-      const streamedToolResults: ToolResult[] = []
-
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-
-        buffer += decoder.decode(value, { stream: true })
-
-        // Parse SSE events from buffer
-        const lines = buffer.split('\n')
-        buffer = lines.pop() || '' // Keep incomplete line in buffer
-
-        for (const line of lines) {
-          if (!line.startsWith('data: ')) continue
-          const jsonStr = line.slice(6).trim()
-          if (!jsonStr) continue
-
-          try {
-            const event = JSON.parse(jsonStr)
-
-            if (event.type === 'delta') {
-              // Append text incrementally
-              streamedText += event.text
-              setMessages(prev => prev.map(m =>
-                m.id === assistantMsgId ? { ...m, content: streamedText } : m
-              ))
-            }
-
-            if (event.type === 'tool_result') {
-              // Add tool result to the message
-              const result = event.result as ToolResult
-              streamedToolResults.push(result)
-              setMessages(prev => prev.map(m =>
-                m.id === assistantMsgId ? { ...m, toolResults: [...streamedToolResults] } : m
-              ))
-
-              // Handle pending actions from proposals
-              if (result.pendingAction) {
-                const action = result.pendingAction
-                const pendingId = `pending-${Date.now()}`
-                setPendingAction({
-                  id: pendingId,
-                  type: action.type,
-                  data: action.proposal as JobProposal | QuoteProposal,
-                  status: 'pending',
-                  messageId: assistantMsgId,
-                  createdAt: Date.now(),
-                })
-                // Persist (fire and forget)
-                fetch('/api/pending-actions', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ actionType: action.type, proposalData: action.proposal, threadId: currentThreadId, originalMessage: content }),
-                }).catch(err => console.error('Failed to save pending action:', err))
-              } else if (result.success) {
-                showSuccess('Action completed!')
-              }
-            }
-
-            if (event.type === 'done') {
-              // Finalize: update thread state
-              if (event.threadId && !currentThreadId) {
-                setCurrentThreadId(event.threadId)
-                // Refresh thread list
-                fetch('/api/threads').then(r => r.ok ? r.json() : null).then(data => {
-                  if (data?.threads) {
-                    setThreads(data.threads.map((t: { id: string; title: string; last_message_at: string }) => ({
-                      id: t.id, title: t.title || 'New Conversation', lastMessageAt: new Date(t.last_message_at), preview: '',
-                    })))
-                  }
-                }).catch(() => {})
-              }
-              if (event.responseId) setLastResponseId(event.responseId)
-
-              // Mark message as final with hasPendingAction flag
-              const hasPending = streamedToolResults.some(r => r.pendingAction)
-              setMessages(prev => prev.map(m =>
-                m.id === assistantMsgId ? { ...m, hasPendingAction: hasPending } : m
-              ))
-            }
-
-            if (event.type === 'error') {
-              throw new Error(event.error || 'Stream error')
-            }
-          } catch (parseErr) {
-            // Skip malformed SSE lines
-            if (parseErr instanceof SyntaxError) continue
-            throw parseErr
-          }
+      // Update thread ID if new conversation (skip loadMessages effect - we already have messages)
+      if (data.threadId && !currentThreadId) {
+        skipThreadLoadRef.current = true
+        setCurrentThreadId(data.threadId)
+        // Refresh thread list
+        const threadsResponse = await fetch('/api/threads')
+        if (threadsResponse.ok) {
+          const threadsData = await threadsResponse.json()
+          setThreads(threadsData.threads?.map((t: { id: string; title: string; last_message_at: string }) => ({
+            id: t.id,
+            title: t.title || 'New Conversation',
+            lastMessageAt: new Date(t.last_message_at),
+            preview: ''
+          })) || [])
         }
       }
 
-      // If no text was streamed, set a fallback
-      if (!streamedText) {
-        setMessages(prev => prev.map(m =>
-          m.id === assistantMsgId ? { ...m, content: 'I processed your request.' } : m
-        ))
+      // Store response ID for stateful continuation
+      if (data.responseId) {
+        setLastResponseId(data.responseId)
       }
 
+      // Check if there's a pending action in the response
+      const pendingActionResult = data.toolResults?.find((r: ToolResult) => r.pendingAction)
+      
+      // Add assistant response
+      const assistantMessage: Message = {
+        id: data.messageId || `resp-${Date.now()}`,
+        role: 'assistant',
+        content: data.message,
+        timestamp: new Date(),
+        toolResults: data.toolResults,
+        hasPendingAction: !!pendingActionResult,
+      }
+      setMessages(prev => [...prev, assistantMessage])
+
+      // If there's a pending action, set it up for confirmation AND save to database
+      if (pendingActionResult?.pendingAction) {
+        const action = pendingActionResult.pendingAction
+        const pendingId = `pending-${Date.now()}`
+        
+        setPendingAction({
+          id: pendingId,
+          type: action.type,
+          data: action.proposal as JobProposal | QuoteProposal,
+          status: 'pending',
+          messageId: assistantMessage.id,
+          createdAt: Date.now()
+        })
+
+        // Save to database for persistence (fire and forget)
+        fetch('/api/pending-actions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            actionType: action.type,
+            proposalData: action.proposal,
+            threadId: data.threadId || currentThreadId,
+            originalMessage: content,
+            aiResponse: data.message?.substring(0, 200)
+          })
+        }).catch(err => console.error('Failed to save pending action:', err))
+      } else if (data.toolResults?.some((r: ToolResult) => r.success && !r.pendingAction)) {
+        // Show success only for non-pending actions that completed
+        const successActions = data.toolResults.filter((r: ToolResult) => r.success && !r.pendingAction)
+        if (successActions.length === 1) {
+          showSuccess('Action completed!')
+        } else if (successActions.length > 1) {
+          showSuccess(`${successActions.length} actions completed!`)
+        }
+      }
     } catch (error) {
       console.error('Error sending message:', error)
-      // Remove the empty placeholder and add error message
-      setMessages(prev => [
-        ...prev.filter(m => m.id !== assistantMsgId),
-        {
-          id: `error-${Date.now()}`,
-          role: 'assistant' as const,
-          content: `Sorry, I ran into an issue: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`,
-          timestamp: new Date(),
-        },
-      ])
+      setMessages(prev => [...prev, {
+        id: `error-${Date.now()}`,
+        role: 'assistant',
+        content: `Sorry, I ran into an issue: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`,
+        timestamp: new Date(),
+      }])
     } finally {
       setIsSending(false)
     }
   }
-
-  // Keep ref in sync for parent to call sendMessage
-  handleSendRef.current = handleSend
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -511,8 +433,9 @@ export const Assistant = forwardRef<AssistantHandle, AssistantProps>(function As
         throw new Error(result.error || 'Failed to save job')
       }
 
-      // Update the thread ID if it changed
+      // Update the thread ID if it changed (skip load - we're about to add confirmation message)
       if (result.threadId && !currentThreadId) {
+        skipThreadLoadRef.current = true
         setCurrentThreadId(result.threadId)
       }
 
@@ -586,8 +509,9 @@ export const Assistant = forwardRef<AssistantHandle, AssistantProps>(function As
         throw new Error(result.error || 'Failed to save quote')
       }
 
-      // Update the thread ID if it changed
+      // Update the thread ID if it changed (skip load - we're about to add confirmation message)
       if (result.threadId && !currentThreadId) {
+        skipThreadLoadRef.current = true
         setCurrentThreadId(result.threadId)
       }
 
@@ -665,232 +589,6 @@ export const Assistant = forwardRef<AssistantHandle, AssistantProps>(function As
     return data && 'estimateLow' in data && 'estimateHigh' in data
   }
 
-  // ─── Embedded mode: no header, no thread sidebar, tighter spacing ───
-  if (embedded) {
-    return (
-      <div className="h-full flex flex-col bg-[var(--color-bg-page)]">
-        {/* Toolbar */}
-        <div className="px-3 py-2 border-b border-[var(--color-border)] flex items-center justify-between bg-[var(--color-bg-card)] shrink-0">
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => setShowThreads(!showThreads)}
-              className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]"
-              title="Conversations"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h8m-8 6h16" />
-              </svg>
-            </button>
-            <button
-              onClick={handleNewConversation}
-              className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]"
-              title="New conversation"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-            </button>
-          </div>
-          <div className="flex items-center gap-2">
-            {isSending && (
-              <div className="flex items-center gap-1.5">
-                <div className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse" />
-                <span className="text-[10px] text-orange-500 font-medium">thinking...</span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Thread list overlay */}
-        {showThreads && (
-          <div className="absolute inset-0 z-20 bg-[var(--color-bg-card)] flex flex-col" style={{ top: 0 }}>
-            <div className="px-3 py-2 border-b border-[var(--color-border)] flex items-center justify-between shrink-0">
-              <span className="text-sm font-semibold text-[var(--color-text-primary)]">Conversations</span>
-              <button
-                onClick={() => setShowThreads(false)}
-                className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            <div className="flex-1 overflow-y-auto">
-              <ThreadList
-                threads={threads}
-                currentThreadId={currentThreadId}
-                onSelect={(threadId) => { handleSelectThread(threadId); setShowThreads(false); }}
-              />
-            </div>
-            <div className="p-3 border-t border-[var(--color-border)]">
-              <button
-                onClick={() => { handleNewConversation(); setShowThreads(false); }}
-                className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-950/30 hover:bg-orange-100 dark:hover:bg-orange-950/50 rounded-lg transition-colors"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-                New conversation
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Messages area */}
-        <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-3 py-4 relative bg-[var(--color-bg-page)]">
-          <div className="space-y-4">
-            {isLoading ? (
-              <div className="flex items-center justify-center py-12">
-                <div className="text-center">
-                  <div className="w-6 h-6 border-2 border-orange-500/30 border-t-orange-500 rounded-full animate-spin mx-auto mb-3" />
-                  <p className="text-xs text-[var(--color-text-muted)]">Loading...</p>
-                </div>
-              </div>
-            ) : (
-              <>
-                {messages.map((message, index) => (
-                  <MessageBubble
-                    key={message.id}
-                    message={message}
-                    isLatest={index === messages.length - 1}
-                  />
-                ))}
-
-                {/* Pending Action Cards */}
-                {pendingAction && pendingAction.status === 'pending' && (
-                  <div className="flex justify-start message-bubble-enter">
-                    <div className="flex gap-2.5 w-full">
-                      <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 bg-gradient-to-br from-orange-500/10 to-amber-500/10 dark:from-orange-500/20 dark:to-amber-500/20 mt-0.5">
-                        <img src="/dyia-agent.png" alt="" className="w-5 h-5 object-contain" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        {pendingAction.type === 'create_job' && isJobProposal(pendingAction.data) && (
-                          <JobPreviewCard
-                            proposal={pendingAction.data}
-                            onConfirm={handleConfirmJob}
-                            onCancel={handleCancelPendingAction}
-                            isSubmitting={isConfirming}
-                          />
-                        )}
-                        {pendingAction.type === 'generate_quote' && isQuoteProposal(pendingAction.data) && (
-                          <QuotePreviewCard
-                            proposal={pendingAction.data}
-                            onConfirm={handleConfirmQuote}
-                            onCancel={handleCancelPendingAction}
-                            isSubmitting={isConfirming}
-                          />
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {isSending && (
-                  <div className="flex justify-start">
-                    <div className="flex gap-2.5 items-center">
-                      <div className="w-7 h-7 rounded-full flex items-center justify-center bg-gradient-to-br from-orange-500/10 to-amber-500/10 dark:from-orange-500/20 dark:to-amber-500/20">
-                        <img src="/dyia-agent.png" alt="" className="w-5 h-5 object-contain animate-pulse" />
-                      </div>
-                      <div className="typing-indicator">
-                        <div className="typing-dot" />
-                        <div className="typing-dot" />
-                        <div className="typing-dot" />
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                <div ref={messagesEndRef} />
-              </>
-            )}
-          </div>
-        </div>
-
-        {/* Quick Actions (only on fresh conversation) */}
-        {messages.length <= 1 && !isSending && (
-          <div className="px-3 pb-2 shrink-0">
-            <div className="grid grid-cols-2 gap-1.5">
-              {quickActionsLoading ? (
-                <>
-                  {[1, 2, 3, 4].map((i) => (
-                    <div key={i} className="h-9 bg-slate-100 dark:bg-slate-800 rounded-lg animate-pulse" />
-                  ))}
-                </>
-              ) : (
-                quickActions.map((action) => (
-                  <button
-                    key={action.id}
-                    onClick={() => handleQuickAction(action.prompt)}
-                    className="flex items-center gap-2 px-3 py-2 bg-[var(--color-bg-card)] border border-[var(--color-border)] hover:border-orange-300 dark:hover:border-orange-700 text-[var(--color-text-secondary)] hover:text-orange-700 dark:hover:text-orange-400 text-xs font-medium rounded-lg transition-all text-left"
-                  >
-                    <span className="w-1 h-1 rounded-full bg-orange-400 shrink-0" />
-                    {action.label}
-                  </button>
-                ))
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Input */}
-        <div className="p-3 border-t border-[var(--color-border)] bg-[var(--color-bg-card)] shrink-0">
-          {attachmentUrl && (
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-xs text-[var(--color-text-muted)]">
-                Attached: {attachmentName}
-                {attachmentContent && <span className="text-green-600 dark:text-green-400 ml-1">(content extracted)</span>}
-              </span>
-              <button type="button" onClick={() => { setAttachmentUrl(null); setAttachmentName(null); setAttachmentContent(null) }} className="text-[var(--color-text-faint)] hover:text-red-500 text-xs">Remove</button>
-            </div>
-          )}
-          <div className="chat-input-wrapper">
-            <input ref={fileInputRef} type="file" accept="image/*,.pdf,.csv,.txt,.xlsx,.xls" className="hidden" onChange={handleFileSelect} disabled={isUploading} />
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isSending || isUploading}
-              className="p-1.5 text-[var(--color-text-faint)] hover:text-orange-500 rounded-lg transition-colors flex-shrink-0"
-              title="Attach file"
-            >
-              {isUploading ? (
-                <div className="w-4 h-4 border-2 border-orange-500/30 border-t-orange-500 rounded-full animate-spin" />
-              ) : (
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.414a2 2 0 00-2.828-2.828l-6.586 6.586a4 4 0 105.656 5.656l6.414-6.414a2 2 0 000-2.828l-2.828-2.828a2 2 0 00-2.828 0l-6.414 6.414a4 4 0 01-5.656-5.656l6.414-6.414" />
-                </svg>
-              )}
-            </button>
-            <textarea
-              ref={inputRef}
-              value={inputValue}
-              onChange={handleInputChange}
-              onKeyDown={handleKeyDown}
-              placeholder="Ask Dyia anything..."
-              className="chat-input text-sm"
-              rows={1}
-              disabled={isSending}
-            />
-            <button
-              onClick={() => handleSend()}
-              disabled={(!inputValue.trim() && !attachmentUrl) || isSending}
-              className="chat-send-btn !p-2"
-              title="Send"
-            >
-              {isSending ? (
-                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              ) : (
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                </svg>
-              )}
-            </button>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  // ─── Full-page mode (non-embedded) ───
   return (
     <div className="h-full flex relative">
       {/* Thread Sidebar - overlay on mobile, side panel on desktop */}
@@ -958,7 +656,7 @@ export const Assistant = forwardRef<AssistantHandle, AssistantProps>(function As
           </button>
           <div className="flex items-center gap-1.5 sm:gap-2 flex-1 min-w-0">
             {/* Dyia Avatar */}
-            <img src="/dyia-agent.png" alt="Dyia AI" className="w-8 h-8 sm:w-9 sm:h-9 object-contain" />
+            <img src="/dyia-agent.png" alt="Dyia AI" className="w-7 h-7 sm:w-8 sm:h-8 rounded-full shadow-md ring-2 ring-orange-400/30 object-cover" />
             <span className="font-semibold text-[var(--color-text-primary)] text-sm sm:text-base">Dyia</span>
             <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
               isSending ? 'bg-orange-500 animate-pulse' : 'bg-green-500'
@@ -970,7 +668,7 @@ export const Assistant = forwardRef<AssistantHandle, AssistantProps>(function As
         </div>
 
         {/* Messages */}
-        <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-3 sm:px-4 py-4 sm:py-6">
+        <div className="flex-1 overflow-y-auto px-3 sm:px-4 py-4 sm:py-6">
           <div className="max-w-3xl mx-auto space-y-3 sm:space-y-4">
             {isLoading ? (
               <div className="flex items-center justify-center h-full">
@@ -1048,11 +746,15 @@ export const Assistant = forwardRef<AssistantHandle, AssistantProps>(function As
         {/* Quick Actions */}
         {messages.length <= 1 && !isSending && (
           <div className="px-3 sm:px-4 pb-2">
-            <div className="max-w-3xl mx-auto grid grid-cols-2 sm:grid-cols-3 gap-2">
+            <div className="max-w-3xl mx-auto flex flex-wrap gap-1.5 sm:gap-2 justify-center">
               {quickActionsLoading ? (
+                // Loading skeleton for quick actions
                 <>
-                  {[1, 2, 3, 4, 5, 6].map((i) => (
-                    <div key={i} className="h-10 bg-slate-100 dark:bg-slate-800 rounded-lg animate-pulse" />
+                  {[1, 2, 3, 4].map((i) => (
+                    <div
+                      key={i}
+                      className="px-2.5 sm:px-3 py-1 sm:py-1.5 bg-slate-100 dark:bg-slate-700 rounded-full animate-pulse w-24 sm:w-32 h-6 sm:h-7"
+                    />
                   ))}
                 </>
               ) : (
@@ -1060,9 +762,8 @@ export const Assistant = forwardRef<AssistantHandle, AssistantProps>(function As
                   <button
                     key={action.id}
                     onClick={() => handleQuickAction(action.prompt)}
-                    className="flex items-center gap-2 px-3 py-2.5 bg-[var(--color-bg-card)] border border-[var(--color-border)] hover:border-orange-300 dark:hover:border-orange-700 text-[var(--color-text-secondary)] hover:text-orange-700 dark:hover:text-orange-400 text-xs sm:text-sm font-medium rounded-lg transition-all text-left"
+                    className="px-2.5 sm:px-3 py-1 sm:py-1.5 bg-slate-100 dark:bg-slate-700 hover:bg-orange-50 dark:hover:bg-orange-900/30 hover:text-orange-700 dark:hover:text-orange-300 text-slate-600 dark:text-slate-300 text-xs sm:text-sm rounded-full transition-colors"
                   >
-                    <span className="w-1.5 h-1.5 rounded-full bg-orange-400 shrink-0" />
                     {action.label}
                   </button>
                 ))
@@ -1076,13 +777,10 @@ export const Assistant = forwardRef<AssistantHandle, AssistantProps>(function As
           <div className="max-w-3xl mx-auto">
             {attachmentUrl && (
               <div className="flex items-center gap-2 mb-2">
-                <span className="text-xs text-[var(--color-text-muted)]">
-                  Attached: {attachmentName}
-                  {attachmentContent && <span className="text-green-600 dark:text-green-400 ml-1">(content extracted)</span>}
-                </span>
+                <span className="text-xs text-[var(--color-text-muted)]">Attached: {attachmentName}</span>
                 <button
                   type="button"
-                  onClick={() => { setAttachmentUrl(null); setAttachmentName(null); setAttachmentContent(null) }}
+                  onClick={() => { setAttachmentUrl(null); setAttachmentName(null) }}
                   className="text-[var(--color-text-faint)] hover:text-red-500 text-xs"
                 >
                   Remove
@@ -1146,4 +844,4 @@ export const Assistant = forwardRef<AssistantHandle, AssistantProps>(function As
       </div>
     </div>
   )
-})
+}

@@ -16,11 +16,9 @@ import { Reports } from '@/components/app/Reports'
 import { Marketing } from '@/components/app/Marketing'
 import { Customers } from '@/components/app/Customers'
 import { MassEmail } from '@/components/app/MassEmail'
+import { Assistant } from '@/components/app/Assistant'
 import { TrialBanner } from '@/components/app/TrialBanner'
 import { ConfirmProvider } from '@/components/providers/ConfirmProvider'
-import { DyiaOrb } from '@/components/app/DyiaOrb'
-import { DyiaPanel } from '@/components/app/DyiaPanel'
-import { DyiaNudge } from '@/components/app/DyiaNudge'
 import type { LaunchpadItem } from '@/components/app/Launchpad'
 
 type View = 'dashboard' | 'jobs' | 'quotes' | 'quoteBuilder' | 'followUps' | 'reports' | 'marketing' | 'customers' | 'massEmail' | 'assistant' | 'settings'
@@ -71,46 +69,21 @@ function AppPageContent() {
   const [loading, setLoading] = useState(true)
   const [isDemoMode, setIsDemoMode] = useState(false)
 
-  // View state: local state is the source of truth for rendering.
-  // URL is kept in sync but never overrides an explicit user navigation.
+  // View state: URL ?view= param is the source of truth, with local state for rendering.
   const viewParam = searchParams.get('view') as View | null
   const [currentView, setCurrentViewState] = useState<View>(
     viewParam && VALID_VIEWS.includes(viewParam) ? viewParam : 'dashboard'
   )
-
-  // Track whether we are the ones pushing the URL so we don't fight ourselves
-  const isNavigatingRef = useRef(false)
   
-  // Sync URL → state ONLY for external navigations (browser back/forward, direct URL entry)
-  // Skip if we just pushed the URL ourselves.
+  // Keep currentView in sync when URL changes (e.g., sidebar navigation)
   useEffect(() => {
-    if (isNavigatingRef.current) {
-      isNavigatingRef.current = false
-      return
+    if (viewParam && VALID_VIEWS.includes(viewParam) && viewParam !== currentView) {
+      setCurrentViewState(viewParam)
     }
-    const urlView = viewParam && VALID_VIEWS.includes(viewParam) ? viewParam : 'dashboard'
-    // If URL says assistant, open the panel and show dashboard instead
-    if (urlView === 'assistant') {
-      setDyiaPanelOpen(true)
-      if (currentView !== 'dashboard') setCurrentViewState('dashboard')
-      return
-    }
-    if (urlView !== currentView) {
-      setCurrentViewState(urlView)
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [viewParam])
+  }, [viewParam, currentView])
   
   const setCurrentView = useCallback((view: View) => {
-    // Intercept assistant view - open panel instead of navigating
-    if (view === 'assistant') {
-      setDyiaPanelOpen(true)
-      return
-    }
-    // Set state immediately for instant UI response
     setCurrentViewState(view)
-    // Then update URL (mark that we're doing this so the sync effect skips)
-    isNavigatingRef.current = true
     const url = view === 'dashboard' ? '/app' : `/app?view=${view}`
     router.push(url, { scroll: false })
   }, [router])
@@ -131,21 +104,23 @@ function AppPageContent() {
   const [pendingFollowUpsCount, setPendingFollowUpsCount] = useState(0)
   const [selectedJobForQuote, setSelectedJobForQuote] = useState<AppJob | null>(null)
   const [priceTemplatesCount, setPriceTemplatesCount] = useState(0)
-  const [dyiaPanelOpen, setDyiaPanelOpen] = useState(false)
-  const [dyiaInitialPrompt, setDyiaInitialPrompt] = useState<string | null>(null)
-  const [impersonating, setImpersonating] = useState<string | null>(null)
+  const [hasViewedAssistant, setHasViewedAssistant] = useState(false)
+  const contentScrollRef = useRef<HTMLDivElement>(null)
 
   const supabase = createClient()
 
-  // Check for impersonation cookie
+  // Track when user opens Assistant so we can keep it mounted (preserves conversation when switching views)
   useEffect(() => {
-    const cookies = document.cookie.split(';')
-    const impCookie = cookies.find(c => c.trim().startsWith('dyia_impersonate_user_id='))
-    if (impCookie) {
-      setImpersonating(impCookie.split('=')[1]?.trim() || null)
-    }
-  }, [])
+    if (currentView === 'assistant') setHasViewedAssistant(true)
+  }, [currentView])
 
+  // Scroll content area to top when switching views (smoother navigation)
+  useEffect(() => {
+    if (currentView !== 'assistant' && contentScrollRef.current) {
+      contentScrollRef.current.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+  }, [currentView])
+  
   // Check for demo mode cookie
   useEffect(() => {
     const checkDemoMode = () => {
@@ -183,11 +158,6 @@ function AppPageContent() {
     setTimeout(() => setErrorMessage(null), 4000)
   }, [])
 
-  const openDyiaWithPrompt = useCallback((prompt: string) => {
-    setDyiaInitialPrompt(prompt)
-    setDyiaPanelOpen(true)
-  }, [])
-
   const loadData = useCallback(async (userId: string) => {
     try {
       // Load jobs
@@ -211,9 +181,7 @@ function AppPageContent() {
           additionalExpense: parseFloat(j.additional_expense) || 0,
           numWorkers: j.num_workers || 1,
           costPerWorker: parseFloat(j.cost_per_worker) || 0,
-          notes: j.notes || undefined,
-          status: j.status || 'completed',
-          address: j.address || undefined
+          notes: j.notes || undefined
         })))
       }
 
@@ -416,14 +384,11 @@ function AppPageContent() {
   const loadingOrRedirecting = (
     <div className="min-h-screen flex items-center justify-center" style={{ background: 'linear-gradient(135deg, rgba(255,247,237,0.4), #fafafa 50%, rgba(255,251,235,0.3))' }}>
       <div className="text-center">
-        <div className="flex items-center gap-2 justify-center mb-6">
-          <img
-            src="/dyia-agent.png"
-            alt="dyia"
-            className="w-10 h-10 object-contain"
-          />
-          <span className="text-xl font-bold bg-gradient-to-r from-orange-500 to-amber-500 bg-clip-text text-transparent">dyia</span>
-        </div>
+        <img
+          src="/dyia-logo-full.png"
+          alt="dyia logo"
+          className="h-8 mb-6 mx-auto opacity-80"
+        />
         <div className="w-8 h-8 border-2 border-orange-500/30 border-t-orange-500 rounded-full animate-spin mx-auto mb-4" />
         <p className="text-sm text-slate-500 font-medium">
           {needsOnboarding ? 'Setting up your account...' : 'Loading...'}
@@ -494,9 +459,6 @@ function AppPageContent() {
   ]
   const showLaunchpadOnDashboard = !isDemoMode && launchpadItems.some(item => !item.completed)
 
-  // Computed once — used everywhere
-  const isPro = ['active', 'trialing'].includes(userProfile?.subscription_status || '')
-
   const renderContent = () => {
     switch (currentView) {
       case 'dashboard':
@@ -509,12 +471,10 @@ function AppPageContent() {
             onNavigate={(view) => setCurrentView(view as View)}
             pendingFollowUps={pendingFollowUpsCount}
             fixedMonthlyExpenses={fixedMonthlyExpenses}
-            isPro={isPro}
+            isPro={['active', 'trialing'].includes(userProfile?.subscription_status || '')}
             taxPercentage={settings.taxPercentage}
             launchpadItems={launchpadItems}
             showLaunchpad={showLaunchpadOnDashboard}
-            onOpenDyia={() => setDyiaPanelOpen(true)}
-            onOpenDyiaWithPrompt={openDyiaWithPrompt}
           />
         )
       case 'jobs':
@@ -527,8 +487,6 @@ function AppPageContent() {
             setSelectedMonth={setSelectedMonth}
             settings={settings}
             showSuccess={showSuccess}
-            onOpenDyiaWithPrompt={openDyiaWithPrompt}
-            isPro={isPro}
           />
         )
       case 'quotes':
@@ -544,8 +502,6 @@ function AppPageContent() {
               setCurrentView('quoteBuilder')
             }}
             showSuccess={showSuccess}
-            onOpenDyiaWithPrompt={openDyiaWithPrompt}
-            isPro={isPro}
           />
         )
       case 'quoteBuilder':
@@ -561,8 +517,6 @@ function AppPageContent() {
               setCurrentView('quotes')
             }}
             showSuccess={showSuccess}
-            onOpenDyiaWithPrompt={openDyiaWithPrompt}
-            isPro={isPro}
           />
         )
       case 'settings':
@@ -585,8 +539,6 @@ function AppPageContent() {
             userId={userProfile?.id || ''}
             businessName={settings.businessInfo.name || 'dyia'}
             showSuccess={showSuccess}
-            onOpenDyiaWithPrompt={openDyiaWithPrompt}
-            isPro={isPro}
           />
         )
       case 'reports':
@@ -595,23 +547,21 @@ function AppPageContent() {
             jobs={jobs}
             quotes={quotes}
             fixedMonthlyExpenses={fixedMonthlyExpenses}
-            isPro={isPro}
-            taxPercentage={settings.taxPercentage}
+            isPro={['active', 'trialing'].includes(userProfile?.subscription_status || '')}
           />
         )
       case 'marketing':
-        return <Marketing showSuccess={showSuccess} isPro={isPro} />
+        return <Marketing showSuccess={showSuccess} isPro={['active', 'trialing'].includes(userProfile?.subscription_status || '')} />
       case 'customers':
         return (
           <Customers
             jobs={jobs}
             quotes={quotes}
-            isPro={isPro}
+            isPro={['active', 'trialing'].includes(userProfile?.subscription_status || '')}
             onNavigate={(view) => setCurrentView(view as View)}
             onCreateQuote={(job) => { setSelectedJobForQuote(job ?? null); setCurrentView('quoteBuilder') }}
             showSuccess={showSuccess}
             isDemoMode={isDemoMode}
-            onOpenDyiaWithPrompt={openDyiaWithPrompt}
           />
         )
       case 'massEmail':
@@ -619,31 +569,13 @@ function AppPageContent() {
           <MassEmail
             jobs={jobs}
             quotes={quotes}
-            isPro={isPro}
+            isPro={['active', 'trialing'].includes(userProfile?.subscription_status || '')}
             showSuccess={showSuccess}
             showError={showError}
           />
         )
       case 'assistant':
-        // This shouldn't render — setCurrentView('assistant') opens the panel instead.
-        // But if somehow we reach here, just show the dashboard.
-        return (
-          <Dashboard
-            jobs={jobs}
-            quotes={quotes}
-            settings={settings}
-            userName={isDemoMode ? 'Demo User' : (userProfile?.first_name || user?.firstName || user?.primaryEmailAddress?.emailAddress || '')}
-            onNavigate={(view) => setCurrentView(view as View)}
-            pendingFollowUps={pendingFollowUpsCount}
-            fixedMonthlyExpenses={fixedMonthlyExpenses}
-            isPro={isPro}
-            taxPercentage={settings.taxPercentage}
-            launchpadItems={launchpadItems}
-            showLaunchpad={showLaunchpadOnDashboard}
-            onOpenDyia={() => setDyiaPanelOpen(true)}
-            onOpenDyiaWithPrompt={openDyiaWithPrompt}
-          />
-        )
+        return null // Rendered separately in main - kept mounted for continuous chat experience
     }
   }
 
@@ -659,23 +591,6 @@ function AppPageContent() {
             className="text-orange-400 hover:text-orange-300 underline underline-offset-2 ml-1"
           >
             Exit
-          </button>
-        </div>
-      )}
-
-      {/* Admin Impersonation Banner */}
-      {impersonating && (
-        <div className="fixed top-0 left-0 right-0 z-50 bg-amber-500 text-black text-center py-2 px-4 text-xs sm:text-sm font-medium shadow-lg">
-          Viewing as user {userProfile?.email || impersonating} —{' '}
-          <button 
-            onClick={async () => {
-              await fetch('/api/admin/impersonate', { method: 'DELETE' })
-              setImpersonating(null)
-              window.location.href = '/app/admin/users'
-            }}
-            className="font-bold underline underline-offset-2 ml-1 hover:opacity-70"
-          >
-            Exit Impersonation
           </button>
         </div>
       )}
@@ -704,45 +619,31 @@ function AppPageContent() {
       
       <main className={`flex-1 flex flex-col overflow-hidden ${isDemoMode ? 'pt-16' : ''}`} style={{ animation: 'contentReveal 0.6s cubic-bezier(0.16, 1, 0.3, 1) both' }}>
         {!isDemoMode && <TrialBanner />}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
-          <div className="max-w-6xl mx-auto">
-            {renderContent()}
+        {/* Assistant: render when open; keep mounted after first visit so conversation persists when switching views */}
+        {(currentView === 'assistant' || hasViewedAssistant) && (
+          <div
+            className={`flex-1 min-h-0 flex flex-col ${currentView === 'assistant' ? 'animate-view-enter' : 'hidden'}`}
+          >
+            <Assistant
+              userId={userProfile?.id || ''}
+              showSuccess={showSuccess}
+            />
           </div>
-        </div>
+        )}
+        {currentView !== 'assistant' && (
+          <div
+            ref={contentScrollRef}
+            className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6 lg:p-8"
+          >
+            <div
+              key={currentView}
+              className="max-w-6xl mx-auto animate-view-enter"
+            >
+              {renderContent()}
+            </div>
+          </div>
+        )}
       </main>
-
-      {/* Dyia Floating Orb - visible on all pages */}
-      <DyiaOrb
-        isOpen={dyiaPanelOpen}
-        onToggle={() => setDyiaPanelOpen(!dyiaPanelOpen)}
-        notificationCount={pendingFollowUpsCount > 0 ? pendingFollowUpsCount : 0}
-        isPro={isPro}
-      />
-
-      {/* Dyia Nudge System - contextual suggestions */}
-      {!dyiaPanelOpen && (
-        <DyiaNudge
-          currentView={currentView}
-          pendingFollowUps={pendingFollowUpsCount}
-          isNewUser={!settings.onboardingCompleted && !isDemoMode}
-          onNavigate={(view) => setCurrentView(view as View)}
-          onOpenDyia={() => setDyiaPanelOpen(true)}
-          jobCount={jobs.length}
-          hasBusinessInfo={!!(settings.businessInfo.name && settings.businessInfo.phone)}
-        />
-      )}
-
-      {/* Dyia Side Panel */}
-      <DyiaPanel
-        isOpen={dyiaPanelOpen}
-        onClose={() => setDyiaPanelOpen(false)}
-        userId={userProfile?.id || ''}
-        showSuccess={showSuccess}
-        currentView={currentView}
-        initialPrompt={dyiaInitialPrompt}
-        onPromptConsumed={() => setDyiaInitialPrompt(null)}
-        isPro={isPro}
-      />
 
       {/* Success Toast */}
       {successMessage && (
