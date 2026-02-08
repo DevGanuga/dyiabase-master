@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useEffect, useState, useCallback, useRef } from 'react'
+import { Suspense, useEffect, useState, useCallback } from 'react'
 import { useUser, useClerk } from '@clerk/nextjs'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
@@ -69,40 +69,13 @@ function AppPageContent() {
   const [loading, setLoading] = useState(true)
   const [isDemoMode, setIsDemoMode] = useState(false)
 
-  // View state: URL param is primary, with sessionStorage bridge for page reloads.
-  // The URL ?view= param gets stripped during Clerk auth / Next.js Suspense cycles.
-  // We capture it early via useEffect and restore after loading completes.
+  // View state: URL ?view= param is the source of truth, with local state for rendering.
   const viewParam = searchParams.get('view') as View | null
-  const capturedRef = useRef(false)
-  const restoredRef = useRef(false)
   const [currentView, setCurrentViewState] = useState<View>(
     viewParam && VALID_VIEWS.includes(viewParam) ? viewParam : 'dashboard'
   )
   
-  // Capture: on mount, save any URL view param to sessionStorage before it's lost
-  useEffect(() => {
-    if (capturedRef.current) return
-    capturedRef.current = true
-    const params = new URLSearchParams(window.location.search)
-    const urlView = params.get('view') as View | null
-    if (urlView && VALID_VIEWS.includes(urlView)) {
-      sessionStorage.setItem('dyia_pending_view', urlView)
-    }
-  }, [])
-  
-  // Restore: after data loading, apply the saved view
-  useEffect(() => {
-    if (loading || restoredRef.current) return
-    restoredRef.current = true
-    const pending = sessionStorage.getItem('dyia_pending_view')
-    if (pending && VALID_VIEWS.includes(pending as View)) {
-      sessionStorage.removeItem('dyia_pending_view')
-      setCurrentViewState(pending as View)
-      router.replace(`/app?view=${pending}`, { scroll: false })
-    }
-  }, [loading, router])
-  
-  // Keep currentView in sync when URL changes (e.g., from sidebar navigation)
+  // Keep currentView in sync when URL changes (e.g., sidebar navigation)
   useEffect(() => {
     if (viewParam && VALID_VIEWS.includes(viewParam) && viewParam !== currentView) {
       setCurrentViewState(viewParam)
@@ -110,7 +83,6 @@ function AppPageContent() {
   }, [viewParam, currentView])
   
   const setCurrentView = useCallback((view: View) => {
-    sessionStorage.removeItem('dyia_pending_view')
     setCurrentViewState(view)
     const url = view === 'dashboard' ? '/app' : `/app?view=${view}`
     router.push(url, { scroll: false })
@@ -314,7 +286,12 @@ function AppPageContent() {
       // Skip if in demo mode
       if (isDemoMode) return
       
-      if (!isLoaded || !user) {
+      if (!isLoaded) {
+        // Clerk still loading - keep loading=true, effect will re-fire when isLoaded changes
+        return
+      }
+      if (!user) {
+        // Clerk loaded but no user (shouldn't reach here due to layout guard)
         setLoading(false)
         return
       }
@@ -379,10 +356,8 @@ function AppPageContent() {
   useEffect(() => {
     if (needsOnboarding) {
       // Preserve the intended view through the onboarding redirect
-      const pending = sessionStorage.getItem('dyia_pending_view')
-      const returnView = pending || viewParam
-      const returnUrl = returnView && returnView !== 'dashboard' 
-        ? `/app?view=${returnView}` 
+      const returnUrl = viewParam && viewParam !== 'dashboard' 
+        ? `/app?view=${viewParam}` 
         : '/app'
       router.push(`/app/onboarding?returnUrl=${encodeURIComponent(returnUrl)}`)
     }
