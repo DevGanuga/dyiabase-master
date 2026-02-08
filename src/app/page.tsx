@@ -142,6 +142,7 @@ export default function LandingPage() {
               <span className="text-xl font-bold bg-gradient-to-r from-orange-400 to-amber-400 bg-clip-text text-transparent">dyia</span>
             </Link>
             <div className="hidden md:flex items-center gap-8">
+              <Link href="/profit-calculator" className="text-sm text-slate-400 hover:text-white transition">Free quiz</Link>
               <a href="#features" className="text-sm text-slate-400 hover:text-white transition">Features</a>
               <a href="#ai" className="text-sm text-slate-400 hover:text-white transition">Dyia AI</a>
               <a href="#pricing" className="text-sm text-slate-400 hover:text-white transition">Pricing</a>

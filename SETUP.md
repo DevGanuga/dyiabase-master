@@ -81,11 +81,11 @@ In Clerk Dashboard → Webhooks:
 
 ### 1. Create a new project at supabase.com
 
-### 2. Run the database migration
+### 2. Run the database migrations
 
-Go to SQL Editor and run the migration from `supabase/migrations/002_rename_to_dyia_add_clerk.sql`:
+Run each migration in order in the SQL Editor (e.g. `002_rename_to_dyia_add_clerk.sql` through `014_quiz_submissions.sql`). The lead funnel uses `dyia_quiz_submissions` (migration 014).
 
-This creates:
+Initial schema (002, 003, …) creates:
 - `dyia_users` - User profiles linked to Clerk
 - `dyia_settings` - Per-user settings
 - `dyia_jobs` - Job tracking
@@ -101,6 +101,13 @@ Note: We use the service_role key for server-side operations. This bypasses RLS 
 
 ### 4. Storage (for chat file uploads)
 - In Supabase Dashboard → Storage, create a bucket named **dyia-files** (public or with RLS as needed). The Pro "File upload & data extraction" feature uploads chat attachments here.
+
+## Profit calculator (lead funnel)
+
+- **URL:** `/profit-calculator` — landing, quiz, email capture, and results pages.
+- **Database:** Run `supabase/migrations/014_quiz_submissions.sql` so submissions are stored.
+- **Email:** The immediate “Profit Leak Report” email uses Resend (`RESEND_API_KEY`, `RESEND_FROM_EMAIL`). If Resend isn’t configured, the funnel still works; the report is only shown on the results page.
+- **Links in emails:** Set `NEXT_PUBLIC_APP_URL` to your production URL (e.g. `https://dyia.app`) so “View full results” and “Start trial” links in the report email point to the correct domain.
 
 ## Stripe Setup
 

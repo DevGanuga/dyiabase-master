@@ -283,3 +283,46 @@ export function monthlyReportEmail(firstName: string, data: MonthlyReportData): 
     </p>
   `)
 }
+
+// Profit leak quiz report (lead funnel)
+export interface QuizReportData {
+  firstName: string
+  totalMonthlyLoss: number
+  annualLoss: number
+  breakdown: Record<string, number>
+  resultsUrl: string
+  appUrl: string
+}
+
+export function quizReportEmail(data: QuizReportData): string {
+  const { firstName, totalMonthlyLoss, annualLoss, breakdown, resultsUrl, appUrl } = data
+  const trialUrl = `${appUrl}/sign-up?redirect_url=${encodeURIComponent(appUrl + '/app')}&utm_source=profit_calculator`
+  const parts: string[] = []
+  if (breakdown.followup > 0) parts.push(`Follow-ups: $${breakdown.followup}/mo`)
+  if (breakdown.expenses > 0) parts.push(`Expenses: $${breakdown.expenses}/mo`)
+  if (breakdown.pricing > 0) parts.push(`Pricing: $${breakdown.pricing}/mo`)
+  if (breakdown.multitrip > 0) parts.push(`Multi-trip: $${breakdown.multitrip}/mo`)
+  if (breakdown.visibility > 0) parts.push(`Visibility: $${breakdown.visibility}/mo`)
+  const breakdownList = parts.length ? parts.join(' • ') : 'See your results for details.'
+
+  return wrap(`
+    <h1 class="header">Your Profit Leak Report</h1>
+    <p class="text">Hi ${firstName}, here's your personalized report based on the quiz.</p>
+    <div class="card">
+      <p class="metric" style="color: #f97316;">$${totalMonthlyLoss.toLocaleString()}/month</p>
+      <p class="metric-label">Estimated profit you're leaving on the table</p>
+      <p class="text-small">That's $${annualLoss.toLocaleString()} per year.</p>
+    </div>
+    <div class="card">
+      <p class="subheader">Where it's leaking</p>
+      <p class="text">${breakdownList}</p>
+    </div>
+    <p class="text">Every one of these is fixable. Dyia helps junk removal pros plug these leaks with follow-up tracking, per-job expenses, and real-time profit visibility.</p>
+    <p style="text-align: center; margin-top: 24px;">
+      <a href="${resultsUrl}" class="btn">View full results</a>
+      &nbsp;
+      <a href="${trialUrl}" class="btn">Start your 14-day free trial</a>
+    </p>
+    <p class="text-small" style="margin-top: 24px;">No credit card required. Cancel anytime.</p>
+  `)
+}

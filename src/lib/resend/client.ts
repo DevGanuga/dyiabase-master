@@ -35,6 +35,8 @@ export type EmailType =
   | 'subscription_confirmed'
   | 'subscription_canceled'
   | 'payment_failed'
+  | 'quiz_report'
+  | 'quiz_followup'
 
 // Email send result
 export interface EmailSendResult {
