@@ -379,13 +379,14 @@ function AppPageContent() {
   useEffect(() => {
     if (needsOnboarding) {
       // Preserve the intended view through the onboarding redirect
-      const returnView = initialView || viewParam
+      const pending = sessionStorage.getItem('dyia_pending_view')
+      const returnView = pending || viewParam
       const returnUrl = returnView && returnView !== 'dashboard' 
         ? `/app?view=${returnView}` 
         : '/app'
       router.push(`/app/onboarding?returnUrl=${encodeURIComponent(returnUrl)}`)
     }
-  }, [needsOnboarding, router, initialView, viewParam])
+  }, [needsOnboarding, router, viewParam])
 
   const handleReopenOnboarding = () => {
     router.push('/app/onboarding')
