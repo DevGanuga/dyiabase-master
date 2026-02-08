@@ -69,45 +69,45 @@ function AppPageContent() {
   const [loading, setLoading] = useState(true)
   const [isDemoMode, setIsDemoMode] = useState(false)
 
-  // View state management with sessionStorage persistence
-  // The URL ?view= param gets lost during Clerk auth initialization and page
-  // reloads. We capture it on mount and use sessionStorage as a bridge.
+  // View state: URL param is primary, with sessionStorage bridge for page reloads.
+  // The URL ?view= param gets stripped during Clerk auth / Next.js Suspense cycles.
+  // We capture it early via useEffect and restore after loading completes.
   const viewParam = searchParams.get('view') as View | null
+  const capturedRef = useRef(false)
   const restoredRef = useRef(false)
+  const [currentView, setCurrentViewState] = useState<View>(
+    viewParam && VALID_VIEWS.includes(viewParam) ? viewParam : 'dashboard'
+  )
   
-  // Capture the initial view from the URL on first render (lazy initializer runs once)
-  const [initialView] = useState<View | null>(() => {
-    if (typeof window === 'undefined') return null
+  // Capture: on mount, save any URL view param to sessionStorage before it's lost
+  useEffect(() => {
+    if (capturedRef.current) return
+    capturedRef.current = true
     const params = new URLSearchParams(window.location.search)
     const urlView = params.get('view') as View | null
     if (urlView && VALID_VIEWS.includes(urlView)) {
       sessionStorage.setItem('dyia_pending_view', urlView)
-      return urlView
     }
-    // Check for a view stored from a previous navigation attempt
-    const stored = sessionStorage.getItem('dyia_pending_view')
-    if (stored && VALID_VIEWS.includes(stored as View)) return stored as View
-    return null
-  })
+  }, [])
   
-  // Current view: URL param > initial capture > dashboard
-  const resolvedView: View = viewParam && VALID_VIEWS.includes(viewParam) 
-    ? viewParam 
-    : (initialView || 'dashboard')
-  const [currentView, setCurrentViewState] = useState<View>(resolvedView)
-  
-  // After loading completes, restore the pending view and update URL
+  // Restore: after data loading, apply the saved view
   useEffect(() => {
     if (loading || restoredRef.current) return
     restoredRef.current = true
-    
     const pending = sessionStorage.getItem('dyia_pending_view')
-    if (pending && VALID_VIEWS.includes(pending as View) && pending !== 'dashboard') {
+    if (pending && VALID_VIEWS.includes(pending as View)) {
       sessionStorage.removeItem('dyia_pending_view')
       setCurrentViewState(pending as View)
       router.replace(`/app?view=${pending}`, { scroll: false })
     }
   }, [loading, router])
+  
+  // Keep currentView in sync when URL changes (e.g., from sidebar navigation)
+  useEffect(() => {
+    if (viewParam && VALID_VIEWS.includes(viewParam) && viewParam !== currentView) {
+      setCurrentViewState(viewParam)
+    }
+  }, [viewParam, currentView])
   
   const setCurrentView = useCallback((view: View) => {
     sessionStorage.removeItem('dyia_pending_view')
@@ -379,13 +379,13 @@ function AppPageContent() {
   useEffect(() => {
     if (needsOnboarding) {
       // Preserve the intended view through the onboarding redirect
-      const returnView = viewState || viewParam
+      const returnView = initialView || viewParam
       const returnUrl = returnView && returnView !== 'dashboard' 
         ? `/app?view=${returnView}` 
         : '/app'
       router.push(`/app/onboarding?returnUrl=${encodeURIComponent(returnUrl)}`)
     }
-  }, [needsOnboarding, router, viewState, viewParam])
+  }, [needsOnboarding, router, initialView, viewParam])
 
   const handleReopenOnboarding = () => {
     router.push('/app/onboarding')
