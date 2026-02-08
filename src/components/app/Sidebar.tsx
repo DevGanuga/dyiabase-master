@@ -313,7 +313,7 @@ export function Sidebar({ currentView, setCurrentView, userEmail, userName, user
 
         {/* Launchpad - Getting Started Checklist (Desktop) */}
         {showLaunchpad && (
-          <div className="hidden sm:block">
+          <div className="hidden sm:block sidebar-launchpad">
             <Launchpad items={launchpadItems} />
           </div>
         )}

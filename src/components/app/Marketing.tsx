@@ -61,16 +61,18 @@ export function Marketing({ showSuccess, isPro = false }: MarketingProps) {
       if (period === 'quarter') {
         const [y, m] = selectedMonth.split('-').map(Number)
         const startMonth = Math.floor((m - 1) / 3) * 3 + 1
-        const start = `${y}-${String(startMonth).padStart(2, '0')}-01`
         const endMonth = startMonth + 2
-        const endYear = endMonth > 12 ? y + 1 : y
-        const endM = endMonth > 12 ? endMonth - 12 : endMonth
-        const end = `${endYear}-${String(endM).padStart(2, '0')}-01`
+        // Use consistent YYYY-MM format for comparison (items use YYYY-MM)
+        const startStr = `${y}-${String(startMonth).padStart(2, '0')}`
+        const endStr = `${y}-${String(endMonth).padStart(2, '0')}`
         const res = await fetch('/api/marketing/spend')
         if (!res.ok) throw new Error('Failed to load spend')
         const data = await res.json()
         const all = (data.items || []) as MarketingSpendItem[]
-        const inQuarter = all.filter(i => i.month >= start && i.month <= end)
+        const inQuarter = all.filter(i => {
+          const itemMonth = i.month.slice(0, 7) // Normalize to YYYY-MM
+          return itemMonth >= startStr && itemMonth <= endStr
+        })
         setSpendItems(inQuarter)
         return
       }

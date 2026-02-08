@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useEffect, useState, useCallback } from 'react'
+import { Suspense, useEffect, useState, useCallback, useRef } from 'react'
 import { useUser, useClerk } from '@clerk/nextjs'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
@@ -69,11 +69,49 @@ function AppPageContent() {
   const [loading, setLoading] = useState(true)
   const [isDemoMode, setIsDemoMode] = useState(false)
 
-  // URL-synced view state
+  // View state management with sessionStorage persistence
+  // The URL ?view= param gets lost during Clerk auth initialization and page
+  // reloads. We capture it on mount and use sessionStorage as a bridge.
   const viewParam = searchParams.get('view') as View | null
-  const currentView: View = viewParam && VALID_VIEWS.includes(viewParam) ? viewParam : 'dashboard'
+  const restoredRef = useRef(false)
+  
+  // Capture the initial view from the URL on first render (lazy initializer runs once)
+  const [initialView] = useState<View | null>(() => {
+    if (typeof window === 'undefined') return null
+    const params = new URLSearchParams(window.location.search)
+    const urlView = params.get('view') as View | null
+    if (urlView && VALID_VIEWS.includes(urlView)) {
+      sessionStorage.setItem('dyia_pending_view', urlView)
+      return urlView
+    }
+    // Check for a view stored from a previous navigation attempt
+    const stored = sessionStorage.getItem('dyia_pending_view')
+    if (stored && VALID_VIEWS.includes(stored as View)) return stored as View
+    return null
+  })
+  
+  // Current view: URL param > initial capture > dashboard
+  const resolvedView: View = viewParam && VALID_VIEWS.includes(viewParam) 
+    ? viewParam 
+    : (initialView || 'dashboard')
+  const [currentView, setCurrentViewState] = useState<View>(resolvedView)
+  
+  // After loading completes, restore the pending view and update URL
+  useEffect(() => {
+    if (loading || restoredRef.current) return
+    restoredRef.current = true
+    
+    const pending = sessionStorage.getItem('dyia_pending_view')
+    if (pending && VALID_VIEWS.includes(pending as View) && pending !== 'dashboard') {
+      sessionStorage.removeItem('dyia_pending_view')
+      setCurrentViewState(pending as View)
+      router.replace(`/app?view=${pending}`, { scroll: false })
+    }
+  }, [loading, router])
   
   const setCurrentView = useCallback((view: View) => {
+    sessionStorage.removeItem('dyia_pending_view')
+    setCurrentViewState(view)
     const url = view === 'dashboard' ? '/app' : `/app?view=${view}`
     router.push(url, { scroll: false })
   }, [router])
@@ -332,14 +370,22 @@ function AppPageContent() {
     await signOut()
   }
 
-  const needsOnboarding = !loading && !isDemoMode && !!userProfile && !settings.onboardingCompleted && !settings.onboardingSkipped
+  // Only redirect to onboarding if user hasn't completed it AND has no data yet
+  // Users who've already been using the app (have jobs/quotes) don't need onboarding
+  const hasExistingData = jobs.length > 0 || quotes.length > 0
+  const needsOnboarding = !loading && !isDemoMode && !!userProfile && !settings.onboardingCompleted && !settings.onboardingSkipped && !hasExistingData
 
   // Redirect to onboarding for new users (after loading completes)
   useEffect(() => {
     if (needsOnboarding) {
-      router.push('/app/onboarding')
+      // Preserve the intended view through the onboarding redirect
+      const returnView = viewState || viewParam
+      const returnUrl = returnView && returnView !== 'dashboard' 
+        ? `/app?view=${returnView}` 
+        : '/app'
+      router.push(`/app/onboarding?returnUrl=${encodeURIComponent(returnUrl)}`)
     }
-  }, [needsOnboarding, router])
+  }, [needsOnboarding, router, viewState, viewParam])
 
   const handleReopenOnboarding = () => {
     router.push('/app/onboarding')

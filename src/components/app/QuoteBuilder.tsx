@@ -177,7 +177,7 @@ export function QuoteBuilder({ quotes, setQuotes, userId, selectedJob, customerN
   }, [calculateTotal])
 
   const handlePricingChange = (field: string, value: number) => {
-    setPricing({ ...pricing, [field]: Math.max(0, value) })
+    setPricing(prev => ({ ...prev, [field]: Math.max(0, value) }))
   }
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, index: number) => {

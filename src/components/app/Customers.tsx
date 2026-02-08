@@ -838,7 +838,7 @@ export function Customers({ jobs, quotes = [], isPro = false, onNavigate, onCrea
               </div>
               <h3 className="text-lg font-semibold text-[var(--color-text-primary)] mb-1">Build Your Customer Database</h3>
               <p className="text-sm text-[var(--color-text-muted)] mb-4 max-w-sm mx-auto">
-                Add customers to track contact info, job history, and lifetime value. Customers are auto-added when you log jobs.
+                Add customers to track contact info, job history, and lifetime value. You can also add them manually.
               </p>
               <button onClick={openNewForm} className="app-btn-primary">
                 Add Your First Customer

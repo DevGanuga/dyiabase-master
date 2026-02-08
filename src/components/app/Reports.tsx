@@ -49,10 +49,18 @@ export function Reports({ jobs, quotes, fixedMonthlyExpenses, isPro = false }: R
     const grossProfit = totalRevenue - totalExpenses
     
     // Calculate months in range for fixed expense adjustment
-    const months = timeRange === 'week' ? 0.25 : 
-                   timeRange === 'month' ? 1 : 
-                   timeRange === 'quarter' ? 3 : 
-                   timeRange === 'year' ? 12 : 12
+    let months: number
+    if (timeRange === 'all' && filteredJobs.length > 0) {
+      // For "All" range, calculate actual months from earliest job to now
+      const earliest = new Date(filteredJobs[filteredJobs.length - 1].date)
+      const now = new Date()
+      months = Math.max(1, (now.getFullYear() - earliest.getFullYear()) * 12 + (now.getMonth() - earliest.getMonth()) + 1)
+    } else {
+      months = timeRange === 'week' ? 0.25 : 
+               timeRange === 'month' ? 1 : 
+               timeRange === 'quarter' ? 3 : 
+               timeRange === 'year' ? 12 : 1
+    }
     const fixedExpenses = fixedMonthlyExpenses * months
     const netProfit = grossProfit - fixedExpenses
 

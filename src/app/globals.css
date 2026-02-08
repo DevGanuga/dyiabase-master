@@ -238,7 +238,12 @@
 
 /* App Sidebar - Dark Theme */
 .app-sidebar {
-  @apply w-64 flex flex-col h-screen;
+  @apply w-64 flex flex-col h-screen overflow-hidden;
+}
+
+/* Ensure sidebar SVGs never intercept clicks */
+.app-sidebar svg {
+  pointer-events: none;
 }
 
 .app-nav-btn {
@@ -822,6 +827,11 @@
   }
 
   .sidebar-text {
+    @apply hidden;
+  }
+
+  /* Hide launchpad in collapsed sidebar - content overflows */
+  .app-sidebar .sidebar-launchpad {
     @apply hidden;
   }
 }

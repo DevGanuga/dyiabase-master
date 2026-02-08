@@ -37,6 +37,12 @@ const REFERRAL_SOURCES = [
 export default function OnboardingPage() {
   const { user, isLoaded } = useUser()
   const router = useRouter()
+  // Read returnUrl from the raw URL to preserve view state through onboarding
+  const [returnUrl] = useState(() => {
+    if (typeof window === 'undefined') return '/app'
+    const params = new URLSearchParams(window.location.search)
+    return params.get('returnUrl') || '/app'
+  })
   const supabase = createClient()
   const { resolvedTheme, setTheme } = useTheme()
   
@@ -117,7 +123,7 @@ export default function OnboardingPage() {
           .single()
 
         if (settings?.onboarding_completed || settings?.onboarding_skipped) {
-          router.push('/app')
+          router.push(returnUrl)
           return
         }
 
@@ -211,11 +217,11 @@ export default function OnboardingPage() {
         console.warn('Skip update failed (column may not exist):', updateError)
       }
       
-      router.push('/app')
+      router.push(returnUrl)
     } catch (err) {
       console.error('Skip error:', err)
       // Even if there's an error, let them proceed
-      router.push('/app')
+      router.push(returnUrl)
     }
   }
 
@@ -320,7 +326,7 @@ export default function OnboardingPage() {
         }
       }
 
-      router.push('/app')
+      router.push(returnUrl)
     } catch (err) {
       console.error('Onboarding save error:', err)
       const message = err instanceof Error ? err.message : 'Failed to save settings'
