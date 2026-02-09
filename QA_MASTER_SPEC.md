@@ -1,7 +1,8 @@
 # dyia - QA Master Specification
 
-> Full QA audit performed Feb 6, 2026. Covers all views, components, API routes, and cross-cutting concerns.
+> Full QA audit performed Feb 6-7, 2026. Covers all views, components, API routes, and cross-cutting concerns.
 > Bugs found during this audit have been fixed inline (see "Fixes Applied" sections).
+> Updated Feb 7, 2026 with additional interactive testing and bug fixes.
 
 ---
 
@@ -84,8 +85,12 @@
 | Completion redirect | PASS | Redirects to `/app` dashboard |
 | Re-open from launchpad | PASS | "Complete setup" button navigates to `/app/onboarding` |
 
+### Fixes Applied
+- **URL persistence bug (FIXED)**: Navigating directly to `/app?view=jobs` was losing the `?view=` param, redirecting to dashboard. Root cause: `setLoading(false)` was called prematurely when `!isLoaded` (Clerk still initializing), which set `loading=false` before any data loaded. When Clerk then loaded and set `userProfile`, `needsOnboarding` evaluated with empty data arrays, triggering a redirect to `/app/onboarding` which stripped the view param. Fix: Changed early return to just `return` (not `setLoading(false)`) when `!isLoaded`, keeping the loading state true until Clerk finishes and data is fully loaded.
+- **Onboarding returnUrl**: Onboarding page now reads and uses a `returnUrl` query parameter to preserve view state through the onboarding redirect cycle.
+
 ### Issues Found
-- **URL persistence bug**: Navigating directly to `/app?view=jobs` doesn't persist the `?view=` param. The page loads, shows "Loading...", then redirects to `/app` (dashboard). This is likely a race condition between Clerk auth initialization and the Suspense boundary reading `useSearchParams()`.
+- None remaining for core auth/onboarding flow.
 
 ---
 
@@ -185,6 +190,7 @@
 
 ### Fixes Applied
 - **Follow-up creation error handling**: Added try-catch around follow-up insert so quote still saves if follow-up creation fails (was silently failing before).
+- **Stale pricing state fix**: Changed `setPricing({...pricing, [field]: value})` to functional update `setPricing(prev => ({...prev, [field]: value}))` in `handlePricingChange` to prevent stale state issues when multiple pricing fields are updated rapidly.
 
 ### Issues Found
 - Price template loading is incomplete - only loads some pricing fields from template
@@ -281,8 +287,11 @@
 | Database persistence | PASS | Saves to `dyia_customers` table |
 | Create quote from customer | PASS | "New Quote" button in detail view |
 
+### Fixes Applied
+- **Misleading empty state text (FIXED)**: Changed "Customers are auto-added when you log jobs" to "You can also add them manually." since customers are derived in-memory from jobs, not auto-created in the `dyia_customers` table.
+
 ### Issues Found
-- Auto-sync is one-way: customers are derived from jobs in memory, but creating a job doesn't auto-create a `dyia_customers` record. The empty state text "Customers are auto-added when you log jobs" is misleading.
+- Auto-sync is one-way: customers are derived from jobs in memory, but creating a job doesn't auto-create a `dyia_customers` record
 - Case-sensitive name matching could create duplicate customer entries
 - No merge functionality for duplicate customers
 - "Re-engage" badge hidden on mobile (`hidden sm:inline`)
@@ -309,8 +318,10 @@
 | AI Insights card (Pro) | PASS | Gated with ProFeature wrapper |
 | Empty state | PASS | "Log your first job" prompt when no data |
 
+### Fixes Applied
+- **Fixed expenses for "All" range (FIXED)**: Was using hardcoded `months = 12`. Now dynamically calculates the actual number of months from the earliest job date to the current date when `timeRange === 'all'`.
+
 ### Issues Found
-- Fixed expense calculation for "All" time range uses `months = 12` as default, which is inaccurate if user has more or fewer months of data.
 - Week calculation uses `0.25` months approximation.
 - No data export from reports view (would need to go to Settings > Account > Export).
 
@@ -413,8 +424,11 @@
 - **ROI calculation fix**: When total spend is $0, ROI now shows "—" instead of misleading "100%".
 - **Parent component updated**: `page.tsx` now passes `isPro` prop to Marketing component.
 
+### Fixes Applied (Additional)
+- **Quarter date format consistency (FIXED)**: The `loadSpend` function used inconsistent date formats ("YYYY-MM-DD" vs "YYYY-MM") for quarter filtering. Standardized to "YYYY-MM" format for both filter boundaries and item comparison, using `.slice(0, 7)` normalization.
+
 ### Issues Found
-- Quarter calculation doesn't handle year boundaries correctly (Q4 -> Q1 next year)
+- Quarter calculation doesn't handle year boundaries correctly (Q4 → Q1 next year)
 - No loading state while ROI data loads
 
 ---
@@ -501,7 +515,7 @@
 ### Cross-Cutting
 | Feature | Status | Notes |
 |---------|--------|-------|
-| URL sync (`?view=` param) | PARTIAL | Works for in-app navigation; fails on direct URL load |
+| URL sync (`?view=` param) | PASS (FIXED) | Works for in-app navigation and direct URL load |
 | Browser back/forward | PASS | Uses `router.push` which integrates with history |
 | Success toast messages | PASS | Green toast with auto-dismiss |
 | Error toast messages | PASS | Red toast with auto-dismiss |
@@ -510,10 +524,13 @@
 
 ### Fixes Applied
 - **Sidebar icon pointer-events**: Added `pointer-events-none` to icon `<span>` wrappers in `NavButton` to prevent SVG elements from intercepting clicks.
+- **Global SVG pointer-events**: Added `.app-sidebar svg { pointer-events: none; }` in `globals.css` as a defense-in-depth measure.
+- **Sidebar overflow fix**: Added `overflow-hidden` to `.app-sidebar` to prevent content from overflowing in collapsed mode.
+- **Launchpad hidden in collapsed mode**: Added `sidebar-launchpad` class and CSS to hide the Launchpad widget when sidebar is collapsed (`@media (max-width: 1024px)`).
 - **Trial banner persistence**: Banner dismissal now persists via `sessionStorage` (was reset on every page load).
+- **URL persistence fix**: Direct URL navigation (`/app?view=reports`) now correctly loads the specified view. Root cause was a `setLoading(false)` race condition in the auth initialization flow.
 
 ### Issues Found
-- **Sidebar click interception**: SVG icons inside nav buttons intercept Playwright clicks (sibling element overlap). The `pointer-events-none` fix helps but the root cause appears to be the "Create" dropdown element overlapping nav items due to DOM ordering. In real browsers this works fine via event bubbling.
 - Mobile "More" drawer state doesn't auto-close on navigation in all cases
 
 ---
@@ -614,35 +631,46 @@
    - Bug: SVG icons inside nav buttons intercepted automated clicks
    - Fix: Added `pointer-events-none` to icon wrapper `<span>` elements
 
+### Fixed Since Initial Audit (Feb 7, 2026)
+
+10. **URL `?view=` param persistence (FIXED)** - Root cause was premature `setLoading(false)` call when Clerk wasn't loaded, causing `needsOnboarding` to redirect with empty data arrays. Fixed by only returning (not setting loading=false) when `!isLoaded`.
+
+11. **Marketing quarter date format (FIXED)** - Inconsistent date formats (YYYY-MM-DD vs YYYY-MM) in quarter filtering. Standardized to YYYY-MM.
+
+12. **QuoteBuilder stale pricing state (FIXED)** - Changed `setPricing({...pricing, [field]: value})` to functional update `setPricing(prev => ({...prev, [field]: value}))`.
+
+13. **Customers empty state text (FIXED)** - Changed misleading "auto-added when you log jobs" to "You can also add them manually."
+
+14. **Reports fixed expenses for "All" range (FIXED)** - Now calculates actual months from earliest job date instead of hardcoded 12.
+
+15. **Sidebar overflow and collapsed mode (FIXED)** - Added overflow-hidden, global SVG pointer-events, and hid launchpad in collapsed sidebar.
+
 ### Known Issues (Not Yet Fixed)
 
-1. **URL `?view=` param lost on direct navigation / page refresh** - Race condition between Clerk auth and Suspense/searchParams
-2. **Marketing quarter calculation** - Year boundary handling (Q4 → Q1 next year)
-3. **QuoteBuilder template loading** - Incomplete field mapping from price templates
-4. **Customers auto-sync text** - Empty state says "auto-added" but customers are derived in-memory
-5. **Reports fixed expenses for "All" range** - Uses hardcoded 12 months instead of actual data range
-6. **Follow-ups drag-and-drop** - No mobile/touch support
-7. **Missing input validations** - No maxLength, no email/phone format, no future date prevention
-8. **No edit quote functionality** - Can only create new, not edit existing
-9. **No loading states** - Several async operations lack user feedback
+1. **Marketing quarter calculation** - Year boundary handling (Q4 → Q1 next year)
+2. **QuoteBuilder template loading** - Incomplete field mapping from price templates
+3. **Follow-ups drag-and-drop** - No mobile/touch support
+4. **Missing input validations** - No maxLength, no email/phone format, no future date prevention
+5. **No edit quote functionality** - Can only create new, not edit existing
+6. **No loading states** - Several async operations lack user feedback
 
 ---
 
 ## 18. Recommendations
 
 ### High Priority
-1. **Fix URL persistence**: Ensure `?view=` params survive page loads. Consider storing view state in `localStorage` as fallback, or restructure auth loading to not lose search params.
+1. ~~**Fix URL persistence**~~ ✅ DONE - Fixed race condition in auth loading flow.
 2. **Add input validation**: Email format, phone format, maxLength on text fields, future date prevention.
 3. **Add loading states**: Per-quote status changes, PDF generation, email sending, ROI table loading.
-4. **Fix customer auto-sync text**: Either implement actual auto-creation in `dyia_customers` table when jobs are saved, or update the empty state text to be accurate.
+4. ~~**Fix customer auto-sync text**~~ ✅ DONE - Updated empty state text.
 
 ### Medium Priority
 5. **Add edit quote functionality**: Allow editing existing quotes (currently create-only).
 6. **Fix template loading in QuoteBuilder**: Map all pricing fields from price templates.
 7. **Add unsaved changes warnings**: Prevent accidental data loss when navigating away from forms.
-8. **Fix marketing quarter calculation**: Handle year boundary correctly.
+8. **Fix marketing quarter calculation**: Handle year boundary correctly (Q4 → Q1).
 9. **Add touch support for follow-up kanban**: Use a library like `@dnd-kit` or `react-beautiful-dnd`.
-10. **Fix reports fixed expense calculation**: Use actual month range from data instead of hardcoded 12.
+10. ~~**Fix reports fixed expense calculation**~~ ✅ DONE - Now uses actual month range from data.
 
 ### Low Priority
 11. **Add bulk operations**: Bulk delete/edit jobs, bulk status change for follow-ups.
@@ -665,7 +693,7 @@
 | Feature Area | Complete | Partial | Missing |
 |-------------|----------|---------|---------|
 | **Landing Page** | Hero, Features, Pricing, FAQ, Testimonials, CTA, Footer | — | — |
-| **Auth** | Sign-up, Sign-in, Demo mode, Session management | URL view persistence | — |
+| **Auth** | Sign-up, Sign-in, Demo mode, Session management, URL view persistence | — | — |
 | **Onboarding** | 5-step flow, Skip, Resume | — | — |
 | **Dashboard** | Greeting, Quick actions, Launchpad, Stats, Pipeline, Recent jobs | AI Insights (Pro dep.) | — |
 | **Jobs** | CRUD, Multi-customer, Expenses, Search, Filter, Month nav, Review request | Input validation | Bulk ops, Templates, Recurring |
@@ -673,13 +701,14 @@
 | **Quotes** | List, Filters, Status changes, PDF export, Link to job, Delete | Loading states | Edit quote |
 | **Follow-Ups** | Kanban, Priority, Status changes, Convert to job, Copy message | Drag-drop (desktop only) | Touch support, Bulk actions |
 | **Customers** | List, Search, Sort, Detail, CRUD, Tags, Notes, Action buttons | Auto-sync accuracy | Merge, Import/Export |
-| **Reports** | Time ranges, Summary cards, Charts, Trend table, Performance | Fixed expense calc | Data export from reports |
+| **Reports** | Time ranges, Summary cards, Charts, Trend table, Performance, Fixed expense calc | — | Data export from reports |
 | **Settings** | Business, Financial, Expenses, Templates, Account | Validation | Unsaved changes warning |
 | **Marketing (Pro)** | Spend tracking, ROI table, Period filters | Quarter boundaries | — |
 | **Mass Email (Pro)** | OAuth connect, Compose, Send, History | Email validation | Campaign preview |
 | **AI Assistant (Pro)** | Chat, Threads, Quick actions, File upload, Pending actions | Error recovery | Retry mechanism |
-| **Navigation** | Sidebar, Mobile nav, Create menu, Theme toggle, Sign out | URL sync | — |
+| **Navigation** | Sidebar, Mobile nav, Create menu, Theme toggle, Sign out, URL sync | — | — |
 
 ---
 
-*Generated by QA audit - Feb 6, 2026*
+*Generated by QA audit - Feb 6-7, 2026*
+*Last updated: Feb 7, 2026 — 6 additional bugs fixed (URL persistence, marketing dates, reports expenses, QuoteBuilder state, customers text, sidebar layout)*
