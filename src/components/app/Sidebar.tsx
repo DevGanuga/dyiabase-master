@@ -2,9 +2,8 @@
 
 import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
-import Image from 'next/image'
 import { useTheme } from '@/hooks/useTheme'
-import { Launchpad, type LaunchpadItem } from '@/components/app/Launchpad'
+import type { LaunchpadItem } from '@/components/app/Launchpad'
 
 type View = 'dashboard' | 'jobs' | 'quotes' | 'quoteBuilder' | 'followUps' | 'reports' | 'marketing' | 'customers' | 'massEmail' | 'assistant' | 'settings'
 
@@ -52,7 +51,7 @@ const Icons = {
     </svg>
   ),
   dyia: (
-    <img src="/dyia-agent.png" alt="Dyia AI" className="w-5 h-5 rounded-full object-cover" />
+    <img src="/dyia-agent.png" alt="Dyia AI" className="w-6 h-6 object-contain" />
   ),
   cog: (
     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -130,7 +129,6 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { id: 'reports', icon: 'chart', label: 'Reports' },
       { id: 'marketing', icon: 'megaphone', label: 'Marketing', pro: true },
-      { id: 'assistant', icon: 'dyia', label: 'Ask Dyia', pro: true },
     ],
   },
 ]
@@ -185,8 +183,6 @@ export function Sidebar({ currentView, setCurrentView, userEmail, userName, user
     }
   }, [createOpen])
 
-  const showLaunchpad = launchpadItems && launchpadItems.length > 0
-
   // Flat list of all nav items for convenience
   const allNavItems = NAV_SECTIONS.flatMap(s => s.items)
   let animIndex = 0
@@ -195,15 +191,14 @@ export function Sidebar({ currentView, setCurrentView, userEmail, userName, user
     <>
       <aside className="app-sidebar bg-slate-900">
         {/* Logo - hidden on mobile */}
-        <div className="p-5 hidden sm:block">
-          <Link href="/" className="block">
-            <Image 
-              src="/dyia-logo-full.png" 
-              alt="dyia" 
-              width={80} 
-              height={28}
-              className="brightness-0 invert opacity-90 hover:opacity-100 transition-opacity"
+        <div className="px-4 pt-4 pb-3 hidden sm:block">
+          <Link href="/" className="flex items-center gap-2 group">
+            <img
+              src="/dyia-agent.png"
+              alt="dyia"
+              className="w-11 h-11 object-contain drop-shadow-[0_0_8px_rgba(249,115,22,0.3)] group-hover:drop-shadow-[0_0_12px_rgba(249,115,22,0.5)] transition-all"
             />
+            <span className="text-2xl font-extrabold bg-gradient-to-r from-orange-400 to-amber-400 bg-clip-text text-transparent tracking-tight">dyia</span>
           </Link>
         </div>
 
@@ -310,13 +305,6 @@ export function Sidebar({ currentView, setCurrentView, userEmail, userName, user
             </button>
           </div>
         </nav>
-
-        {/* Launchpad - Getting Started Checklist (Desktop) */}
-        {showLaunchpad && (
-          <div className="hidden sm:block sidebar-launchpad">
-            <Launchpad items={launchpadItems} />
-          </div>
-        )}
 
         {/* Footer - hidden on mobile */}
         <div className="p-3 border-t border-slate-800 hidden sm:block space-y-1">

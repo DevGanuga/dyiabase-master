@@ -1300,36 +1300,52 @@
 
 /* Message Bubbles */
 .message-bubble {
-  @apply max-w-[85%] rounded-2xl px-4 py-3;
-  animation: messagePop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  @apply rounded-2xl px-4 py-3 text-sm leading-relaxed;
+}
+
+/* Only animate the LATEST message, not all of them on re-render */
+.message-bubble-enter {
+  animation: messagePop 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 @keyframes messagePop {
   0% {
     opacity: 0;
-    transform: scale(0.95) translateY(8px);
+    transform: translateY(6px);
   }
   100% {
     opacity: 1;
-    transform: scale(1) translateY(0);
+    transform: translateY(0);
   }
 }
 
-.message-user {
+.message-bubble.user {
   @apply ml-auto text-white;
   background: linear-gradient(135deg, #f97316 0%, #f59e0b 100%);
   transform-origin: bottom right;
-  box-shadow: 0 2px 8px rgba(249, 115, 22, 0.2);
+  box-shadow: 0 2px 12px rgba(249, 115, 22, 0.2);
+  border-radius: 1.25rem 1.25rem 0.375rem 1.25rem;
 }
 
-.message-assistant {
+.message-bubble.assistant {
   @apply mr-auto;
   background: var(--color-bg-card);
-  border: 1px solid var(--color-border-light);
-  color: var(--color-text-primary);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
   transform-origin: bottom left;
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  border-radius: 1.25rem 1.25rem 1.25rem 0.375rem;
 }
+
+/* Stronger text for key elements inside assistant bubbles */
+.message-bubble.assistant strong {
+  color: var(--color-text-primary);
+}
+
+/* Markdown content inside chat messages */
+.dyia-markdown p:first-child { margin-top: 0; }
+.dyia-markdown p:last-child { margin-bottom: 0; }
+.dyia-markdown > *:first-child { margin-top: 0; }
 
 .message-timestamp {
   @apply text-xs mt-1.5;
@@ -1705,4 +1721,59 @@
 
 .number-tick.changed {
   animation: countPulse 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Dyia Orb bubble pop animation */
+@keyframes dyiaOrbBubble {
+  from {
+    opacity: 0;
+    transform: translateY(0.5rem) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Dyia Panel animations */
+@keyframes dyiaPanelFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes dyiaPanelPopIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9) translateY(1rem);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Workflow prompt animations */
+@keyframes workflowSlideUp {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(1rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+@keyframes shrinkWidth {
+  from { width: 100%; }
+  to { width: 0%; }
+}
+
+/* Scrollbar hide utility */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
 }

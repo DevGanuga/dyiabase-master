@@ -55,16 +55,14 @@ function DemoAccess() {
   )
 }
 
-// Dyia Avatar
+// Dyia Avatar — uses the AI agent logo
 function DyiaAvatar({ className = "w-10 h-10" }: { className?: string }) {
   return (
-    <div className={`${className} rounded-full bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center shadow-lg ring-2 ring-orange-400/30`}>
-      <svg className="w-1/2 h-1/2 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <circle cx="12" cy="12" r="3" fill="currentColor" stroke="none" />
-        <path d="M12 2v4m0 12v4M2 12h4m12 0h4" strokeLinecap="round" />
-        <path d="M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83" strokeLinecap="round" opacity="0.6" />
-      </svg>
-    </div>
+    <img
+      src="/dyia-agent.png"
+      alt="dyia"
+      className={`${className} object-contain`}
+    />
   )
 }
 
@@ -138,7 +136,7 @@ export default function LandingPage() {
         <div className="mx-auto max-w-7xl px-6 py-4">
           <div className="flex items-center justify-between rounded-2xl bg-white/[0.03] backdrop-blur-xl border border-white/[0.06] px-6 py-3">
             <Link href="/" className="flex items-center gap-2">
-              <DyiaAvatar className="w-8 h-8" />
+              <DyiaAvatar className="w-9 h-9" />
               <span className="text-xl font-bold bg-gradient-to-r from-orange-400 to-amber-400 bg-clip-text text-transparent">dyia</span>
             </Link>
             <div className="hidden md:flex items-center gap-8">
@@ -197,7 +195,7 @@ export default function LandingPage() {
                 </div>
 
                 <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-slate-500">
-                  {['No credit card required', 'Cancel anytime', 'Works on any device'].map((item, i) => (
+                  {['14-day free trial', 'Cancel anytime', 'Works on any device'].map((item, i) => (
                     <span key={i} className="flex items-center gap-2">
                       <svg className="w-4 h-4 text-green-500/70" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
                       {item}
@@ -237,7 +235,7 @@ export default function LandingPage() {
                     </div>
                     <div className="bg-gradient-to-r from-orange-500/5 to-amber-500/5 border border-orange-500/10 rounded-xl p-4">
                       <div className="flex items-center gap-2 mb-2">
-                        <DyiaAvatar className="w-6 h-6" />
+                        <DyiaAvatar className="w-7 h-7" />
                         <span className="text-xs font-medium text-white">Dyia</span>
                       </div>
                       <p className="text-sm text-slate-300 leading-relaxed">
@@ -459,7 +457,7 @@ export default function LandingPage() {
               {/* Chat Demo */}
               <div className="lg:col-span-3 bg-[#0f0f11] border border-white/[0.06] rounded-2xl overflow-hidden">
                 <div className="flex items-center gap-3 px-5 py-4 bg-black/30 border-b border-white/5">
-                  <DyiaAvatar className="w-9 h-9" />
+                  <DyiaAvatar className="w-10 h-10" />
                   <div>
                     <h3 className="font-semibold text-white text-sm">Dyia</h3>
                     <p className="text-xs text-slate-500">Always ready to help</p>
@@ -474,7 +472,7 @@ export default function LandingPage() {
                   </div>
                   
                   <div className="flex gap-3">
-                    <DyiaAvatar className="w-7 h-7 shrink-0 mt-1" />
+                    <DyiaAvatar className="w-8 h-8 shrink-0 mt-1" />
                     <div className="bg-white/[0.03] border border-white/[0.06] rounded-2xl rounded-bl-sm px-4 py-3 max-w-[85%]">
                       <p className="text-sm text-slate-300 leading-relaxed">
                         Based on your last 6 hot tub jobs, you&apos;ve averaged <span className="text-green-400 font-medium">$485</span> with a 71% margin. The lowest was $380 (ground level), highest $650 (stairs + disconnect).
@@ -494,7 +492,7 @@ export default function LandingPage() {
                   </div>
 
                   <div className="flex gap-3">
-                    <DyiaAvatar className="w-7 h-7 shrink-0 mt-1" />
+                    <DyiaAvatar className="w-8 h-8 shrink-0 mt-1" />
                     <div className="bg-white/[0.03] border border-white/[0.06] rounded-2xl rounded-bl-sm px-4 py-3">
                       <p className="text-sm text-slate-300 mb-3">&quot;Got it. Here&apos;s the breakdown:&quot;</p>
                       <div className="bg-green-500/5 border border-green-500/10 rounded-lg p-3 text-xs space-y-1">
@@ -608,7 +606,7 @@ export default function LandingPage() {
                   </thead>
                   <tbody>
                     {[
-                      { feature: 'Starting price', jobber: '$349/mo', housecall: '$65/mo', dyia: '$14.99/mo' },
+                      { feature: 'Starting price', jobber: '$349/mo', housecall: '$65/mo', dyia: '$19.99/mo' },
                       { feature: 'Job tracking', jobber: true, housecall: true, dyia: true },
                       { feature: 'Quote builder', jobber: true, housecall: true, dyia: true },
                       { feature: 'Customer CRM', jobber: true, housecall: true, dyia: true },
@@ -651,7 +649,7 @@ export default function LandingPage() {
             <div className="text-center mb-12">
               <p className="text-orange-400 text-sm font-medium uppercase tracking-wider mb-3">Pricing</p>
               <h2 className="text-4xl sm:text-5xl font-bold text-white mb-4">Start free. Upgrade when ready.</h2>
-              <p className="text-xl text-slate-400">14-day Pro trial included. No credit card required.</p>
+              <p className="text-xl text-slate-400">14-day Pro trial included. Cancel anytime.</p>
             </div>
 
             {/* Toggle */}
@@ -672,10 +670,10 @@ export default function LandingPage() {
                 <h3 className="text-2xl font-bold text-white mb-1">Basic</h3>
                 <p className="text-slate-500 text-sm mb-6">Essential profit tracking</p>
                 <div className="flex items-baseline gap-1 mb-6">
-                  <span className="text-5xl font-bold text-white">${billingCycle === 'monthly' ? '14.99' : '143'}</span>
+                  <span className="text-5xl font-bold text-white">${billingCycle === 'monthly' ? '19.99' : '191'}</span>
                   <span className="text-slate-500">/{billingCycle === 'monthly' ? 'mo' : 'year'}</span>
                 </div>
-                {billingCycle === 'annual' && <p className="text-green-400 text-sm mb-6">$11.92/mo — save $36/year</p>}
+                {billingCycle === 'annual' && <p className="text-green-400 text-sm mb-6">$15.92/mo — save $48/year</p>}
                 <ul className="space-y-3 mb-8">
                   {['Unlimited job tracking', 'Profit dashboard', 'Tax set-aside calculator', 'Quote builder + PDF export', 'Customer database & CRM', 'Follow-up pipeline', 'Fixed expense tracking', 'Review requests', 'Lead source analytics', 'CSV data export'].map((f, i) => (
                     <li key={i} className="flex items-center gap-3 text-sm text-slate-300">
@@ -695,15 +693,15 @@ export default function LandingPage() {
                   RECOMMENDED
                 </div>
                 <div className="flex items-center gap-2 mb-1">
-                  <DyiaAvatar className="w-6 h-6" />
+                  <DyiaAvatar className="w-8 h-8" />
                   <h3 className="text-2xl font-bold text-white">Pro</h3>
                 </div>
                 <p className="text-slate-500 text-sm mb-6">Everything + Dyia AI + Marketing</p>
                 <div className="flex items-baseline gap-1 mb-6">
-                  <span className="text-5xl font-bold text-white">${billingCycle === 'monthly' ? '24.99' : '239'}</span>
+                  <span className="text-5xl font-bold text-white">${billingCycle === 'monthly' ? '29.99' : '287'}</span>
                   <span className="text-slate-500">/{billingCycle === 'monthly' ? 'mo' : 'year'}</span>
                 </div>
-                {billingCycle === 'annual' && <p className="text-green-400 text-sm mb-6">$19.92/mo — save $60/year</p>}
+                {billingCycle === 'annual' && <p className="text-green-400 text-sm mb-6">$23.92/mo — save $72/year</p>}
                 <ul className="space-y-3 mb-8">
                   {[
                     { text: 'Everything in Basic', highlight: false },
@@ -725,7 +723,7 @@ export default function LandingPage() {
                 <button onClick={startFreeTrial} className="w-full py-3.5 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-xl font-bold shadow-lg shadow-orange-500/20 hover:-translate-y-0.5 transition-all">
                   Start 14-Day Free Trial
                 </button>
-                <p className="text-xs text-slate-500 text-center mt-3">No credit card required</p>
+                <p className="text-xs text-slate-500 text-center mt-3">14 days free, then $29.99/mo</p>
               </div>
             </div>
 
@@ -757,7 +755,7 @@ export default function LandingPage() {
 
             <div className="space-y-3">
               {[
-                { q: 'Is the free trial actually free?', a: '100%. 14 days of full Pro access including AI assistant, email blasts, and marketing tools. No credit card required. After the trial, you can continue with Basic (which is still powerful) or upgrade to keep Pro features.' },
+                { q: 'Is the free trial actually free?', a: '100%. 14 days of full Pro access including AI assistant, email blasts, and marketing tools. We collect payment info upfront but you won\'t be charged until day 15. Cancel anytime during the trial. After the trial, you can continue with Basic (which is still powerful) or stay on Pro.' },
                 { q: 'What\'s the difference between Basic and Pro?', a: 'Basic gives you everything for day-to-day operations: job tracking, profit calculator, quote builder with PDF, customer CRM, follow-up pipeline, tax set-aside, and review requests. Pro adds Dyia AI (natural language logging, smart pricing, forecasting), mass email campaigns, marketing ROI tracking, and priority support.' },
                 { q: 'Can I use this on my phone?', a: 'Yes. dyia is a progressive web app that works in any browser — iPhone, Android, tablet, laptop. Log jobs from your truck, check numbers at the dump, send quotes from your couch. No app download needed.' },
                 { q: 'How is this different from a spreadsheet?', a: 'A spreadsheet doesn\'t calculate profit per job automatically, generate branded PDF quotes, track customer history, manage your follow-up pipeline, set aside taxes, or give you AI insights. dyia does all of that in 30 seconds per job.' },
@@ -787,7 +785,7 @@ export default function LandingPage() {
         {/* ===== CTA ===== */}
         <section className="py-24 px-6">
           <div className="max-w-3xl mx-auto text-center">
-            <DyiaAvatar className="w-16 h-16 mx-auto mb-8" />
+            <DyiaAvatar className="w-20 h-20 mx-auto mb-8" />
             <h2 className="text-4xl sm:text-5xl font-bold text-white mb-4">
               Ready to know your real numbers?
             </h2>
@@ -800,7 +798,7 @@ export default function LandingPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
               </svg>
             </button>
-            <p className="text-slate-600 text-sm mt-6">14 days free • No credit card • Cancel anytime</p>
+            <p className="text-slate-600 text-sm mt-6">14 days free • Cancel anytime • Works on any device</p>
           </div>
         </section>
       </main>
@@ -811,7 +809,7 @@ export default function LandingPage() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-12">
             <div className="col-span-2 md:col-span-1">
               <div className="flex items-center gap-2 mb-4">
-                <DyiaAvatar className="w-7 h-7" />
+                <DyiaAvatar className="w-8 h-8" />
                 <span className="font-bold bg-gradient-to-r from-orange-400 to-amber-400 bg-clip-text text-transparent">dyia</span>
               </div>
               <p className="text-sm text-slate-500 leading-relaxed">Your day, decoded. The AI-powered business manager for service professionals.</p>
@@ -829,8 +827,8 @@ export default function LandingPage() {
               <h4 className="text-sm font-semibold text-white mb-4">Company</h4>
               <ul className="space-y-2 text-sm text-slate-500">
                 <li><a href="mailto:support@dyia.co" className="hover:text-orange-400 transition">Support</a></li>
-                <li><a href="#" className="hover:text-orange-400 transition">Privacy Policy</a></li>
-                <li><a href="#" className="hover:text-orange-400 transition">Terms of Service</a></li>
+                <li><a href="/privacy" className="hover:text-orange-400 transition">Privacy Policy</a></li>
+                <li><a href="/terms" className="hover:text-orange-400 transition">Terms of Service</a></li>
               </ul>
             </div>
             <div>

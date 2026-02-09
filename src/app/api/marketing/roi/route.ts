@@ -44,6 +44,10 @@ export async function GET(req: NextRequest) {
       .from('dyia_jobs')
       .select('source, revenue')
       .eq('user_id', dyiaUserId)
+    let quotesQuery = supabase
+      .from('dyia_quotes')
+      .select('source')
+      .eq('user_id', dyiaUserId)
 
     if (!allTime) {
       const monthStart = `${monthParam!.slice(0, 7)}-01`
@@ -52,9 +56,10 @@ export async function GET(req: NextRequest) {
       const monthEnd = `${nextMonth[0]}-${String(nextMonth[1]).padStart(2, '0')}-01`
       spendQuery = spendQuery.eq('month', monthStart)
       jobsQuery = jobsQuery.gte('date', monthStart).lt('date', monthEnd)
+      quotesQuery = quotesQuery.gte('created_at', monthStart).lt('created_at', monthEnd)
     }
 
-    const [spendRes, jobsRes] = await Promise.all([spendQuery, jobsQuery])
+    const [spendRes, jobsRes, quotesRes] = await Promise.all([spendQuery, jobsQuery, quotesQuery])
 
     if (spendRes.error) {
       console.error('Marketing ROI spend fetch:', spendRes.error)
@@ -67,31 +72,59 @@ export async function GET(req: NextRequest) {
 
     type SpendRow = { source: string; amount: number }
     type JobRow = { source: string | null; revenue: number }
+    type QuoteRow = { source: string | null }
     const spendRows = (spendRes.data ?? []) as SpendRow[]
     const jobRows = (jobsRes.data ?? []) as JobRow[]
+    const quoteRows = (quotesRes.data ?? []) as QuoteRow[]
+
+    // Normalize source names (case-insensitive, trimmed)
+    const normalizeSource = (s: string | null | undefined): string => {
+      const trimmed = (s || '').trim()
+      if (!trimmed) return 'Unknown'
+      // Capitalize first letter of each word for display consistency
+      return trimmed.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ')
+    }
 
     const spendBySource: Record<string, number> = {}
     for (const row of spendRows) {
-      const src = (row.source || '').trim() || 'Unknown'
+      const src = normalizeSource(row.source)
       spendBySource[src] = (spendBySource[src] || 0) + (parseFloat(String(row.amount)) || 0)
     }
 
     const revenueBySource: Record<string, number> = {}
     const jobsBySource: Record<string, number> = {}
     for (const row of jobRows) {
-      const src = (row.source || '').trim() || 'Unknown'
+      const src = normalizeSource(row.source)
       revenueBySource[src] = (revenueBySource[src] || 0) + (parseFloat(String(row.revenue)) || 0)
       jobsBySource[src] = (jobsBySource[src] || 0) + 1
     }
 
-    const allSources = new Set([...Object.keys(spendBySource), ...Object.keys(revenueBySource)])
-    const roi: SourceROI[] = Array.from(allSources).map(source => {
+    // Count quotes (leads) by source
+    const quotesBySource: Record<string, number> = {}
+    for (const row of quoteRows) {
+      if (row.source) {
+        const src = normalizeSource(row.source)
+        quotesBySource[src] = (quotesBySource[src] || 0) + 1
+      }
+    }
+
+    const allSources = new Set([...Object.keys(spendBySource), ...Object.keys(revenueBySource), ...Object.keys(quotesBySource)])
+    const roi = Array.from(allSources).map(source => {
       const spend = spendBySource[source] ?? 0
       const revenue = revenueBySource[source] ?? 0
       const jobs = jobsBySource[source] ?? 0
+      const quotes = quotesBySource[source] ?? 0
       const roiPct = spend > 0 ? ((revenue - spend) / spend) * 100 : (revenue > 0 ? 100 : 0)
       const costPerJob = jobs > 0 ? spend / jobs : 0
-      return { source, spend, revenue, jobs, roi: Math.round(roiPct * 100) / 100, costPerJob: Math.round(costPerJob * 100) / 100 }
+      const costPerLead = quotes > 0 ? spend / quotes : 0
+      const conversionRate = quotes > 0 ? Math.round((jobs / quotes) * 100) : (jobs > 0 ? 100 : 0)
+      return {
+        source, spend, revenue, jobs, quotes,
+        roi: Math.round(roiPct * 100) / 100,
+        costPerJob: Math.round(costPerJob * 100) / 100,
+        costPerLead: Math.round(costPerLead * 100) / 100,
+        conversionRate,
+      }
     })
 
     roi.sort((a, b) => b.revenue - a.revenue)

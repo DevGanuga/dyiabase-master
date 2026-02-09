@@ -55,7 +55,16 @@ export function JobPreviewCard({ proposal, onConfirm, onCancel, isSubmitting }: 
     }))
   }
 
+  // Validation — block submission if critical fields are missing
+  const validationErrors = useMemo(() => {
+    const errors: string[] = []
+    if (!editedData.customerName?.trim()) errors.push('Customer name is required')
+    if (!editedData.revenue || editedData.revenue <= 0) errors.push('Revenue must be greater than $0')
+    return errors
+  }, [editedData.customerName, editedData.revenue])
+
   const handleConfirm = () => {
+    if (validationErrors.length > 0) return
     onConfirm(editedData)
   }
 
@@ -284,6 +293,19 @@ export function JobPreviewCard({ proposal, onConfirm, onCancel, isSubmitting }: 
           </div>
         </div>
 
+        {/* Validation Errors */}
+        {validationErrors.length > 0 && !editMode && (
+          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
+            <p className="text-xs text-red-700 dark:text-red-400 font-medium mb-1">Missing required info:</p>
+            {validationErrors.map((err, i) => (
+              <p key={i} className="text-xs text-red-600 dark:text-red-400">• {err}</p>
+            ))}
+            <button onClick={() => setEditMode(true)} className="mt-1.5 text-xs text-red-700 dark:text-red-400 underline hover:no-underline font-medium">
+              Edit to fix
+            </button>
+          </div>
+        )}
+
         {/* Action Buttons */}
         <div className="flex gap-2 pt-2">
           <button
@@ -295,8 +317,8 @@ export function JobPreviewCard({ proposal, onConfirm, onCancel, isSubmitting }: 
           </button>
           <button
             onClick={handleConfirm}
-            disabled={isSubmitting}
-            className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+            disabled={isSubmitting || validationErrors.length > 0}
+            className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isSubmitting ? (
               <>

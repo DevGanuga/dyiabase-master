@@ -5,6 +5,7 @@ import type { AppJob, AppQuote, AppCustomer } from '@/types/database'
 import { formatCurrency } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { useConfirm } from '@/components/providers/ConfirmProvider'
+import { DyiaActionButton, DYIA_PROMPTS } from './DyiaActionButton'
 
 interface CustomersProps {
   jobs: AppJob[]
@@ -14,6 +15,7 @@ interface CustomersProps {
   onCreateQuote: (job: AppJob | null) => void
   showSuccess: (message: string) => void
   isDemoMode?: boolean
+  onOpenDyiaWithPrompt?: (prompt: string) => void
 }
 
 interface CustomerFormData {
@@ -84,7 +86,7 @@ function needsAttention(customer: AppCustomer): boolean {
   return daysSince >= 30 && (customer.jobCount || 0) >= 2
 }
 
-export function Customers({ jobs, quotes = [], isPro = false, onNavigate, onCreateQuote, showSuccess, isDemoMode = false }: CustomersProps) {
+export function Customers({ jobs, quotes = [], isPro = false, onNavigate, onCreateQuote, showSuccess, isDemoMode = false, onOpenDyiaWithPrompt }: CustomersProps) {
   const { confirm } = useConfirm()
   const [customers, setCustomers] = useState<AppCustomer[]>([])
   const [loading, setLoading] = useState(true)
@@ -251,9 +253,17 @@ export function Customers({ jobs, quotes = [], isPro = false, onNavigate, onCrea
         if (error) throw error
         showSuccess('Customer updated!')
       } else {
+        // Get the dyia user ID for the FK
+        const { data: userRow } = await supabase
+          .from('dyia_users')
+          .select('id')
+          .limit(1)
+          .single()
+
         const { error } = await supabase
           .from('dyia_customers')
           .insert({
+            user_id: userRow?.id,
             name: formData.name.trim(),
             email: formData.email.trim() || null,
             phone: formData.phone.trim() || null,
@@ -772,12 +782,23 @@ export function Customers({ jobs, quotes = [], isPro = false, onNavigate, onCrea
             {summaryStats.totalRevenue > 0 && <> · {formatCurrency(summaryStats.totalRevenue)} total revenue</>}
           </p>
         </div>
-        <button onClick={openNewForm} className="app-btn-primary flex items-center gap-2 shrink-0">
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          Add Customer
-        </button>
+        <div className="flex items-center gap-2 shrink-0">
+          {onOpenDyiaWithPrompt && (
+            <DyiaActionButton
+              variant="compact"
+              label="Insights"
+              prompt={DYIA_PROMPTS.customerInsights}
+              onClick={onOpenDyiaWithPrompt}
+              isPro={isPro}
+            />
+          )}
+          <button onClick={openNewForm} className="app-btn-primary flex items-center gap-2">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Add Customer
+          </button>
+        </div>
       </div>
 
       {/* Summary badges */}

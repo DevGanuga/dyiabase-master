@@ -10,11 +10,12 @@ interface ReportsProps {
   quotes: AppQuote[]
   fixedMonthlyExpenses: number
   isPro?: boolean
+  taxPercentage?: number
 }
 
 type TimeRange = 'week' | 'month' | 'quarter' | 'year' | 'all'
 
-export function Reports({ jobs, quotes, fixedMonthlyExpenses, isPro = false }: ReportsProps) {
+export function Reports({ jobs, quotes, fixedMonthlyExpenses, isPro = false, taxPercentage = 30 }: ReportsProps) {
   const [timeRange, setTimeRange] = useState<TimeRange>('month')
 
   const filteredJobs = useMemo(() => {
@@ -106,6 +107,10 @@ export function Reports({ jobs, quotes, fixedMonthlyExpenses, isPro = false }: R
       other: filteredJobs.reduce((sum, j) => sum + (j.additionalExpense || 0), 0),
     }
 
+    // Tax set-aside and take-home
+    const taxSetAside = netProfit > 0 ? netProfit * (taxPercentage / 100) : 0
+    const takeHome = netProfit - taxSetAside
+
     return {
       jobCount: filteredJobs.length,
       totalRevenue,
@@ -113,6 +118,8 @@ export function Reports({ jobs, quotes, fixedMonthlyExpenses, isPro = false }: R
       grossProfit,
       fixedExpenses,
       netProfit,
+      taxSetAside,
+      takeHome,
       avgJobRevenue: filteredJobs.length > 0 ? totalRevenue / filteredJobs.length : 0,
       avgJobProfit: filteredJobs.length > 0 ? grossProfit / filteredJobs.length : 0,
       profitMargin: totalRevenue > 0 ? (grossProfit / totalRevenue) * 100 : 0,
@@ -121,11 +128,10 @@ export function Reports({ jobs, quotes, fixedMonthlyExpenses, isPro = false }: R
       monthlyTrend,
       expenseBreakdown,
       quoteCount: quotes.length,
-      // Conversion rate: quotes that became jobs (accepted) / total quotes
       convertedQuotes: quotes.filter(q => q.status === 'accepted').length,
       conversionRate: quotes.length > 0 ? (quotes.filter(q => q.status === 'accepted').length / quotes.length) * 100 : 0,
     }
-  }, [filteredJobs, fixedMonthlyExpenses, timeRange, quotes.length])
+  }, [filteredJobs, fixedMonthlyExpenses, timeRange, quotes.length, taxPercentage])
 
   const timeRangeLabel = {
     week: 'Last 7 Days',
@@ -331,15 +337,54 @@ export function Reports({ jobs, quotes, fixedMonthlyExpenses, isPro = false }: R
               </svg>
             </div>
             <div>
-              <p className="text-xs sm:text-sm text-purple-800 dark:text-purple-300">Net Profit</p>
-              <p className="text-sm sm:text-base font-semibold text-purple-900 dark:text-purple-200">{formatCurrency(stats.netProfit)}</p>
+              <p className="text-xs sm:text-sm text-purple-800 dark:text-purple-300">Take Home</p>
+              <p className={`text-sm sm:text-base font-semibold ${stats.takeHome >= 0 ? 'text-purple-900 dark:text-purple-200' : 'text-red-600'}`}>{formatCurrency(stats.takeHome)}</p>
             </div>
           </div>
           <p className="text-[10px] sm:text-xs text-purple-600 dark:text-purple-400">
-            After {formatCurrency(stats.fixedExpenses)} fixed
+            After {formatCurrency(stats.fixedExpenses)} fixed + {formatCurrency(stats.taxSetAside)} tax ({taxPercentage}%)
           </p>
         </div>
       </div>
+
+      {/* P&L Breakdown */}
+      {stats.jobCount > 0 && (
+        <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-lg sm:rounded-xl p-4 sm:p-6">
+          <h3 className="text-sm sm:text-base font-semibold text-[var(--color-text-primary)] mb-3 sm:mb-4">Profit & Loss — {timeRangeLabel}</h3>
+          <div className="space-y-2">
+            <div className="flex justify-between items-center py-2 border-b border-[var(--color-border-light,var(--color-border))]">
+              <span className="text-sm text-[var(--color-text-secondary)]">Revenue</span>
+              <span className="text-sm font-semibold text-green-600 dark:text-green-400">{formatCurrency(stats.totalRevenue)}</span>
+            </div>
+            <div className="flex justify-between items-center py-2 border-b border-[var(--color-border-light,var(--color-border))]">
+              <span className="text-sm text-[var(--color-text-secondary)]">Job Expenses</span>
+              <span className="text-sm font-medium text-red-500">-{formatCurrency(stats.totalExpenses)}</span>
+            </div>
+            <div className="flex justify-between items-center py-2 border-b border-[var(--color-border-light,var(--color-border))]">
+              <span className="text-sm text-[var(--color-text-secondary)]">Gross Profit</span>
+              <span className="text-sm font-semibold text-[var(--color-text-primary)]">{formatCurrency(stats.grossProfit)}</span>
+            </div>
+            <div className="flex justify-between items-center py-2 border-b border-[var(--color-border-light,var(--color-border))]">
+              <span className="text-sm text-[var(--color-text-secondary)]">Fixed Overhead</span>
+              <span className="text-sm font-medium text-red-500">-{formatCurrency(stats.fixedExpenses)}</span>
+            </div>
+            <div className="flex justify-between items-center py-2 border-b border-[var(--color-border-light,var(--color-border))]">
+              <span className="text-sm text-[var(--color-text-secondary)]">Net Profit</span>
+              <span className="text-sm font-semibold text-[var(--color-text-primary)]">{formatCurrency(stats.netProfit)}</span>
+            </div>
+            <div className="flex justify-between items-center py-2 border-b border-[var(--color-border-light,var(--color-border))]">
+              <span className="text-sm text-[var(--color-text-secondary)]">Tax Set-Aside ({taxPercentage}%)</span>
+              <span className="text-sm font-medium text-amber-600 dark:text-amber-400">-{formatCurrency(stats.taxSetAside)}</span>
+            </div>
+            <div className="flex justify-between items-center py-2.5 bg-gradient-to-r from-purple-50 to-violet-50 dark:from-purple-900/20 dark:to-violet-900/20 -mx-4 sm:-mx-6 px-4 sm:px-6 rounded-b-lg">
+              <span className="text-sm font-semibold text-purple-700 dark:text-purple-300">Take Home</span>
+              <span className={`text-base font-bold ${stats.takeHome >= 0 ? 'text-purple-700 dark:text-purple-300' : 'text-red-600'}`}>
+                {formatCurrency(stats.takeHome)}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Empty State */}
       {stats.jobCount === 0 && (

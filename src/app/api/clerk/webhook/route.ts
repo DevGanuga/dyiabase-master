@@ -5,6 +5,7 @@ import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 import { sendEmail, isResendConfigured } from '@/lib/resend/client'
 import { welcomeEmail } from '@/lib/resend/templates'
+import { logWebhookEvent } from '@/lib/admin'
 
 function getSupabase() {
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
@@ -70,10 +71,7 @@ export async function POST(req: Request) {
         const { id, email_addresses, first_name, last_name } = evt.data
         const primaryEmail = email_addresses?.[0]?.email_address || ''
 
-        // Calculate 14-day trial end date
-        const trialEndsAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
-
-        // Create user profile in Supabase with automatic 14-day trial
+        // Create user profile on free tier (trial starts when they enter card via Stripe)
         const { data: newUser, error } = await supabase
           .from('dyia_users')
           .insert({
@@ -81,8 +79,7 @@ export async function POST(req: Request) {
             email: primaryEmail,
             first_name: first_name || null,
             last_name: last_name || null,
-            subscription_status: 'trialing',
-            subscription_ends_at: trialEndsAt,
+            subscription_status: 'inactive',
           })
           .select()
           .single()
@@ -164,9 +161,13 @@ export async function POST(req: Request) {
         console.log(`Unhandled event type: ${eventType}`)
     }
 
+    // Log successful webhook event
+    logWebhookEvent('clerk', eventType, evt.data.id || null, { type: eventType, user_id: evt.data.id }).catch(() => {})
+
     return NextResponse.json({ received: true })
   } catch (error) {
     console.error('Webhook handler error:', error)
+    logWebhookEvent('clerk', eventType, null, { type: eventType }, 'error', error instanceof Error ? error.message : 'Unknown error').catch(() => {})
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }

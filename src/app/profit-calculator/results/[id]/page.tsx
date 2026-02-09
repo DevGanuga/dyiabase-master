@@ -61,6 +61,82 @@ function AnimatedCounter({ value, duration = 2000 }: { value: number; duration?:
   return <span>${display.toLocaleString()}</span>
 }
 
+async function generatePDF(data: ResultsData) {
+  // Dynamically import jsPDF to keep bundle small
+  const { default: jsPDF } = await import('jspdf')
+  const doc = new jsPDF()
+  const { results, user } = data
+  const breakdown = results.breakdown || {}
+  const entries = (Object.entries(breakdown) as [string, number][])
+    .filter(([, amount]) => amount > 0)
+    .sort((a, b) => b[1] - a[1])
+
+  // Cover page
+  doc.setFontSize(28)
+  doc.setTextColor(249, 115, 22)
+  doc.text('Profit Leak Report', 20, 40)
+  doc.setFontSize(14)
+  doc.setTextColor(100)
+  doc.text(`Prepared for ${user.firstName}`, 20, 55)
+  doc.text(`Generated ${new Date(data.createdAt).toLocaleDateString()}`, 20, 63)
+  doc.setFontSize(48)
+  doc.setTextColor(249, 115, 22)
+  doc.text(`$${results.totalLoss.toLocaleString()}/mo`, 20, 100)
+  doc.setFontSize(16)
+  doc.setTextColor(80)
+  doc.text(`$${results.annualLoss.toLocaleString()} per year in identified profit leaks`, 20, 115)
+
+  // Breakdown page
+  doc.addPage()
+  doc.setFontSize(22)
+  doc.setTextColor(30)
+  doc.text('Where Your Profit Is Leaking', 20, 30)
+
+  let y = 50
+  for (const [key, amount] of entries) {
+    const meta = LEAK_LABELS[key]
+    if (!meta) continue
+
+    doc.setFontSize(14)
+    doc.setTextColor(249, 115, 22)
+    doc.text(`${meta.icon} ${meta.title}: $${amount.toLocaleString()}/month`, 20, y)
+    y += 8
+
+    doc.setFontSize(10)
+    doc.setTextColor(100)
+    const explanationLines = doc.splitTextToSize(meta.explanation, 170)
+    doc.text(explanationLines, 20, y)
+    y += explanationLines.length * 5 + 4
+
+    doc.setTextColor(60)
+    const withDyiaLines = doc.splitTextToSize(`With Dyia: ${meta.withDyia}`, 170)
+    doc.text(withDyiaLines, 20, y)
+    y += withDyiaLines.length * 5 + 12
+
+    if (y > 260) { doc.addPage(); y = 30 }
+  }
+
+  // CTA page
+  doc.addPage()
+  doc.setFontSize(22)
+  doc.setTextColor(30)
+  doc.text('Next Steps', 20, 40)
+
+  doc.setFontSize(12)
+  doc.setTextColor(80)
+  doc.text('1. Start your 14-day free trial at dyia.io', 20, 60)
+  doc.text('2. Log your first 5 jobs to see real profit margins', 20, 72)
+  doc.text('3. Set up follow-up tracking to stop leaving money on the table', 20, 84)
+  doc.text('4. Ask Dyia AI for pricing suggestions on your next quote', 20, 96)
+
+  doc.setFontSize(14)
+  doc.setTextColor(249, 115, 22)
+  doc.text('Start free at dyia.io', 20, 120)
+
+  const fileName = `dyia-profit-leak-report-${user.firstName.toLowerCase()}-${new Date().toISOString().split('T')[0]}.pdf`
+  doc.save(fileName)
+}
+
 export default function ResultsPage() {
   const params = useParams()
   const id = params?.id as string
@@ -153,7 +229,7 @@ export default function ResultsPage() {
 
       <div className="rounded-xl bg-orange-500/10 border border-orange-500/20 p-6 text-center">
         <h2 className="text-xl font-semibold text-white mb-2">Want to plug these leaks?</h2>
-        <p className="text-slate-300 text-sm mb-6">Start your 14-day free trial. No credit card required. Full access. Cancel anytime.</p>
+        <p className="text-slate-300 text-sm mb-6">Start your 14-day free trial. Full access. Cancel anytime.</p>
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <Link
             href={signUpUrl}
@@ -169,6 +245,19 @@ export default function ResultsPage() {
             See how Dyia works
           </Link>
         </div>
+      </div>
+
+      {/* PDF Download */}
+      <div className="text-center mt-6">
+        <button
+          onClick={() => generatePDF(data)}
+          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-white/10 text-slate-400 hover:text-white hover:border-white/20 text-sm transition"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          Download PDF Report
+        </button>
       </div>
     </div>
   )

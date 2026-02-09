@@ -19,16 +19,21 @@
     "lucide-react": "^0.563.0",
     "next": "16.1.4",
     "openai": "^6.16.0",
+    "papaparse": "^5.5.3",
+    "pdf-parse": "^2.4.5",
     "react": "19.2.3",
     "react-dom": "19.2.3",
+    "react-markdown": "^10.1.0",
     "resend": "^6.9.1",
     "stripe": "^20.2.0",
     "svix": "^1.84.1",
-    "tailwind-merge": "^3.4.0"
+    "tailwind-merge": "^3.4.0",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
+    "@types/papaparse": "^5.5.2",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",

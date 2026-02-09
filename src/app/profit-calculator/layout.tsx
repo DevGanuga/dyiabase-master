@@ -2,13 +2,11 @@ import Link from 'next/link'
 
 function DyiaAvatar({ className = 'w-10 h-10' }: { className?: string }) {
   return (
-    <div className={`${className} rounded-full bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center shadow-lg ring-2 ring-orange-400/30`}>
-      <svg className="w-1/2 h-1/2 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <circle cx="12" cy="12" r="3" fill="currentColor" stroke="none" />
-        <path d="M12 2v4m0 12v4M2 12h4m12 0h4" strokeLinecap="round" />
-        <path d="M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83" strokeLinecap="round" opacity="0.6" />
-      </svg>
-    </div>
+    <img
+      src="/dyia-agent.png"
+      alt="dyia"
+      className={`${className} object-contain`}
+    />
   )
 }
 
@@ -25,7 +23,7 @@ export default function ProfitCalculatorLayout({
         <div className="mx-auto max-w-7xl px-6 py-4">
           <div className="flex items-center justify-between rounded-2xl bg-white/[0.03] backdrop-blur-xl border border-white/[0.06] px-6 py-3">
             <Link href="/" className="flex items-center gap-2">
-              <DyiaAvatar className="w-8 h-8" />
+              <DyiaAvatar className="w-9 h-9" />
               <span className="text-xl font-bold bg-gradient-to-r from-orange-400 to-amber-400 bg-clip-text text-transparent">dyia</span>
             </Link>
             <div className="flex items-center gap-3">

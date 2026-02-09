@@ -11,8 +11,10 @@ const businessTypes = [
   { emoji: '🧹', name: 'Pressure Wash', available: false },
 ]
 
+const comingSoonTypes = businessTypes.filter((t) => !t.available)
+
 export default function BusinessTypes() {
-  const [selectedType, setSelectedType] = useState<string | null>(null)
+  const [selectedType, setSelectedType] = useState(comingSoonTypes[0].name)
   const [email, setEmail] = useState('')
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
   const [errorMessage, setErrorMessage] = useState('')
@@ -59,27 +61,16 @@ export default function BusinessTypes() {
 
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
           {businessTypes.map((item) => {
-            const isSelected = selectedType === item.name
             const isComingSoon = !item.available
 
             return (
-              <button
+              <div
                 key={item.name}
-                type="button"
-                onClick={() => {
-                  if (isComingSoon) {
-                    setSelectedType(isSelected ? null : item.name)
-                    setStatus('idle')
-                    setErrorMessage('')
-                  }
-                }}
                 className={`
                   relative rounded-xl p-4 text-center transition-all border
                   ${item.available
-                    ? 'bg-orange-500/10 border-orange-500/30 ring-1 ring-orange-500/20 cursor-default'
-                    : isSelected
-                      ? 'bg-white/[0.04] border-orange-500/40 ring-1 ring-orange-500/20 cursor-pointer'
-                      : 'bg-white/[0.02] border-white/[0.04] hover:border-white/[0.1] cursor-pointer'
+                    ? 'bg-orange-500/10 border-orange-500/30 ring-1 ring-orange-500/20'
+                    : 'bg-white/[0.02] border-white/[0.04]'
                   }
                 `}
               >
@@ -99,18 +90,14 @@ export default function BusinessTypes() {
                 <h3 className={`font-medium text-sm ${item.available ? 'text-orange-400' : 'text-white/60'}`}>
                   {item.name}
                 </h3>
-              </button>
+              </div>
             )
           })}
         </div>
 
-        {/* Waitlist signup form */}
-        <div
-          className={`overflow-hidden transition-all duration-300 ease-in-out ${
-            selectedType ? 'max-h-60 opacity-100 mt-10' : 'max-h-0 opacity-0 mt-0'
-          }`}
-        >
-          <div className="max-w-md mx-auto">
+        {/* Waitlist signup form — always visible */}
+        <div className="mt-12">
+          <div className="max-w-lg mx-auto">
             {status === 'success' ? (
               <div className="text-center bg-green-500/10 border border-green-500/20 rounded-xl p-6">
                 <div className="text-2xl mb-2">🎉</div>
@@ -121,21 +108,30 @@ export default function BusinessTypes() {
                 <button
                   type="button"
                   onClick={() => {
-                    setSelectedType(null)
                     setStatus('idle')
                   }}
                   className="text-sm text-slate-500 hover:text-slate-300 mt-3 transition-colors"
                 >
-                  Close
+                  Sign up for another
                 </button>
               </div>
             ) : (
               <form onSubmit={handleSubmit} className="text-center">
                 <p className="text-slate-300 mb-4">
-                  Want dyia for <span className="text-orange-400 font-medium">{selectedType}</span>?
-                  Join the waitlist.
+                  Want dyia for another industry? Join the waitlist.
                 </p>
-                <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <select
+                    value={selectedType}
+                    onChange={(e) => setSelectedType(e.target.value)}
+                    className="bg-white/[0.04] border border-white/[0.08] rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-orange-500/40 focus:ring-1 focus:ring-orange-500/20 transition-all text-sm appearance-none cursor-pointer sm:w-40"
+                  >
+                    {comingSoonTypes.map((t) => (
+                      <option key={t.name} value={t.name} className="bg-zinc-900 text-white">
+                        {t.name}
+                      </option>
+                    ))}
+                  </select>
                   <input
                     type="email"
                     required

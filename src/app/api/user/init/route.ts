@@ -41,17 +41,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ profile: existingUser })
     }
 
-    // Calculate 14-day trial end date
-    const trialEndsAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
-
-    // Create user profile with automatic 14-day trial
+    // Create user profile on free tier (trial starts when they enter card via Stripe)
     const { data: newProfile, error: createError } = await supabase
       .from('dyia_users')
       .insert({
         clerk_user_id: userId,
         email: email,
-        subscription_status: 'trialing',
-        subscription_ends_at: trialEndsAt,
+        subscription_status: 'inactive',
       })
       .select()
       .single()
