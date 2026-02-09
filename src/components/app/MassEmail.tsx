@@ -208,7 +208,7 @@ export function MassEmail({ jobs, quotes, isPro = false, showSuccess, showError 
         }
         showSuccess('Account disconnected')
       }
-    } catch (err) {
+    } catch {
       showError('Failed to disconnect account')
     }
   }
@@ -463,7 +463,7 @@ export function MassEmail({ jobs, quotes, isPro = false, showSuccess, showError 
             ) : (
               <div className="text-center py-6">
                 <p className="text-[var(--color-text-muted)] mb-4">
-                  Connect your email account to send emails. They'll come from your address, so replies go directly to you.
+                  Connect your email account to send emails. They&apos;ll come from your address, so replies go directly to you.
                 </p>
                 <div className="flex justify-center gap-3">
                   <button

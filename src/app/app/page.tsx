@@ -23,11 +23,6 @@ import type { LaunchpadItem } from '@/components/app/Launchpad'
 
 type View = 'dashboard' | 'jobs' | 'quotes' | 'quoteBuilder' | 'followUps' | 'reports' | 'marketing' | 'customers' | 'massEmail' | 'assistant' | 'settings'
 
-// Track selected job for quote building
-interface QuoteBuilderState {
-  selectedJob: AppJob | null
-}
-
 // Demo data for showcase
 const DEMO_JOBS: AppJob[] = [
   { id: 'demo-1', date: new Date().toISOString().split('T')[0], customerName: 'Johnson Family', source: 'Google', revenue: 450, labor: 80, gas: 25, dumpFee: 65, dumpsterRental: 0, additionalExpense: 0, numWorkers: 2, costPerWorker: 40, notes: 'Full garage cleanout' },
@@ -75,12 +70,18 @@ function AppPageContent() {
     viewParam && VALID_VIEWS.includes(viewParam) ? viewParam : 'dashboard'
   )
   
-  // Keep currentView in sync when URL changes (e.g., sidebar navigation)
+  // Keep currentView in sync when URL changes (e.g., browser back/forward)
+  // Only respond to viewParam changes — NOT currentView changes.
+  // Including currentView would revert navigation because router.push is async:
+  // local state updates instantly but viewParam lags behind, causing the effect to snap back.
   useEffect(() => {
-    if (viewParam && VALID_VIEWS.includes(viewParam) && viewParam !== currentView) {
+    if (viewParam && VALID_VIEWS.includes(viewParam)) {
       setCurrentViewState(viewParam)
+    } else if (viewParam === null) {
+      setCurrentViewState('dashboard')
     }
-  }, [viewParam, currentView])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewParam])
   
   const setCurrentView = useCallback((view: View) => {
     setCurrentViewState(view)

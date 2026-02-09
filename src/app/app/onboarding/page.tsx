@@ -144,7 +144,7 @@ export default function OnboardingPage() {
     }
 
     checkOnboardingStatus()
-  }, [isLoaded, user, supabase, router])
+  }, [isLoaded, user, supabase, router, returnUrl])
 
   const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -198,6 +198,7 @@ export default function OnboardingPage() {
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- handleComplete has many state deps; re-registering listener on every state change is unnecessary
   }, [currentStep, nextStep, isLastStep, saving])
 
   const handleSkip = async () => {

@@ -53,7 +53,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'File type not allowed. Use image, PDF, CSV, or text.' }, { status: 400 })
     }
 
-    const ext = file.name.split('.').pop() || 'bin'
     const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 80)
     const path = `${dyiaUserId}/${Date.now()}-${safeName}`
 

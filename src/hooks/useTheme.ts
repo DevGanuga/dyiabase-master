@@ -20,6 +20,7 @@ export function useTheme() {
   useEffect(() => {
     const stored = localStorage.getItem('dyia-theme') as Theme | null
     const initial = stored || 'system'
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reads localStorage on mount
     setThemeState(initial)
     applyTheme(initial)
 

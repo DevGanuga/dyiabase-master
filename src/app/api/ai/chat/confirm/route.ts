@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { createClient } from '@supabase/supabase-js'
-import { handleFunctionCall, HandlerResult } from '@/lib/openai/handlers'
+import { handleFunctionCall } from '@/lib/openai/handlers'
 import type { DyiaFunctionName } from '@/lib/openai/functions'
 
 // Initialize Supabase with service role for server operations

@@ -138,10 +138,10 @@ const NAV_SECTIONS: NavSection[] = [
 // Mobile bottom nav items (visible without "More")
 const MOBILE_PRIMARY: View[] = ['dashboard', 'jobs', 'quotes', 'customers']
 
-function NavButton({ 
-  id, icon, label, pro, isPro, isActive, onClick, animDelay 
-}: { 
-  id: View; icon: keyof typeof Icons; label: string; pro?: boolean; isPro: boolean; isActive: boolean; onClick: () => void; animDelay?: number 
+function NavButton({
+  icon, label, pro, isPro, isActive, onClick, animDelay
+}: {
+  id: View; icon: keyof typeof Icons; label: string; pro?: boolean; isPro: boolean; isActive: boolean; onClick: () => void; animDelay?: number
 }) {
   return (
     <button
@@ -166,7 +166,7 @@ function NavButton({
   )
 }
 
-export function Sidebar({ currentView, setCurrentView, userEmail, userName, userImageUrl, onLogout, isPro = false, subscriptionTier = 'basic', trialDaysRemaining = 0, launchpadItems, isDemoMode = false }: SidebarProps) {
+export function Sidebar({ currentView, setCurrentView, userEmail, userName, userImageUrl, onLogout, isPro = false, subscriptionTier = 'basic', trialDaysRemaining = 0, launchpadItems }: SidebarProps) {
   const { resolvedTheme, setTheme } = useTheme()
   const [createOpen, setCreateOpen] = useState(false)
   const [mobileMoreOpen, setMobileMoreOpen] = useState(false)

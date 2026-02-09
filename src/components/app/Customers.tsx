@@ -84,7 +84,7 @@ function needsAttention(customer: AppCustomer): boolean {
   return daysSince >= 30 && (customer.jobCount || 0) >= 2
 }
 
-export function Customers({ jobs, quotes = [], isPro = false, onNavigate, onCreateQuote, showSuccess, isDemoMode = false }: CustomersProps) {
+export function Customers({ jobs, quotes = [], isPro = false, onCreateQuote, showSuccess, isDemoMode = false }: CustomersProps) {
   const { confirm } = useConfirm()
   const [customers, setCustomers] = useState<AppCustomer[]>([])
   const [loading, setLoading] = useState(true)

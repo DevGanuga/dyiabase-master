@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { formatCurrency } from '@/lib/utils'
 import { useConfirm } from '@/components/providers/ConfirmProvider'
 import KanbanBoard, { type KanbanColumn, type KanbanFollowUp } from '@/components/ui/kanban-board'
 
@@ -59,6 +58,14 @@ function generateFollowUpMessage(quote: QuoteSummary, businessName: string) {
   const job = quote.jobDescription?.trim() || 'job'
   return `Hi ${quote.customerName}! This is ${businessName} following up on the estimate we provided for your ${job}. The estimate was $${quote.estimateLow}-$${quote.estimateHigh}. Would you like to schedule this job? Let me know if you have any questions!`
 }
+
+const KANBAN_COLUMN_CONFIG: { id: FollowUpStatus; title: string; color: string }[] = [
+  { id: 'pending', title: 'Pending', color: '#f97316' },
+  { id: 'contacted', title: 'Contacted', color: '#3b82f6' },
+  { id: 'snoozed', title: 'Snoozed', color: '#eab308' },
+  { id: 'converted', title: 'Converted', color: '#22c55e' },
+  { id: 'lost', title: 'Lost', color: '#ef4444' },
+]
 
 export function FollowUps({ userId, businessName = 'dyia', showSuccess }: FollowUpsProps) {
   const supabase = useMemo(() => createClient(), [])
@@ -246,14 +253,6 @@ export function FollowUps({ userId, businessName = 'dyia', showSuccess }: Follow
       await alert({ title: 'Error', message: 'Follow-up marked as converted, but failed to create the job. You can create it manually from the Jobs tab.', variant: 'error' })
     }
   }
-
-  const KANBAN_COLUMN_CONFIG: { id: FollowUpStatus; title: string; color: string }[] = [
-    { id: 'pending', title: 'Pending', color: '#f97316' },
-    { id: 'contacted', title: 'Contacted', color: '#3b82f6' },
-    { id: 'snoozed', title: 'Snoozed', color: '#eab308' },
-    { id: 'converted', title: 'Converted', color: '#22c55e' },
-    { id: 'lost', title: 'Lost', color: '#ef4444' },
-  ]
 
   const kanbanColumns = useMemo<KanbanColumn[]>(() => {
     const kanbanRows = priorityFilter === 'all'

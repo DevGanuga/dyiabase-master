@@ -398,61 +398,66 @@
 
 /* ============================================ */
 /* FORM INPUTS */
+/* Wrapped in @layer components so Tailwind     */
+/* utility classes (pl-7, pl-8 etc.) can         */
+/* override the default padding.                 */
 /* ============================================ */
 
-.app-input {
-  @apply w-full px-4 py-3 rounded-xl;
-  background: var(--color-input-bg);
-  border: 1px solid var(--color-input-border);
-  color: var(--color-text-primary);
-  transition: var(--transition-fast);
-}
+@layer components {
+  .app-input {
+    @apply w-full px-4 py-3 rounded-xl;
+    background: var(--color-input-bg);
+    border: 1px solid var(--color-input-border);
+    color: var(--color-text-primary);
+    transition: var(--transition-fast);
+  }
 
-.app-input::placeholder {
-  color: var(--color-text-faint);
-}
+  .app-input::placeholder {
+    color: var(--color-text-faint);
+  }
 
-.app-input:hover:not(:focus):not(:disabled) {
-  border-color: var(--color-input-hover-border);
-}
+  .app-input:hover:not(:focus):not(:disabled) {
+    border-color: var(--color-input-hover-border);
+  }
 
-.app-input:focus {
-  outline: none;
-  border-color: var(--color-input-focus-border);
-  box-shadow: 0 0 0 3px var(--color-input-focus-ring);
-}
+  .app-input:focus {
+    outline: none;
+    border-color: var(--color-input-focus-border);
+    box-shadow: 0 0 0 3px var(--color-input-focus-ring);
+  }
 
-.app-input:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
+  .app-input:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
 
-.app-label {
-  @apply block text-sm font-semibold mb-2;
-  color: var(--color-text-secondary);
-  letter-spacing: -0.01em;
-}
+  .app-label {
+    @apply block text-sm font-semibold mb-2;
+    color: var(--color-text-secondary);
+    letter-spacing: -0.01em;
+  }
 
-.app-select {
-  @apply w-full px-4 py-3 rounded-xl appearance-none cursor-pointer;
-  background: var(--color-input-bg);
-  border: 1px solid var(--color-input-border);
-  color: var(--color-text-primary);
-  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
-  background-position: right 0.75rem center;
-  background-repeat: no-repeat;
-  background-size: 1.5em 1.5em;
-  transition: var(--transition-fast);
-}
+  .app-select {
+    @apply w-full px-4 py-3 rounded-xl appearance-none cursor-pointer;
+    background: var(--color-input-bg);
+    border: 1px solid var(--color-input-border);
+    color: var(--color-text-primary);
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+    background-position: right 0.75rem center;
+    background-repeat: no-repeat;
+    background-size: 1.5em 1.5em;
+    transition: var(--transition-fast);
+  }
 
-.app-select:hover:not(:focus):not(:disabled) {
-  border-color: var(--color-input-hover-border);
-}
+  .app-select:hover:not(:focus):not(:disabled) {
+    border-color: var(--color-input-hover-border);
+  }
 
-.app-select:focus {
-  outline: none;
-  border-color: var(--color-input-focus-border);
-  box-shadow: 0 0 0 3px var(--color-input-focus-ring);
+  .app-select:focus {
+    outline: none;
+    border-color: var(--color-input-focus-border);
+    box-shadow: 0 0 0 3px var(--color-input-focus-ring);
+  }
 }
 
 /* ============================================ */

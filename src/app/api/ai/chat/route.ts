@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { createClient } from '@supabase/supabase-js'
-import { getOpenAI, DYIA_INSTRUCTIONS, DYIA_MODEL, DYIA_MODEL_MINI } from '@/lib/openai/client'
-import { DYIA_TOOLS, DyiaFunctionName, isProposalFunction } from '@/lib/openai/functions'
+import { getOpenAI, DYIA_INSTRUCTIONS, DYIA_MODEL } from '@/lib/openai/client'
+import { DYIA_TOOLS, DyiaFunctionName } from '@/lib/openai/functions'
 import { handleFunctionCall, HandlerResult } from '@/lib/openai/handlers'
-import { getProMonthlyCreditsCap } from '@/lib/ai-credits'
 
 // Initialize Supabase with service role for server operations
 const supabase = createClient(
@@ -55,7 +54,6 @@ export async function POST(req: NextRequest) {
     // 3. Check AI access (Pro users OR users with credits)
     const isPro = ['active', 'trialing'].includes(userProfile.subscription_status)
     const hasCredits = (userProfile.ai_credits_balance || 0) > 0
-    const proCap = getProMonthlyCreditsCap()
     // When Pro monthly cap is set: check Pro credits used this month (e.g. from dyia_credit_transactions type 'usage') and deny if over cap
     const canUseAI = isPro || hasCredits
 

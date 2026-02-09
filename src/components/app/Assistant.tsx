@@ -1,7 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { MessageBubble } from './MessageBubble'
 import { ThreadList } from './ThreadList'
 import { JobPreviewCard } from './JobPreviewCard'
@@ -101,8 +100,6 @@ export function Assistant({ userId, showSuccess }: AssistantProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const skipThreadLoadRef = useRef(false) // Skip load when threadId comes from chat response (we already have messages)
-  const supabase = useMemo(() => createClient(), [])
-
   // Auto-scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })

@@ -125,7 +125,7 @@ export function Reports({ jobs, quotes, fixedMonthlyExpenses, isPro = false }: R
       convertedQuotes: quotes.filter(q => q.status === 'accepted').length,
       conversionRate: quotes.length > 0 ? (quotes.filter(q => q.status === 'accepted').length / quotes.length) * 100 : 0,
     }
-  }, [filteredJobs, fixedMonthlyExpenses, timeRange, quotes.length])
+  }, [filteredJobs, fixedMonthlyExpenses, timeRange, quotes])
 
   const timeRangeLabel = {
     week: 'Last 7 Days',
@@ -198,7 +198,7 @@ export function Reports({ jobs, quotes, fixedMonthlyExpenses, isPro = false }: R
             <p className="text-[var(--color-text-faint)] text-xs sm:text-sm">No data yet</p>
           ) : (
             <div className="space-y-2.5 sm:space-y-3">
-              {stats.sources.slice(0, 5).map((source, idx) => {
+              {stats.sources.slice(0, 5).map((source) => {
                 const percentage = stats.totalRevenue > 0 ? (source.revenue / stats.totalRevenue) * 100 : 0
                 return (
                   <div key={source.name}>
