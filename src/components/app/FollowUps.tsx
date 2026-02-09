@@ -2,11 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { formatCurrency } from '@/lib/utils'
 import { useConfirm } from '@/components/providers/ConfirmProvider'
 import KanbanBoard, { type KanbanColumn, type KanbanFollowUp } from '@/components/ui/kanban-board'
-import { DyiaInsight } from './DyiaInsight'
-import { DyiaActionButton, DYIA_PROMPTS } from './DyiaActionButton'
 
 type FollowUpStatus = 'pending' | 'contacted' | 'converted' | 'lost' | 'snoozed'
 type FollowUpPriority = 'hot' | 'warm' | 'cold'
@@ -29,7 +26,6 @@ interface QuoteSummary {
   jobDescription?: string
   estimateLow: number
   estimateHigh: number
-  source?: string | null
 }
 
 interface FollowUpRow {
@@ -43,8 +39,6 @@ interface FollowUpsProps {
   userId: string
   businessName?: string
   showSuccess?: (message: string) => void
-  onOpenDyiaWithPrompt?: (prompt: string) => void
-  isPro?: boolean
 }
 
 const PRIORITY_OPTIONS: { value: FollowUpPriority | 'all'; label: string }[] = [
@@ -65,7 +59,15 @@ function generateFollowUpMessage(quote: QuoteSummary, businessName: string) {
   return `Hi ${quote.customerName}! This is ${businessName} following up on the estimate we provided for your ${job}. The estimate was $${quote.estimateLow}-$${quote.estimateHigh}. Would you like to schedule this job? Let me know if you have any questions!`
 }
 
-export function FollowUps({ userId, businessName = 'dyia', showSuccess, onOpenDyiaWithPrompt, isPro = true }: FollowUpsProps) {
+const KANBAN_COLUMN_CONFIG: { id: FollowUpStatus; title: string; color: string }[] = [
+  { id: 'pending', title: 'Pending', color: '#f97316' },
+  { id: 'contacted', title: 'Contacted', color: '#3b82f6' },
+  { id: 'snoozed', title: 'Snoozed', color: '#eab308' },
+  { id: 'converted', title: 'Converted', color: '#22c55e' },
+  { id: 'lost', title: 'Lost', color: '#ef4444' },
+]
+
+export function FollowUps({ userId, businessName = 'dyia', showSuccess }: FollowUpsProps) {
   const supabase = useMemo(() => createClient(), [])
   const { alert } = useConfirm()
   const [rows, setRows] = useState<FollowUpRow[]>([])
@@ -80,7 +82,7 @@ export function FollowUps({ userId, businessName = 'dyia', showSuccess, onOpenDy
       try {
         const { data: quotesData, error: quotesError } = await supabase
           .from('dyia_quotes')
-          .select('*')
+          .select('id, created_at, customer_name, customer_phone, job_description, estimate_low, estimate_high')
           .eq('user_id', userId)
           .order('created_at', { ascending: false })
 
@@ -111,7 +113,6 @@ export function FollowUps({ userId, businessName = 'dyia', showSuccess, onOpenDy
             jobDescription: q.job_description || undefined,
             estimateLow: parseFloat(q.estimate_low) || 0,
             estimateHigh: parseFloat(q.estimate_high) || 0,
-            source: q.source || null,
           }
 
           return {
@@ -216,14 +217,14 @@ export function FollowUps({ userId, businessName = 'dyia', showSuccess, onOpenDy
       const q = row.quote
       const avgEstimate = Math.round((q.estimateLow + q.estimateHigh) / 2)
 
-      // Create a new job pre-filled from the quote - preserve original lead source
+      // Create a new job pre-filled from the quote
       const { data: job, error: jobError } = await supabase
         .from('dyia_jobs')
         .insert({
           user_id: userId,
           date: new Date().toISOString().split('T')[0],
           customer_name: q.customerName,
-          source: q.source || 'Quote',
+          source: 'Quote',
           revenue: avgEstimate,
           labor: 0,
           gas: 0,
@@ -252,14 +253,6 @@ export function FollowUps({ userId, businessName = 'dyia', showSuccess, onOpenDy
       await alert({ title: 'Error', message: 'Follow-up marked as converted, but failed to create the job. You can create it manually from the Jobs tab.', variant: 'error' })
     }
   }
-
-  const KANBAN_COLUMN_CONFIG: { id: FollowUpStatus; title: string; color: string }[] = [
-    { id: 'pending', title: 'Pending', color: '#f97316' },
-    { id: 'contacted', title: 'Contacted', color: '#3b82f6' },
-    { id: 'snoozed', title: 'Snoozed', color: '#eab308' },
-    { id: 'converted', title: 'Converted', color: '#22c55e' },
-    { id: 'lost', title: 'Lost', color: '#ef4444' },
-  ]
 
   const kanbanColumns = useMemo<KanbanColumn[]>(() => {
     const kanbanRows = priorityFilter === 'all'
@@ -323,10 +316,7 @@ export function FollowUps({ userId, businessName = 'dyia', showSuccess, onOpenDy
   }
 
   return (
-    <div className="animate-fade-in space-y-4">
-      {/* AI Insight Strip */}
-      {rows.length > 0 && <DyiaInsight context="followUps" isPro={isPro} />}
-
+    <div className="animate-fade-in">
       <div className="page-header">
         <div className="flex items-center justify-between w-full">
           <div>
@@ -335,27 +325,16 @@ export function FollowUps({ userId, businessName = 'dyia', showSuccess, onOpenDy
               {`${rows.length} total follow-up${rows.length !== 1 ? 's' : ''}`}
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            {onOpenDyiaWithPrompt && (
-              <DyiaActionButton
-                variant="compact"
-                label="Ask Dyia"
-                prompt={DYIA_PROMPTS.checkFollowUps}
-                onClick={onOpenDyiaWithPrompt}
-                isPro={isPro}
-              />
-            )}
-            <div className="w-full sm:w-48">
-              <select
-                value={priorityFilter}
-                onChange={(e) => setPriorityFilter(e.target.value as FollowUpPriority | 'all')}
-                className="app-select"
-              >
-                {PRIORITY_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))}
-              </select>
-            </div>
+          <div className="w-full sm:w-48">
+            <select
+              value={priorityFilter}
+              onChange={(e) => setPriorityFilter(e.target.value as FollowUpPriority | 'all')}
+              className="app-select"
+            >
+              {PRIORITY_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
           </div>
         </div>
       </div>

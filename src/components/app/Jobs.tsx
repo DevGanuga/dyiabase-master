@@ -515,12 +515,12 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
                   <div key={key}>
                     <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">{label}</label>
                     <div className="relative">
-                      <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)] text-sm">$</span>
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)] text-sm">$</span>
                       <input
                         type="number"
                         value={tempExpenses[key as keyof TempExpenses] || ''}
                         onChange={(e) => setTempExpenses({ ...tempExpenses, [key]: Math.max(0, parseFloat(e.target.value) || 0) })}
-                        className="w-full px-3 py-2.5 pl-6 bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 text-sm"
+                        className="w-full px-3 py-2.5 pl-7 bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 text-sm"
                         min="0"
                       />
                     </div>
@@ -863,7 +863,7 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
                         platform: reviewPlatform,
                       }),
                     })
-                  } catch (_) { /* ignore */ }
+                  } catch { /* ignore */ }
                 }}
                 className="app-btn-primary flex-1"
               >

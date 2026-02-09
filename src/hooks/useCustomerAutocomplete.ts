@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import type { AppCustomer } from '@/types/database'
 
 interface CustomerSuggestion {
   id: string

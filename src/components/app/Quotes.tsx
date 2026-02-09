@@ -710,7 +710,7 @@ export function Quotes({ quotes, setQuotes, jobs, userId, settings, onCreateQuot
                         platform: reviewPlatform,
                       }),
                     })
-                  } catch (_) { /* ignore */ }
+                  } catch { /* ignore */ }
                 }}
                 className="app-btn-primary flex-1"
               >

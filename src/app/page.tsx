@@ -78,6 +78,7 @@ export default function LandingPage() {
   const [useFoundersCoupon, setUseFoundersCoupon] = useState(false)
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- hydration guard
     setMounted(true)
     const cookies = document.cookie.split(';')
     setHasDemoCookie(cookies.some(c => c.trim().startsWith('dyia_demo_access=')))

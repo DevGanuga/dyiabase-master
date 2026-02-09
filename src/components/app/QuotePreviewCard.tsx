@@ -341,12 +341,12 @@ export function QuotePreviewCard({ proposal, onConfirm, onCancel, isSubmitting, 
               <div>
                 <label className="text-[10px] text-blue-600 dark:text-blue-500">Low</label>
                 <div className="relative">
-                  <span className="absolute left-2 top-1/2 -translate-y-1/2 text-blue-600">$</span>
+                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-blue-600">$</span>
                   <input
                     type="number"
                     value={editedData.estimateLow || ''}
                     onChange={(e) => handleFieldChange('estimateLow', parseFloat(e.target.value) || 0)}
-                    className="w-full pl-6 pr-2 py-1.5 text-lg font-bold rounded-lg border border-blue-200 dark:border-blue-700 bg-white dark:bg-slate-700 focus:ring-2 focus:ring-blue-500 focus:border-transparent text-blue-700 dark:text-blue-300"
+                    className="w-full pl-7 pr-2 py-1.5 text-lg font-bold rounded-lg border border-blue-200 dark:border-blue-700 bg-white dark:bg-slate-700 focus:ring-2 focus:ring-blue-500 focus:border-transparent text-blue-700 dark:text-blue-300"
                     min="0"
                   />
                 </div>
@@ -354,12 +354,12 @@ export function QuotePreviewCard({ proposal, onConfirm, onCancel, isSubmitting, 
               <div>
                 <label className="text-[10px] text-blue-600 dark:text-blue-500">High</label>
                 <div className="relative">
-                  <span className="absolute left-2 top-1/2 -translate-y-1/2 text-blue-600">$</span>
+                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-blue-600">$</span>
                   <input
                     type="number"
                     value={editedData.estimateHigh || ''}
                     onChange={(e) => handleFieldChange('estimateHigh', parseFloat(e.target.value) || 0)}
-                    className="w-full pl-6 pr-2 py-1.5 text-lg font-bold rounded-lg border border-blue-200 dark:border-blue-700 bg-white dark:bg-slate-700 focus:ring-2 focus:ring-blue-500 focus:border-transparent text-blue-700 dark:text-blue-300"
+                    className="w-full pl-7 pr-2 py-1.5 text-lg font-bold rounded-lg border border-blue-200 dark:border-blue-700 bg-white dark:bg-slate-700 focus:ring-2 focus:ring-blue-500 focus:border-transparent text-blue-700 dark:text-blue-300"
                     min="0"
                   />
                 </div>

@@ -158,12 +158,12 @@ export function JobPreviewCard({ proposal, onConfirm, onCancel, isSubmitting }: 
           </label>
           {editMode ? (
             <div className="relative mt-1">
-              <span className="absolute left-2 top-1/2 -translate-y-1/2 text-green-600">$</span>
+              <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-green-600">$</span>
               <input
                 type="number"
                 value={editedData.revenue || ''}
                 onChange={(e) => handleFieldChange('revenue', parseFloat(e.target.value) || 0)}
-                className="w-full pl-6 pr-2 py-1.5 text-lg font-bold rounded-lg border border-green-200 dark:border-green-700 bg-white dark:bg-slate-700 focus:ring-2 focus:ring-green-500 focus:border-transparent text-green-700 dark:text-green-300"
+                className="w-full pl-7 pr-2 py-1.5 text-lg font-bold rounded-lg border border-green-200 dark:border-green-700 bg-white dark:bg-slate-700 focus:ring-2 focus:ring-green-500 focus:border-transparent text-green-700 dark:text-green-300"
                 min="0"
               />
             </div>
@@ -196,7 +196,7 @@ export function JobPreviewCard({ proposal, onConfirm, onCancel, isSubmitting }: 
                       type="number"
                       value={editedData[key as keyof JobProposal] as number || ''}
                       onChange={(e) => handleFieldChange(key as keyof JobProposal, parseFloat(e.target.value) || 0)}
-                      className="w-full pl-5 pr-1 py-1 text-sm rounded border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 focus:ring-1 focus:ring-orange-500"
+                      className="w-full pl-6 pr-1 py-1 text-sm rounded border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 focus:ring-1 focus:ring-orange-500"
                       min="0"
                     />
                   </div>
@@ -237,12 +237,12 @@ export function JobPreviewCard({ proposal, onConfirm, onCancel, isSubmitting }: 
             </label>
             {editMode ? (
               <div className="relative mt-1">
-                <span className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 text-sm">$</span>
+                <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm">$</span>
                 <input
                   type="number"
                   value={editedData.costPerWorker || ''}
                   onChange={(e) => handleFieldChange('costPerWorker', parseFloat(e.target.value) || 0)}
-                  className="w-full pl-6 pr-2 py-1.5 text-sm rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  className="w-full pl-7 pr-2 py-1.5 text-sm rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                   min="0"
                 />
               </div>

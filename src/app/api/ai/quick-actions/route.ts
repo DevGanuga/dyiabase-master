@@ -20,7 +20,8 @@ interface QuickAction {
  * GET /api/ai/quick-actions
  * Returns dynamic, context-aware quick actions for the Dyia assistant
  */
-export async function GET(req: NextRequest) {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export async function GET(_req: NextRequest) {
   try {
     // 1. Auth check
     const { userId: clerkUserId } = await auth()
