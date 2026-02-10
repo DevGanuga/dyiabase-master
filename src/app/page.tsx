@@ -55,16 +55,14 @@ function DemoAccess() {
   )
 }
 
-// Dyia Avatar
+// Dyia Avatar — uses the brand logo icon
 function DyiaAvatar({ className = "w-10 h-10" }: { className?: string }) {
   return (
-    <div className={`${className} rounded-full bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center shadow-lg ring-2 ring-orange-400/30`}>
-      <svg className="w-1/2 h-1/2 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <circle cx="12" cy="12" r="3" fill="currentColor" stroke="none" />
-        <path d="M12 2v4m0 12v4M2 12h4m12 0h4" strokeLinecap="round" />
-        <path d="M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83" strokeLinecap="round" opacity="0.6" />
-      </svg>
-    </div>
+    <img 
+      src="/dyia-logo.png" 
+      alt="dyia" 
+      className={`${className} object-contain`}
+    />
   )
 }
 
@@ -167,12 +165,17 @@ export default function LandingPage() {
           <div className="max-w-6xl mx-auto">
             <div className="grid lg:grid-cols-2 gap-16 items-center">
               <div className={`transition-all duration-700 delay-100 ${mounted ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0'}`}>
-                <div className="inline-flex items-center gap-2 px-4 py-2 bg-orange-500/10 border border-orange-500/20 rounded-full text-orange-400 text-sm font-medium mb-8">
-                  <span className="relative flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-orange-500"></span>
+                <div className="flex flex-wrap items-center gap-3 mb-8">
+                  <div className="inline-flex items-center gap-2 px-4 py-2 bg-orange-500/10 border border-orange-500/20 rounded-full text-orange-400 text-sm font-medium">
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-orange-500"></span>
+                    </span>
+                    Now with AI-powered business intelligence
+                  </div>
+                  <span className="px-3 py-1.5 rounded-full text-xs font-bold bg-amber-500/15 border border-amber-500/25 text-amber-400 uppercase tracking-wide">
+                    Early Access Beta
                   </span>
-                  Now with AI-powered business intelligence
                 </div>
                 
                 <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold leading-[1.05] mb-6 tracking-tight">
@@ -765,7 +768,7 @@ export default function LandingPage() {
                 { q: 'Can I manage my customers in dyia?', a: 'Yes. dyia has a full customer database where you store contact info, notes, and tags. Every customer\'s lifetime value, job history, and quote history is tracked automatically. When you start a new job or quote, their info auto-fills.' },
                 { q: 'What if I want to cancel?', a: 'Cancel anytime from Settings > Account. No phone calls, no retention team. You keep access until your billing period ends. We hold your data for 90 days if you want to come back.' },
                 { q: 'Is my data safe?', a: 'Yes. Encrypted in transit and at rest, backed up daily, stored on secure cloud servers (Supabase/AWS). We never sell your data. You can export everything as CSV anytime — your data is always yours.' },
-                { q: 'Do you offer refunds?', a: '14-day money-back guarantee on all paid plans. Not happy? Email support@dyia.co for a full refund. No questions asked.' },
+                { q: 'Do you offer refunds?', a: '14-day money-back guarantee on all paid plans. Not happy? Email support@dyia.io for a full refund. No questions asked.' },
               ].map((faq, i) => (
                 <div key={i} className="border border-white/[0.06] rounded-xl overflow-hidden bg-white/[0.01]">
                   <button onClick={() => setOpenFaq(openFaq === i ? null : i)} className="w-full px-5 py-4 text-left flex justify-between items-center hover:bg-white/[0.02] transition">
@@ -829,9 +832,9 @@ export default function LandingPage() {
             <div>
               <h4 className="text-sm font-semibold text-white mb-4">Company</h4>
               <ul className="space-y-2 text-sm text-slate-500">
-                <li><a href="mailto:support@dyia.co" className="hover:text-orange-400 transition">Support</a></li>
-                <li><a href="#" className="hover:text-orange-400 transition">Privacy Policy</a></li>
-                <li><a href="#" className="hover:text-orange-400 transition">Terms of Service</a></li>
+                <li><Link href="/support" className="hover:text-orange-400 transition">Support</Link></li>
+                <li><Link href="/privacy" className="hover:text-orange-400 transition">Privacy Policy</Link></li>
+                <li><Link href="/terms" className="hover:text-orange-400 transition">Terms of Service</Link></li>
               </ul>
             </div>
             <div>

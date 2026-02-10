@@ -326,3 +326,36 @@ export function quizReportEmail(data: QuizReportData): string {
     <p class="text-small" style="margin-top: 24px;">No credit card required. Cancel anytime.</p>
   `)
 }
+
+// Support ticket email (sent to support@dyia.io)
+export function supportTicketEmail(name: string, email: string, subject: string, message: string): string {
+  return wrap(`
+    <h1 class="header">New Support Request</h1>
+    <div class="card">
+      <p class="text"><strong>From:</strong> ${name} (${email})</p>
+      <p class="text"><strong>Category:</strong> ${subject}</p>
+      <div class="divider"></div>
+      <p class="text"><strong>Message:</strong></p>
+      <p class="text">${message.replace(/\n/g, '<br/>')}</p>
+    </div>
+    <p class="text-small">Reply directly to this email to respond to the user at ${email}.</p>
+  `)
+}
+
+// Support confirmation email (sent to the user)
+export function supportConfirmationEmail(name: string, subject: string): string {
+  return wrap(`
+    <h1 class="header">We got your message, ${name}!</h1>
+    <p class="text">
+      Thanks for reaching out. We've received your <strong>${subject}</strong> and will get back to you within 24 hours.
+    </p>
+    <div class="card">
+      <p class="text-small">In the meantime, check out our help resources:</p>
+      <ul style="color: #475569; font-size: 14px; padding-left: 20px;">
+        <li style="margin-bottom: 8px;">Visit our <a href="https://dyia.io/support" style="color: #f97316;">Support page</a> for FAQs</li>
+        <li style="margin-bottom: 8px;">Email us anytime at <a href="mailto:support@dyia.io" style="color: #f97316;">support@dyia.io</a></li>
+      </ul>
+    </div>
+    <p class="text-small">— The Dyia Team</p>
+  `)
+}

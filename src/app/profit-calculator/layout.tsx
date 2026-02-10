@@ -1,14 +1,13 @@
 import Link from 'next/link'
 
+// Dyia Avatar — uses the brand logo icon
 function DyiaAvatar({ className = 'w-10 h-10' }: { className?: string }) {
   return (
-    <div className={`${className} rounded-full bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center shadow-lg ring-2 ring-orange-400/30`}>
-      <svg className="w-1/2 h-1/2 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <circle cx="12" cy="12" r="3" fill="currentColor" stroke="none" />
-        <path d="M12 2v4m0 12v4M2 12h4m12 0h4" strokeLinecap="round" />
-        <path d="M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83" strokeLinecap="round" opacity="0.6" />
-      </svg>
-    </div>
+    <img 
+      src="/dyia-logo.png" 
+      alt="dyia" 
+      className={`${className} object-contain`}
+    />
   )
 }
 

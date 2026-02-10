@@ -60,6 +60,8 @@ export interface Settings {
   updated_at: string
 }
 
+export type UserRole = 'user' | 'admin' | 'superadmin'
+
 export interface UserProfile {
   id: string
   clerk_user_id: string
@@ -73,6 +75,8 @@ export interface UserProfile {
   subscription_ends_at?: string | null
   ai_credits_balance: number
   ai_credits_used_lifetime: number
+  is_admin: boolean
+  role: UserRole
   created_at: string
   updated_at: string
 }
