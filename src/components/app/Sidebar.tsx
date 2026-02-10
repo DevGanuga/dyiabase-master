@@ -211,8 +211,8 @@ export function Sidebar({ currentView, setCurrentView, userEmail, userName, user
             <Image 
               src="/dyia-logo-full.png" 
               alt="dyia" 
-              width={80} 
-              height={28}
+              width={120} 
+              height={40}
               className="brightness-0 invert opacity-90 hover:opacity-100 transition-opacity"
             />
             <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-orange-500/20 text-orange-400 uppercase tracking-wide">

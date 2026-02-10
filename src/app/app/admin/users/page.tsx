@@ -67,7 +67,7 @@ export default function AdminUsersPage() {
       <div className="border-b border-slate-800 px-6 py-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img src="/dyia-agent.png" alt="" className="w-8 h-8 object-contain" />
+            <img src="/dyia-logo.png" alt="dyia" className="w-8 h-8 object-contain" />
             <h1 className="text-xl font-bold">dyia admin</h1>
           </div>
           <nav className="flex items-center gap-4 text-sm">

@@ -13,13 +13,12 @@ export default function SignUpPage() {
       </div>
 
       {/* Logo */}
-      <Link href="/" className="mb-8 group flex items-center gap-2.5">
+      <Link href="/" className="mb-8 group">
         <img
-          src="/dyia-agent.png"
+          src="/dyia-logo-full.png"
           alt="dyia"
-          className="w-12 h-12 object-contain group-hover:scale-105 transition-transform"
+          className="h-10 object-contain group-hover:scale-105 transition-transform"
         />
-        <span className="text-2xl font-bold bg-gradient-to-r from-orange-500 to-amber-500 bg-clip-text text-transparent">dyia</span>
       </Link>
 
       {/* Clerk Sign Up */}

@@ -9,9 +9,15 @@ ADD COLUMN IF NOT EXISTS is_admin BOOLEAN DEFAULT false;
 ALTER TABLE dyia_users
 ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'user';
 
-ALTER TABLE dyia_users
-ADD CONSTRAINT dyia_users_role_check
-CHECK (role IN ('user', 'admin', 'superadmin'));
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'dyia_users_role_check'
+  ) THEN
+    ALTER TABLE dyia_users
+    ADD CONSTRAINT dyia_users_role_check
+    CHECK (role IN ('user', 'admin', 'superadmin'));
+  END IF;
+END $$;
 
 -- Create index for admin lookups
 CREATE INDEX IF NOT EXISTS idx_dyia_users_is_admin ON dyia_users (is_admin) WHERE is_admin = true;

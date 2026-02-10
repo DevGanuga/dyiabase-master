@@ -5,7 +5,7 @@
 
 CREATE TABLE IF NOT EXISTS dyia_customers (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  user_id TEXT NOT NULL REFERENCES dyia_users(clerk_user_id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES dyia_users(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   email TEXT,
   phone TEXT,
@@ -26,18 +26,18 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_dyia_customers_user_name
 -- Enable RLS
 ALTER TABLE dyia_customers ENABLE ROW LEVEL SECURITY;
 
--- RLS policies (users can only access their own customers)
-CREATE POLICY "Users can view own customers" ON dyia_customers
-  FOR SELECT USING (auth.uid()::text = user_id);
-
-CREATE POLICY "Users can insert own customers" ON dyia_customers
-  FOR INSERT WITH CHECK (auth.uid()::text = user_id);
-
-CREATE POLICY "Users can update own customers" ON dyia_customers
-  FOR UPDATE USING (auth.uid()::text = user_id);
-
-CREATE POLICY "Users can delete own customers" ON dyia_customers
-  FOR DELETE USING (auth.uid()::text = user_id);
+-- RLS: users can read own customers (Clerk auth via JWT sub claim)
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Users can read own customers' AND tablename = 'dyia_customers') THEN
+    CREATE POLICY "Users can read own customers" ON dyia_customers
+      FOR SELECT USING (
+        user_id IN (
+          SELECT id FROM dyia_users
+          WHERE clerk_user_id = coalesce(current_setting('request.jwt.claims', true)::json->>'sub', '')
+        )
+      );
+  END IF;
+END $$;
 
 -- Updated_at trigger
 CREATE OR REPLACE FUNCTION update_dyia_customers_updated_at()
@@ -48,6 +48,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trigger_dyia_customers_updated_at ON dyia_customers;
 CREATE TRIGGER trigger_dyia_customers_updated_at
   BEFORE UPDATE ON dyia_customers
   FOR EACH ROW

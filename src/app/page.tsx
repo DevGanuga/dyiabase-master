@@ -136,9 +136,8 @@ export default function LandingPage() {
       <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${mounted ? 'translate-y-0 opacity-100' : '-translate-y-4 opacity-0'}`}>
         <div className="mx-auto max-w-7xl px-6 py-4">
           <div className="flex items-center justify-between rounded-2xl bg-white/[0.03] backdrop-blur-xl border border-white/[0.06] px-6 py-3">
-            <Link href="/" className="flex items-center gap-2">
-              <DyiaAvatar className="w-8 h-8" />
-              <span className="text-xl font-bold bg-gradient-to-r from-orange-400 to-amber-400 bg-clip-text text-transparent">dyia</span>
+            <Link href="/" className="flex items-center">
+              <img src="/dyia-logo-full.png" alt="dyia" className="h-8 object-contain brightness-0 invert" />
             </Link>
             <div className="hidden md:flex items-center gap-8">
               <Link href="/profit-calculator" className="text-sm text-slate-400 hover:text-white transition">Free quiz</Link>
@@ -814,9 +813,8 @@ export default function LandingPage() {
         <div className="max-w-5xl mx-auto">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-12">
             <div className="col-span-2 md:col-span-1">
-              <div className="flex items-center gap-2 mb-4">
-                <DyiaAvatar className="w-7 h-7" />
-                <span className="font-bold bg-gradient-to-r from-orange-400 to-amber-400 bg-clip-text text-transparent">dyia</span>
+              <div className="flex items-center mb-4">
+                <img src="/dyia-logo-full.png" alt="dyia" className="h-7 object-contain brightness-0 invert" />
               </div>
               <p className="text-sm text-slate-500 leading-relaxed">Your day, decoded. The AI-powered business manager for service professionals.</p>
             </div>

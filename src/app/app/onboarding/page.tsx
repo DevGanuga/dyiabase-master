@@ -389,13 +389,12 @@ export default function OnboardingPage() {
           : 'bg-gradient-to-br from-orange-50 via-white to-amber-50'
       }`}>
         <div className="text-center">
-          <div className="flex items-center gap-2 justify-center mb-6">
+          <div className="flex items-center justify-center mb-6">
             <img
-              src="/dyia-agent.png"
+              src="/dyia-logo-full.png"
               alt="dyia"
-              className="w-11 h-11 object-contain"
+              className="h-10 object-contain"
             />
-            <span className="text-xl font-bold bg-gradient-to-r from-orange-400 to-amber-400 bg-clip-text text-transparent">dyia</span>
           </div>
           <div style={{ width: 24, height: 24, border: '2px solid #f97316', borderTopColor: 'transparent', borderRadius: '50%', margin: '0 auto' }} className="animate-spin" />
         </div>
@@ -443,13 +442,12 @@ export default function OnboardingPage() {
       <div className={`min-h-screen transition-colors duration-300 ${colors.bg} ${colors.text}`}>
         {/* Header */}
         <header className="absolute top-0 left-0 right-0 px-6 py-4 flex items-center justify-between z-50">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center">
             <img
-              src="/dyia-agent.png"
+              src="/dyia-logo-full.png"
               alt="dyia"
-              className="w-9 h-9 object-contain"
+              className="h-9 object-contain"
             />
-            <span className="text-lg font-bold bg-gradient-to-r from-orange-400 to-amber-400 bg-clip-text text-transparent">dyia</span>
           </div>
           
           <div className="flex items-center gap-3">
