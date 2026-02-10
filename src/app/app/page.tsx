@@ -18,10 +18,12 @@ import { Customers } from '@/components/app/Customers'
 import { MassEmail } from '@/components/app/MassEmail'
 import { Assistant } from '@/components/app/Assistant'
 import { TrialBanner } from '@/components/app/TrialBanner'
+import { BetaBanner } from '@/components/app/BetaBanner'
 import { ConfirmProvider } from '@/components/providers/ConfirmProvider'
+import { AdminPanel } from '@/components/app/AdminPanel'
 import type { LaunchpadItem } from '@/components/app/Launchpad'
 
-type View = 'dashboard' | 'jobs' | 'quotes' | 'quoteBuilder' | 'followUps' | 'reports' | 'marketing' | 'customers' | 'massEmail' | 'assistant' | 'settings'
+type View = 'dashboard' | 'jobs' | 'quotes' | 'quoteBuilder' | 'followUps' | 'reports' | 'marketing' | 'customers' | 'massEmail' | 'assistant' | 'settings' | 'admin'
 
 // Demo data for showcase
 const DEMO_JOBS: AppJob[] = [
@@ -41,7 +43,7 @@ const DEMO_SETTINGS: AppSettings = {
   onboardingCompletedAt: null
 }
 
-const VALID_VIEWS: View[] = ['dashboard', 'jobs', 'quotes', 'quoteBuilder', 'followUps', 'reports', 'marketing', 'customers', 'massEmail', 'assistant', 'settings']
+const VALID_VIEWS: View[] = ['dashboard', 'jobs', 'quotes', 'quoteBuilder', 'followUps', 'reports', 'marketing', 'customers', 'massEmail', 'assistant', 'settings', 'admin']
 
 export default function AppPage() {
   return (
@@ -140,6 +142,8 @@ function AppPageContent() {
           subscription_status: 'active',
           ai_credits_balance: 0,
           ai_credits_used_lifetime: 0,
+          is_admin: false,
+          role: 'user',
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         })
@@ -575,6 +579,8 @@ function AppPageContent() {
             showError={showError}
           />
         )
+      case 'admin':
+        return <AdminPanel />
       case 'assistant':
         return null // Rendered separately in main - kept mounted for continuous chat experience
     }
@@ -616,10 +622,12 @@ function AppPageContent() {
         }
         launchpadItems={showLaunchpadOnDashboard ? launchpadItems : undefined}
         isDemoMode={isDemoMode}
+        isAdmin={userProfile?.is_admin || false}
       />
       
       <main className={`flex-1 flex flex-col overflow-hidden ${isDemoMode ? 'pt-16' : ''}`} style={{ animation: 'contentReveal 0.6s cubic-bezier(0.16, 1, 0.3, 1) both' }}>
         {!isDemoMode && <TrialBanner />}
+        {!isDemoMode && <BetaBanner />}
         {/* Assistant: render when open; keep mounted after first visit so conversation persists when switching views */}
         {(currentView === 'assistant' || hasViewedAssistant) && (
           <div

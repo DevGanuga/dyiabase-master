@@ -1,10 +1,11 @@
 import Link from 'next/link'
 
+// Dyia Avatar — uses the brand logo icon
 function DyiaAvatar({ className = 'w-10 h-10' }: { className?: string }) {
   return (
-    <img
-      src="/dyia-agent.png"
-      alt="dyia"
+    <img 
+      src="/dyia-logo.png" 
+      alt="dyia" 
       className={`${className} object-contain`}
     />
   )
@@ -23,7 +24,7 @@ export default function ProfitCalculatorLayout({
         <div className="mx-auto max-w-7xl px-6 py-4">
           <div className="flex items-center justify-between rounded-2xl bg-white/[0.03] backdrop-blur-xl border border-white/[0.06] px-6 py-3">
             <Link href="/" className="flex items-center gap-2">
-              <DyiaAvatar className="w-9 h-9" />
+              <DyiaAvatar className="w-8 h-8" />
               <span className="text-xl font-bold bg-gradient-to-r from-orange-400 to-amber-400 bg-clip-text text-transparent">dyia</span>
             </Link>
             <div className="flex items-center gap-3">

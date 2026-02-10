@@ -2,10 +2,11 @@
 
 import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { useTheme } from '@/hooks/useTheme'
-import type { LaunchpadItem } from '@/components/app/Launchpad'
+import { Launchpad, type LaunchpadItem } from '@/components/app/Launchpad'
 
-type View = 'dashboard' | 'jobs' | 'quotes' | 'quoteBuilder' | 'followUps' | 'reports' | 'marketing' | 'customers' | 'massEmail' | 'assistant' | 'settings'
+type View = 'dashboard' | 'jobs' | 'quotes' | 'quoteBuilder' | 'followUps' | 'reports' | 'marketing' | 'customers' | 'massEmail' | 'assistant' | 'settings' | 'admin'
 
 type SubscriptionTier = 'basic' | 'trial' | 'pro'
 
@@ -21,6 +22,7 @@ interface SidebarProps {
   trialDaysRemaining?: number
   launchpadItems?: LaunchpadItem[]
   isDemoMode?: boolean
+  isAdmin?: boolean
 }
 
 // Clean SVG Icons
@@ -51,7 +53,7 @@ const Icons = {
     </svg>
   ),
   dyia: (
-    <img src="/dyia-agent.png" alt="Dyia AI" className="w-6 h-6 object-contain" />
+    <img src="/dyia-agent.png" alt="Dyia AI" className="w-5 h-5 rounded-full object-cover" />
   ),
   cog: (
     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -99,6 +101,16 @@ const Icons = {
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
     </svg>
   ),
+  shield: (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+    </svg>
+  ),
+  help: (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  ),
 }
 
 // Grouped navigation structure
@@ -129,6 +141,7 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { id: 'reports', icon: 'chart', label: 'Reports' },
       { id: 'marketing', icon: 'megaphone', label: 'Marketing', pro: true },
+      { id: 'assistant', icon: 'dyia', label: 'Ask Dyia', pro: true },
     ],
   },
 ]
@@ -164,7 +177,7 @@ function NavButton({
   )
 }
 
-export function Sidebar({ currentView, setCurrentView, userEmail, userName, userImageUrl, onLogout, isPro = false, subscriptionTier = 'basic', trialDaysRemaining = 0, launchpadItems }: SidebarProps) {
+export function Sidebar({ currentView, setCurrentView, userEmail, userName, userImageUrl, onLogout, isPro = false, subscriptionTier = 'basic', trialDaysRemaining = 0, launchpadItems, isDemoMode = false, isAdmin = false }: SidebarProps) {
   const { resolvedTheme, setTheme } = useTheme()
   const [createOpen, setCreateOpen] = useState(false)
   const [mobileMoreOpen, setMobileMoreOpen] = useState(false)
@@ -183,6 +196,8 @@ export function Sidebar({ currentView, setCurrentView, userEmail, userName, user
     }
   }, [createOpen])
 
+  const showLaunchpad = launchpadItems && launchpadItems.length > 0
+
   // Flat list of all nav items for convenience
   const allNavItems = NAV_SECTIONS.flatMap(s => s.items)
   let animIndex = 0
@@ -191,14 +206,18 @@ export function Sidebar({ currentView, setCurrentView, userEmail, userName, user
     <>
       <aside className="app-sidebar bg-slate-900">
         {/* Logo - hidden on mobile */}
-        <div className="px-4 pt-4 pb-3 hidden sm:block">
-          <Link href="/" className="flex items-center gap-2 group">
-            <img
-              src="/dyia-agent.png"
-              alt="dyia"
-              className="w-11 h-11 object-contain drop-shadow-[0_0_8px_rgba(249,115,22,0.3)] group-hover:drop-shadow-[0_0_12px_rgba(249,115,22,0.5)] transition-all"
+        <div className="p-5 hidden sm:block">
+          <Link href="/" className="flex items-center gap-2">
+            <Image 
+              src="/dyia-logo-full.png" 
+              alt="dyia" 
+              width={80} 
+              height={28}
+              className="brightness-0 invert opacity-90 hover:opacity-100 transition-opacity"
             />
-            <span className="text-2xl font-extrabold bg-gradient-to-r from-orange-400 to-amber-400 bg-clip-text text-transparent tracking-tight">dyia</span>
+            <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-orange-500/20 text-orange-400 uppercase tracking-wide">
+              Beta
+            </span>
           </Link>
         </div>
 
@@ -272,6 +291,27 @@ export function Sidebar({ currentView, setCurrentView, userEmail, userName, user
               </div>
             </div>
           ))}
+
+          {/* Admin section - only visible to admins */}
+          {isAdmin && (
+            <div className="mt-4">
+              <div className="px-3 mb-1.5">
+                <span className="text-[10px] font-semibold text-red-400/70 uppercase tracking-widest">
+                  Admin
+                </span>
+              </div>
+              <div className="space-y-0.5">
+                <NavButton
+                  id="admin"
+                  icon="shield"
+                  label="Admin Panel"
+                  isPro={isPro}
+                  isActive={currentView === 'admin'}
+                  onClick={() => setCurrentView('admin')}
+                />
+              </div>
+            </div>
+          )}
         </nav>
 
         {/* Mobile Bottom Nav */}
@@ -306,6 +346,13 @@ export function Sidebar({ currentView, setCurrentView, userEmail, userName, user
           </div>
         </nav>
 
+        {/* Launchpad - Getting Started Checklist (Desktop) */}
+        {showLaunchpad && (
+          <div className="hidden sm:block sidebar-launchpad">
+            <Launchpad items={launchpadItems} />
+          </div>
+        )}
+
         {/* Footer - hidden on mobile */}
         <div className="p-3 border-t border-slate-800 hidden sm:block space-y-1">
           {/* Trial upgrade nudge */}
@@ -333,6 +380,18 @@ export function Sidebar({ currentView, setCurrentView, userEmail, userName, user
               <span className="sidebar-text text-xs font-medium truncate">Upgrade to Pro</span>
             </button>
           )}
+
+          {/* Help & Support */}
+          <a
+            href="/support"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:bg-slate-800/50 hover:text-slate-200 transition-all"
+            title="Help & Support"
+          >
+            <span className="shrink-0">{Icons.help}</span>
+            <span className="sidebar-text text-sm">Help & Support</span>
+          </a>
 
           {/* Settings */}
           <button

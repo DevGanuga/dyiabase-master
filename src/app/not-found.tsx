@@ -2,33 +2,35 @@ import Link from 'next/link'
 
 export default function NotFound() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 via-white to-amber-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 p-6">
-      <div className="text-center max-w-md">
-        <div className="flex items-center justify-center gap-2 mb-8">
-          <img src="/dyia-agent.png" alt="dyia" className="w-10 h-10 object-contain" />
-          <span className="text-xl font-bold bg-gradient-to-r from-orange-500 to-amber-500 bg-clip-text text-transparent">dyia</span>
+    <div className="min-h-screen bg-[#09090b] text-white flex items-center justify-center px-6">
+      <div className="max-w-md text-center">
+        <div className="text-7xl font-bold bg-gradient-to-r from-orange-500 to-amber-500 bg-clip-text text-transparent mb-4">
+          404
         </div>
-        <h1 className="text-7xl font-bold text-slate-200 dark:text-slate-700 mb-4">404</h1>
-        <h2 className="text-xl font-semibold text-slate-800 dark:text-slate-200 mb-2">
-          Page not found
-        </h2>
-        <p className="text-sm text-slate-500 dark:text-slate-400 mb-8">
+        <h1 className="text-2xl font-bold mb-2">Page not found</h1>
+        <p className="text-slate-400 mb-8">
           The page you&apos;re looking for doesn&apos;t exist or has been moved.
         </p>
-        <div className="flex flex-col sm:flex-row gap-3 justify-center">
-          <Link
-            href="/app"
-            className="px-5 py-2.5 bg-gradient-to-r from-orange-500 to-amber-500 text-white text-sm font-medium rounded-xl hover:shadow-lg hover:shadow-orange-500/25 transition-all"
-          >
-            Go to Dashboard
-          </Link>
+        <div className="flex items-center justify-center gap-3">
           <Link
             href="/"
-            className="px-5 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-sm font-medium rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700 transition-all"
+            className="px-6 py-2.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 text-white rounded-xl font-semibold text-sm shadow-lg shadow-orange-500/20 transition-all"
           >
-            Back to Home
+            Go Home
+          </Link>
+          <Link
+            href="/app"
+            className="px-6 py-2.5 bg-white/5 border border-white/10 text-slate-300 hover:text-white hover:bg-white/10 rounded-xl font-medium text-sm transition-all"
+          >
+            Dashboard
           </Link>
         </div>
+        <p className="text-xs text-slate-600 mt-6">
+          Need help?{' '}
+          <Link href="/support" className="text-orange-400 hover:text-orange-300 underline underline-offset-2">
+            Contact Support
+          </Link>
+        </p>
       </div>
     </div>
   )

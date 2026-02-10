@@ -14,8 +14,34 @@ const spaceGrotesk = Space_Grotesk({
 })
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://dyia.io'),
   title: 'dyia – Your Day, Decoded | Simple Profit Tracking for Service Businesses',
   description: 'Track jobs, profits, expenses, and generate professional quotes. Built for junk removal, lawn care, and house cleaning businesses who want results without the complexity.',
+  openGraph: {
+    title: 'dyia – Your Day, Decoded',
+    description: 'Simple profit tracking for service businesses. Track jobs, generate quotes, and know your real profit.',
+    url: '/',
+    siteName: 'dyia',
+    type: 'website',
+    images: [
+      {
+        url: '/dyia-logo-full.png',
+        width: 1200,
+        height: 630,
+        alt: 'dyia - Your Day, Decoded',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'dyia – Your Day, Decoded',
+    description: 'Simple profit tracking for service businesses. Track jobs, generate quotes, and know your real profit.',
+    images: ['/dyia-logo-full.png'],
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
 }
 
 const clerkAppearance = {

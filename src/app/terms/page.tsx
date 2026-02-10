@@ -1,120 +1,160 @@
 import Link from 'next/link'
+import type { Metadata } from 'next'
 
-export const metadata = {
-  title: 'Terms of Service | dyia',
-  description: 'Terms of Service for dyia - the rules for using our platform.',
+export const metadata: Metadata = {
+  title: 'Terms of Service — dyia',
+  description: 'Terms of Service for dyia, the business management platform for service businesses.',
 }
 
-export default function TermsOfServicePage() {
-  const lastUpdated = 'February 8, 2026'
-
+export default function TermsPage() {
   return (
-    <div className="min-h-screen bg-white dark:bg-slate-950">
-      {/* Header */}
-      <header className="border-b border-slate-200 dark:border-slate-800 px-6 py-4">
-        <div className="max-w-3xl mx-auto flex items-center justify-between">
+    <div className="min-h-screen bg-[#09090b] text-white">
+      <div className="fixed inset-0 -z-10">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-orange-900/10 via-[#09090b] to-[#09090b]" />
+      </div>
+
+      <nav className="border-b border-white/[0.06] bg-white/[0.02] backdrop-blur-xl">
+        <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
-            <img src="/dyia-agent.png" alt="dyia" className="w-8 h-8 object-contain" />
-            <span className="text-lg font-bold bg-gradient-to-r from-orange-500 to-amber-500 bg-clip-text text-transparent">dyia</span>
+            <img src="/dyia-logo.png" alt="dyia" className="w-8 h-8 object-contain" />
+            <span className="text-xl font-bold bg-gradient-to-r from-orange-400 to-amber-400 bg-clip-text text-transparent">dyia</span>
           </Link>
-          <Link href="/" className="text-sm text-slate-500 hover:text-slate-700 dark:hover:text-slate-300">Back to Home</Link>
+          <div className="flex items-center gap-4">
+            <Link href="/" className="text-sm text-slate-400 hover:text-white transition">Home</Link>
+            <Link href="/support" className="text-sm text-slate-400 hover:text-white transition">Support</Link>
+          </div>
         </div>
-      </header>
+      </nav>
 
       <main className="max-w-3xl mx-auto px-6 py-12">
-        <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">Terms of Service</h1>
-        <p className="text-sm text-slate-500 mb-8">Last updated: {lastUpdated}</p>
+        <h1 className="text-4xl font-bold mb-2">Terms of Service</h1>
+        <p className="text-slate-500 text-sm mb-10">Last updated: February 9, 2026</p>
 
-        <div className="prose prose-slate dark:prose-invert max-w-none space-y-6 text-slate-700 dark:text-slate-300 text-sm leading-relaxed">
+        <div className="prose prose-invert prose-slate max-w-none space-y-8 text-slate-300 leading-relaxed text-[15px]">
           <section>
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-white mt-8 mb-3">1. Acceptance of Terms</h2>
-            <p>By accessing or using dyia (&quot;the Service&quot;), you agree to be bound by these Terms of Service. If you do not agree, do not use the Service.</p>
+            <h2 className="text-xl font-semibold text-white mb-3">1. Agreement to Terms</h2>
+            <p>
+              By accessing or using dyia (&quot;the Service&quot;), operated by dyia (&quot;we,&quot; &quot;us,&quot; or &quot;our&quot;), you agree to be bound by these Terms of Service. If you do not agree, do not use the Service.
+            </p>
           </section>
 
           <section>
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-white mt-8 mb-3">2. Description of Service</h2>
-            <p>dyia is a business management platform for service businesses. It provides job tracking, quote generation, follow-up management, financial reporting, AI-powered business insights, and marketing tools.</p>
+            <h2 className="text-xl font-semibold text-white mb-3">2. Description of Service</h2>
+            <p>
+              dyia is a business management platform designed for service businesses (junk removal, lawn care, house cleaning, etc.). The Service provides job tracking, quote generation, follow-up management, financial reporting, and AI-powered business insights.
+            </p>
           </section>
 
           <section>
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-white mt-8 mb-3">3. Account Registration</h2>
-            <ul className="list-disc pl-5 space-y-1">
-              <li>You must provide accurate and complete information when creating an account.</li>
-              <li>You are responsible for maintaining the security of your account credentials.</li>
+            <h2 className="text-xl font-semibold text-white mb-3">3. Account Terms</h2>
+            <ul className="list-disc pl-5 space-y-2">
               <li>You must be at least 18 years old to use the Service.</li>
-              <li>One person or business per account. Account sharing is not permitted.</li>
+              <li>You must provide accurate, complete registration information.</li>
+              <li>You are responsible for maintaining the security of your account and password.</li>
+              <li>You are responsible for all activity that occurs under your account.</li>
+              <li>One person or legal entity may not maintain more than one account.</li>
             </ul>
           </section>
 
           <section>
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-white mt-8 mb-3">4. Subscription and Billing</h2>
-            <ul className="list-disc pl-5 space-y-1">
-              <li><strong>Free Trial:</strong> New Pro subscribers receive a 14-day free trial. A valid payment method is required. You will not be charged during the trial period.</li>
-              <li><strong>Billing:</strong> After the trial period, your subscription will automatically renew and you will be charged at the current rate for your plan (monthly or annual).</li>
-              <li><strong>Cancellation:</strong> You may cancel your subscription at any time through Settings. You will retain access until the end of your current billing period.</li>
-              <li><strong>Refunds:</strong> Subscription fees are non-refundable except as required by law. Contact support for exceptional circumstances.</li>
-              <li><strong>Price Changes:</strong> We may change pricing with 30 days notice. Existing subscribers will be notified before any price increase takes effect.</li>
+            <h2 className="text-xl font-semibold text-white mb-3">4. Payment and Billing</h2>
+            <ul className="list-disc pl-5 space-y-2">
+              <li>The Service offers a free 14-day trial. No credit card is required to start.</li>
+              <li>After the trial, a paid subscription (Basic or Pro) is required to continue accessing premium features.</li>
+              <li>Subscriptions are billed monthly or annually, as selected at checkout.</li>
+              <li>All payments are processed securely through Stripe. We do not store your credit card information.</li>
+              <li>Prices are subject to change with 30 days&apos; notice.</li>
+              <li>Refunds are handled on a case-by-case basis. Contact support@dyia.io for refund requests.</li>
             </ul>
           </section>
 
           <section>
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-white mt-8 mb-3">5. Your Data</h2>
-            <ul className="list-disc pl-5 space-y-1">
-              <li>You own all data you enter into dyia (jobs, quotes, customers, financial information).</li>
-              <li>You grant us a limited license to process your data to provide the Service.</li>
-              <li>You can export your data at any time via the CSV export feature in Settings.</li>
-              <li>We will not sell your data to third parties.</li>
+            <h2 className="text-xl font-semibold text-white mb-3">5. Cancellation</h2>
+            <ul className="list-disc pl-5 space-y-2">
+              <li>You may cancel your subscription at any time from your account settings or Stripe billing portal.</li>
+              <li>Cancellation takes effect at the end of the current billing period.</li>
+              <li>You will retain access to your data after cancellation, but premium features will be restricted.</li>
             </ul>
           </section>
 
           <section>
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-white mt-8 mb-3">6. AI Features</h2>
-            <ul className="list-disc pl-5 space-y-1">
-              <li>AI features (Dyia assistant, pricing suggestions, insights) are provided as tools to assist your business decisions.</li>
-              <li>AI output should not be treated as professional financial, legal, or tax advice.</li>
-              <li>You are responsible for verifying AI suggestions before acting on them.</li>
-              <li>AI features require Pro subscription or AI credits.</li>
+            <h2 className="text-xl font-semibold text-white mb-3">6. Data Ownership</h2>
+            <ul className="list-disc pl-5 space-y-2">
+              <li>You own all data you enter into the Service (jobs, quotes, customer info, expenses).</li>
+              <li>You can export your data at any time via the Settings page.</li>
+              <li>We do not sell, share, or use your business data for advertising purposes.</li>
+              <li>We may use aggregated, anonymized data to improve the Service.</li>
             </ul>
           </section>
 
           <section>
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-white mt-8 mb-3">7. Acceptable Use</h2>
+            <h2 className="text-xl font-semibold text-white mb-3">7. AI Features</h2>
+            <p>
+              The Service includes AI-powered features (the &quot;Dyia AI Assistant&quot;) provided through OpenAI. By using these features:
+            </p>
+            <ul className="list-disc pl-5 space-y-2 mt-2">
+              <li>You acknowledge that AI responses are generated suggestions and should not be treated as professional financial or legal advice.</li>
+              <li>Conversation data may be processed by OpenAI in accordance with their usage policies.</li>
+              <li>AI credits are consumed per interaction and are non-refundable once used.</li>
+            </ul>
+          </section>
+
+          <section>
+            <h2 className="text-xl font-semibold text-white mb-3">8. Acceptable Use</h2>
             <p>You agree not to:</p>
-            <ul className="list-disc pl-5 space-y-1 mt-2">
-              <li>Use the Service for any illegal purpose.</li>
-              <li>Attempt to access other users&apos; data.</li>
-              <li>Reverse engineer, decompile, or disassemble the Service.</li>
-              <li>Use automated tools to scrape or extract data from the Service.</li>
-              <li>Resell or redistribute the Service without written permission.</li>
+            <ul className="list-disc pl-5 space-y-2 mt-2">
+              <li>Use the Service for any unlawful purpose.</li>
+              <li>Attempt to gain unauthorized access to the Service or its systems.</li>
+              <li>Interfere with or disrupt the Service&apos;s infrastructure.</li>
+              <li>Reverse engineer, decompile, or disassemble any part of the Service.</li>
+              <li>Use the Service to send spam or unsolicited messages.</li>
             </ul>
           </section>
 
           <section>
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-white mt-8 mb-3">8. Service Availability</h2>
-            <p>We aim for 99.9% uptime but do not guarantee uninterrupted service. We may perform maintenance with reasonable notice. We are not liable for losses resulting from service interruptions.</p>
+            <h2 className="text-xl font-semibold text-white mb-3">9. Limitation of Liability</h2>
+            <p>
+              The Service is provided &quot;as is&quot; without warranties of any kind. To the maximum extent permitted by law, we shall not be liable for any indirect, incidental, special, consequential, or punitive damages, including loss of profits, data, or business opportunities.
+            </p>
+            <p className="mt-2">
+              Our total liability for any claim arising from the Service shall not exceed the amount you paid us in the 12 months preceding the claim.
+            </p>
           </section>
 
           <section>
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-white mt-8 mb-3">9. Limitation of Liability</h2>
-            <p>To the maximum extent permitted by law, dyia and its operators shall not be liable for any indirect, incidental, special, consequential, or punitive damages, including loss of profits, data, or business opportunities. Our total liability shall not exceed the amount you paid for the Service in the 12 months prior to the claim.</p>
+            <h2 className="text-xl font-semibold text-white mb-3">10. Service Availability</h2>
+            <p>
+              We strive for high availability but do not guarantee uninterrupted service. We may perform maintenance, updates, or experience downtime. We will make reasonable efforts to notify users of planned downtime.
+            </p>
           </section>
 
           <section>
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-white mt-8 mb-3">10. Termination</h2>
-            <p>We may suspend or terminate your account if you violate these terms. You may delete your account at any time. Upon termination, your data will be deleted within 30 days.</p>
+            <h2 className="text-xl font-semibold text-white mb-3">11. Changes to Terms</h2>
+            <p>
+              We reserve the right to modify these Terms at any time. We will notify users of material changes via email or in-app notification. Continued use of the Service after changes constitutes acceptance of the new Terms.
+            </p>
           </section>
 
           <section>
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-white mt-8 mb-3">11. Changes to Terms</h2>
-            <p>We may update these terms from time to time. Material changes will be communicated via email or in-app notification at least 30 days before taking effect.</p>
-          </section>
-
-          <section>
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-white mt-8 mb-3">12. Contact</h2>
-            <p>Questions about these terms? Contact us at <a href="mailto:support@dyia.co" className="text-orange-500 hover:underline">support@dyia.co</a>.</p>
+            <h2 className="text-xl font-semibold text-white mb-3">12. Contact</h2>
+            <p>
+              Questions about these Terms? Contact us at{' '}
+              <a href="mailto:support@dyia.io" className="text-orange-400 hover:text-orange-300">support@dyia.io</a>.
+            </p>
           </section>
         </div>
       </main>
+
+      <footer className="border-t border-white/[0.06] mt-20">
+        <div className="max-w-4xl mx-auto px-6 py-8 flex flex-col sm:flex-row justify-between items-center gap-4">
+          <p className="text-slate-600 text-sm">&copy; 2026 dyia. All rights reserved.</p>
+          <div className="flex items-center gap-6 text-sm text-slate-500">
+            <Link href="/privacy" className="hover:text-orange-400 transition">Privacy Policy</Link>
+            <Link href="/support" className="hover:text-orange-400 transition">Support</Link>
+            <Link href="/" className="hover:text-orange-400 transition">Home</Link>
+          </div>
+        </div>
+      </footer>
     </div>
   )
 }
