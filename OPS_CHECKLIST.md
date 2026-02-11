@@ -53,6 +53,10 @@ Set these in your Vercel project settings (Settings > Environment Variables):
 | `NEXT_PUBLIC_APP_URL` | Production URL (e.g., `https://dyia.io`). Defaults to `http://localhost:3000` |
 | `DEMO_PASSWORD` | Password for demo mode access. If not set, demo mode is disabled. |
 | `STRIPE_FOUNDERS_COUPON_ID` | Stripe coupon ID for founders pricing |
+| `NEXT_PUBLIC_SENTRY_DSN` | Sentry DSN for error monitoring (recommended for production) |
+| `SENTRY_ORG` | Sentry organization slug (for source maps upload) |
+| `SENTRY_PROJECT` | Sentry project slug (for source maps upload) |
+| `SENTRY_AUTH_TOKEN` | Sentry auth token (for source maps upload during build) |
 
 ---
 
@@ -99,6 +103,27 @@ Set these in your Vercel project settings (Settings > Environment Variables):
    - `user.updated`
    - `user.deleted`
 4. Copy the signing secret to `CLERK_WEBHOOK_SECRET`
+
+### Create JWT Template for Supabase (REQUIRED for database security)
+
+This enables Row-Level Security so users can only access their own data.
+
+1. Go to Clerk Dashboard > JWT Templates
+2. Click "New template" > choose **Supabase**
+3. Set the **Signing key** to your **Supabase JWT Secret** (found in Supabase Dashboard > Settings > API > JWT Settings > JWT Secret)
+4. The template should include these claims (Clerk pre-fills this for Supabase templates):
+   ```json
+   {
+     "sub": "{{user.id}}",
+     "iss": "clerk",
+     "iat": "{{time.now}}",
+     "exp": "{{time.now + 3600}}",
+     "role": "authenticated"
+   }
+   ```
+5. Save the template — the name must be **supabase** (lowercase)
+
+After creating the template, run migration `018_rls_policies.sql` in Supabase to activate the user-scoped security policies.
 
 ---
 
@@ -159,6 +184,7 @@ Run these migrations in the Supabase SQL Editor (in order):
 
 1. `016_fix_customers_add_quote_source.sql` — Creates customers table + adds quote source
 2. `017_admin_panel.sql` — Adds admin role + webhook event log
+3. `018_rls_policies.sql` — **CRITICAL**: Proper Row-Level Security policies (requires Clerk JWT template first)
 
 ---
 

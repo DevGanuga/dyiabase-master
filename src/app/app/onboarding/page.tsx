@@ -1,9 +1,9 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { useUser, UserButton } from '@clerk/nextjs'
+import { useUser, useAuth, UserButton } from '@clerk/nextjs'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
+import { createClient, initSupabaseAuth } from '@/lib/supabase/client'
 import { useTheme } from '@/hooks/useTheme'
 
 type Step = 'welcome' | 'profile' | 'business' | 'goals' | 'financials' | 'template'
@@ -62,6 +62,7 @@ const YEARS_OPTIONS = [
 
 export default function OnboardingPage() {
   const { user, isLoaded } = useUser()
+  const { getToken } = useAuth()
   const router = useRouter()
   // Read returnUrl from the raw URL to preserve view state through onboarding
   const [returnUrl] = useState(() => {
@@ -69,6 +70,12 @@ export default function OnboardingPage() {
     const params = new URLSearchParams(window.location.search)
     return params.get('returnUrl') || '/app'
   })
+
+  // Initialize Supabase client with Clerk JWT for RLS-authenticated queries
+  useEffect(() => {
+    initSupabaseAuth(() => getToken({ template: 'supabase' }))
+  }, [getToken])
+
   const supabase = createClient()
   const { resolvedTheme, setTheme } = useTheme()
   

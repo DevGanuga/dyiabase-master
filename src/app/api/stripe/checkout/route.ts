@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
+import { rateLimiters } from '@/lib/rate-limit'
 
 function getStripe() {
   if (!process.env.STRIPE_SECRET_KEY) {
@@ -20,6 +21,10 @@ function getSupabase() {
 }
 
 export async function POST(request: NextRequest) {
+  // Rate limit: 10 requests per minute per IP
+  const rateLimited = rateLimiters.checkout.check(request)
+  if (rateLimited) return rateLimited
+
   try {
     const stripe = getStripe()
     const supabase = getSupabase()
