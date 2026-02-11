@@ -29,11 +29,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
-    // 3. Check Pro access
+    // 3. Check AI access (Pro users OR users with credits — same as chat route)
     const isPro = ['active', 'trialing'].includes(userProfile.subscription_status)
     if (!isPro) {
       return NextResponse.json(
-        { error: 'Pro subscription required for AI Assistant' },
+        { error: 'Dyia Pro subscription required. Upgrade to confirm AI actions.', needsUpgrade: true },
         { status: 403 }
       )
     }

@@ -44,105 +44,162 @@ export function QuotePreviewCard({ proposal, onConfirm, onCancel, isSubmitting, 
     }))
   }
 
+  // Validation — block submission if critical fields are missing
+  const validationErrors = useMemo(() => {
+    const errors: string[] = []
+    if (!editedData.customerName?.trim()) errors.push('Customer name is required')
+    if (!editedData.estimateLow || editedData.estimateLow <= 0) errors.push('Low estimate must be greater than $0')
+    if (!editedData.estimateHigh || editedData.estimateHigh <= 0) errors.push('High estimate must be greater than $0')
+    if (editedData.estimateLow > 0 && editedData.estimateHigh > 0 && editedData.estimateLow > editedData.estimateHigh) {
+      errors.push('Low estimate cannot be higher than high estimate')
+    }
+    return errors
+  }, [editedData.customerName, editedData.estimateLow, editedData.estimateHigh])
+
   const handleConfirm = (downloadPdf: boolean = false) => {
+    if (validationErrors.length > 0) return
     onConfirm(editedData, downloadPdf)
   }
 
-  // Generate PDF preview (for immediate download after confirm)
+  // Generate professional PDF quote
   const generatePdfPreview = () => {
     const doc = new jsPDF()
+    const businessInfo = settings?.businessInfo
+    const pageWidth = 210
+    const margin = 20
+    const contentWidth = pageWidth - margin * 2
     let y = 20
 
-    doc.setFontSize(24)
-    doc.setFont('helvetica', 'bold')
-    doc.text('ESTIMATE', 105, y, { align: 'center' })
-    y += 15
-
-    const businessInfo = settings?.businessInfo
-
+    // ── Header: Business info + Quote title ──
     if (businessInfo?.logo) {
-      try {
-        doc.addImage(businessInfo.logo, 'PNG', 80, y, 50, 50)
-        y += 55
-      } catch (logoError) {
-        console.error('Error adding logo to PDF:', logoError)
-      }
+      try { doc.addImage(businessInfo.logo, 'PNG', margin, y, 35, 35); } catch { /* skip */ }
     }
 
-    if (businessInfo?.name?.trim()) {
-      doc.setFontSize(14)
-      doc.setFont('helvetica', 'bold')
-      doc.text(businessInfo.name, 105, y, { align: 'center' })
-      y += 7
-      doc.setFont('helvetica', 'normal')
-      doc.setFontSize(11)
-      if (businessInfo.phone?.trim()) {
-        doc.text(businessInfo.phone, 105, y, { align: 'center' })
-        y += 6
-      }
-      if (businessInfo.email?.trim()) {
-        doc.text(businessInfo.email, 105, y, { align: 'center' })
-        y += 6
-      }
-      y += 5
-    }
+    const headerX = businessInfo?.logo ? margin + 42 : margin
+    doc.setFontSize(18)
+    doc.setFont('helvetica', 'bold')
+    doc.text(businessInfo?.name || 'Estimate', headerX, y + 8)
+
+    doc.setFontSize(9)
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(100, 100, 100)
+    let subY = y + 15
+    if (businessInfo?.phone) { doc.text(businessInfo.phone, headerX, subY); subY += 5 }
+    if (businessInfo?.email) { doc.text(businessInfo.email, headerX, subY); subY += 5 }
+    if (businessInfo?.address) { doc.text(businessInfo.address, headerX, subY); subY += 5 }
+
+    // Quote badge (right side)
+    doc.setFontSize(22)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(249, 115, 22)
+    doc.text('ESTIMATE', pageWidth - margin, y + 8, { align: 'right' })
+    doc.setFontSize(9)
+    doc.setTextColor(120, 120, 120)
+    const quoteRef = `#Q-${Date.now().toString(36).toUpperCase().slice(-6)}`
+    doc.text(quoteRef, pageWidth - margin, y + 16, { align: 'right' })
+    doc.text(`Date: ${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`, pageWidth - margin, y + 22, { align: 'right' })
+    doc.text('Valid for 30 days', pageWidth - margin, y + 28, { align: 'right' })
+
+    y = Math.max(subY, y + 32) + 8
+
+    // ── Divider ──
+    doc.setDrawColor(230, 230, 230)
+    doc.line(margin, y, pageWidth - margin, y)
     y += 10
 
+    // ── Customer info ──
+    doc.setTextColor(100, 100, 100)
+    doc.setFontSize(8)
+    doc.setFont('helvetica', 'bold')
+    doc.text('PREPARED FOR', margin, y)
+    y += 6
+    doc.setTextColor(30, 30, 30)
     doc.setFontSize(12)
     doc.setFont('helvetica', 'bold')
-    doc.text('PREPARED FOR:', 20, y)
-    y += 7
-    doc.setFont('helvetica', 'normal')
-    doc.text(editedData.customerName, 20, y)
+    doc.text(editedData.customerName, margin, y)
     y += 6
-
-    if (editedData.customerPhone) {
-      doc.text(editedData.customerPhone, 20, y)
-      y += 6
-    }
-    if (editedData.customerAddress) {
-      doc.text(editedData.customerAddress, 20, y)
-      y += 6
-    }
-    y += 10
-
-    doc.setFillColor(249, 115, 22)
-    doc.rect(20, y, 170, 30, 'F')
-    doc.setTextColor(255, 255, 255)
-    doc.setFontSize(14)
-    doc.setFont('helvetica', 'bold')
-    doc.text('ESTIMATED COST', 105, y + 12, { align: 'center' })
-    doc.setFontSize(22)
-    doc.text(
-      `${formatCurrency(editedData.estimateLow)} - ${formatCurrency(editedData.estimateHigh)}`,
-      105, y + 24, { align: 'center' }
-    )
-    doc.setTextColor(0, 0, 0)
-    y += 40
-
-    doc.setFontSize(10)
-    doc.setFont('helvetica', 'italic')
-    doc.text('Labor and disposal fees are all included', 105, y, { align: 'center' })
-    y += 8
-
+    doc.setFontSize(9)
     doc.setFont('helvetica', 'normal')
-    doc.text(`Date: ${new Date().toLocaleDateString()}`, 20, y)
+    doc.setTextColor(80, 80, 80)
+    if (editedData.customerPhone) { doc.text(editedData.customerPhone, margin, y); y += 5 }
+    if (editedData.customerEmail) { doc.text(editedData.customerEmail, margin, y); y += 5 }
+    if (editedData.customerAddress) { doc.text(editedData.customerAddress, margin, y); y += 5 }
     y += 10
 
+    // ── Job description ──
     if (editedData.jobDescription) {
+      doc.setTextColor(100, 100, 100)
+      doc.setFontSize(8)
       doc.setFont('helvetica', 'bold')
-      doc.text('Job Description:', 20, y)
+      doc.text('SCOPE OF WORK', margin, y)
       y += 6
+      doc.setTextColor(50, 50, 50)
+      doc.setFontSize(10)
       doc.setFont('helvetica', 'normal')
-      const splitDesc = doc.splitTextToSize(editedData.jobDescription, 170)
-      for (let i = 0; i < splitDesc.length; i++) {
-        if (y > 270) { doc.addPage(); y = 20 }
-        doc.text(splitDesc[i], 20, y)
+      const lines = doc.splitTextToSize(editedData.jobDescription, contentWidth)
+      for (const line of lines) {
+        if (y > 260) { doc.addPage(); y = 20 }
+        doc.text(line, margin, y)
         y += 5
       }
+      y += 8
     }
 
-    doc.save(`quote-${editedData.customerName.replace(/\s/g, '-')}-${Date.now()}.pdf`)
+    // ── Price box ──
+    const boxH = 35
+    // Orange gradient effect (solid orange)
+    doc.setFillColor(249, 115, 22)
+    doc.roundedRect(margin, y, contentWidth, boxH, 3, 3, 'F')
+
+    doc.setTextColor(255, 255, 255)
+    doc.setFontSize(10)
+    doc.setFont('helvetica', 'normal')
+    doc.text('ESTIMATED COST', margin + contentWidth / 2, y + 12, { align: 'center' })
+    doc.setFontSize(22)
+    doc.setFont('helvetica', 'bold')
+    doc.text(
+      `${formatCurrency(editedData.estimateLow)} – ${formatCurrency(editedData.estimateHigh)}`,
+      margin + contentWidth / 2, y + 27, { align: 'center' }
+    )
+    y += boxH + 6
+
+    doc.setTextColor(120, 120, 120)
+    doc.setFontSize(8)
+    doc.setFont('helvetica', 'italic')
+    doc.text('All labor, materials, and disposal fees are included in this estimate.', margin + contentWidth / 2, y, { align: 'center' })
+    y += 15
+
+    // ── Terms & conditions ──
+    doc.setDrawColor(230, 230, 230)
+    doc.line(margin, y, pageWidth - margin, y)
+    y += 8
+    doc.setTextColor(100, 100, 100)
+    doc.setFontSize(8)
+    doc.setFont('helvetica', 'bold')
+    doc.text('TERMS & CONDITIONS', margin, y)
+    y += 6
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(7.5)
+    const terms = [
+      '1. This estimate is valid for 30 days from the date shown above.',
+      '2. Final price may vary based on actual conditions found on site.',
+      '3. Payment is due upon completion of work unless otherwise agreed.',
+      '4. Additional items or scope changes may result in price adjustments.',
+    ]
+    for (const term of terms) {
+      doc.text(term, margin, y)
+      y += 4.5
+    }
+
+    // ── Footer ──
+    y = 280
+    doc.setDrawColor(230, 230, 230)
+    doc.line(margin, y, pageWidth - margin, y)
+    doc.setFontSize(8)
+    doc.setTextColor(150, 150, 150)
+    doc.text(`${businessInfo?.name || 'Dyia'} — Thank you for your business!`, margin + contentWidth / 2, y + 5, { align: 'center' })
+
+    doc.save(`estimate-${editedData.customerName.replace(/\s+/g, '-').toLowerCase()}-${quoteRef.slice(1)}.pdf`)
   }
 
   // Check if we have missing customer contact info
@@ -330,6 +387,19 @@ export function QuotePreviewCard({ proposal, onConfirm, onCancel, isSubmitting, 
           </div>
         )}
 
+        {/* Validation Errors */}
+        {validationErrors.length > 0 && !editMode && (
+          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
+            <p className="text-xs text-red-700 dark:text-red-400 font-medium mb-1">Missing required info:</p>
+            {validationErrors.map((err, i) => (
+              <p key={i} className="text-xs text-red-600 dark:text-red-400">• {err}</p>
+            ))}
+            <button onClick={() => setEditMode(true)} className="mt-1.5 text-xs text-red-700 dark:text-red-400 underline hover:no-underline font-medium">
+              Edit to fix
+            </button>
+          </div>
+        )}
+
         {/* Action Buttons */}
         <div className="flex flex-col gap-2 pt-2">
           <div className="flex gap-2">
@@ -342,8 +412,8 @@ export function QuotePreviewCard({ proposal, onConfirm, onCancel, isSubmitting, 
             </button>
             <button
               onClick={() => handleConfirm(false)}
-              disabled={isSubmitting}
-              className="flex-1 px-4 py-2.5 text-sm font-medium text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-900/30 hover:bg-blue-200 dark:hover:bg-blue-900/50 rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              disabled={isSubmitting || validationErrors.length > 0}
+              className="flex-1 px-4 py-2.5 text-sm font-medium text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-900/30 hover:bg-blue-200 dark:hover:bg-blue-900/50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {isSubmitting ? (
                 <>
@@ -362,11 +432,12 @@ export function QuotePreviewCard({ proposal, onConfirm, onCancel, isSubmitting, 
           </div>
           <button
             onClick={() => {
-              generatePdfPreview()  // Download PDF immediately
-              handleConfirm(true)   // Then save the quote
+              if (validationErrors.length > 0) return
+              generatePdfPreview()
+              handleConfirm(true)
             }}
-            disabled={isSubmitting}
-            className="w-full px-4 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+            disabled={isSubmitting || validationErrors.length > 0}
+            className="w-full px-4 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isSubmitting ? (
               <>

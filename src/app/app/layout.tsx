@@ -1,6 +1,11 @@
 import { auth } from '@clerk/nextjs/server'
 import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
+import { validateEnv } from '@/lib/env'
+
+// Validate environment variables on first server-side render
+validateEnv()
 
 export default async function AppLayout({
   children,
@@ -20,5 +25,5 @@ export default async function AppLayout({
     }
   }
 
-  return <>{children}</>
+  return <ErrorBoundary>{children}</ErrorBoundary>
 }

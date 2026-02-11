@@ -71,6 +71,7 @@ export async function POST(request: NextRequest) {
     // Only add subscription_data for subscription mode
     if (!isOneTime) {
       sessionParams.subscription_data = {
+        trial_period_days: 14, // 14-day free trial - card collected now, billed after trial
         metadata: {
           clerk_user_id: clerkUserId,
           dyia_user_id: dyiaUser.id,

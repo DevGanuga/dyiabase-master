@@ -25,7 +25,8 @@ export function TrialBanner() {
   if (tier !== 'trial' && tier !== 'basic') return null
 
   const urgent = tier === 'trial' && daysRemaining <= 2
-  const expired = tier === 'basic'
+  // Distinguish: "never had a trial" (inactive, no subscription_ends_at) vs "trial ended"
+  const neverTrialed = tier === 'basic' && daysRemaining === 0
 
   const handleDismiss = () => {
     setHiding(true)
@@ -37,19 +38,21 @@ export function TrialBanner() {
 
   return (
     <div
-      className={`w-full ${urgent || expired ? 'bg-red-500' : 'bg-gradient-to-r from-amber-500 to-orange-500'} text-white overflow-hidden transition-all duration-400 ease-in-out ${
+      className={`w-full ${urgent ? 'bg-red-500' : neverTrialed ? 'bg-gradient-to-r from-orange-500 to-amber-500' : tier === 'basic' ? 'bg-red-500' : 'bg-gradient-to-r from-amber-500 to-orange-500'} text-white overflow-hidden transition-all duration-400 ease-in-out ${
         hiding ? 'max-h-0 opacity-0' : visible ? 'max-h-20 opacity-100' : 'max-h-0 opacity-0'
       }`}
       style={visible && !hiding ? { animation: 'bannerSlideDown 0.5s cubic-bezier(0.16, 1, 0.3, 1) both' } : undefined}
     >
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-2 sm:py-2.5 flex flex-col sm:flex-row items-center justify-between gap-1.5 sm:gap-2 text-sm font-medium">
         <span className="flex items-center gap-1.5">
-          {expired ? (
-            <>Your free trial has ended — pro features are locked</>
+          {neverTrialed ? (
+            <>Try Pro free for 14 days — AI assistant, marketing tools, email blasts</>
+          ) : tier === 'basic' ? (
+            <>Your trial has ended — upgrade to keep Pro features</>
           ) : urgent ? (
-            <>⏰ Trial ending soon — {daysRemaining} day{daysRemaining !== 1 ? 's' : ''} left</>
+            <>Trial ending soon — {daysRemaining} day{daysRemaining !== 1 ? 's' : ''} left</>
           ) : (
-            <>✨ Pro trial — {daysRemaining} day{daysRemaining !== 1 ? 's' : ''} remaining</>
+            <>Pro trial — {daysRemaining} day{daysRemaining !== 1 ? 's' : ''} remaining</>
           )}
         </span>
         <div className="flex items-center gap-3">
@@ -57,7 +60,7 @@ export function TrialBanner() {
             href="/app?view=settings" 
             className="inline-flex items-center gap-1.5 px-3 py-1 bg-white/20 hover:bg-white/30 rounded-full text-sm font-semibold transition-colors"
           >
-            {expired ? 'Subscribe Now' : 'Upgrade to Pro'}
+            {neverTrialed ? 'Start Free Trial' : tier === 'basic' ? 'Subscribe Now' : 'Upgrade to Pro'}
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>

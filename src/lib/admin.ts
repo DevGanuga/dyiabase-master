@@ -91,3 +91,41 @@ export async function toggleAdmin(userId: string, makeAdmin: boolean) {
 
   if (error) throw error
 }
+
+/**
+ * Require admin access. Throws if the user is not an admin.
+ * Used as a guard in admin API routes.
+ */
+export async function requireAdmin(clerkUserId: string): Promise<void> {
+  const admin = await isAdminByClerkId(clerkUserId)
+  if (!admin) {
+    throw new Error('Forbidden: admin access required')
+  }
+}
+
+/**
+ * Log a webhook event to dyia_webhook_events (best-effort, never throws).
+ */
+export async function logWebhookEvent(
+  source: string,
+  eventType: string,
+  eventId: string | null,
+  payload: Record<string, unknown>,
+  status: 'success' | 'error' = 'success',
+  errorMessage?: string
+): Promise<void> {
+  try {
+    const supabase = getSupabaseAdmin()
+    await supabase.from('dyia_webhook_events').insert({
+      source,
+      event_type: eventType,
+      event_id: eventId,
+      payload,
+      status,
+      error_message: errorMessage || null,
+    })
+  } catch {
+    // Best-effort logging — don't let webhook logging failures break webhook handlers
+    console.error(`Failed to log webhook event: ${source}/${eventType}`)
+  }
+}

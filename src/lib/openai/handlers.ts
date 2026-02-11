@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 import type { DyiaFunctionName } from './functions'
 import type { JobProposal, QuoteProposal, UserContext, ConfidenceLevel } from '@/types/database'
 import { generateEmbedding, buildJobEmbeddingText } from './client'
+import { upsertCustomer } from '@/lib/customers'
 
 // Create Supabase client with service role for server-side operations
 const getSupabase = () => createClient(
@@ -40,6 +41,9 @@ async function createJob(args: Record<string, unknown>, dyiaUserId: string): Pro
     const dumpsterRental = (args.dumpster_rental as number) || 0
     const additionalExpense = (args.additional_expense as number) || 0
     
+    const address = (args.address as string) || null
+    const status = (args.status as string) || 'completed'
+
     const { data, error } = await supabase
       .from('dyia_jobs')
       .insert({
@@ -55,7 +59,9 @@ async function createJob(args: Record<string, unknown>, dyiaUserId: string): Pro
         additional_expense: additionalExpense,
         num_workers: (args.num_workers as number) || 1,
         cost_per_worker: (args.cost_per_worker as number) || 0,
-        notes: notes
+        notes: notes,
+        address: address,
+        status: status
       })
       .select()
       .single()
@@ -95,6 +101,11 @@ async function createJob(args: Record<string, unknown>, dyiaUserId: string): Pro
           console.error(`[Embedding] Failed to embed job ${data.id}:`, err)
         })
     }
+
+    // Auto-create/update customer record (fire and forget)
+    upsertCustomer(supabase, dyiaUserId, customerName).catch(err =>
+      console.error('[Customer] Failed to upsert from job:', err)
+    )
 
     return {
       success: true,
@@ -156,6 +167,13 @@ async function generateQuote(args: Record<string, unknown>, dyiaUserId: string):
         status: 'pending',
         contact_count: 0
       })
+
+    // Auto-create/update customer record with contact info (fire and forget)
+    upsertCustomer(supabase, dyiaUserId, args.customer_name as string, {
+      phone: (args.customer_phone as string) || null,
+      email: (args.customer_email as string) || null,
+      address: (args.customer_address as string) || null,
+    }).catch(err => console.error('[Customer] Failed to upsert from quote:', err))
 
     return {
       success: true,
@@ -669,14 +687,14 @@ async function convertQuoteToJob(args: Record<string, unknown>, dyiaUserId: stri
     const avgEstimate = Math.round(((parseFloat(quote.estimate_low) || 0) + (parseFloat(quote.estimate_high) || 0)) / 2)
     const revenue = (args.revenue as number) || avgEstimate
 
-    // Create the job
+    // Create the job - preserve the quote's original lead source for marketing attribution
     const { data: job, error: jobError } = await supabase
       .from('dyia_jobs')
       .insert({
         user_id: dyiaUserId,
         date: jobDate,
         customer_name: quote.customer_name,
-        source: 'Quote',
+        source: quote.source || 'Quote',
         revenue,
         labor: 0,
         gas: 0,
@@ -854,40 +872,39 @@ async function proposeJob(args: Record<string, unknown>): Promise<HandlerResult>
   try {
     const today = new Date().toISOString().split('T')[0]
     
-    // Build confidence levels based on what was explicitly provided vs inferred
+    // ── Validate critical fields — if missing, tell the AI to ask for them ──
+    const missingFields: string[] = []
+    if (!args.customer_name || !(args.customer_name as string).trim()) missingFields.push('customer name')
+    if (typeof args.revenue !== 'number' || args.revenue <= 0) missingFields.push('revenue amount')
+    
+    if (missingFields.length > 0) {
+      return {
+        success: false,
+        message: `I need a few more details before I can log this job. Can you tell me the **${missingFields.join('** and **')}**?`,
+        data: { missingFields },
+      }
+    }
+
+    // Build confidence levels
     const confidence: Partial<Record<keyof Omit<JobProposal, 'confidence'>, ConfidenceLevel>> = {}
-    
-    // Date confidence
     confidence.date = args.date && args.date !== today ? 'high' : 'inferred'
-    
-    // Customer name is always explicit if provided
-    confidence.customerName = args.customer_name ? 'high' : 'medium'
-    
-    // Revenue
-    confidence.revenue = typeof args.revenue === 'number' && args.revenue > 0 ? 'high' : 'medium'
-    
-    // Expenses - check which ones were explicitly mentioned
+    confidence.customerName = 'high'
+    confidence.revenue = 'high'
     confidence.labor = typeof args.labor === 'number' && args.labor > 0 ? 'high' : 'inferred'
     confidence.gas = typeof args.gas === 'number' && args.gas > 0 ? 'high' : 'inferred'
     confidence.dumpFee = typeof args.dump_fee === 'number' && args.dump_fee > 0 ? 'high' : 'inferred'
     confidence.dumpsterRental = typeof args.dumpster_rental === 'number' && args.dumpster_rental > 0 ? 'high' : 'inferred'
     confidence.additionalExpense = typeof args.additional_expense === 'number' && args.additional_expense > 0 ? 'high' : 'inferred'
-    
-    // Workers
     confidence.numWorkers = typeof args.num_workers === 'number' && args.num_workers !== 1 ? 'high' : 'inferred'
     confidence.costPerWorker = typeof args.cost_per_worker === 'number' && args.cost_per_worker > 0 ? 'high' : 'inferred'
-    
-    // Source
     confidence.source = args.source && args.source !== 'Unknown' ? 'high' : 'inferred'
-    
-    // Notes
     confidence.notes = args.notes && (args.notes as string).length > 5 ? 'high' : 'inferred'
 
     const proposal: JobProposal = {
       date: (args.date as string) || today,
-      customerName: (args.customer_name as string) || 'Unknown Customer',
+      customerName: (args.customer_name as string).trim(),
       source: (args.source as string) || 'Unknown',
-      revenue: (args.revenue as number) || 0,
+      revenue: args.revenue as number,
       labor: (args.labor as number) || 0,
       gas: (args.gas as number) || 0,
       dumpFee: (args.dump_fee as number) || 0,
@@ -899,7 +916,6 @@ async function proposeJob(args: Record<string, unknown>): Promise<HandlerResult>
       confidence
     }
 
-    // Calculate profit for display
     const totalExpenses = proposal.labor + proposal.gas + proposal.dumpFee + 
                           proposal.dumpsterRental + proposal.additionalExpense +
                           (proposal.numWorkers * proposal.costPerWorker)
@@ -908,49 +924,50 @@ async function proposeJob(args: Record<string, unknown>): Promise<HandlerResult>
 
     return {
       success: true,
-      data: {
-        proposal,
-        calculatedProfit: profit,
-        calculatedMargin: margin,
-        totalExpenses
-      },
+      data: { proposal, calculatedProfit: profit, calculatedMargin: margin, totalExpenses },
       message: `I've extracted the job details. Please review and confirm:`,
-      pendingAction: {
-        type: 'create_job',
-        proposal
-      }
+      pendingAction: { type: 'create_job', proposal }
     }
   } catch (error) {
     console.error('Error proposing job:', error)
-    return {
-      success: false,
-      error: String(error),
-      message: 'Failed to extract job details. Please try again.'
-    }
+    return { success: false, error: String(error), message: 'Failed to extract job details. Please try again.' }
   }
 }
 
 async function proposeQuote(args: Record<string, unknown>): Promise<HandlerResult> {
   try {
+    // ── Validate critical fields ──
+    const missingFields: string[] = []
+    if (!args.customer_name || !(args.customer_name as string).trim()) missingFields.push('customer name')
+    if (typeof args.estimate_low !== 'number' || args.estimate_low <= 0) missingFields.push('low end of the price range')
+    if (typeof args.estimate_high !== 'number' || args.estimate_high <= 0) missingFields.push('high end of the price range')
+    
+    if (missingFields.length > 0) {
+      return {
+        success: false,
+        message: `I need a few more details to create this quote. Can you tell me the **${missingFields.join('** and **')}**?`,
+        data: { missingFields },
+      }
+    }
+
     // Build confidence levels
     const confidence: Partial<Record<keyof Omit<QuoteProposal, 'confidence'>, ConfidenceLevel>> = {}
-    
-    confidence.customerName = args.customer_name ? 'high' : 'medium'
+    confidence.customerName = 'high'
     confidence.customerPhone = args.customer_phone && (args.customer_phone as string).length > 0 ? 'high' : 'inferred'
     confidence.customerEmail = args.customer_email && (args.customer_email as string).length > 0 ? 'high' : 'inferred'
     confidence.customerAddress = args.customer_address && (args.customer_address as string).length > 0 ? 'high' : 'inferred'
     confidence.jobDescription = args.job_description ? 'high' : 'medium'
-    confidence.estimateLow = typeof args.estimate_low === 'number' ? 'high' : 'medium'
-    confidence.estimateHigh = typeof args.estimate_high === 'number' ? 'high' : 'medium'
+    confidence.estimateLow = 'high'
+    confidence.estimateHigh = 'high'
 
     const proposal: QuoteProposal = {
-      customerName: (args.customer_name as string) || 'Unknown Customer',
+      customerName: (args.customer_name as string).trim(),
       customerPhone: (args.customer_phone as string) || '',
       customerEmail: (args.customer_email as string) || '',
       customerAddress: (args.customer_address as string) || '',
       jobDescription: (args.job_description as string) || '',
-      estimateLow: (args.estimate_low as number) || 0,
-      estimateHigh: (args.estimate_high as number) || 0,
+      estimateLow: args.estimate_low as number,
+      estimateHigh: args.estimate_high as number,
       confidence
     }
 
@@ -958,18 +975,11 @@ async function proposeQuote(args: Record<string, unknown>): Promise<HandlerResul
       success: true,
       data: { proposal },
       message: `I've prepared the quote. Please review and confirm:`,
-      pendingAction: {
-        type: 'generate_quote',
-        proposal
-      }
+      pendingAction: { type: 'generate_quote', proposal }
     }
   } catch (error) {
     console.error('Error proposing quote:', error)
-    return {
-      success: false,
-      error: String(error),
-      message: 'Failed to extract quote details. Please try again.'
-    }
+    return { success: false, error: String(error), message: 'Failed to extract quote details. Please try again.' }
   }
 }
 
@@ -1040,6 +1050,15 @@ async function getUserContext(args: Record<string, unknown>, dyiaUserId: string)
 
     const userName = userProfile?.first_name || undefined
 
+    // Extract metadata for AI personalization
+    const metadata = settings?.metadata as Record<string, string> | null
+    const businessType = metadata?.business_type || undefined
+    const businessStage = metadata?.business_stage || undefined
+    const biggestChallenge = metadata?.biggest_challenge || undefined
+    const pricingPhilosophy = metadata?.pricing_philosophy || undefined
+    const serviceArea = metadata?.service_area || undefined
+    const yearsInBusiness = metadata?.years_in_business || undefined
+
     const userContext: UserContext = {
       settings: {
         businessName: settings?.business_name || undefined,
@@ -1078,10 +1097,30 @@ async function getUserContext(args: Record<string, unknown>, dyiaUserId: string)
     } else {
       contextMessage += `Here's your business context:\n\n`
     }
+
+    // Business profile context for AI personalization
+    if (businessType) {
+      const typeLabels: Record<string, string> = { junk_removal: 'Junk Removal', lawn_care: 'Lawn Care', cleaning: 'Cleaning', moving: 'Moving', handyman: 'Handyman' }
+      contextMessage += `🏢 Business Type: ${typeLabels[businessType] || businessType}\n`
+    }
+    if (serviceArea) contextMessage += `📍 Service Area: ${serviceArea}\n`
+    if (yearsInBusiness) contextMessage += `📅 Experience: ${yearsInBusiness} in business\n`
+    if (businessStage) {
+      const stageLabels: Record<string, string> = { starting: 'Just starting out', growing: 'Growing', established: 'Established' }
+      contextMessage += `📈 Stage: ${stageLabels[businessStage] || businessStage}\n`
+    }
+    if (pricingPhilosophy) {
+      const pricingLabels: Record<string, string> = { budget: 'Compete on price', value: 'Fair price, great service', premium: 'Premium service' }
+      contextMessage += `💲 Pricing: ${pricingLabels[pricingPhilosophy] || pricingPhilosophy}\n`
+    }
+    if (biggestChallenge) {
+      const challengeLabels: Record<string, string> = { getting_customers: 'Getting customers', pricing: 'Pricing right', time_management: 'Managing time', tracking_money: 'Tracking money', hiring: 'Hiring & team' }
+      contextMessage += `🎯 Focus: ${challengeLabels[biggestChallenge] || biggestChallenge}\n`
+    }
     
     // Key stats
     if (userContext.settings.monthlyGoal > 0) {
-      contextMessage += `🎯 Monthly Goal: $${userContext.settings.monthlyGoal.toLocaleString()}\n`
+      contextMessage += `\n🎯 Monthly Goal: $${userContext.settings.monthlyGoal.toLocaleString()}\n`
     }
     
     if (userContext.settings.taxPercentage > 0) {

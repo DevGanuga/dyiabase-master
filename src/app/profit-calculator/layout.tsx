@@ -1,16 +1,5 @@
 import Link from 'next/link'
 
-// Dyia Avatar — uses the brand logo icon
-function DyiaAvatar({ className = 'w-10 h-10' }: { className?: string }) {
-  return (
-    <img 
-      src="/dyia-logo.png" 
-      alt="dyia" 
-      className={`${className} object-contain`}
-    />
-  )
-}
-
 export default function ProfitCalculatorLayout({
   children,
 }: { children: React.ReactNode }) {
@@ -23,9 +12,8 @@ export default function ProfitCalculatorLayout({
       <nav className="fixed top-0 left-0 right-0 z-50">
         <div className="mx-auto max-w-7xl px-6 py-4">
           <div className="flex items-center justify-between rounded-2xl bg-white/[0.03] backdrop-blur-xl border border-white/[0.06] px-6 py-3">
-            <Link href="/" className="flex items-center gap-2">
-              <DyiaAvatar className="w-8 h-8" />
-              <span className="text-xl font-bold bg-gradient-to-r from-orange-400 to-amber-400 bg-clip-text text-transparent">dyia</span>
+            <Link href="/" className="flex items-center">
+              <img src="/dyia-logo-full.png" alt="dyia" className="h-8 object-contain brightness-0 invert" />
             </Link>
             <div className="flex items-center gap-3">
               <Link href="/profit-calculator" className="text-sm text-slate-400 hover:text-white transition">Calculator</Link>

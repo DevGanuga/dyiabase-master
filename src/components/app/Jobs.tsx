@@ -7,6 +7,9 @@ import { formatCurrency } from '@/lib/utils'
 import { getReviewRequestMessage } from '@/lib/reviews'
 import { useConfirm } from '@/components/providers/ConfirmProvider'
 import { useCustomerAutocomplete } from '@/hooks/useCustomerAutocomplete'
+import { DyiaInsight } from './DyiaInsight'
+import { upsertCustomer } from '@/lib/customers'
+import { DyiaActionButton, DYIA_PROMPTS } from './DyiaActionButton'
 
 const REVIEW_PLATFORMS = ['Google', 'Yelp', 'Facebook'] as const
 
@@ -18,6 +21,8 @@ interface JobsProps {
   setSelectedMonth: (date: Date) => void
   settings?: AppSettings
   showSuccess: (message: string) => void
+  onOpenDyiaWithPrompt?: (prompt: string) => void
+  isPro?: boolean
 }
 
 interface TempCustomer {
@@ -37,12 +42,13 @@ interface TempExpenses {
 
 const MARKETING_SOURCES = ['Google', 'Facebook', 'Referral', 'Repeat Customer', 'Yelp', 'Craigslist', 'Instagram', 'Nextdoor', 'Thumbtack', 'HomeAdvisor', 'Website', 'Other']
 
-export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, settings, showSuccess }: JobsProps) {
+export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, settings, showSuccess, onOpenDyiaWithPrompt, isPro = true }: JobsProps) {
   const [editingJob, setEditingJob] = useState<AppJob | 'new' | null>(null)
   const [tempCustomers, setTempCustomers] = useState<TempCustomer[]>([])
   const [tempExpenses, setTempExpenses] = useState<TempExpenses>({ labor: 0, gas: 0, dumpFee: 0, dumpsterRental: 0, additional: 0 })
   const [tempDate, setTempDate] = useState(new Date().toISOString().split('T')[0])
   const [tempNotes, setTempNotes] = useState('')
+  const [tempAddress, setTempAddress] = useState('')
   const [saving, setSaving] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [sourceFilter, setSourceFilter] = useState<string>('all')
@@ -133,6 +139,7 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
     setTempExpenses({ labor: 0, gas: 0, dumpFee: 0, dumpsterRental: 0, additional: 0 })
     setTempDate(new Date().toISOString().split('T')[0])
     setTempNotes('')
+    setTempAddress('')
     setShowExpenseDetails(false)
   }
 
@@ -148,6 +155,7 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
     })
     setTempDate(job.date)
     setTempNotes(job.notes || '')
+    setTempAddress(job.address || '')
     const hasExpenses = (job.labor || 0) + (job.gas || 0) + (job.dumpFee || 0) + (job.dumpsterRental || 0) + (job.additionalExpense || 0) > 0
     setShowExpenseDetails(hasExpenses)
   }
@@ -198,6 +206,7 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
           dumpster_rental: Math.max(0, tempExpenses.dumpsterRental),
           additional_expense: Math.max(0, tempExpenses.additional),
           notes: tempNotes.trim() || null,
+          address: tempAddress.trim() || null,
         }
 
         const { error } = await supabase
@@ -239,6 +248,8 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
             dumpster_rental: Math.max(0, tempExpenses.dumpsterRental / expPerCustomer),
             additional_expense: Math.max(0, tempExpenses.additional / expPerCustomer),
             notes: tempNotes.trim() || null,
+            address: tempAddress.trim() || null,
+            status: 'completed',
           }
 
           const { data, error } = await supabase
@@ -270,6 +281,11 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
         const totalRev = validCustomers.reduce((s, c) => s + c.revenue, 0)
         const totalProf = totalRev - totalExpenses
         showSuccess(`${validCustomers.length === 1 ? 'Job' : `${validCustomers.length} jobs`} saved — ${formatCurrency(totalProf)} profit`)
+
+        // Auto-sync customers (fire and forget)
+        for (const customer of validCustomers) {
+          upsertCustomer(supabase, userId, customer.name.trim()).catch(() => {})
+        }
       }
 
       cancelForm()
@@ -523,16 +539,28 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
           )}
         </div>
 
-        {/* === NOTES === */}
-        <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl p-4 sm:p-5">
-          <label className="block text-sm font-semibold text-[var(--color-text-primary)] mb-2">Notes <span className="text-[var(--color-text-faint)] font-normal">(optional)</span></label>
-          <textarea
-            value={tempNotes}
-            onChange={(e) => setTempNotes(e.target.value)}
-            className="w-full px-3 py-2.5 bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 text-sm resize-none"
-            rows={2}
-            placeholder="Basement cleanout, 2nd floor, had to disconnect appliances..."
-          />
+        {/* === ADDRESS & NOTES === */}
+        <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl p-4 sm:p-5 space-y-3">
+          <div>
+            <label className="block text-sm font-semibold text-[var(--color-text-primary)] mb-2">Job Address <span className="text-[var(--color-text-faint)] font-normal">(optional)</span></label>
+            <input
+              type="text"
+              value={tempAddress}
+              onChange={(e) => setTempAddress(e.target.value)}
+              className="w-full px-3 py-2.5 bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 text-sm"
+              placeholder="123 Main St, Anytown, ST 12345"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-[var(--color-text-primary)] mb-2">Notes <span className="text-[var(--color-text-faint)] font-normal">(optional)</span></label>
+            <textarea
+              value={tempNotes}
+              onChange={(e) => setTempNotes(e.target.value)}
+              className="w-full px-3 py-2.5 bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 text-sm resize-none"
+              rows={2}
+              placeholder="Basement cleanout, 2nd floor, had to disconnect appliances..."
+            />
+          </div>
         </div>
 
         {/* === ACTIONS === */}
@@ -562,21 +590,35 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
   // ===================== LIST VIEW =====================
   return (
     <div className="space-y-4 sm:space-y-6 animate-view-enter">
+      {/* AI Insight Strip */}
+      {jobs.length > 2 && <DyiaInsight context="jobs" isPro={isPro} />}
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-[var(--color-text-primary)]">Jobs</h1>
           <p className="text-sm text-[var(--color-text-muted)]">{monthName}</p>
         </div>
-        <button 
-          onClick={startAddJob} 
-          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium rounded-xl transition-all w-full sm:w-auto"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          Log Job
-        </button>
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          {onOpenDyiaWithPrompt && (
+            <DyiaActionButton
+              variant="compact"
+              label="Log with Dyia"
+              prompt={DYIA_PROMPTS.logJob}
+              onClick={onOpenDyiaWithPrompt}
+              isPro={isPro}
+            />
+          )}
+          <button 
+            onClick={startAddJob} 
+            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium rounded-xl transition-all flex-1 sm:flex-initial"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Log Job
+          </button>
+        </div>
       </div>
 
       {/* Stats Summary */}
@@ -685,12 +727,22 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
                 : `Start by logging your first job for ${monthName}`}
             </p>
             {!searchQuery && sourceFilter === 'all' && (
-              <button onClick={startAddJob} className="inline-flex items-center gap-2 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium rounded-xl transition-all">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-                Log Your First Job
-              </button>
+              <div className="flex flex-wrap justify-center gap-2">
+                <button onClick={startAddJob} className="inline-flex items-center gap-2 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium rounded-xl transition-all">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                  Log Job Manually
+                </button>
+                {onOpenDyiaWithPrompt && (
+                  <DyiaActionButton
+                    label="Log with Dyia"
+                    prompt={DYIA_PROMPTS.logJob}
+                    onClick={onOpenDyiaWithPrompt}
+                    isPro={isPro}
+                  />
+                )}
+              </div>
             )}
           </div>
         ) : (

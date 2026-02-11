@@ -136,9 +136,8 @@ export default function LandingPage() {
       <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${mounted ? 'translate-y-0 opacity-100' : '-translate-y-4 opacity-0'}`}>
         <div className="mx-auto max-w-7xl px-6 py-4">
           <div className="flex items-center justify-between rounded-2xl bg-white/[0.03] backdrop-blur-xl border border-white/[0.06] px-6 py-3">
-            <Link href="/" className="flex items-center gap-2">
-              <DyiaAvatar className="w-8 h-8" />
-              <span className="text-xl font-bold bg-gradient-to-r from-orange-400 to-amber-400 bg-clip-text text-transparent">dyia</span>
+            <Link href="/" className="flex items-center">
+              <img src="/dyia-logo-full.png" alt="dyia" className="h-8 object-contain brightness-0 invert" />
             </Link>
             <div className="hidden md:flex items-center gap-8">
               <Link href="/profit-calculator" className="text-sm text-slate-400 hover:text-white transition">Free quiz</Link>
@@ -539,54 +538,6 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* ===== WHAT USERS ARE SAYING ===== */}
-        <section className="py-24 px-6 relative">
-          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-orange-950/5 to-transparent" />
-          <div className="max-w-5xl mx-auto relative">
-            <div className="text-center mb-16">
-              <p className="text-orange-400 text-sm font-medium uppercase tracking-wider mb-3">Real talk</p>
-              <h2 className="text-4xl sm:text-5xl font-bold text-white mb-4">What owners are saying</h2>
-            </div>
-            
-            <div className="grid md:grid-cols-3 gap-6">
-              {[
-                {
-                  quote: 'I used to track everything in Notes. One month I thought I made $6K — turns out after expenses it was $2,800. dyia showed me that on day one.',
-                  name: 'Marcus R.',
-                  role: 'Junk removal, Atlanta',
-                  metric: 'Saved $3,200/yr in tax surprises',
-                },
-                {
-                  quote: 'The quote builder alone is worth it. I was texting estimates to people. Now I send a PDF with my logo that looks like a real company. Conversion went way up.',
-                  name: 'Jake T.',
-                  role: 'Hauling & demo, Phoenix',
-                  metric: '35% higher quote close rate',
-                },
-                {
-                  quote: 'I tried Jobber for a month. Spent more time setting it up than working. dyia took me 2 minutes and I was logging jobs from the truck.',
-                  name: 'Priya S.',
-                  role: 'Estate cleanout, Portland',
-                  metric: 'Switched from Jobber in a week',
-                },
-              ].map((t, i) => (
-                <div key={i} className="bg-white/[0.02] border border-white/[0.06] rounded-2xl p-6 flex flex-col">
-                  <div className="flex gap-1 mb-4">
-                    {[...Array(5)].map((_, j) => (
-                      <svg key={j} className="w-4 h-4 text-orange-400" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>
-                    ))}
-                  </div>
-                  <p className="text-slate-300 text-sm leading-relaxed mb-4 flex-1">&quot;{t.quote}&quot;</p>
-                  <div className="border-t border-white/[0.06] pt-4">
-                    <p className="text-white text-sm font-medium">{t.name}</p>
-                    <p className="text-slate-500 text-xs">{t.role}</p>
-                    <p className="text-orange-400 text-xs font-medium mt-1">{t.metric}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
         {/* ===== WHO IT'S FOR ===== */}
         <BusinessTypes />
 
@@ -612,7 +563,7 @@ export default function LandingPage() {
                   </thead>
                   <tbody>
                     {[
-                      { feature: 'Starting price', jobber: '$349/mo', housecall: '$65/mo', dyia: '$14.99/mo' },
+                      { feature: 'Starting price', jobber: '$349/mo', housecall: '$65/mo', dyia: '$19.99/mo' },
                       { feature: 'Job tracking', jobber: true, housecall: true, dyia: true },
                       { feature: 'Quote builder', jobber: true, housecall: true, dyia: true },
                       { feature: 'Customer CRM', jobber: true, housecall: true, dyia: true },
@@ -676,10 +627,10 @@ export default function LandingPage() {
                 <h3 className="text-2xl font-bold text-white mb-1">Basic</h3>
                 <p className="text-slate-500 text-sm mb-6">Essential profit tracking</p>
                 <div className="flex items-baseline gap-1 mb-6">
-                  <span className="text-5xl font-bold text-white">${billingCycle === 'monthly' ? '14.99' : '143'}</span>
+                  <span className="text-5xl font-bold text-white">${billingCycle === 'monthly' ? '19.99' : '192'}</span>
                   <span className="text-slate-500">/{billingCycle === 'monthly' ? 'mo' : 'year'}</span>
                 </div>
-                {billingCycle === 'annual' && <p className="text-green-400 text-sm mb-6">$11.92/mo — save $36/year</p>}
+                {billingCycle === 'annual' && <p className="text-green-400 text-sm mb-6">$15.99/mo — save $48/year</p>}
                 <ul className="space-y-3 mb-8">
                   {['Unlimited job tracking', 'Profit dashboard', 'Tax set-aside calculator', 'Quote builder + PDF export', 'Customer database & CRM', 'Follow-up pipeline', 'Fixed expense tracking', 'Review requests', 'Lead source analytics', 'CSV data export'].map((f, i) => (
                     <li key={i} className="flex items-center gap-3 text-sm text-slate-300">
@@ -704,10 +655,10 @@ export default function LandingPage() {
                 </div>
                 <p className="text-slate-500 text-sm mb-6">Everything + Dyia AI + Marketing</p>
                 <div className="flex items-baseline gap-1 mb-6">
-                  <span className="text-5xl font-bold text-white">${billingCycle === 'monthly' ? '24.99' : '239'}</span>
+                  <span className="text-5xl font-bold text-white">${billingCycle === 'monthly' ? '29.99' : '288'}</span>
                   <span className="text-slate-500">/{billingCycle === 'monthly' ? 'mo' : 'year'}</span>
                 </div>
-                {billingCycle === 'annual' && <p className="text-green-400 text-sm mb-6">$19.92/mo — save $60/year</p>}
+                {billingCycle === 'annual' && <p className="text-green-400 text-sm mb-6">$23.99/mo — save $72/year</p>}
                 <ul className="space-y-3 mb-8">
                   {[
                     { text: 'Everything in Basic', highlight: false },
@@ -814,9 +765,8 @@ export default function LandingPage() {
         <div className="max-w-5xl mx-auto">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-12">
             <div className="col-span-2 md:col-span-1">
-              <div className="flex items-center gap-2 mb-4">
-                <DyiaAvatar className="w-7 h-7" />
-                <span className="font-bold bg-gradient-to-r from-orange-400 to-amber-400 bg-clip-text text-transparent">dyia</span>
+              <div className="flex items-center mb-4">
+                <img src="/dyia-logo-full.png" alt="dyia" className="h-7 object-contain brightness-0 invert" />
               </div>
               <p className="text-sm text-slate-500 leading-relaxed">Your day, decoded. The AI-powered business manager for service professionals.</p>
             </div>

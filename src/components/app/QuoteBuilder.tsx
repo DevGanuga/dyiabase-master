@@ -6,6 +6,7 @@ import type { AppQuote, AppPriceTemplate, AppJob, QuoteStatus } from '@/types/da
 import { formatCurrency, compressImage } from '@/lib/utils'
 import { useConfirm } from '@/components/providers/ConfirmProvider'
 import { useCustomerAutocomplete } from '@/hooks/useCustomerAutocomplete'
+import { upsertCustomer } from '@/lib/customers'
 
 interface QuoteBuilderProps {
   quotes: AppQuote[]
@@ -15,6 +16,8 @@ interface QuoteBuilderProps {
   customerNames?: string[]
   onBack: () => void
   showSuccess: (message: string) => void
+  onOpenDyiaWithPrompt?: (prompt: string) => void
+  isPro?: boolean
 }
 
 const PRICE_FIELDS = [
@@ -79,7 +82,7 @@ function Section({ title, icon, badge, defaultOpen = true, children }: {
   )
 }
 
-export function QuoteBuilder({ quotes, setQuotes, userId, selectedJob, customerNames = [], onBack, showSuccess }: QuoteBuilderProps) {
+export function QuoteBuilder({ quotes, setQuotes, userId, selectedJob, customerNames = [], onBack, showSuccess, onOpenDyiaWithPrompt, isPro = true }: QuoteBuilderProps) {
   const { nameList, findByName } = useCustomerAutocomplete(customerNames)
 
   const [customer, setCustomer] = useState(() => ({
@@ -114,6 +117,7 @@ export function QuoteBuilder({ quotes, setQuotes, userId, selectedJob, customerN
   const [defaultTemplate, setDefaultTemplate] = useState<AppPriceTemplate | null>(null)
   const [templateLoaded, setTemplateLoaded] = useState(false)
   const [showSummary, setShowSummary] = useState(false)
+  const [quoteSource, setQuoteSource] = useState('')
 
   const supabase = useMemo(() => createClient(), [])
   const { alert } = useConfirm()
@@ -264,6 +268,7 @@ export function QuoteBuilder({ quotes, setQuotes, userId, selectedJob, customerN
         customer_email: customer.email || null,
         customer_address: customer.address || null,
         job_description: customer.jobDescription || null,
+        source: quoteSource || null,
         pricing: {
           ...pricing,
           multipleLoads: { numLoads, pricePerLoad, total: multipleLoadsTotal }
@@ -300,6 +305,13 @@ export function QuoteBuilder({ quotes, setQuotes, userId, selectedJob, customerN
         console.error('Error creating follow-up:', followUpError)
         // Non-fatal: quote was saved, follow-up creation failed
       }
+
+      // Auto-sync customer (fire and forget)
+      upsertCustomer(supabase, userId, customer.name.trim(), {
+        phone: customer.phone || null,
+        email: customer.email || null,
+        address: customer.address || null,
+      }).catch(() => {})
 
       const newQuote: AppQuote = {
         id: data.id,
@@ -524,6 +536,36 @@ export function QuoteBuilder({ quotes, setQuotes, userId, selectedJob, customerN
               rows={2}
               placeholder="Describe the work to be done..."
             />
+            {/* AI Pricing Suggestion */}
+            {customer.jobDescription && customer.jobDescription.length > 10 && onOpenDyiaWithPrompt && isPro && (
+              <button
+                type="button"
+                onClick={() => onOpenDyiaWithPrompt(`I need to price a job: "${customer.jobDescription}". Based on my job history, what should I charge? Give me a suggested price range.`)}
+                className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-orange-600 dark:text-orange-400 bg-orange-50/80 dark:bg-orange-950/30 border border-orange-200/50 dark:border-orange-800/30 rounded-lg hover:bg-orange-100 dark:hover:bg-orange-950/50 transition-all"
+              >
+                <img src="/dyia-agent.png" alt="" className="w-3.5 h-3.5 object-contain" />
+                Get AI pricing suggestion
+              </button>
+            )}
+            {customer.jobDescription && customer.jobDescription.length > 10 && !isPro && (
+              <div className="mt-2 flex items-center gap-1.5 text-xs text-slate-400">
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                AI pricing suggestions available with <span className="text-orange-500 font-medium">Dyia Pro</span>
+              </div>
+            )}
+          </div>
+          <div className="mt-3">
+            <label className="app-label">Lead Source</label>
+            <select
+              value={quoteSource}
+              onChange={(e) => setQuoteSource(e.target.value)}
+              className="app-input"
+            >
+              <option value="">Select source...</option>
+              {['Google', 'Facebook', 'Referral', 'Repeat Customer', 'Yelp', 'Craigslist', 'Instagram', 'Nextdoor', 'Thumbtack', 'HomeAdvisor', 'Website', 'Other'].map(s => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
           </div>
         </div>
 

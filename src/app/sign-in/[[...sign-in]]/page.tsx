@@ -2,7 +2,6 @@
 
 import { SignIn } from '@clerk/nextjs'
 import Link from 'next/link'
-import Image from 'next/image'
 
 export default function SignInPage() {
   return (
@@ -15,12 +14,10 @@ export default function SignInPage() {
 
       {/* Logo */}
       <Link href="/" className="mb-8 group">
-        <Image 
-          src="/dyia-logo-full.png" 
-          alt="dyia logo" 
-          width={120} 
-          height={40}
-          className="group-hover:scale-105 transition-transform"
+        <img
+          src="/dyia-logo-full.png"
+          alt="dyia"
+          className="h-10 object-contain group-hover:scale-105 transition-transform"
         />
       </Link>
 

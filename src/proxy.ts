@@ -4,14 +4,14 @@ import { NextResponse } from 'next/server'
 // Routes that require authentication  
 const isProtectedRoute = createRouteMatcher(['/app(.*)'])
 
-// Demo password
-const DEMO_PASSWORD = process.env.DEMO_PASSWORD || 'dyia-demo-2026'
-
 export const proxy = clerkMiddleware(async (auth, req) => {
-  // Demo mode bypass
-  const demoToken = req.cookies.get('dyia_demo_access')?.value
-  if (demoToken === DEMO_PASSWORD) {
-    return NextResponse.next()
+  // Demo mode bypass (requires DEMO_PASSWORD env var - no hardcoded fallback)
+  const demoPassword = process.env.DEMO_PASSWORD
+  if (demoPassword) {
+    const demoToken = req.cookies.get('dyia_demo_access')?.value
+    if (demoToken === demoPassword) {
+      return NextResponse.next()
+    }
   }
 
   // Check auth for protected routes

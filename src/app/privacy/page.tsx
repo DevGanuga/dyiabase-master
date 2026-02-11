@@ -15,9 +15,8 @@ export default function PrivacyPage() {
 
       <nav className="border-b border-white/[0.06] bg-white/[0.02] backdrop-blur-xl">
         <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2">
-            <img src="/dyia-logo.png" alt="dyia" className="w-8 h-8 object-contain" />
-            <span className="text-xl font-bold bg-gradient-to-r from-orange-400 to-amber-400 bg-clip-text text-transparent">dyia</span>
+          <Link href="/" className="flex items-center">
+            <img src="/dyia-logo-full.png" alt="dyia" className="h-8 object-contain brightness-0 invert" />
           </Link>
           <div className="flex items-center gap-4">
             <Link href="/" className="text-sm text-slate-400 hover:text-white transition">Home</Link>

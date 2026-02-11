@@ -133,8 +133,11 @@ export interface SourceROI {
   spend: number
   revenue: number
   jobs: number
+  quotes?: number
   roi: number
   costPerJob: number
+  costPerLead?: number
+  conversionRate?: number
 }
 
 export interface ReviewRequest {
@@ -155,6 +158,8 @@ export interface AppReviewRequest {
 }
 
 // App-side transformed types (camelCase)
+export type JobStatus = 'scheduled' | 'in_progress' | 'completed' | 'cancelled'
+
 export interface AppJob {
   id: string
   date: string
@@ -169,6 +174,8 @@ export interface AppJob {
   numWorkers: number
   costPerWorker: number
   notes?: string
+  status?: JobStatus
+  address?: string
 }
 
 export interface AppQuote {

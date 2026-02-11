@@ -688,7 +688,12 @@ export function Settings({ settings, setSettings, userId, showSuccess, userProfi
               {/* Plan Comparison */}
               {subscription.tier !== 'pro' && !isDemoMode && (
                 <div className="mb-5">
-                  <h4 className="text-sm font-semibold text-[var(--color-text-primary)] mb-3">Upgrade to Pro</h4>
+                  <h4 className="text-sm font-semibold text-[var(--color-text-primary)] mb-1">
+                    {subscription.tier === 'basic' ? 'Start Your 14-Day Free Trial' : 'Upgrade to Pro'}
+                  </h4>
+                  <p className="text-xs text-[var(--color-text-muted)] mb-3">
+                    {subscription.tier === 'basic' ? 'Try Pro free for 14 days. You won\'t be charged until the trial ends.' : 'Keep your Pro features active.'}
+                  </p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {/* Monthly */}
                     <button
@@ -713,7 +718,7 @@ export function Settings({ settings, setSettings, userId, showSuccess, userProfi
                       className="flex flex-col items-center p-4 rounded-xl border-2 border-[var(--color-border)] hover:border-orange-500 transition-colors text-left group"
                     >
                       <span className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wide mb-1">Monthly</span>
-                      <span className="text-2xl font-bold text-[var(--color-text-primary)]">$29<span className="text-sm font-normal text-[var(--color-text-muted)]">/mo</span></span>
+                      <span className="text-2xl font-bold text-[var(--color-text-primary)]">$29.99<span className="text-sm font-normal text-[var(--color-text-muted)]">/mo</span></span>
                       <span className="text-xs text-[var(--color-text-muted)] mt-1">Cancel anytime</span>
                     </button>
                     {/* Annual */}
@@ -740,8 +745,8 @@ export function Settings({ settings, setSettings, userId, showSuccess, userProfi
                     >
                       <span className="absolute -top-2.5 right-3 px-2 py-0.5 bg-orange-500 text-white text-[10px] font-bold rounded-full">SAVE 17%</span>
                       <span className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wide mb-1">Annual</span>
-                      <span className="text-2xl font-bold text-[var(--color-text-primary)]">$24<span className="text-sm font-normal text-[var(--color-text-muted)]">/mo</span></span>
-                      <span className="text-xs text-[var(--color-text-muted)] mt-1">$288 billed yearly</span>
+                      <span className="text-2xl font-bold text-[var(--color-text-primary)]">$23.92<span className="text-sm font-normal text-[var(--color-text-muted)]">/mo</span></span>
+                      <span className="text-xs text-[var(--color-text-muted)] mt-1">$287 billed yearly</span>
                     </button>
                   </div>
                   <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs text-[var(--color-text-muted)]">

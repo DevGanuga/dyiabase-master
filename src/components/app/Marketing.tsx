@@ -328,10 +328,13 @@ export function Marketing({ showSuccess, isPro = false }: MarketingProps) {
                   <tr className="border-b border-[var(--color-border)] bg-[var(--color-bg-subtle)]">
                     <th className="text-left p-3 font-medium text-[var(--color-text-secondary)]">Source</th>
                     <th className="text-right p-3 font-medium text-[var(--color-text-secondary)]">Spend</th>
-                    <th className="text-right p-3 font-medium text-[var(--color-text-secondary)]">Revenue</th>
+                    <th className="text-right p-3 font-medium text-[var(--color-text-secondary)]">Leads</th>
                     <th className="text-right p-3 font-medium text-[var(--color-text-secondary)]">Jobs</th>
+                    <th className="text-right p-3 font-medium text-[var(--color-text-secondary)]">Conv %</th>
+                    <th className="text-right p-3 font-medium text-[var(--color-text-secondary)]">Revenue</th>
                     <th className="text-right p-3 font-medium text-[var(--color-text-secondary)]">ROI %</th>
-                    <th className="text-right p-3 font-medium text-[var(--color-text-secondary)]">Cost/job</th>
+                    <th className="text-right p-3 font-medium text-[var(--color-text-secondary)] hidden sm:table-cell">Cost/Lead</th>
+                    <th className="text-right p-3 font-medium text-[var(--color-text-secondary)] hidden sm:table-cell">Cost/Job</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -339,10 +342,25 @@ export function Marketing({ showSuccess, isPro = false }: MarketingProps) {
                     <tr key={row.source} className="border-b border-[var(--color-border)] last:border-0">
                       <td className="p-3 font-medium text-[var(--color-text-primary)]">{row.source}</td>
                       <td className="p-3 text-right text-[var(--color-text-secondary)]">{formatCurrency(row.spend)}</td>
-                      <td className="p-3 text-right text-[var(--color-text-secondary)]">{formatCurrency(row.revenue)}</td>
+                      <td className="p-3 text-right text-[var(--color-text-secondary)]">{row.quotes || 0}</td>
                       <td className="p-3 text-right text-[var(--color-text-secondary)]">{row.jobs}</td>
-                      <td className="p-3 text-right text-[var(--color-text-secondary)]">{row.roi.toFixed(0)}%</td>
-                      <td className="p-3 text-right text-[var(--color-text-secondary)]">{formatCurrency(row.costPerJob)}</td>
+                      <td className="p-3 text-right">
+                        <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${
+                          (row.conversionRate || 0) >= 50 ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' :
+                          (row.conversionRate || 0) >= 25 ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400' :
+                          'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                        }`}>
+                          {row.conversionRate || 0}%
+                        </span>
+                      </td>
+                      <td className="p-3 text-right text-[var(--color-text-secondary)]">{formatCurrency(row.revenue)}</td>
+                      <td className="p-3 text-right">
+                        <span className={row.roi >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500'}>
+                          {row.roi.toFixed(0)}%
+                        </span>
+                      </td>
+                      <td className="p-3 text-right text-[var(--color-text-secondary)] hidden sm:table-cell">{formatCurrency(row.costPerLead || 0)}</td>
+                      <td className="p-3 text-right text-[var(--color-text-secondary)] hidden sm:table-cell">{formatCurrency(row.costPerJob)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -394,10 +412,11 @@ export function Marketing({ showSuccess, isPro = false }: MarketingProps) {
 
       {/* Add/Edit modal */}
       {showForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={() => setShowForm(false)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-[2px]" onClick={() => setShowForm(false)}>
           <div
-            className="bg-[var(--color-bg)] border border-[var(--color-border)] rounded-xl shadow-xl max-w-md w-full p-6"
+            className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-2xl shadow-2xl max-w-md w-full p-6"
             onClick={(e) => e.stopPropagation()}
+            style={{ animation: 'dyiaPanelPopIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) both' }}
           >
             <h3 className="text-lg font-semibold text-[var(--color-text-primary)] mb-4">{editingId ? 'Edit spend' : 'Add spend'}</h3>
             <div className="space-y-4">

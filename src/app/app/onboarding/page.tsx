@@ -5,11 +5,10 @@ import { useUser, UserButton } from '@clerk/nextjs'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useTheme } from '@/hooks/useTheme'
-import Image from 'next/image'
 
-type Step = 'welcome' | 'profile' | 'business' | 'financials' | 'template'
+type Step = 'welcome' | 'profile' | 'business' | 'goals' | 'financials' | 'template'
 
-const STEPS: Step[] = ['welcome', 'profile', 'business', 'financials', 'template']
+const STEPS: Step[] = ['welcome', 'profile', 'business', 'goals', 'financials', 'template']
 
 const BUSINESS_TYPES = [
   { id: 'junk_removal', label: 'Junk Removal', icon: '🚛' },
@@ -32,6 +31,33 @@ const REFERRAL_SOURCES = [
   { id: 'social', label: 'Social Media' },
   { id: 'friend', label: 'Referral' },
   { id: 'other', label: 'Other' },
+]
+
+const BUSINESS_STAGES = [
+  { id: 'starting', label: 'Just starting out', icon: '🌱' },
+  { id: 'growing', label: 'Growing', icon: '📈' },
+  { id: 'established', label: 'Established', icon: '🏢' },
+]
+
+const BIGGEST_CHALLENGES = [
+  { id: 'getting_customers', label: 'Getting customers' },
+  { id: 'pricing', label: 'Pricing right' },
+  { id: 'time_management', label: 'Managing time' },
+  { id: 'tracking_money', label: 'Tracking money' },
+  { id: 'hiring', label: 'Hiring & team' },
+]
+
+const PRICING_PHILOSOPHIES = [
+  { id: 'budget', label: 'Lowest price wins', desc: 'Compete on price' },
+  { id: 'value', label: 'Fair price, great service', desc: 'Balance of both' },
+  { id: 'premium', label: 'Premium service', desc: 'Higher price, top quality' },
+]
+
+const YEARS_OPTIONS = [
+  { id: 'new', label: '< 1 year' },
+  { id: '1-3', label: '1-3 years' },
+  { id: '3-5', label: '3-5 years' },
+  { id: '5+', label: '5+ years' },
 ]
 
 export default function OnboardingPage() {
@@ -67,6 +93,14 @@ export default function OnboardingPage() {
   const [referralSource, setReferralSource] = useState('')
   const [logoFile, setLogoFile] = useState<File | null>(null)
   const [logoPreview, setLogoPreview] = useState<string | null>(null)
+  const [businessAddress, setBusinessAddress] = useState('')
+  const [serviceArea, setServiceArea] = useState('')
+  const [yearsInBusiness, setYearsInBusiness] = useState('')
+  
+  // Goals & Strategy state
+  const [businessStage, setBusinessStage] = useState('')
+  const [biggestChallenge, setBiggestChallenge] = useState('')
+  const [pricingPhilosophy, setPricingPhilosophy] = useState('')
   
   // Financial state
   const [taxPercentage, setTaxPercentage] = useState(30)
@@ -274,6 +308,7 @@ export default function OnboardingPage() {
           business_name: businessName || null,
           business_phone: businessPhone || null,
           business_email: businessEmail || null,
+          business_address: businessAddress || null,
           business_logo: logoUrl,
           tax_percentage: taxPercentage,
           monthly_goal: monthlyGoal,
@@ -283,6 +318,11 @@ export default function OnboardingPage() {
             business_type: businessType,
             team_size: teamSize,
             referral_source: referralSource,
+            service_area: serviceArea || undefined,
+            years_in_business: yearsInBusiness || undefined,
+            business_stage: businessStage || undefined,
+            biggest_challenge: biggestChallenge || undefined,
+            pricing_philosophy: pricingPhilosophy || undefined,
           }
         })
         .eq('user_id', userId)
@@ -349,13 +389,13 @@ export default function OnboardingPage() {
           : 'bg-gradient-to-br from-orange-50 via-white to-amber-50'
       }`}>
         <div className="text-center">
-          <Image 
-            src="/dyia-logo-full.png" 
-            alt="dyia" 
-            width={100} 
-            height={36}
-            className={`mx-auto mb-6 ${isDark ? 'brightness-0 invert opacity-90' : ''}`}
-          />
+          <div className="flex items-center justify-center mb-6">
+            <img
+              src="/dyia-logo-full.png"
+              alt="dyia"
+              className="h-10 object-contain"
+            />
+          </div>
           <div style={{ width: 24, height: 24, border: '2px solid #f97316', borderTopColor: 'transparent', borderRadius: '50%', margin: '0 auto' }} className="animate-spin" />
         </div>
       </div>
@@ -366,6 +406,7 @@ export default function OnboardingPage() {
     welcome: 'Welcome',
     profile: 'You',
     business: 'Business',
+    goals: 'Goals',
     financials: 'Finances',
     template: 'Pricing',
   }
@@ -401,13 +442,13 @@ export default function OnboardingPage() {
       <div className={`min-h-screen transition-colors duration-300 ${colors.bg} ${colors.text}`}>
         {/* Header */}
         <header className="absolute top-0 left-0 right-0 px-6 py-4 flex items-center justify-between z-50">
-          <Image 
-            src="/dyia-logo-full.png" 
-            alt="dyia" 
-            width={80} 
-            height={28}
-            className={isDark ? 'brightness-0 invert opacity-90' : ''}
-          />
+          <div className="flex items-center">
+            <img
+              src="/dyia-logo-full.png"
+              alt="dyia"
+              className="h-9 object-contain"
+            />
+          </div>
           
           <div className="flex items-center gap-3">
             {/* Theme Toggle */}
@@ -640,7 +681,7 @@ export default function OnboardingPage() {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-2 gap-3 mb-5">
                       <div>
                         <label className={`block text-sm mb-1.5 ${colors.textMuted}`}>Phone</label>
                         <input
@@ -660,6 +701,111 @@ export default function OnboardingPage() {
                           placeholder="hello@business.com"
                           className={`w-full px-4 py-3 rounded-xl border text-sm outline-none transition-all ${colors.input}`}
                         />
+                      </div>
+                    </div>
+
+                    <div className="mb-5">
+                      <label className={`block text-sm mb-1.5 ${colors.textMuted}`}>Business Address</label>
+                      <input
+                        type="text"
+                        value={businessAddress}
+                        onChange={(e) => setBusinessAddress(e.target.value)}
+                        placeholder="123 Main St, City, State"
+                        className={`w-full px-4 py-3 rounded-xl border text-sm outline-none transition-all ${colors.input}`}
+                      />
+                      <p className={`text-[10px] mt-1 ${colors.textSubtle}`}>Shows on your quote PDFs</p>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className={`block text-sm mb-1.5 ${colors.textMuted}`}>Service Area</label>
+                        <input
+                          type="text"
+                          value={serviceArea}
+                          onChange={(e) => setServiceArea(e.target.value)}
+                          placeholder="e.g. Metro Atlanta"
+                          className={`w-full px-4 py-3 rounded-xl border text-sm outline-none transition-all ${colors.input}`}
+                        />
+                      </div>
+                      <div>
+                        <label className={`block text-sm mb-2 ${colors.textMuted}`}>Years in Business</label>
+                        <div className="flex gap-1.5">
+                          {YEARS_OPTIONS.map((opt) => (
+                            <button
+                              key={opt.id}
+                              type="button"
+                              onClick={() => setYearsInBusiness(opt.id)}
+                              className={`flex-1 px-1.5 py-2 rounded-lg border text-[11px] font-medium transition-all ${
+                                yearsInBusiness === opt.id ? colors.chipActive : colors.chip
+                              }`}
+                            >
+                              {opt.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {currentStep === 'goals' && (
+                  <div>
+                    <h2 className="text-2xl font-bold mb-2">Your goals</h2>
+                    <p className={`mb-6 ${colors.textMuted}`}>Helps Dyia give you better advice</p>
+                    
+                    <div className="mb-5">
+                      <label className={`block text-sm mb-2 ${colors.textMuted}`}>Where is your business at?</label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {BUSINESS_STAGES.map((stage) => (
+                          <button
+                            key={stage.id}
+                            type="button"
+                            onClick={() => setBusinessStage(stage.id)}
+                            className={`px-3 py-3 rounded-xl border text-sm font-medium transition-all flex flex-col items-center gap-1.5 ${
+                              businessStage === stage.id ? colors.chipActive : colors.chip
+                            }`}
+                          >
+                            <span className="text-xl">{stage.icon}</span>
+                            <span>{stage.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="mb-5">
+                      <label className={`block text-sm mb-2 ${colors.textMuted}`}>Biggest challenge right now?</label>
+                      <div className="flex flex-wrap gap-2">
+                        {BIGGEST_CHALLENGES.map((ch) => (
+                          <button
+                            key={ch.id}
+                            type="button"
+                            onClick={() => setBiggestChallenge(ch.id)}
+                            className={`px-4 py-2 rounded-lg border text-sm font-medium transition-all ${
+                              biggestChallenge === ch.id ? colors.chipActive : colors.chip
+                            }`}
+                          >
+                            {ch.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className={`block text-sm mb-2 ${colors.textMuted}`}>Pricing approach?</label>
+                      <div className="space-y-2">
+                        {PRICING_PHILOSOPHIES.map((ph) => (
+                          <button
+                            key={ph.id}
+                            type="button"
+                            onClick={() => setPricingPhilosophy(ph.id)}
+                            className={`w-full px-4 py-3 rounded-xl border text-left transition-all ${
+                              pricingPhilosophy === ph.id ? colors.chipActive : colors.chip
+                            }`}
+                          >
+                            <div className="font-medium text-sm">{ph.label}</div>
+                            <div className={`text-xs mt-0.5 ${pricingPhilosophy === ph.id ? 'text-white/70' : colors.textSubtle}`}>{ph.desc}</div>
+                          </button>
+                        ))}
                       </div>
                     </div>
                   </div>

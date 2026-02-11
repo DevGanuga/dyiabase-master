@@ -7,6 +7,7 @@ import { formatCurrency } from '@/lib/utils'
 import { getReviewRequestMessage } from '@/lib/reviews'
 import { jsPDF } from 'jspdf'
 import { useConfirm } from '@/components/providers/ConfirmProvider'
+import { DyiaActionButton, DYIA_PROMPTS } from './DyiaActionButton'
 
 interface QuotesProps {
   quotes: AppQuote[]
@@ -16,6 +17,8 @@ interface QuotesProps {
   settings: AppSettings
   onCreateQuote: (job?: AppJob) => void
   showSuccess: (message: string) => void
+  onOpenDyiaWithPrompt?: (prompt: string) => void
+  isPro?: boolean
 }
 
 const STATUS_CONFIG: Record<QuoteStatus, { label: string; color: string; bg: string }> = {
@@ -29,7 +32,7 @@ const STATUS_CONFIG: Record<QuoteStatus, { label: string; color: string; bg: str
 
 const REVIEW_PLATFORMS = ['Google', 'Yelp', 'Facebook'] as const
 
-export function Quotes({ quotes, setQuotes, jobs, userId, settings, onCreateQuote, showSuccess }: QuotesProps) {
+export function Quotes({ quotes, setQuotes, jobs, userId, settings, onCreateQuote, showSuccess, onOpenDyiaWithPrompt, isPro = true }: QuotesProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<QuoteStatus | 'all'>('all')
   const [linkingQuoteId, setLinkingQuoteId] = useState<string | null>(null)
@@ -349,15 +352,25 @@ export function Quotes({ quotes, setQuotes, jobs, userId, settings, onCreateQuot
                 Auto follow-ups
               </div>
             </div>
-            <button
-              onClick={() => onCreateQuote()}
-              className="inline-flex items-center gap-2 px-5 py-2.5 bg-orange-500 hover:bg-orange-600 text-white font-medium rounded-xl transition-all duration-200 group"
-            >
-              <svg className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              Create Your First Quote
-            </button>
+            <div className="flex flex-wrap justify-center gap-3">
+              <button
+                onClick={() => onCreateQuote()}
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-orange-500 hover:bg-orange-600 text-white font-medium rounded-xl transition-all duration-200 group"
+              >
+                <svg className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Create Your First Quote
+              </button>
+              {onOpenDyiaWithPrompt && (
+                <DyiaActionButton
+                  label="Create with Dyia"
+                  prompt={DYIA_PROMPTS.createQuote}
+                  onClick={onOpenDyiaWithPrompt}
+                  isPro={isPro}
+                />
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -371,12 +384,23 @@ export function Quotes({ quotes, setQuotes, jobs, userId, settings, onCreateQuot
           <h1 className="page-title">Quotes</h1>
           <p className="page-subtitle">{quotes.length} estimate{quotes.length !== 1 ? 's' : ''} total</p>
         </div>
-        <button onClick={() => onCreateQuote()} className="app-btn-primary">
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          New Quote
-        </button>
+        <div className="flex items-center gap-2">
+          {onOpenDyiaWithPrompt && (
+            <DyiaActionButton
+              variant="compact"
+              label="Quote with Dyia"
+              prompt={DYIA_PROMPTS.createQuote}
+              onClick={onOpenDyiaWithPrompt}
+              isPro={isPro}
+            />
+          )}
+          <button onClick={() => onCreateQuote()} className="app-btn-primary">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            New Quote
+          </button>
+        </div>
       </div>
 
       {/* Filters Row */}
@@ -544,6 +568,32 @@ export function Quotes({ quotes, setQuotes, jobs, userId, settings, onCreateQuot
                       title="Mark as declined"
                     >
                       Declined
+                    </button>
+                  )}
+                  {quote.status === 'accepted' && !linkedJob && (
+                    <button
+                      onClick={() => {
+                        // Pre-fill a job from this accepted quote
+                        const fakeJob = {
+                          id: '',
+                          date: new Date().toISOString().split('T')[0],
+                          customerName: quote.customer.name,
+                          source: 'Quote',
+                          revenue: quote.total || quote.estimateRange.high || 0,
+                          labor: 0, gas: 0, dumpFee: 0, dumpsterRental: 0, additionalExpense: 0,
+                          numWorkers: 1, costPerWorker: 0,
+                          notes: quote.customer.jobDescription || '',
+                          address: quote.customer.address || '',
+                        }
+                        onCreateQuote(fakeJob as unknown as AppJob)
+                      }}
+                      className="text-xs px-2.5 py-1 rounded-lg bg-orange-50 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 hover:bg-orange-100 dark:hover:bg-orange-900/50 transition font-medium flex items-center gap-1"
+                      title="Create a job from this accepted quote"
+                    >
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      </svg>
+                      Schedule Job
                     </button>
                   )}
                 </div>

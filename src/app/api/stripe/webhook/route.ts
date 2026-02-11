@@ -3,6 +3,7 @@ import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
 import { sendEmail, isResendConfigured } from '@/lib/resend/client'
 import { subscriptionConfirmedEmail } from '@/lib/resend/templates'
+import { logWebhookEvent } from '@/lib/admin'
 
 function getStripe() {
   if (!process.env.STRIPE_SECRET_KEY) {
@@ -73,6 +74,16 @@ export async function POST(request: NextRequest) {
         break
       }
 
+      case 'invoice.paid': {
+        // Handles trial-to-paid conversion and recurring payments
+        const paidInvoice = event.data.object as Stripe.Invoice & { subscription?: string | null }
+        if (paidInvoice.subscription) {
+          const sub = await stripe.subscriptions.retrieve(paidInvoice.subscription)
+          await handleSubscriptionUpdate(supabase, sub)
+        }
+        break
+      }
+
       case 'invoice.payment_failed': {
         const invoice = event.data.object as Stripe.Invoice
         await handlePaymentFailed(supabase, invoice)
@@ -83,9 +94,14 @@ export async function POST(request: NextRequest) {
         console.log(`Unhandled event type: ${event.type}`)
     }
 
+    // Log successful webhook event
+    logWebhookEvent('stripe', event.type, event.id, { type: event.type, data_object_id: (event.data.object as { id?: string }).id }).catch(() => {})
+
     return NextResponse.json({ received: true })
   } catch (error) {
     console.error('Webhook handler error:', error)
+    // Log failed webhook event
+    logWebhookEvent('stripe', event.type, event.id, { type: event.type }, 'error', error instanceof Error ? error.message : 'Unknown error').catch(() => {})
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
@@ -119,21 +135,37 @@ async function handleCheckoutComplete(stripe: Stripe, supabase: any, session: St
     return
   }
 
+  if (!subscriptionId) {
+    console.error('No subscription ID in checkout session')
+    return
+  }
+
   const subscriptionResponse = await stripe.subscriptions.retrieve(subscriptionId)
   // Use type assertion to handle the response
   const subscription = subscriptionResponse as unknown as { 
+    status: string
     items: { data: Array<{ price?: { recurring?: { interval?: string } } }> }
-    current_period_end?: number 
+    current_period_end?: number
+    trial_end?: number | null
   }
   const plan = subscription.items.data[0]?.price?.recurring?.interval === 'year' ? 'annual' : 'monthly'
-  const periodEnd = subscription.current_period_end
+  
+  // Use the ACTUAL subscription status from Stripe (will be 'trialing' for trial subscriptions)
+  let ourStatus: string = 'inactive'
+  if (subscription.status === 'active') ourStatus = 'active'
+  else if (subscription.status === 'trialing') ourStatus = 'trialing'
+  else if (subscription.status === 'past_due') ourStatus = 'past_due'
+  else if (subscription.status === 'canceled') ourStatus = 'canceled'
+
+  // For trials, use trial_end as the period end; otherwise use current_period_end
+  const periodEnd = subscription.trial_end || subscription.current_period_end
 
   const { error } = await supabase
     .from('dyia_users')
     .update({
       stripe_customer_id: customerId,
       stripe_subscription_id: subscriptionId,
-      subscription_status: 'active',
+      subscription_status: ourStatus,
       subscription_plan: plan,
       subscription_ends_at: periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
     })
@@ -165,7 +197,7 @@ async function handleCheckoutComplete(stripe: Stripe, supabase: any, session: St
     }
   }
 
-  console.log(`Subscription activated for dyia user ${dyiaUserId}`)
+  console.log(`Subscription ${ourStatus} for dyia user ${dyiaUserId} (plan: ${plan})`)
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
