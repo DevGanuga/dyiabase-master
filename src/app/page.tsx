@@ -547,7 +547,7 @@ export default function LandingPage() {
           <div className="max-w-4xl mx-auto relative">
             <div className="text-center mb-16">
               <h2 className="text-4xl sm:text-5xl font-bold text-white mb-4">You don&apos;t need Jobber.</h2>
-              <p className="text-xl text-slate-400">Enterprise software for enterprise problems. You need something built for how you actually work.</p>
+              <p className="text-xl text-slate-400">Enterprise software for enterprise problems. You need an American-built tool designed for how you actually work — billed in USD, no currency headaches.</p>
             </div>
 
             <div className="bg-[#0f0f11] border border-white/[0.06] rounded-2xl overflow-hidden">
@@ -572,6 +572,8 @@ export default function LandingPage() {
                       { feature: 'Smart pricing', jobber: false, housecall: false, dyia: true },
                       { feature: 'Revenue forecasting', jobber: false, housecall: false, dyia: true },
                       { feature: 'Email blasts', jobber: true, housecall: false, dyia: true },
+                      { feature: 'Based in', jobber: 'Canada 🇨🇦', housecall: 'USA 🇺🇸', dyia: 'USA 🇺🇸' },
+                      { feature: 'Billing currency', jobber: 'CAD', housecall: 'USD', dyia: 'USD' },
                       { feature: 'Setup time', jobber: 'Hours', housecall: '30 min', dyia: '2 min' },
                     ].map((row, i) => (
                       <tr key={i} className="border-b border-white/[0.03]">
@@ -607,6 +609,7 @@ export default function LandingPage() {
               <p className="text-orange-400 text-sm font-medium uppercase tracking-wider mb-3">Pricing</p>
               <h2 className="text-4xl sm:text-5xl font-bold text-white mb-4">Start free. Upgrade when ready.</h2>
               <p className="text-xl text-slate-400">14-day Pro trial included. No credit card required.</p>
+              <p className="text-sm text-slate-500 mt-2">🇺🇸 American company · All prices in USD</p>
             </div>
 
             {/* Toggle */}
@@ -769,6 +772,7 @@ export default function LandingPage() {
                 <img src="/dyia-logo-full.png" alt="dyia" className="h-7 object-contain brightness-0 invert" />
               </div>
               <p className="text-sm text-slate-500 leading-relaxed">Your day, decoded. The AI-powered business manager for service professionals.</p>
+              <p className="text-xs text-slate-600 mt-2 flex items-center gap-1.5">🇺🇸 Proudly American-based · All prices in USD</p>
             </div>
             <div>
               <h4 className="text-sm font-semibold text-white mb-4">Product</h4>
