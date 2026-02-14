@@ -71,10 +71,9 @@ export default function OnboardingPage() {
     return params.get('returnUrl') || '/app'
   })
 
-  // Initialize Supabase client with Clerk JWT for RLS-authenticated queries
-  useEffect(() => {
-    initSupabaseAuth(() => getToken({ template: 'supabase' }))
-  }, [getToken])
+  // Initialize Supabase client with Clerk JWT for RLS-authenticated queries.
+  // Called synchronously so token getter is set before any queries.
+  initSupabaseAuth(() => getToken({ template: 'supabase' }))
 
   const supabase = createClient()
   const { resolvedTheme, setTheme } = useTheme()

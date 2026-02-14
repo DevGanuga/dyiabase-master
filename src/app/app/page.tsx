@@ -68,10 +68,9 @@ function AppPageContent() {
   const [isDemoMode, setIsDemoMode] = useState(false)
 
   // Initialize Supabase client with Clerk JWT for RLS-authenticated queries.
-  // This must run before any Supabase queries so the client includes the JWT.
-  useEffect(() => {
-    initSupabaseAuth(() => getToken({ template: 'supabase' }))
-  }, [getToken])
+  // Must be called synchronously (not in useEffect) so the token getter is set
+  // before any Supabase queries run in subsequent effects.
+  initSupabaseAuth(() => getToken({ template: 'supabase' }))
 
   // View state: URL ?view= param is the source of truth, with local state for rendering.
   const viewParam = searchParams.get('view') as View | null
