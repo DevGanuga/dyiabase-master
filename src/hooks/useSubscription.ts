@@ -53,13 +53,20 @@ export function useSubscription(): SubscriptionState {
 
         if (error) throw error
 
-        const status = (data?.subscription_status || 'inactive') as SubscriptionStatus
+        let status = (data?.subscription_status || 'inactive') as SubscriptionStatus
         const plan = (data?.subscription_plan || null) as SubscriptionPlan
         const endsAt = data?.subscription_ends_at ? new Date(data.subscription_ends_at) : null
         const now = Date.now()
         const daysRemaining = endsAt
           ? Math.max(0, Math.ceil((endsAt.getTime() - now) / 86400000))
           : 0
+
+        // If trial has expired (past the end date) and no Stripe subscription is active,
+        // treat as inactive so they lose Pro access and see upgrade prompts.
+        const hasStripeSubscription = !!data?.subscription_plan
+        if (status === 'trialing' && endsAt && endsAt.getTime() < now && !hasStripeSubscription) {
+          status = 'inactive'
+        }
 
         const tier: SubscriptionTier = TRIAL_STATUSES.includes(status)
           ? 'trial'

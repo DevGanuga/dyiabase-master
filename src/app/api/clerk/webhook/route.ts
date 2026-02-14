@@ -71,7 +71,8 @@ export async function POST(req: Request) {
         const { id, email_addresses, first_name, last_name } = evt.data
         const primaryEmail = email_addresses?.[0]?.email_address || ''
 
-        // Create user profile on free tier (trial starts when they enter card via Stripe)
+        // Create user profile with 14-day Pro trial (no card required)
+        const trialEndsAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
         const { data: newUser, error } = await supabase
           .from('dyia_users')
           .insert({
@@ -79,7 +80,8 @@ export async function POST(req: Request) {
             email: primaryEmail,
             first_name: first_name || null,
             last_name: last_name || null,
-            subscription_status: 'inactive',
+            subscription_status: 'trialing',
+            subscription_ends_at: trialEndsAt,
           })
           .select()
           .single()
