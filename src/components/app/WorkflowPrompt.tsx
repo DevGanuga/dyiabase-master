@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 
 export interface WorkflowAction {
   id: string
@@ -26,20 +26,20 @@ export function WorkflowPrompt({ title, actions, autoDismissMs = 15000, onDismis
   const [visible, setVisible] = useState(true)
   const [exiting, setExiting] = useState(false)
 
-  useEffect(() => {
-    if (autoDismissMs > 0) {
-      const timer = setTimeout(() => handleDismiss(), autoDismissMs)
-      return () => clearTimeout(timer)
-    }
-  }, [autoDismissMs])
-
-  const handleDismiss = () => {
+  const handleDismiss = useCallback(() => {
     setExiting(true)
     setTimeout(() => {
       setVisible(false)
       onDismiss?.()
     }, 200)
-  }
+  }, [onDismiss])
+
+  useEffect(() => {
+    if (autoDismissMs > 0) {
+      const timer = setTimeout(() => handleDismiss(), autoDismissMs)
+      return () => clearTimeout(timer)
+    }
+  }, [autoDismissMs, handleDismiss])
 
   const handleAction = (action: () => void) => {
     action()

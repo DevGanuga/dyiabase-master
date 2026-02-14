@@ -7,6 +7,7 @@ export function BetaBanner() {
 
   useEffect(() => {
     const wasDismissed = sessionStorage.getItem('dyia-beta-banner-dismissed')
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- hydration guard: must read sessionStorage after mount
     setDismissed(wasDismissed === 'true')
   }, [])
 

@@ -6,8 +6,14 @@ import Link from 'next/link'
 import BusinessTypes from '@/components/landing/BusinessTypes'
 
 const STRIPE_PRICES = {
-  monthly: process.env.NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID,
-  annual: process.env.NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID,
+  basic: {
+    monthly: process.env.NEXT_PUBLIC_STRIPE_BASIC_MONTHLY_PRICE_ID,
+    annual: process.env.NEXT_PUBLIC_STRIPE_BASIC_ANNUAL_PRICE_ID,
+  },
+  pro: {
+    monthly: process.env.NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID,
+    annual: process.env.NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID,
+  },
 }
 
 // Hidden demo access
@@ -55,13 +61,24 @@ function DemoAccess() {
   )
 }
 
-// Dyia Avatar — uses the brand logo icon
+// Dyia Avatar — brand gradient icon with fallback
 function DyiaAvatar({ className = "w-10 h-10" }: { className?: string }) {
+  const [imgError, setImgError] = useState(false)
+  
+  if (imgError) {
+    return (
+      <div className={`${className} rounded-lg bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center shadow-sm`}>
+        <span className="text-white font-black" style={{ fontSize: 'calc(0.4 * 100%)' }}>d</span>
+      </div>
+    )
+  }
+  
   return (
     <img 
       src="/dyia-logo.png" 
       alt="dyia" 
       className={`${className} object-contain`}
+      onError={() => setImgError(true)}
     />
   )
 }
@@ -82,7 +99,11 @@ export default function LandingPage() {
     setMounted(true)
     const cookies = document.cookie.split(';')
     setHasDemoCookie(cookies.some(c => c.trim().startsWith('dyia_demo_active=')))
-    const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '')
+    // Check for founders flag in both query string (?founders=1) and hash (#pricing?founders=1)
+    const search = typeof window !== 'undefined' ? window.location.search : ''
+    const hashQuery = typeof window !== 'undefined' && window.location.hash.includes('?')
+      ? window.location.hash.split('?')[1] : ''
+    const params = new URLSearchParams(search || hashQuery)
     if (params.get('founders') === '1') setUseFoundersCoupon(true)
   }, [])
 
@@ -107,7 +128,7 @@ export default function LandingPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          priceId: STRIPE_PRICES[plan],
+          priceId: STRIPE_PRICES[tier][plan],
           clerkUserId: user.id,
           userEmail,
           couponCode: couponInput || undefined,
@@ -136,8 +157,11 @@ export default function LandingPage() {
       <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${mounted ? 'translate-y-0 opacity-100' : '-translate-y-4 opacity-0'}`}>
         <div className="mx-auto max-w-7xl px-6 py-4">
           <div className="flex items-center justify-between rounded-2xl bg-white/[0.03] backdrop-blur-xl border border-white/[0.06] px-6 py-3">
-            <Link href="/" className="flex items-center">
-              <img src="/dyia-logo-full.png" alt="dyia" className="h-8 object-contain brightness-0 invert" />
+            <Link href="/" className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center">
+                <span className="text-white font-black text-sm">d</span>
+              </div>
+              <span className="text-white font-bold text-lg tracking-tight">dyia</span>
             </Link>
             <div className="hidden md:flex items-center gap-8">
               <Link href="/profit-calculator" className="text-sm text-slate-400 hover:text-white transition">Free quiz</Link>
@@ -160,92 +184,203 @@ export default function LandingPage() {
 
       <main>
         {/* ===== HERO ===== */}
-        <section className="pt-32 pb-20 px-6">
+        <section className="pt-36 pb-24 px-6">
           <div className="max-w-6xl mx-auto">
-            <div className="grid lg:grid-cols-2 gap-16 items-center">
+            <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
               <div className={`transition-all duration-700 delay-100 ${mounted ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0'}`}>
-                <div className="flex flex-wrap items-center gap-3 mb-8">
-                  <div className="inline-flex items-center gap-2 px-4 py-2 bg-orange-500/10 border border-orange-500/20 rounded-full text-orange-400 text-sm font-medium">
+                <div className="flex flex-wrap items-center gap-2.5 mb-8">
+                  <div className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-orange-500/10 border border-orange-500/20 rounded-full text-orange-400 text-[13px] font-medium">
                     <span className="relative flex h-2 w-2">
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
                       <span className="relative inline-flex rounded-full h-2 w-2 bg-orange-500"></span>
                     </span>
-                    Now with AI-powered business intelligence
+                    AI-powered business intelligence
                   </div>
-                  <span className="px-3 py-1.5 rounded-full text-xs font-bold bg-amber-500/15 border border-amber-500/25 text-amber-400 uppercase tracking-wide">
-                    Early Access Beta
+                  <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-white/[0.06] border border-white/[0.08] text-slate-400 uppercase tracking-wider">
+                    Beta
                   </span>
                 </div>
                 
-                <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold leading-[1.05] mb-6 tracking-tight">
+                <h1 className="text-5xl sm:text-6xl lg:text-[4.25rem] font-bold leading-[1.05] mb-6 tracking-tight">
                   Know your
                   <br />
-                  <span className="bg-gradient-to-r from-orange-400 to-amber-400 bg-clip-text text-transparent">real profit.</span>
+                  <span className="bg-gradient-to-r from-orange-400 via-amber-400 to-orange-400 bg-clip-text text-transparent bg-[length:200%_auto] animate-[gradientShift_6s_ease-in-out_infinite]">real profit.</span>
                 </h1>
                 
-                <p className="text-xl text-slate-400 mb-10 leading-relaxed max-w-xl">
-                  The AI-powered business manager for service pros. Track jobs, build quotes, manage customers, and finally know what you actually take home — not what you think you made.
+                <p className="text-lg sm:text-xl text-slate-400 mb-10 leading-relaxed max-w-xl">
+                  The AI-powered business manager for service pros. Track jobs, build quotes, manage customers, and finally know what you actually take home.
                 </p>
 
-                <div className="flex flex-wrap gap-4 mb-10">
-                  <button onClick={startFreeTrial} className="group px-8 py-4 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-2xl font-bold text-lg shadow-lg shadow-orange-500/20 hover:shadow-xl hover:shadow-orange-500/30 hover:-translate-y-0.5 transition-all flex items-center gap-2">
+                <div className="flex flex-wrap gap-3 mb-10">
+                  <button onClick={startFreeTrial} className="group px-7 py-3.5 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-xl font-bold text-base shadow-lg shadow-orange-500/25 hover:shadow-xl hover:shadow-orange-500/30 hover:-translate-y-0.5 transition-all flex items-center gap-2">
                     Start Free — 14 Day Trial
-                    <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                    <svg className="w-4.5 h-4.5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17 8l4 4m0 0l-4 4m4-4H3" />
                     </svg>
                   </button>
-                  <a href="#ai" className="px-8 py-4 bg-white/5 hover:bg-white/10 text-white border border-white/10 rounded-2xl font-semibold text-lg transition-all">
+                  <a href="#ai" className="px-7 py-3.5 bg-white/[0.04] hover:bg-white/[0.08] text-white border border-white/[0.08] hover:border-white/[0.15] rounded-xl font-semibold text-base transition-all">
                     See how it works
                   </a>
                 </div>
 
-                <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-slate-500">
+                <div className="flex flex-wrap gap-x-5 gap-y-2 text-[13px] text-slate-500">
                   {['No credit card required', 'Cancel anytime', 'Works on any device'].map((item, i) => (
-                    <span key={i} className="flex items-center gap-2">
-                      <svg className="w-4 h-4 text-green-500/70" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
+                    <span key={i} className="flex items-center gap-1.5">
+                      <svg className="w-3.5 h-3.5 text-green-500/70" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
                       {item}
                     </span>
                   ))}
                 </div>
               </div>
 
-              {/* App Preview */}
-              <div className={`relative transition-all duration-700 delay-300 ${mounted ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0'}`}>
-                <div className="absolute inset-0 bg-gradient-to-r from-orange-500/10 to-amber-500/10 rounded-3xl blur-3xl" />
-                <div className="relative bg-[#0f0f11] border border-white/[0.08] rounded-2xl shadow-2xl overflow-hidden">
-                  <div className="flex items-center gap-2 px-4 py-3 bg-black/40 border-b border-white/5">
+              {/* App Preview — faithful miniature of the real dashboard */}
+              <div className={`relative transition-all duration-1000 delay-300 ${mounted ? 'translate-y-0 opacity-100' : 'translate-y-12 opacity-0'}`}>
+                {/* Ambient glow */}
+                <div className="absolute -inset-4 bg-gradient-to-r from-orange-500/15 via-amber-500/10 to-orange-500/15 rounded-[2rem] blur-3xl animate-pulse-soft" />
+                <div className="absolute -inset-1 bg-gradient-to-b from-orange-500/20 to-transparent rounded-[1.5rem] blur-xl" />
+                
+                {/* Browser Frame */}
+                <div className="relative bg-[#0c0c0e] border border-white/[0.08] rounded-2xl shadow-2xl shadow-black/50 overflow-hidden">
+                  {/* Browser Chrome */}
+                  <div className="flex items-center gap-2 px-4 py-2.5 bg-[#1a1a1e] border-b border-white/[0.06]">
                     <div className="flex gap-1.5">
-                      <div className="w-3 h-3 rounded-full bg-white/10" />
-                      <div className="w-3 h-3 rounded-full bg-white/10" />
-                      <div className="w-3 h-3 rounded-full bg-white/10" />
+                      <div className="w-2.5 h-2.5 rounded-full bg-[#ff5f57]" />
+                      <div className="w-2.5 h-2.5 rounded-full bg-[#febc2e]" />
+                      <div className="w-2.5 h-2.5 rounded-full bg-[#28c840]" />
                     </div>
                     <div className="flex-1 flex justify-center">
-                      <div className="px-3 py-1 bg-white/5 rounded text-xs text-slate-500">app.dyia.co</div>
+                      <div className="flex items-center gap-1.5 px-3 py-1 bg-white/[0.06] rounded-md">
+                        <svg className="w-2.5 h-2.5 text-green-500/80" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" /></svg>
+                        <span className="text-[10px] text-slate-500 font-medium">app.dyia.co</span>
+                      </div>
                     </div>
+                    <div className="w-12" />
                   </div>
-                  <div className="p-5">
-                    <div className="grid grid-cols-2 gap-3 mb-4">
+                  
+                  {/* App Layout — Sidebar + Dashboard */}
+                  <div className="flex" style={{ height: '340px' }}>
+                    {/* Mini Sidebar */}
+                    <div className="w-11 bg-[#0f1117] border-r border-white/[0.06] flex flex-col items-center py-3 gap-1 shrink-0">
+                      {/* Logo dot */}
+                      <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center mb-3">
+                        <span className="text-[8px] font-black text-white">d</span>
+                      </div>
+                      {/* Nav icons */}
                       {[
-                        { label: 'This Week', value: '$2,840', sub: '8 jobs completed' },
-                        { label: 'Net Profit', value: '$1,920', sub: '68% margin' },
-                        { label: 'Tax Reserve', value: '$576', sub: '30% set aside' },
-                        { label: 'Monthly Goal', value: '47%', sub: 'On track' },
-                      ].map((stat, i) => (
-                        <div key={i} className="bg-white/[0.03] rounded-xl p-3 border border-white/5">
-                          <p className="text-[10px] text-slate-500 mb-0.5">{stat.label}</p>
-                          <p className="text-lg font-bold text-white">{stat.value}</p>
-                          <p className="text-[10px] text-slate-600">{stat.sub}</p>
+                        { active: true, icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /> },
+                        { active: false, icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /> },
+                        { active: false, icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /> },
+                        { active: false, icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /> },
+                        { active: false, icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /> },
+                        { active: false, icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /> },
+                      ].map((nav, i) => (
+                        <div key={i} className={`w-7 h-7 rounded-lg flex items-center justify-center ${nav.active ? 'bg-orange-500/15' : 'hover:bg-white/5'}`}>
+                          <svg className={`w-3.5 h-3.5 ${nav.active ? 'text-orange-400' : 'text-slate-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">{nav.icon}</svg>
                         </div>
                       ))}
-                    </div>
-                    <div className="bg-gradient-to-r from-orange-500/5 to-amber-500/5 border border-orange-500/10 rounded-xl p-4">
-                      <div className="flex items-center gap-2 mb-2">
-                        <DyiaAvatar className="w-6 h-6" />
-                        <span className="text-xs font-medium text-white">Dyia</span>
+                      {/* Dyia AI nav item */}
+                      <div className="mt-auto w-7 h-7 rounded-lg flex items-center justify-center bg-white/5">
+                        <div className="w-3.5 h-3.5 rounded-full bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center">
+                          <span className="text-[5px] font-bold text-white">AI</span>
+                        </div>
                       </div>
-                      <p className="text-sm text-slate-300 leading-relaxed">
-                        Your hot tub removals are averaging <span className="text-orange-400">$485 profit</span> — 40% more than general hauling. Worth focusing your ads there.
-                      </p>
+                    </div>
+                    
+                    {/* Main Dashboard Content */}
+                    <div className="flex-1 overflow-hidden bg-[#fafafa] p-3 space-y-2.5">
+                      {/* Greeting Banner */}
+                      <div className="bg-gradient-to-r from-orange-500 to-amber-500 rounded-lg p-3 text-white relative overflow-hidden">
+                        <div className="absolute -right-4 -top-4 w-16 h-16 rounded-full bg-white/10" />
+                        <div className="absolute -left-2 -bottom-2 w-10 h-10 rounded-full bg-white/5" />
+                        <div className="relative flex items-center justify-between">
+                          <div>
+                            <p className="text-[11px] font-bold leading-tight">Good morning, Marcus</p>
+                            <p className="text-[8px] text-white/80 mt-0.5">12 jobs this month, $8,640 revenue. 74% to goal.</p>
+                          </div>
+                          <div className="flex gap-1">
+                            <div className="px-1.5 py-0.5 bg-white/20 rounded text-[7px] font-medium">+ Log Job</div>
+                            <div className="px-1.5 py-0.5 bg-white/20 rounded text-[7px] font-medium">New Quote</div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Business Pipeline */}
+                      <div>
+                        <p className="text-[7px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Business Pipeline</p>
+                        <div className="flex items-stretch gap-0">
+                          {[
+                            { label: 'Quotes', value: '5', sub: '$3,200', color: 'text-blue-600', bg: 'bg-blue-50', dot: 'bg-blue-100' },
+                            { label: 'Follow-ups', value: '3', sub: 'Pending', color: 'text-amber-600', bg: 'bg-amber-50', dot: 'bg-amber-100' },
+                            { label: 'Jobs', value: '12', sub: '$8,640', color: 'text-green-600', bg: 'bg-green-50', dot: 'bg-green-100' },
+                            { label: 'Take Home', value: '$4,120', sub: 'After 30% tax', color: 'text-purple-600', bg: 'bg-purple-50', dot: 'bg-purple-100' },
+                          ].map((stage, i) => (
+                            <div key={i} className="flex items-stretch">
+                              <div className={`bg-white border border-slate-200/80 ${i === 0 ? 'rounded-l-lg' : ''} ${i === 3 ? 'rounded-r-lg' : ''} p-2 min-w-[70px]`}>
+                                <div className="flex items-center gap-1 mb-1">
+                                  <div className={`w-3 h-3 rounded-full ${stage.dot} flex items-center justify-center`}>
+                                    <div className={`w-1.5 h-1.5 rounded-full ${stage.bg}`} />
+                                  </div>
+                                  <span className={`text-[7px] font-semibold ${stage.color} uppercase`}>{stage.label}</span>
+                                </div>
+                                <p className="text-sm font-bold text-slate-900 leading-none">{stage.value}</p>
+                                <p className="text-[7px] text-slate-400 mt-0.5">{stage.sub}</p>
+                              </div>
+                              {i < 3 && (
+                                <div className="flex items-center -mx-0.5 z-10">
+                                  <svg className="w-2.5 h-2.5 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
+                                  </svg>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Action Feed */}
+                      <div className="space-y-1">
+                        <p className="text-[7px] font-semibold text-slate-400 uppercase tracking-wider">Needs Your Attention</p>
+                        <div className="flex items-center gap-2 px-2 py-1.5 bg-white rounded-lg border border-slate-200/80 border-l-2 border-l-red-400">
+                          <svg className="w-2.5 h-2.5 text-red-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[8px] font-medium text-slate-800 truncate">3 follow-ups need attention</p>
+                            <p className="text-[7px] text-slate-400 truncate">Following up within 48hrs has 3x conversion</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 px-2 py-1.5 bg-white rounded-lg border border-slate-200/80 border-l-2 border-l-amber-400">
+                          <svg className="w-2.5 h-2.5 text-amber-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[8px] font-medium text-slate-800 truncate">5 pending quotes</p>
+                            <p className="text-[7px] text-slate-400 truncate">$3,200 total value</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Monthly Goal */}
+                      <div className="bg-white rounded-lg border border-slate-200/80 p-2">
+                        <div className="flex items-center justify-between mb-1">
+                          <div>
+                            <p className="text-[8px] font-semibold text-slate-800">Monthly Goal</p>
+                            <p className="text-[7px] text-slate-400">$8,640 of $12,000</p>
+                          </div>
+                          <span className="text-[10px] font-bold text-slate-700">74%</span>
+                        </div>
+                        <div className="h-1 bg-slate-100 rounded-full overflow-hidden">
+                          <div className="h-full w-[74%] bg-gradient-to-r from-orange-500 to-amber-500 rounded-full" />
+                        </div>
+                      </div>
+
+                      {/* Dyia AI Insight Strip */}
+                      <div className="bg-white border border-orange-200/60 rounded-lg p-2 flex items-start gap-2">
+                        <div className="w-5 h-5 rounded-md bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center shrink-0">
+                          <span className="text-[6px] font-bold text-white">AI</span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[8px] text-slate-600 leading-relaxed">
+                            Hot tub removals average <span className="text-orange-600 font-semibold">$485 profit</span> — 40% more than general hauling. Worth focusing your ads there.
+                          </p>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -611,7 +746,7 @@ export default function LandingPage() {
                   </thead>
                   <tbody>
                     {[
-                      { feature: 'Starting price', jobber: '$349/mo', housecall: '$65/mo', dyia: '$14.99/mo' },
+                      { feature: 'Starting price', jobber: '$349/mo', housecall: '$65/mo', dyia: '$19.99/mo' },
                       { feature: 'Job tracking', jobber: true, housecall: true, dyia: true },
                       { feature: 'Quote builder', jobber: true, housecall: true, dyia: true },
                       { feature: 'Customer CRM', jobber: true, housecall: true, dyia: true },
@@ -664,7 +799,7 @@ export default function LandingPage() {
                   Monthly
                 </button>
                 <button onClick={() => setBillingCycle('annual')} className={`px-6 py-2 rounded-full text-sm font-medium transition flex items-center gap-2 ${billingCycle === 'annual' ? 'bg-orange-500 text-white' : 'text-slate-400 hover:text-white'}`}>
-                  Annual <span className="text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full">Save 20%</span>
+                  Annual <span className="text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full">2 months free</span>
                 </button>
               </div>
             </div>
@@ -675,10 +810,10 @@ export default function LandingPage() {
                 <h3 className="text-2xl font-bold text-white mb-1">Basic</h3>
                 <p className="text-slate-500 text-sm mb-6">Essential profit tracking</p>
                 <div className="flex items-baseline gap-1 mb-6">
-                  <span className="text-5xl font-bold text-white">${billingCycle === 'monthly' ? '14.99' : '143'}</span>
+                  <span className="text-5xl font-bold text-white">${billingCycle === 'monthly' ? '19.99' : '199.90'}</span>
                   <span className="text-slate-500">/{billingCycle === 'monthly' ? 'mo' : 'year'}</span>
                 </div>
-                {billingCycle === 'annual' && <p className="text-green-400 text-sm mb-6">$11.92/mo — save $36/year</p>}
+                {billingCycle === 'annual' && <p className="text-green-400 text-sm mb-6">$16.66/mo — 2 months free</p>}
                 <ul className="space-y-3 mb-8">
                   {['Unlimited job tracking', 'Profit dashboard', 'Tax set-aside calculator', 'Quote builder + PDF export', 'Customer database & CRM', 'Follow-up pipeline', 'Fixed expense tracking', 'Review requests', 'Lead source analytics', 'CSV data export'].map((f, i) => (
                     <li key={i} className="flex items-center gap-3 text-sm text-slate-300">
@@ -703,10 +838,10 @@ export default function LandingPage() {
                 </div>
                 <p className="text-slate-500 text-sm mb-6">Everything + Dyia AI + Marketing</p>
                 <div className="flex items-baseline gap-1 mb-6">
-                  <span className="text-5xl font-bold text-white">${billingCycle === 'monthly' ? '24.99' : '239'}</span>
+                  <span className="text-5xl font-bold text-white">${billingCycle === 'monthly' ? '29.99' : '299.90'}</span>
                   <span className="text-slate-500">/{billingCycle === 'monthly' ? 'mo' : 'year'}</span>
                 </div>
-                {billingCycle === 'annual' && <p className="text-green-400 text-sm mb-6">$19.92/mo — save $60/year</p>}
+                {billingCycle === 'annual' && <p className="text-green-400 text-sm mb-6">$24.99/mo — 2 months free</p>}
                 <ul className="space-y-3 mb-8">
                   {[
                     { text: 'Everything in Basic', highlight: false },
@@ -813,8 +948,11 @@ export default function LandingPage() {
         <div className="max-w-5xl mx-auto">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-12">
             <div className="col-span-2 md:col-span-1">
-              <div className="flex items-center mb-4">
-                <img src="/dyia-logo-full.png" alt="dyia" className="h-7 object-contain brightness-0 invert" />
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center">
+                  <span className="text-white font-black text-xs">d</span>
+                </div>
+                <span className="text-white font-bold text-base tracking-tight">dyia</span>
               </div>
               <p className="text-sm text-slate-500 leading-relaxed">Your day, decoded. The AI-powered business manager for service professionals.</p>
             </div>
