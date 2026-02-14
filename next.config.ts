@@ -9,18 +9,18 @@ const projectRoot = process.cwd();
 // Next.js dev mode and Clerk's inline scripts, 'unsafe-eval' only in development.
 const cspDirectives = [
   "default-src 'self'",
-  // Scripts: self, Clerk, Stripe, inline (needed by Next.js), eval only in dev
-  `script-src 'self' 'unsafe-inline' https://*.clerk.accounts.dev https://js.stripe.com${process.env.NODE_ENV === 'development' ? " 'unsafe-eval'" : ''}`,
+  // Scripts: self, Clerk (dev + prod), Stripe, Cloudflare challenges, inline (needed by Next.js), eval only in dev
+  `script-src 'self' 'unsafe-inline' https://*.clerk.accounts.dev https://*.clerk.com https://challenges.cloudflare.com https://js.stripe.com${process.env.NODE_ENV === 'development' ? " 'unsafe-eval'" : ''}`,
   // Styles: self, inline (Tailwind), Google Fonts
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   // Images: self, data URIs, Supabase storage, Clerk avatars, blob for PDF preview
   "img-src 'self' data: blob: https://*.supabase.co https://img.clerk.com https://*.clerk.com",
   // Fonts: self, Google Fonts CDN
   "font-src 'self' https://fonts.gstatic.com",
-  // API connections: self, Supabase, Clerk, Stripe, OpenAI, Sentry
-  "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.clerk.accounts.dev https://api.clerk.com https://api.stripe.com https://api.openai.com https://*.ingest.sentry.io",
-  // Frames: Stripe checkout iframe, Clerk
-  "frame-src https://js.stripe.com https://*.clerk.accounts.dev",
+  // API connections: self, Supabase, Clerk (dev + prod + telemetry), Stripe, OpenAI, Sentry
+  "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.clerk.accounts.dev https://*.clerk.com https://api.clerk.com https://clerk-telemetry.com https://*.clerk-telemetry.com https://api.stripe.com https://api.openai.com https://*.ingest.sentry.io",
+  // Frames: Stripe checkout iframe, Clerk (dev + prod), Cloudflare challenges (Clerk bot protection)
+  "frame-src https://js.stripe.com https://*.clerk.accounts.dev https://*.clerk.com https://challenges.cloudflare.com",
   // Workers: self (for PDF generation, etc.)
   "worker-src 'self' blob:",
   // Object embeds: none
