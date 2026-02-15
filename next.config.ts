@@ -4,35 +4,6 @@ import { withSentryConfig } from "@sentry/nextjs";
 // Force project root so resolution doesn't use a parent directory (e.g. C:\Users\ricar\) when another package.json exists there
 const projectRoot = process.cwd();
 
-// Content Security Policy — allows Clerk, Supabase, Stripe, and OpenAI resources.
-// Using an array and joining for readability; 'unsafe-inline' is required for
-// Next.js dev mode and Clerk's inline scripts, 'unsafe-eval' only in development.
-const cspDirectives = [
-  "default-src 'self'",
-  // Scripts: self, Clerk (dev + prod), Stripe, Cloudflare challenges, inline (needed by Next.js), eval only in dev
-  `script-src 'self' 'unsafe-inline' https://*.clerk.accounts.dev https://*.clerk.com https://challenges.cloudflare.com https://js.stripe.com${process.env.NODE_ENV === 'development' ? " 'unsafe-eval'" : ''}`,
-  // Styles: self, inline (Tailwind), Google Fonts
-  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-  // Images: self, data URIs, Supabase storage, Clerk avatars, blob for PDF preview
-  "img-src 'self' data: blob: https://*.supabase.co https://img.clerk.com https://*.clerk.com",
-  // Fonts: self, Google Fonts CDN
-  "font-src 'self' https://fonts.gstatic.com",
-  // API connections: self, Supabase, Clerk (dev + prod + telemetry), Stripe, OpenAI, Sentry
-  "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.clerk.accounts.dev https://*.clerk.com https://api.clerk.com https://clerk-telemetry.com https://*.clerk-telemetry.com https://api.stripe.com https://api.openai.com https://*.ingest.sentry.io",
-  // Frames: Stripe checkout iframe, Clerk (dev + prod), Cloudflare challenges (Clerk bot protection)
-  "frame-src https://js.stripe.com https://*.clerk.accounts.dev https://*.clerk.com https://challenges.cloudflare.com",
-  // Workers: self (for PDF generation, etc.)
-  "worker-src 'self' blob:",
-  // Object embeds: none
-  "object-src 'none'",
-  // Base URI: self
-  "base-uri 'self'",
-  // Form actions: self
-  "form-action 'self'",
-  // Frame ancestors: none (equivalent to X-Frame-Options: DENY)
-  "frame-ancestors 'none'",
-];
-
 const securityHeaders = [
   {
     key: 'X-DNS-Prefetch-Control',
@@ -62,10 +33,9 @@ const securityHeaders = [
     key: 'Strict-Transport-Security',
     value: 'max-age=63072000; includeSubDomains; preload',
   },
-  {
-    key: 'Content-Security-Policy',
-    value: cspDirectives.join('; '),
-  },
+  // CSP removed — was blocking Clerk/Stripe in production.
+  // TODO: Re-add CSP using Clerk's automatic CSP middleware (clerkMiddleware contentSecurityPolicy option)
+  // which auto-detects the correct FAPI domain. See: https://clerk.com/docs/security/clerk-csp
 ];
 
 const nextConfig: NextConfig = {
