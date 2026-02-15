@@ -361,6 +361,51 @@ function AppPageContent() {
     initUserProfile()
   }, [isLoaded, user, supabase, loadData, isDemoMode])
 
+  // Auto-start Stripe checkout if redirected here after sign-up with plan/tier params
+  const autoCheckoutRan = useRef(false)
+  useEffect(() => {
+    if (autoCheckoutRan.current || !userProfile || !user || loading) return
+    const plan = searchParams.get('plan') as 'monthly' | 'annual' | null
+    const tier = searchParams.get('tier') as 'basic' | 'pro' | null
+    if (!plan || !tier) return
+    autoCheckoutRan.current = true
+
+    const runCheckout = async () => {
+      const STRIPE_PRICES: Record<string, Record<string, string | undefined>> = {
+        basic: {
+          monthly: process.env.NEXT_PUBLIC_STRIPE_BASIC_MONTHLY_PRICE_ID,
+          annual: process.env.NEXT_PUBLIC_STRIPE_BASIC_ANNUAL_PRICE_ID,
+        },
+        pro: {
+          monthly: process.env.NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID,
+          annual: process.env.NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID,
+        },
+      }
+      const priceId = STRIPE_PRICES[tier]?.[plan]
+      if (!priceId) return
+
+      try {
+        const response = await fetch('/api/stripe/checkout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            priceId,
+            clerkUserId: user.id,
+            userEmail: user.primaryEmailAddress?.emailAddress || '',
+            tier,
+          }),
+        })
+        const data = await response.json()
+        if (data.url) {
+          window.location.href = data.url
+        }
+      } catch (err) {
+        console.error('Auto-checkout failed:', err)
+      }
+    }
+    runCheckout()
+  }, [userProfile, user, loading, searchParams])
+
   const handleLogout = async () => {
     if (isDemoMode) {
       // Clear demo cookies via API (httpOnly cookie can't be cleared from JS) and redirect

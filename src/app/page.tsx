@@ -110,7 +110,7 @@ export default function LandingPage() {
   async function checkout(plan: 'monthly' | 'annual', tier: 'basic' | 'pro' = 'pro') {
     setLoading(`${tier}-${plan}`)
     if (!isSignedIn) {
-      window.location.href = `/sign-up?redirect_url=/app?plan=${plan}&tier=${tier}`
+      window.location.href = `/sign-up?redirect_url=${encodeURIComponent(`/app?plan=${plan}&tier=${tier}`)}`
       return
     }
     if (!user) {
