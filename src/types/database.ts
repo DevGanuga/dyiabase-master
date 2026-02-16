@@ -60,7 +60,7 @@ export interface Settings {
   updated_at: string
 }
 
-export type UserRole = 'user' | 'admin' | 'superadmin'
+export type UserRole = 'user' | 'admin' | 'super_admin'
 
 export interface UserProfile {
   id: string

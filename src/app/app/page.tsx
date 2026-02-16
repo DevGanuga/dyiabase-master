@@ -66,8 +66,10 @@ function AppPageContent() {
   const [loading, setLoading] = useState(true)
   const [isDemoMode, setIsDemoMode] = useState(false)
 
-  // View state: URL ?view= param is the source of truth, with local state for rendering.
+  // URL params for checkout flow and view routing
   const viewParam = searchParams.get('view') as View | null
+  const planParam = searchParams.get('plan') as 'monthly' | 'annual' | null
+  const sessionIdParam = searchParams.get('session_id')
   const [currentView, setCurrentViewState] = useState<View>(
     viewParam && VALID_VIEWS.includes(viewParam) ? viewParam : 'dashboard'
   )
@@ -108,6 +110,8 @@ function AppPageContent() {
   const [selectedJobForQuote, setSelectedJobForQuote] = useState<AppJob | null>(null)
   const [priceTemplatesCount, setPriceTemplatesCount] = useState(0)
   const [hasViewedAssistant, setHasViewedAssistant] = useState(false)
+  const [checkoutLoading, setCheckoutLoading] = useState(false)
+  const checkoutTriggeredRef = useRef(false)
   const contentScrollRef = useRef<HTMLDivElement>(null)
 
   const supabase = createClient()
@@ -356,6 +360,69 @@ function AppPageContent() {
     initUserProfile()
   }, [isLoaded, user, supabase, loadData, isDemoMode])
 
+  // Auto-trigger Stripe checkout when arriving with ?plan= param (e.g. from landing page pricing CTA)
+  useEffect(() => {
+    if (!planParam || !userProfile || checkoutTriggeredRef.current || loading || isDemoMode) return
+    checkoutTriggeredRef.current = true
+    setCheckoutLoading(true)
+
+    const triggerCheckout = async () => {
+      try {
+        const priceId = planParam === 'annual'
+          ? process.env.NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID
+          : process.env.NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID
+
+        if (!priceId) {
+          showError('Pricing not configured. Please try again later.')
+          setCheckoutLoading(false)
+          return
+        }
+
+        const res = await fetch('/api/stripe/checkout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            priceId,
+            clerkUserId: userProfile.clerk_user_id,
+            userEmail: userProfile.email || user?.primaryEmailAddress?.emailAddress || '',
+          }),
+        })
+
+        const data = await res.json()
+        if (data.url) {
+          window.location.href = data.url
+        } else {
+          showError(data.error || 'Could not start checkout. Try from Settings.')
+          setCheckoutLoading(false)
+        }
+      } catch {
+        showError('Could not connect to payment provider.')
+        setCheckoutLoading(false)
+      }
+    }
+
+    triggerCheckout()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [planParam, userProfile, loading, isDemoMode])
+
+  // Handle successful return from Stripe checkout — persist flag through potential onboarding redirect
+  useEffect(() => {
+    if (sessionIdParam && !loading) {
+      sessionStorage.setItem('dyia_checkout_success', '1')
+      const url = new URL(window.location.href)
+      url.searchParams.delete('session_id')
+      router.replace(url.pathname + (url.search || ''), { scroll: false })
+    }
+  }, [sessionIdParam, loading, router])
+
+  // Show checkout success toast (works after direct return AND after onboarding redirect)
+  useEffect(() => {
+    if (!loading && userProfile && sessionStorage.getItem('dyia_checkout_success')) {
+      sessionStorage.removeItem('dyia_checkout_success')
+      showSuccess('Your Pro trial is active! Welcome to Dyia Pro.')
+    }
+  }, [loading, userProfile, showSuccess])
+
   const handleLogout = async () => {
     if (isDemoMode) {
       // Clear demo cookie and redirect
@@ -372,15 +439,16 @@ function AppPageContent() {
   const needsOnboarding = !loading && !isDemoMode && !!userProfile && !settings.onboardingCompleted && !settings.onboardingSkipped && !hasExistingData
 
   // Redirect to onboarding for new users (after loading completes)
+  // Skip if checkout is in progress — checkout takes priority, onboarding happens after
   useEffect(() => {
-    if (needsOnboarding) {
+    if (needsOnboarding && !checkoutLoading) {
       // Preserve the intended view through the onboarding redirect
       const returnUrl = viewParam && viewParam !== 'dashboard' 
         ? `/app?view=${viewParam}` 
         : '/app'
       router.push(`/app/onboarding?returnUrl=${encodeURIComponent(returnUrl)}`)
     }
-  }, [needsOnboarding, router, viewParam])
+  }, [needsOnboarding, router, viewParam, checkoutLoading])
 
   const handleReopenOnboarding = () => {
     router.push('/app/onboarding')
@@ -396,7 +464,7 @@ function AppPageContent() {
         />
         <div className="w-8 h-8 border-2 border-orange-500/30 border-t-orange-500 rounded-full animate-spin mx-auto mb-4" />
         <p className="text-sm text-slate-500 font-medium">
-          {needsOnboarding ? 'Setting up your account...' : 'Loading...'}
+          {checkoutLoading ? 'Redirecting to checkout...' : needsOnboarding ? 'Setting up your account...' : 'Loading...'}
         </p>
       </div>
     </div>
@@ -404,6 +472,11 @@ function AppPageContent() {
 
   // Loading State
   if ((!isLoaded && !isDemoMode) || loading) {
+    return loadingOrRedirecting
+  }
+
+  // Show loading while redirecting to Stripe checkout
+  if (checkoutLoading) {
     return loadingOrRedirecting
   }
 

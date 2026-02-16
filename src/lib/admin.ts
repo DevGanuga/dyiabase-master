@@ -18,10 +18,10 @@ export async function isAdmin(userId: string): Promise<boolean> {
   const supabase = getSupabaseAdmin()
   const { data } = await supabase
     .from('dyia_users')
-    .select('is_admin')
+    .select('role')
     .eq('id', userId)
     .single()
-  return data?.is_admin === true
+  return data?.role === 'admin' || data?.role === 'super_admin'
 }
 
 /**
@@ -31,10 +31,10 @@ export async function isAdminByClerkId(clerkUserId: string): Promise<boolean> {
   const supabase = getSupabaseAdmin()
   const { data } = await supabase
     .from('dyia_users')
-    .select('is_admin')
+    .select('role')
     .eq('clerk_user_id', clerkUserId)
     .single()
-  return data?.is_admin === true
+  return data?.role === 'admin' || data?.role === 'super_admin'
 }
 
 /**
