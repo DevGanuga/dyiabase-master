@@ -143,7 +143,7 @@ export default function LandingPage() {
     } catch { alert('Checkout error'); setLoading(null) }
   }
 
-  const startFreeTrial = () => { window.location.href = `/sign-up?redirect_url=${encodeURIComponent('/app?plan=monthly&tier=pro')}` }
+  const startFreeTrial = () => checkout(billingCycle, 'pro')
 
   return (
     <div className="min-h-screen bg-[#09090b] text-white overflow-x-hidden">
@@ -221,7 +221,7 @@ export default function LandingPage() {
                 </div>
 
                 <div className="flex flex-wrap gap-x-5 gap-y-2 text-[13px] text-slate-500">
-                  {['No credit card required', 'Cancel anytime', 'Works on any device'].map((item, i) => (
+                  {['14-day free trial', 'Cancel anytime', 'Works on any device'].map((item, i) => (
                     <span key={i} className="flex items-center gap-1.5">
                       <svg className="w-3.5 h-3.5 text-green-500/70" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
                       {item}
@@ -740,7 +740,7 @@ export default function LandingPage() {
             <div className="text-center mb-12">
               <p className="text-orange-400 text-sm font-medium uppercase tracking-wider mb-3">Pricing</p>
               <h2 className="text-4xl sm:text-5xl font-bold text-white mb-4">Start free. Upgrade when ready.</h2>
-              <p className="text-xl text-slate-400">14-day Pro trial included. No credit card required.</p>
+              <p className="text-xl text-slate-400">14-day Pro trial included. Cancel anytime.</p>
               <p className="text-sm text-slate-500 mt-2">🇺🇸 American company · All prices in USD</p>
             </div>
 
@@ -812,10 +812,10 @@ export default function LandingPage() {
                     </li>
                   ))}
                 </ul>
-                <button onClick={startFreeTrial} className="w-full py-3.5 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-xl font-bold shadow-lg shadow-orange-500/20 hover:-translate-y-0.5 transition-all">
-                  Start 14-Day Free Trial
+                <button onClick={() => checkout(billingCycle, 'pro')} disabled={!!loading || !checkoutReady} className="w-full py-3.5 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-xl font-bold shadow-lg shadow-orange-500/20 hover:-translate-y-0.5 transition-all">
+                  {loading === `pro-${billingCycle}` ? 'Redirecting...' : !checkoutReady && isSignedIn ? 'Loading...' : 'Start 14-Day Free Trial'}
                 </button>
-                <p className="text-xs text-slate-500 text-center mt-3">No credit card required</p>
+                <p className="text-xs text-slate-500 text-center mt-3">Card required to start trial</p>
               </div>
             </div>
 
@@ -847,7 +847,7 @@ export default function LandingPage() {
 
             <div className="space-y-3">
               {[
-                { q: 'Is the free trial actually free?', a: '100%. 14 days of full Pro access including AI assistant, email blasts, and marketing tools. No credit card required. After the trial, you can continue with Basic (which is still powerful) or upgrade to keep Pro features.' },
+                { q: 'Is the free trial actually free?', a: '100%. 14 days of full Pro access including AI assistant, email blasts, and marketing tools. A card is required to start your trial, but you won\'t be charged until the trial ends. After the trial, you can continue with Basic (which is still powerful) or upgrade to keep Pro features.' },
                 { q: 'What\'s the difference between Basic and Pro?', a: 'Basic gives you everything for day-to-day operations: job tracking, profit calculator, quote builder with PDF, customer CRM, follow-up pipeline, tax set-aside, and review requests. Pro adds Dyia AI (natural language logging, smart pricing, forecasting), mass email campaigns, marketing ROI tracking, and priority support.' },
                 { q: 'Can I use this on my phone?', a: 'Yes. dyia is a progressive web app that works in any browser — iPhone, Android, tablet, laptop. Log jobs from your truck, check numbers at the dump, send quotes from your couch. No app download needed.' },
                 { q: 'How is this different from a spreadsheet?', a: 'A spreadsheet doesn\'t calculate profit per job automatically, generate branded PDF quotes, track customer history, manage your follow-up pipeline, set aside taxes, or give you AI insights. dyia does all of that in 30 seconds per job.' },
@@ -890,7 +890,7 @@ export default function LandingPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
               </svg>
             </button>
-            <p className="text-slate-600 text-sm mt-6">14 days free • No credit card • Cancel anytime</p>
+            <p className="text-slate-600 text-sm mt-6">14 days free • Cancel anytime</p>
           </div>
         </section>
       </main>

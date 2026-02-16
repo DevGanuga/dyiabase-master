@@ -454,22 +454,34 @@ function AppPageContent() {
     await signOut()
   }
 
+  // Subscription gate: users who haven't completed Stripe checkout must subscribe first.
+  // A user is "subscribed" if they have an active, trialing, or past_due status (they at least started paying).
+  const hasActiveSubscription = !!userProfile && ['active', 'trialing', 'past_due'].includes(userProfile.subscription_status || '')
+  const needsSubscription = !loading && !isDemoMode && !!userProfile && !hasActiveSubscription
+
+  // Redirect unsubscribed users to pricing — skip if checkout flow is already in progress (plan/tier params)
+  useEffect(() => {
+    if (needsSubscription && !planParam && !checkoutLoading && !checkoutTriggeredRef.current) {
+      window.location.href = '/#pricing'
+    }
+  }, [needsSubscription, planParam, checkoutLoading])
+
   // Only redirect to onboarding if user hasn't completed it AND has no data yet
   // Users who've already been using the app (have jobs/quotes) don't need onboarding
   const hasExistingData = jobs.length > 0 || quotes.length > 0
   const needsOnboarding = !loading && !isDemoMode && !!userProfile && !settings.onboardingCompleted && !settings.onboardingSkipped && !hasExistingData
 
   // Redirect to onboarding for new users (after loading completes)
-  // Skip if checkout is in progress — checkout takes priority, onboarding happens after
+  // Skip if checkout is in progress OR user hasn't subscribed yet — checkout/subscription takes priority
   useEffect(() => {
-    if (needsOnboarding && !checkoutLoading) {
+    if (needsOnboarding && !checkoutLoading && !checkoutTriggeredRef.current && !needsSubscription) {
       // Preserve the intended view through the onboarding redirect
       const returnUrl = viewParam && viewParam !== 'dashboard' 
         ? `/app?view=${viewParam}` 
         : '/app'
       router.push(`/app/onboarding?returnUrl=${encodeURIComponent(returnUrl)}`)
     }
-  }, [needsOnboarding, router, viewParam, checkoutLoading])
+  }, [needsOnboarding, router, viewParam, checkoutLoading, needsSubscription])
 
   const handleReopenOnboarding = () => {
     router.push('/app/onboarding')
@@ -485,7 +497,7 @@ function AppPageContent() {
         />
         <div className="w-8 h-8 border-2 border-orange-500/30 border-t-orange-500 rounded-full animate-spin mx-auto mb-4" />
         <p className="text-sm text-slate-500 font-medium">
-          {checkoutLoading ? 'Redirecting to checkout...' : needsOnboarding ? 'Setting up your account...' : 'Loading...'}
+          {checkoutLoading ? 'Redirecting to checkout...' : needsSubscription ? 'Redirecting to plans...' : needsOnboarding ? 'Setting up your account...' : 'Loading...'}
         </p>
       </div>
     </div>
@@ -498,6 +510,11 @@ function AppPageContent() {
 
   // Show loading while redirecting to Stripe checkout
   if (checkoutLoading) {
+    return loadingOrRedirecting
+  }
+
+  // Show loading while redirecting unsubscribed users to pricing
+  if (needsSubscription && !planParam) {
     return loadingOrRedirecting
   }
 
