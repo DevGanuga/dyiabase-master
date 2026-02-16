@@ -1,8 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { createHash } from 'crypto'
+import { rateLimiters } from '@/lib/rate-limit'
 
-const DEMO_PASSWORD = process.env.DEMO_PASSWORD || 'dyia-demo-2026'
+/**
+ * Derive a demo token from the password.
+ * The cookie stores this hash, NOT the raw password.
+ */
+function deriveToken(password: string): string {
+  return createHash('sha256').update(password).digest('hex')
+}
 
 export async function POST(request: NextRequest) {
+  // Rate limit: 5 attempts per 15 minutes per IP
+  const rateLimited = rateLimiters.demoActivate.check(request)
+  if (rateLimited) return rateLimited
+
+  const DEMO_PASSWORD = process.env.DEMO_PASSWORD
+  if (!DEMO_PASSWORD) {
+    return NextResponse.json(
+      { error: 'Demo mode is not enabled' },
+      { status: 403 }
+    )
+  }
+
   try {
     const { password } = await request.json()
 
@@ -13,10 +33,23 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Set demo access cookie (expires in 24 hours)
+    const token = deriveToken(DEMO_PASSWORD)
+
     const response = NextResponse.json({ success: true, message: 'Demo mode activated' })
-    response.cookies.set('dyia_demo_access', DEMO_PASSWORD, {
-      httpOnly: false, // Client needs to read this for demo mode UI
+
+    // Auth cookie: httpOnly so JS can't read/steal it. Used by middleware & layout.
+    response.cookies.set('dyia_demo_access', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24, // 24 hours
+      path: '/',
+    })
+
+    // Indicator cookie: readable by client JS for UI (demo banner, demo data).
+    // Contains no secret — just signals "demo mode is on".
+    response.cookies.set('dyia_demo_active', '1', {
+      httpOnly: false,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: 60 * 60 * 24, // 24 hours
@@ -33,8 +66,8 @@ export async function POST(request: NextRequest) {
 }
 
 export async function DELETE() {
-  // Clear demo access cookie
   const response = NextResponse.json({ success: true, message: 'Demo mode deactivated' })
   response.cookies.delete('dyia_demo_access')
+  response.cookies.delete('dyia_demo_active')
   return response
 }

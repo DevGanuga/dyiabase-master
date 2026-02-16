@@ -1095,6 +1095,15 @@
   }
 }
 
+@keyframes gradientShift {
+  0%, 100% {
+    background-position: 0% center;
+  }
+  50% {
+    background-position: 100% center;
+  }
+}
+
 @keyframes bannerSlideDown {
   0% {
     max-height: 0;

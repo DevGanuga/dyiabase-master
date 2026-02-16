@@ -743,10 +743,10 @@ export function Settings({ settings, setSettings, userId, showSuccess, userProfi
                       }}
                       className="relative flex flex-col items-center p-4 rounded-xl border-2 border-orange-500/50 hover:border-orange-500 bg-orange-500/5 transition-colors text-left group"
                     >
-                      <span className="absolute -top-2.5 right-3 px-2 py-0.5 bg-orange-500 text-white text-[10px] font-bold rounded-full">SAVE 17%</span>
+                      <span className="absolute -top-2.5 right-3 px-2 py-0.5 bg-orange-500 text-white text-[10px] font-bold rounded-full">2 MONTHS FREE</span>
                       <span className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wide mb-1">Annual</span>
-                      <span className="text-2xl font-bold text-[var(--color-text-primary)]">$23.92<span className="text-sm font-normal text-[var(--color-text-muted)]">/mo</span></span>
-                      <span className="text-xs text-[var(--color-text-muted)] mt-1">$287 billed yearly</span>
+                      <span className="text-2xl font-bold text-[var(--color-text-primary)]">$24.99<span className="text-sm font-normal text-[var(--color-text-muted)]">/mo</span></span>
+                      <span className="text-xs text-[var(--color-text-muted)] mt-1">$299.90 billed yearly</span>
                     </button>
                   </div>
                   <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs text-[var(--color-text-muted)]">

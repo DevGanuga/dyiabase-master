@@ -19,6 +19,7 @@ function DyiaBriefingCard() {
     fetchedRef.current = true
     const sessionKey = `dyia_briefing_${new Date().toDateString()}`
     const cached = sessionStorage.getItem(sessionKey)
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- hydration guard: must read sessionStorage after mount
     if (cached) { setBriefing(JSON.parse(cached)); return }
 
     fetch('/api/ai/briefing')

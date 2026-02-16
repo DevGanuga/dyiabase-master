@@ -29,15 +29,15 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error('Outlook OAuth error:', error, searchParams.get('error_description'))
-      return NextResponse.redirect(`${baseUrl}/app?view=massEmail?error=oauth_denied`)
+      return NextResponse.redirect(`${baseUrl}/app?view=massEmail&error=oauth_denied`)
     }
 
     if (!code || !state) {
-      return NextResponse.redirect(`${baseUrl}/app?view=massEmail?error=missing_params`)
+      return NextResponse.redirect(`${baseUrl}/app?view=massEmail&error=missing_params`)
     }
 
     if (!OUTLOOK_CLIENT_ID || !OUTLOOK_CLIENT_SECRET) {
-      return NextResponse.redirect(`${baseUrl}/app?view=massEmail?error=not_configured`)
+      return NextResponse.redirect(`${baseUrl}/app?view=massEmail&error=not_configured`)
     }
 
     // Exchange code for tokens
@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
     if (!tokenResponse.ok) {
       const errorData = await tokenResponse.text()
       console.error('Token exchange failed:', errorData)
-      return NextResponse.redirect(`${baseUrl}/app?view=massEmail?error=token_exchange`)
+      return NextResponse.redirect(`${baseUrl}/app?view=massEmail&error=token_exchange`)
     }
 
     const tokens = await tokenResponse.json()
@@ -70,7 +70,7 @@ export async function GET(request: NextRequest) {
 
     if (!userInfoResponse.ok) {
       console.error('Failed to get user info')
-      return NextResponse.redirect(`${baseUrl}/app?view=massEmail?error=user_info`)
+      return NextResponse.redirect(`${baseUrl}/app?view=massEmail&error=user_info`)
     }
 
     const userInfo = await userInfoResponse.json()
@@ -88,7 +88,7 @@ export async function GET(request: NextRequest) {
 
     if (userError || !user) {
       console.error('User not found:', state)
-      return NextResponse.redirect(`${baseUrl}/app?view=massEmail?error=user_not_found`)
+      return NextResponse.redirect(`${baseUrl}/app?view=massEmail&error=user_not_found`)
     }
 
     // Calculate token expiry
@@ -112,13 +112,13 @@ export async function GET(request: NextRequest) {
 
     if (upsertError) {
       console.error('Failed to store connection:', upsertError)
-      return NextResponse.redirect(`${baseUrl}/app?view=massEmail?error=storage`)
+      return NextResponse.redirect(`${baseUrl}/app?view=massEmail&error=storage`)
     }
 
     // Success - redirect back to email blast page
-    return NextResponse.redirect(`${baseUrl}/app?view=massEmail?connected=outlook`)
+    return NextResponse.redirect(`${baseUrl}/app?view=massEmail&connected=outlook`)
   } catch (error) {
     console.error('Outlook callback error:', error)
-    return NextResponse.redirect(`${baseUrl}/app?view=massEmail?error=unknown`)
+    return NextResponse.redirect(`${baseUrl}/app?view=massEmail&error=unknown`)
   }
 }

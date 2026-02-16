@@ -53,6 +53,10 @@ Set these in your Vercel project settings (Settings > Environment Variables):
 | `NEXT_PUBLIC_APP_URL` | Production URL (e.g., `https://dyia.io`). Defaults to `http://localhost:3000` |
 | `DEMO_PASSWORD` | Password for demo mode access. If not set, demo mode is disabled. |
 | `STRIPE_FOUNDERS_COUPON_ID` | Stripe coupon ID for founders pricing |
+| `NEXT_PUBLIC_SENTRY_DSN` | Sentry DSN for error monitoring (recommended for production) |
+| `SENTRY_ORG` | Sentry organization slug (for source maps upload) |
+| `SENTRY_PROJECT` | Sentry project slug (for source maps upload) |
+| `SENTRY_AUTH_TOKEN` | Sentry auth token (for source maps upload during build) |
 
 ---
 
@@ -61,13 +65,29 @@ Set these in your Vercel project settings (Settings > Environment Variables):
 ### Create Products and Prices
 
 1. Go to Stripe Dashboard > Products
-2. Create "dyia Basic" product:
-   - Monthly price: $19.99/mo
-   - Annual price: $191/year ($15.92/mo)
-3. Create "dyia Pro" product:
-   - Monthly price: $29.99/mo
-   - Annual price: $287/year ($23.92/mo)
-4. Copy the price IDs to `NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID` and `NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID`
+2. Create **"dyia Pro"** product with two prices:
+   - Monthly: **$29.99/month** (recurring) — copy Price ID → `NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID`
+   - Annual: **$299.90/year** (recurring, = 10 months, 2 months free) — copy Price ID → `NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID`
+
+### Create Founders Coupon (first 50 beta testers get Pro at $19.99/mo)
+
+1. Go to Products > Coupons > **Create coupon**
+   - **Name:** `Founders Pricing`
+   - **Type:** Amount off
+   - **Discount:** **$10.00 off** (brings $29.99/mo → $19.99/mo)
+   - **Duration:** **Forever** (locked in as long as they stay subscribed)
+   - **Max redemptions:** **50** (auto-stops after 50 uses)
+2. Copy the **Coupon ID** → `STRIPE_FOUNDERS_COUPON_ID`
+3. Optionally create a **Promotion Code** for the coupon:
+   - Click into the coupon > Promotion codes > Create
+   - Code: `FOUNDERS` (for manual entry at checkout)
+
+**How founders pricing works:**
+- Share `https://yourdomain.com/#pricing?founders=1` — coupon auto-applies at checkout
+- Or users enter code `FOUNDERS` at Stripe checkout
+- Rate is locked at $19.99/mo forever, as long as they stay subscribed
+- If they cancel and re-subscribe, the coupon is gone — they pay full $29.99/mo
+- Once 50 founders slots are filled, the coupon automatically stops working
 
 ### Register Webhook
 
@@ -99,6 +119,27 @@ Set these in your Vercel project settings (Settings > Environment Variables):
    - `user.updated`
    - `user.deleted`
 4. Copy the signing secret to `CLERK_WEBHOOK_SECRET`
+
+### Create JWT Template for Supabase (REQUIRED for database security)
+
+This enables Row-Level Security so users can only access their own data.
+
+1. Go to Clerk Dashboard > JWT Templates
+2. Click "New template" > choose **Supabase**
+3. Set the **Signing key** to your **Supabase JWT Secret** (found in Supabase Dashboard > Settings > API > JWT Settings > JWT Secret)
+4. The template should include these claims (Clerk pre-fills this for Supabase templates):
+   ```json
+   {
+     "sub": "{{user.id}}",
+     "iss": "clerk",
+     "iat": "{{time.now}}",
+     "exp": "{{time.now + 3600}}",
+     "role": "authenticated"
+   }
+   ```
+5. Save the template — the name must be **supabase** (lowercase)
+
+After creating the template, run migration `018_rls_policies.sql` in Supabase to activate the user-scoped security policies.
 
 ---
 
@@ -155,21 +196,51 @@ Without Resend configured:
 
 ## 7. Supabase Migrations
 
-Run these migrations in the Supabase SQL Editor (in order):
+Run **all** migrations in the Supabase SQL Editor, in numerical order:
 
-1. `016_fix_customers_add_quote_source.sql` — Creates customers table + adds quote source
-2. `017_admin_panel.sql` — Adds admin role + webhook event log
+| # | File | What It Does |
+|---|------|-------------|
+| 001 | `001_create_junkprofit_schema.sql` | Base schema (users, settings, jobs, quotes) |
+| 002 | `002_rename_to_dyia_add_clerk.sql` | Rename tables to `dyia_*`, add Clerk auth |
+| 003 | `003_mvp_sprint.sql` | Fixed expenses, follow-ups, price templates, AI threads/messages |
+| 004 | `004_quotes_nested_in_jobs.sql` | Quote-job relationship |
+| 005 | `005_onboarding_trial.sql` | Onboarding tracking columns |
+| 006 | `006_quotes_independent.sql` | Quotes independence |
+| 007 | `007_job_embeddings.sql` | Job embeddings |
+| 008 | `008_pending_actions.sql` | Pending actions |
+| 009 | `009_ai_credits_marketing_reviews.sql` | AI credits, marketing spend, review requests |
+| 010 | `010_review_requests.sql` | Review request tracking |
+| 011 | `011_review_urls_per_platform.sql` | Per-platform review URLs |
+| 012 | `012_mass_email.sql` | Email connections, sends, campaigns |
+| 013 | `013_customers_table.sql` | Customers CRM table |
+| 014 | `014_quiz_submissions.sql` | Profit calculator lead funnel |
+| 015 | `015_admin_role.sql` | Admin role + `is_admin` flag |
+| 016 | `016_fix_customers_add_quote_source.sql` | Customers table fix + quote source |
+| 017a | `017_admin_panel.sql` | Webhook event log table |
+| 017b | `017_job_status_and_address.sql` | Job status + address columns |
+| 018 | `018_rls_policies.sql` | **CRITICAL**: Row-Level Security (requires Clerk JWT template) |
+| 019 | `019_fix_admin_role_constraint.sql` | Fix admin role constraint + re-seed admins |
 
 ---
 
 ## 8. Set Admin Users
 
-After your first users sign up, grant admin access:
+Founding admins (seeded in migration 019) are automatically promoted when they sign up:
+- `devganuga@initdev.co`
+- `ricardo.bezi@initdev.co`
+- `marco.aayala97@yahoo.com`
+
+**To add more admins**, run this SQL after they sign up:
 
 ```sql
-UPDATE dyia_users SET role = 'admin' 
-WHERE email IN ('your-email@example.com', 'co-admin@example.com');
+UPDATE dyia_users 
+SET is_admin = true, role = 'admin', subscription_status = 'active'
+WHERE email IN ('new-admin@example.com');
 ```
+
+**Important:** Always set BOTH `is_admin = true` AND `role = 'admin'` (or `'super_admin'`).
+The sidebar uses `is_admin`, the admin layout uses `is_admin`, and API routes use `is_admin`.
+Setting just `role` without `is_admin` will not work.
 
 Admin panel: `https://yourdomain.com/app/admin`
 

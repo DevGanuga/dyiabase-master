@@ -114,14 +114,14 @@ Note: We use the service_role key for server-side operations. This bypasses RLS 
 ### 1. Create Products
 In Stripe Dashboard → Products, create:
 
-**Monthly Plan:**
-- Name: "dyia Monthly"
-- Price: $12.99/month (recurring)
+**dyia Pro — Monthly:**
+- Name: "dyia Pro Monthly"
+- Price: $29.99/month (recurring)
 - Copy Price ID → `NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID`
 
-**Annual Plan:**
-- Name: "dyia Annual"
-- Price: $119/year (recurring)
+**dyia Pro — Annual:**
+- Name: "dyia Pro Annual"
+- Price: $299.90/year (recurring, 2 months free)
 - Copy Price ID → `NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID`
 
 ### 2. Coupons and promotion codes
@@ -280,6 +280,6 @@ src/
 
 ## Pricing
 
-- Monthly: $12.99/month
-- Annual: $119/year (2 months free)
-- Coupon: GUMROAD20 for 20% off annual
+- Pro Monthly: $29.99/month
+- Pro Annual: $299.90/year (2 months free)
+- Founders coupon: Pro at $19.99/mo (auto-applied via `/#pricing?founders=1`)

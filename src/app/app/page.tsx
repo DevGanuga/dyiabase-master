@@ -1,9 +1,9 @@
 'use client'
 
 import { Suspense, useEffect, useState, useCallback, useRef } from 'react'
-import { useUser, useClerk } from '@clerk/nextjs'
+import { useUser, useClerk, useAuth } from '@clerk/nextjs'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
+import { createClient, initSupabaseAuth } from '@/lib/supabase/client'
 import type { AppJob, AppQuote, AppSettings, UserProfile } from '@/types/database'
 import { Sidebar } from '@/components/app/Sidebar'
 import { Dashboard } from '@/components/app/Dashboard'
@@ -60,11 +60,17 @@ export default function AppPage() {
 function AppPageContent() {
   const { user, isLoaded } = useUser()
   const { signOut } = useClerk()
+  const { getToken } = useAuth()
   const router = useRouter()
   const searchParams = useSearchParams()
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const [isDemoMode, setIsDemoMode] = useState(false)
+
+  // Initialize Supabase client with Clerk JWT for RLS-authenticated queries.
+  // Must be called synchronously (not in useEffect) so the token getter is set
+  // before any Supabase queries run in subsequent effects.
+  initSupabaseAuth(() => getToken({ template: 'supabase' }))
 
   // URL params for checkout flow and view routing
   const viewParam = searchParams.get('view') as View | null
@@ -84,7 +90,6 @@ function AppPageContent() {
     } else if (viewParam === null) {
       setCurrentViewState('dashboard')
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewParam])
   
   const setCurrentView = useCallback((view: View) => {
@@ -132,7 +137,7 @@ function AppPageContent() {
   useEffect(() => {
     const checkDemoMode = () => {
       const cookies = document.cookie.split(';')
-      const demoCookie = cookies.find(c => c.trim().startsWith('dyia_demo_access='))
+      const demoCookie = cookies.find(c => c.trim().startsWith('dyia_demo_active='))
       if (demoCookie) {
         setIsDemoMode(true)
         setJobs(DEMO_JOBS)
@@ -360,24 +365,34 @@ function AppPageContent() {
     initUserProfile()
   }, [isLoaded, user, supabase, loadData, isDemoMode])
 
-  // Auto-trigger Stripe checkout when arriving with ?plan= param (e.g. from landing page pricing CTA)
+  // Auto-trigger Stripe checkout when arriving with ?plan= and ?tier= params (e.g. from landing page pricing CTA)
   useEffect(() => {
     if (!planParam || !userProfile || checkoutTriggeredRef.current || loading || isDemoMode) return
+    const tier = searchParams.get('tier') as 'basic' | 'pro' | null
+    if (!tier) return
     checkoutTriggeredRef.current = true
     setCheckoutLoading(true)
 
     const triggerCheckout = async () => {
+      const STRIPE_PRICES: Record<string, Record<string, string | undefined>> = {
+        basic: {
+          monthly: process.env.NEXT_PUBLIC_STRIPE_BASIC_MONTHLY_PRICE_ID,
+          annual: process.env.NEXT_PUBLIC_STRIPE_BASIC_ANNUAL_PRICE_ID,
+        },
+        pro: {
+          monthly: process.env.NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID,
+          annual: process.env.NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID,
+        },
+      }
+      const priceId = STRIPE_PRICES[tier]?.[planParam]
+
+      if (!priceId) {
+        showError('Pricing not configured. Please try again later.')
+        setCheckoutLoading(false)
+        return
+      }
+
       try {
-        const priceId = planParam === 'annual'
-          ? process.env.NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID
-          : process.env.NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID
-
-        if (!priceId) {
-          showError('Pricing not configured. Please try again later.')
-          setCheckoutLoading(false)
-          return
-        }
-
         const res = await fetch('/api/stripe/checkout', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -385,6 +400,7 @@ function AppPageContent() {
             priceId,
             clerkUserId: userProfile.clerk_user_id,
             userEmail: userProfile.email || user?.primaryEmailAddress?.emailAddress || '',
+            tier,
           }),
         })
 
@@ -425,8 +441,9 @@ function AppPageContent() {
 
   const handleLogout = async () => {
     if (isDemoMode) {
-      // Clear demo cookie and redirect
-      document.cookie = 'dyia_demo_access=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
+      // Clear demo cookies via API (httpOnly cookie can't be cleared from JS) and redirect
+      await fetch('/api/demo/activate', { method: 'DELETE' })
+      document.cookie = 'dyia_demo_active=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
       window.location.href = '/'
       return
     }

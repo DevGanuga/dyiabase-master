@@ -4,13 +4,41 @@ import { NextResponse } from 'next/server'
 // Routes that require authentication  
 const isProtectedRoute = createRouteMatcher(['/app(.*)'])
 
+/**
+ * Compute SHA-256 hex digest using the Web Crypto API (Edge Runtime compatible).
+ */
+async function sha256Hex(input: string): Promise<string> {
+  const data = new TextEncoder().encode(input)
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data)
+  const hashArray = Array.from(new Uint8Array(hashBuffer))
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+}
+
+/**
+ * Constant-time string comparison to prevent timing attacks.
+ * Falls back to simple equality if lengths differ (which is safe
+ * because length difference already reveals mismatch).
+ */
+function timingSafeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false
+  let result = 0
+  for (let i = 0; i < a.length; i++) {
+    result |= a.charCodeAt(i) ^ b.charCodeAt(i)
+  }
+  return result === 0
+}
+
 export const proxy = clerkMiddleware(async (auth, req) => {
-  // Demo mode bypass (requires DEMO_PASSWORD env var - no hardcoded fallback)
+  // Demo mode bypass: verify the httpOnly cookie contains the expected token.
+  // The token is SHA256(DEMO_PASSWORD), set by /api/demo/activate.
   const demoPassword = process.env.DEMO_PASSWORD
   if (demoPassword) {
     const demoToken = req.cookies.get('dyia_demo_access')?.value
-    if (demoToken === demoPassword) {
-      return NextResponse.next()
+    if (demoToken) {
+      const expected = await sha256Hex(demoPassword)
+      if (timingSafeEqual(demoToken, expected)) {
+        return NextResponse.next()
+      }
     }
   }
 

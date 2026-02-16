@@ -4,6 +4,7 @@ import { createClient } from '@supabase/supabase-js'
 import { getOpenAI, DYIA_INSTRUCTIONS, DYIA_MODEL } from '@/lib/openai/client'
 import { DYIA_TOOLS, DyiaFunctionName } from '@/lib/openai/functions'
 import { handleFunctionCall, HandlerResult } from '@/lib/openai/handlers'
+import { rateLimiters } from '@/lib/rate-limit'
 
 // Initialize Supabase with service role for server operations
 const supabase = createClient(
@@ -33,6 +34,10 @@ interface ResponseData {
 }
 
 export async function POST(req: NextRequest) {
+  // Rate limit: 30 requests per minute per IP
+  const rateLimited = rateLimiters.aiChat.check(req)
+  if (rateLimited) return rateLimited
+
   try {
     // 1. Auth check
     const { userId: clerkUserId } = await auth()

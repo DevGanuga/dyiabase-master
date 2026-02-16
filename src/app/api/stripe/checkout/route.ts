@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
+import { rateLimiters } from '@/lib/rate-limit'
 
 function getStripe() {
   if (!process.env.STRIPE_SECRET_KEY) {
@@ -20,6 +21,10 @@ function getSupabase() {
 }
 
 export async function POST(request: NextRequest) {
+  // Rate limit: 10 requests per minute per IP
+  const rateLimited = rateLimiters.checkout.check(request)
+  if (rateLimited) return rateLimited
+
   try {
     const stripe = getStripe()
     const supabase = getSupabase()
@@ -77,17 +82,18 @@ export async function POST(request: NextRequest) {
           dyia_user_id: dyiaUser.id,
         },
       }
-      // Let customers enter a promotion code at checkout (e.g. Gumroad, founders)
-      sessionParams.allow_promotion_codes = true
-    }
 
-    // Apply coupon (only for subscriptions): explicit code from client or founders coupon from env
-    const foundersCouponId = process.env.STRIPE_FOUNDERS_COUPON_ID
-    if (!isOneTime) {
+      // Apply coupon: founders coupon (auto-applied) or explicit code from client.
+      // Stripe doesn't allow both `discounts` and `allow_promotion_codes` on the same session,
+      // so we use `discounts` when a coupon is being applied, otherwise allow manual promo codes.
+      const foundersCouponId = process.env.STRIPE_FOUNDERS_COUPON_ID
       if (useFoundersCoupon && foundersCouponId) {
         sessionParams.discounts = [{ coupon: foundersCouponId }]
       } else if (couponCode) {
         sessionParams.discounts = [{ coupon: couponCode }]
+      } else {
+        // No pre-applied coupon — let customers enter a promotion code at checkout
+        sessionParams.allow_promotion_codes = true
       }
     }
 
