@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useEffect, useState, useCallback, useRef } from 'react'
+import { Suspense, useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { useUser, useClerk, useAuth } from '@clerk/nextjs'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient, initSupabaseAuth } from '@/lib/supabase/client'
@@ -118,8 +118,12 @@ function AppPageContent() {
   const [checkoutLoading, setCheckoutLoading] = useState(false)
   const checkoutTriggeredRef = useRef(false)
   const contentScrollRef = useRef<HTMLDivElement>(null)
+  const initAttemptedRef = useRef(false)
 
-  const supabase = createClient()
+  // Memoize the Supabase client so it's created once — NOT on every render.
+  // The client's custom fetch reads the module-level token getter at request time,
+  // so it always picks up the latest Clerk JWT without needing recreation.
+  const supabase = useMemo(() => createClient(), [])
 
   // Track when user opens Assistant so we can keep it mounted (preserves conversation when switching views)
   useEffect(() => {
@@ -308,22 +312,22 @@ function AppPageContent() {
     }
   }, [supabase])
 
-  // Initialize user profile when Clerk user is loaded
+  // Initialize user profile when Clerk user is loaded.
+  // Guard with initAttemptedRef so this runs exactly once per mount
+  // (prevents re-firing when dependency refs change).
   useEffect(() => {
-    const initUserProfile = async () => {
-      // Skip if in demo mode
-      if (isDemoMode) return
-      
-      if (!isLoaded) {
-        // Clerk still loading - keep loading=true, effect will re-fire when isLoaded changes
-        return
-      }
-      if (!user) {
-        // Clerk loaded but no user (shouldn't reach here due to layout guard)
-        setLoading(false)
-        return
-      }
+    if (initAttemptedRef.current) return
+    if (isDemoMode) return
+    if (!isLoaded) return
+    
+    if (!user) {
+      setLoading(false)
+      return
+    }
 
+    initAttemptedRef.current = true
+
+    const initUserProfile = async () => {
       try {
         // Check if user profile exists
         let { data: profile } = await supabase

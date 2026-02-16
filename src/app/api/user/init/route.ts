@@ -55,6 +55,18 @@ export async function POST(req: Request) {
       .single()
 
     if (createError) {
+      // Duplicate key = Clerk webhook already created the row (race condition).
+      // Re-fetch and return it instead of 500-ing.
+      if (createError.code === '23505') {
+        const { data: raceProfile } = await supabase
+          .from('dyia_users')
+          .select('*')
+          .eq('clerk_user_id', userId)
+          .single()
+        if (raceProfile) {
+          return NextResponse.json({ profile: raceProfile })
+        }
+      }
       console.error('Error creating user profile:', createError.message, createError.details, createError.code)
       return NextResponse.json({ error: createError.message || 'Failed to create profile' }, { status: 500 })
     }
