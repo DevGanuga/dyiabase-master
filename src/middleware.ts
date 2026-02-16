@@ -28,7 +28,7 @@ function timingSafeEqual(a: string, b: string): boolean {
   return result === 0
 }
 
-export const proxy = clerkMiddleware(async (auth, req) => {
+export default clerkMiddleware(async (auth, req) => {
   // Demo mode bypass: verify the httpOnly cookie contains the expected token.
   // The token is SHA256(DEMO_PASSWORD), set by /api/demo/activate.
   const demoPassword = process.env.DEMO_PASSWORD

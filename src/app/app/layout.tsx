@@ -10,7 +10,7 @@ export default async function AppLayout({
 }: {
   children: React.ReactNode
 }) {
-  // Auth is enforced by middleware (proxy.ts) via auth.protect() which properly
+  // Auth is enforced by middleware (middleware.ts) via auth.protect() which properly
   // handles post-signup session establishment. No duplicate auth check here —
   // a second auth() call can race and redirect before the session is ready.
 
