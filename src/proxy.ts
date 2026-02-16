@@ -14,14 +14,10 @@ export const proxy = clerkMiddleware(async (auth, req) => {
     }
   }
 
-  // Check auth for protected routes
+  // Protect /app routes — auth.protect() handles session establishment properly
+  // (unlike manual auth() + redirect which races with post-signup session creation)
   if (isProtectedRoute(req)) {
-    const { userId } = await auth()
-    
-    if (!userId) {
-      // Redirect to sign-in
-      return NextResponse.redirect(new URL('/sign-in', req.url))
-    }
+    await auth.protect()
   }
   
   return NextResponse.next()

@@ -86,7 +86,11 @@ export default function RootLayout({
   }
 
   return (
-    <ClerkProvider appearance={clerkAppearance}>
+    <ClerkProvider
+      appearance={clerkAppearance}
+      signInFallbackRedirectUrl="/app"
+      signUpFallbackRedirectUrl="/app"
+    >
       <html lang="en" suppressHydrationWarning>
         <head><script dangerouslySetInnerHTML={{ __html: themeScript }} /></head>
         <body className={`${dmSans.variable} ${spaceGrotesk.variable} antialiased`}>

@@ -1,5 +1,3 @@
-import { auth } from '@clerk/nextjs/server'
-import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { validateEnv } from '@/lib/env'
@@ -12,18 +10,14 @@ export default async function AppLayout({
 }: {
   children: React.ReactNode
 }) {
-  // Check for demo mode cookie
+  // Auth is enforced by middleware (proxy.ts) via auth.protect() which properly
+  // handles post-signup session establishment. No duplicate auth check here —
+  // a second auth() call can race and redirect before the session is ready.
+
+  // Demo mode is also handled by middleware, but we still read the cookie
+  // so client components can detect demo state if needed.
   const cookieStore = await cookies()
-  const isDemoMode = !!cookieStore.get('dyia_demo_access')?.value
-
-  // If not in demo mode, require Clerk authentication
-  if (!isDemoMode) {
-    const { userId } = await auth()
-
-    if (!userId) {
-      redirect('/')
-    }
-  }
+  void cookieStore.get('dyia_demo_access')
 
   return <ErrorBoundary>{children}</ErrorBoundary>
 }
