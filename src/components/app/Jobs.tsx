@@ -333,70 +333,82 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
     const isEditing = editingJob !== 'new'
 
     return (
-      <div className="space-y-4 sm:space-y-5">
+      <div className="space-y-4 sm:space-y-5 pb-24">
+        {/* Header */}
         <div className="flex items-start sm:items-center justify-between gap-3">
-          <div className="min-w-0">
-            <h1 className="text-xl sm:text-2xl font-bold text-[var(--color-text-primary)]">{isEditing ? 'Edit Job' : 'Log Job'}</h1>
-            <p className="text-sm text-[var(--color-text-muted)]">{isEditing ? 'Update job details' : 'Log one or multiple customers from the same trip'}</p>
+          <div className="flex items-center gap-3 min-w-0">
+            <button onClick={cancelForm} className="p-1.5 rounded-lg hover:bg-[var(--color-bg-subtle)] transition-colors shrink-0">
+              <svg className="w-5 h-5 text-[var(--color-text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              </svg>
+            </button>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl sm:text-2xl font-bold text-[var(--color-text-primary)]">{isEditing ? 'Edit Job' : 'Log Job'}</h1>
+                {isEditing && (
+                  <span className="px-2 py-0.5 bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-full text-[10px] font-bold uppercase">Editing</span>
+                )}
+              </div>
+              <p className="text-sm text-[var(--color-text-muted)]">{isEditing ? 'Update job details' : 'Log one or multiple customers from the same trip'}</p>
+            </div>
           </div>
-          <button onClick={cancelForm} className="px-3 py-1.5 text-sm text-slate-600 dark:text-slate-400 hover:text-[var(--color-text-primary)] shrink-0">
-            Cancel
-          </button>
         </div>
 
         {/* === LIVE PROFIT PREVIEW === */}
-        {totalRevenue > 0 && (
-          <div className={`rounded-xl p-4 border-2 transition-colors ${liveProfit >= 0 ? 'bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800/50' : 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800/50'}`}>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
-              <div>
-                <p className="text-xs text-[var(--color-text-muted)] mb-0.5">Revenue</p>
-                <p className="text-lg font-bold text-green-600 dark:text-green-400">{formatCurrency(totalRevenue)}</p>
-              </div>
-              <div>
-                <p className="text-xs text-[var(--color-text-muted)] mb-0.5">Expenses</p>
-                <p className="text-lg font-bold text-red-500 dark:text-red-400">{totalExpenses > 0 ? `-${formatCurrency(totalExpenses)}` : '$0'}</p>
-              </div>
-              <div>
-                <p className="text-xs text-[var(--color-text-muted)] mb-0.5">Profit</p>
-                <p className={`text-lg font-bold ${liveProfit >= 0 ? 'text-green-700 dark:text-green-300' : 'text-red-600 dark:text-red-400'}`}>
-                  {formatCurrency(liveProfit)}
-                  {liveProfitMargin > 0 && <span className="text-xs font-normal ml-1 opacity-70">{liveProfitMargin}%</span>}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs text-[var(--color-text-muted)] mb-0.5">Take Home</p>
-                <p className="text-lg font-bold text-purple-600 dark:text-purple-400">
-                  {formatCurrency(liveTakeHome)}
-                  <span className="text-xs font-normal ml-1 opacity-70">-{taxRate}% tax</span>
-                </p>
-              </div>
+        <div className={`rounded-xl p-4 border-2 transition-colors ${totalRevenue > 0 ? (liveProfit >= 0 ? 'bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800/50' : 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800/50') : 'bg-[var(--color-bg-subtle)] border-[var(--color-border)]'}`}>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+            <div>
+              <p className="text-xs text-[var(--color-text-muted)] mb-0.5">Revenue</p>
+              <p className={`text-lg font-bold ${totalRevenue > 0 ? 'text-green-600 dark:text-green-400' : 'text-[var(--color-text-faint)]'}`}>{formatCurrency(totalRevenue)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-[var(--color-text-muted)] mb-0.5">Expenses</p>
+              <p className={`text-lg font-bold ${totalExpenses > 0 ? 'text-red-500 dark:text-red-400' : 'text-[var(--color-text-faint)]'}`}>{totalExpenses > 0 ? `-${formatCurrency(totalExpenses)}` : '$0'}</p>
+            </div>
+            <div>
+              <p className="text-xs text-[var(--color-text-muted)] mb-0.5">Profit</p>
+              <p className={`text-lg font-bold ${totalRevenue > 0 ? (liveProfit >= 0 ? 'text-green-700 dark:text-green-300' : 'text-red-600 dark:text-red-400') : 'text-[var(--color-text-faint)]'}`}>
+                {formatCurrency(liveProfit)}
+                {liveProfitMargin > 0 && <span className="text-xs font-normal ml-1 opacity-70">{liveProfitMargin}%</span>}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-[var(--color-text-muted)] mb-0.5">Take Home</p>
+              <p className={`text-lg font-bold ${totalRevenue > 0 ? 'text-purple-600 dark:text-purple-400' : 'text-[var(--color-text-faint)]'}`}>
+                {formatCurrency(liveTakeHome)}
+                {totalRevenue > 0 && <span className="text-xs font-normal ml-1 opacity-70">-{taxRate}% tax</span>}
+              </p>
             </div>
           </div>
-        )}
+        </div>
 
         {/* === CUSTOMER + DATE === */}
-        <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl p-4 sm:p-5">
+        <div className="app-card p-4 sm:p-5">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">
               {isEditing ? 'Job Details' : `Customer${tempCustomers.length > 1 ? 's' : ''}`}
               {!isEditing && tempCustomers.length > 1 && <span className="text-[var(--color-text-faint)] font-normal ml-1">({tempCustomers.length})</span>}
             </h3>
-            <div className="flex items-center gap-3">
-              <input
-                type="date"
-                value={tempDate}
-                onChange={(e) => setTempDate(e.target.value)}
-                className="px-3 py-1.5 bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 text-sm"
-              />
-              {!isEditing && (
-                <button 
-                  onClick={addCustomerRow} 
-                  className="text-xs text-orange-600 dark:text-orange-400 hover:text-orange-700 dark:hover:text-orange-300 font-medium whitespace-nowrap"
-                >
-                  + Add Another
-                </button>
-              )}
-            </div>
+            {!isEditing && (
+              <button 
+                onClick={addCustomerRow} 
+                className="text-xs text-orange-600 dark:text-orange-400 hover:text-orange-700 dark:hover:text-orange-300 font-medium whitespace-nowrap flex items-center gap-1"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                Add Customer
+              </button>
+            )}
+          </div>
+
+          {/* Date field */}
+          <div className="mb-4">
+            <label className="app-label">Date</label>
+            <input
+              type="date"
+              value={tempDate}
+              onChange={(e) => setTempDate(e.target.value)}
+              className="app-input max-w-xs"
+            />
           </div>
 
           <div className="space-y-3">
@@ -406,23 +418,26 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
                 className={`relative ${tempCustomers.length > 1 ? 'bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-xl p-4' : ''}`}
               >
                 {!isEditing && tempCustomers.length > 1 && (
-                  <button
-                    onClick={() => removeCustomerRow(index)}
-                    className="absolute top-2 right-2 w-6 h-6 bg-red-100 dark:bg-red-900/40 hover:bg-red-200 dark:hover:bg-red-900/60 text-red-600 dark:text-red-400 rounded-lg text-xs flex items-center justify-center"
-                  >
-                    ×
-                  </button>
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-xs font-medium text-[var(--color-text-muted)]">Customer {index + 1} of {tempCustomers.length}</span>
+                    <button
+                      onClick={() => removeCustomerRow(index)}
+                      className="w-6 h-6 bg-red-100 dark:bg-red-900/40 hover:bg-red-200 dark:hover:bg-red-900/60 text-red-600 dark:text-red-400 rounded-lg text-xs flex items-center justify-center"
+                    >
+                      ×
+                    </button>
+                  </div>
                 )}
                 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
-                    <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Customer Name *</label>
+                    <label className="app-label">Customer Name *</label>
                     <input
                       list={`customer-names-${index}`}
                       type="text"
                       value={customer.name}
                       onChange={(e) => updateCustomer(index, 'name', e.target.value)}
-                      className="w-full px-3 py-2.5 bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 text-sm"
+                      className="app-input"
                       placeholder="John Smith"
                       autoFocus={index === 0}
                     />
@@ -431,25 +446,25 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
                     </datalist>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Revenue *</label>
+                    <label className="app-label">Revenue *</label>
                     <div className="relative">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)] text-sm">$</span>
                       <input
                         type="number"
                         value={customer.revenue || ''}
                         onChange={(e) => updateCustomer(index, 'revenue', Math.max(0, parseFloat(e.target.value) || 0))}
-                        className="w-full px-3 py-2.5 pl-7 bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 text-sm"
+                        className="app-input pl-7"
                         placeholder="500"
                         min="0"
                       />
                     </div>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Lead Source</label>
+                    <label className="app-label">Lead Source</label>
                     <select
                       value={customer.source}
                       onChange={(e) => updateCustomer(index, 'source', e.target.value)}
-                      className="w-full px-3 py-2.5 bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 text-sm"
+                      className="app-select"
                     >
                       <option value="">Select source</option>
                       {MARKETING_SOURCES.map(s => (
@@ -463,28 +478,34 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
           </div>
         </div>
 
-        {/* === EXPENSES (collapsible quick-entry) === */}
-        <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl p-4 sm:p-5">
-          <div className="flex justify-between items-center">
+        {/* === EXPENSES === */}
+        <div className="app-card p-4 sm:p-5">
+          <div className="flex justify-between items-center mb-3">
             <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">
-              {isEditing ? 'Expenses' : 'Expenses'}
+              Expenses
               {totalExpenses > 0 && <span className="text-red-500 font-normal ml-2 text-xs">{formatCurrency(totalExpenses)}</span>}
             </h3>
-            <button 
-              type="button"
-              onClick={() => setShowExpenseDetails(!showExpenseDetails)}
-              className="text-xs text-orange-600 dark:text-orange-400 hover:text-orange-700 font-medium flex items-center gap-1"
-            >
-              {showExpenseDetails ? 'Collapse' : 'Itemize'}
-              <svg className={`w-3.5 h-3.5 transition-transform ${showExpenseDetails ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
+            {/* Tab-style toggle */}
+            <div className="bg-[var(--color-bg-subtle)] rounded-lg p-0.5 inline-flex text-xs">
+              <button
+                type="button"
+                onClick={() => setShowExpenseDetails(false)}
+                className={`px-3 py-1.5 rounded-md font-medium transition-all ${!showExpenseDetails ? 'bg-[var(--color-bg-card)] shadow-sm text-[var(--color-text-primary)]' : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'}`}
+              >
+                Quick
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowExpenseDetails(true)}
+                className={`px-3 py-1.5 rounded-md font-medium transition-all ${showExpenseDetails ? 'bg-[var(--color-bg-card)] shadow-sm text-[var(--color-text-primary)]' : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'}`}
+              >
+                Itemize
+              </button>
+            </div>
           </div>
 
           {!showExpenseDetails ? (
-            /* Quick total entry */
-            <div className="mt-3">
+            <div>
               <div className="relative max-w-xs">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)] text-sm">$</span>
                 <input
@@ -494,17 +515,16 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
                     const val = Math.max(0, parseFloat(e.target.value) || 0)
                     setTempExpenses({ labor: 0, gas: 0, dumpFee: 0, dumpsterRental: 0, additional: val })
                   }}
-                  className="w-full px-3 py-2.5 pl-7 bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 text-sm"
+                  className="app-input pl-7"
                   placeholder="Total expenses for this job"
                   min="0"
                 />
               </div>
-              <p className="text-xs text-[var(--color-text-faint)] mt-1.5">Quick entry — or click &quot;Itemize&quot; to break down by category</p>
+              <p className="text-xs text-[var(--color-text-faint)] mt-1.5">Enter a lump sum, or switch to &quot;Itemize&quot; for a breakdown</p>
             </div>
           ) : (
-            /* Detailed breakdown */
-            <div className="mt-3">
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+            <div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-5 gap-3">
                 {[
                   { key: 'labor', label: 'Labor' },
                   { key: 'gas', label: 'Gas' },
@@ -513,14 +533,14 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
                   { key: 'additional', label: 'Other' },
                 ].map(({ key, label }) => (
                   <div key={key}>
-                    <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">{label}</label>
+                    <label className="app-label">{label}</label>
                     <div className="relative">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)] text-sm">$</span>
                       <input
                         type="number"
                         value={tempExpenses[key as keyof TempExpenses] || ''}
                         onChange={(e) => setTempExpenses({ ...tempExpenses, [key]: Math.max(0, parseFloat(e.target.value) || 0) })}
-                        className="w-full px-3 py-2.5 pl-7 bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 text-sm"
+                        className="app-input pl-7"
                         min="0"
                       />
                     </div>
@@ -540,48 +560,66 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
         </div>
 
         {/* === ADDRESS & NOTES === */}
-        <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl p-4 sm:p-5 space-y-3">
+        <div className="app-card p-4 sm:p-5 space-y-3">
           <div>
-            <label className="block text-sm font-semibold text-[var(--color-text-primary)] mb-2">Job Address <span className="text-[var(--color-text-faint)] font-normal">(optional)</span></label>
+            <label className="app-label">Job Address <span className="text-[var(--color-text-faint)] font-normal text-xs">(optional)</span></label>
             <input
               type="text"
               value={tempAddress}
               onChange={(e) => setTempAddress(e.target.value)}
-              className="w-full px-3 py-2.5 bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 text-sm"
+              className="app-input"
               placeholder="123 Main St, Anytown, ST 12345"
             />
           </div>
           <div>
-            <label className="block text-sm font-semibold text-[var(--color-text-primary)] mb-2">Notes <span className="text-[var(--color-text-faint)] font-normal">(optional)</span></label>
+            <label className="app-label">Notes <span className="text-[var(--color-text-faint)] font-normal text-xs">(optional)</span></label>
             <textarea
               value={tempNotes}
               onChange={(e) => setTempNotes(e.target.value)}
-              className="w-full px-3 py-2.5 bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 text-sm resize-none"
+              className="app-input resize-none"
               rows={2}
               placeholder="Basement cleanout, 2nd floor, had to disconnect appliances..."
             />
           </div>
         </div>
 
-        {/* === ACTIONS === */}
-        <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3">
-          <button onClick={cancelForm} className="w-full sm:w-auto px-5 py-2.5 border border-[var(--color-border)] rounded-xl hover:bg-[var(--color-bg-subtle)] font-medium text-sm">
-            Cancel
-          </button>
-          <button 
-            onClick={saveJobs} 
-            disabled={saving} 
-            className="w-full sm:w-auto px-5 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-medium text-sm disabled:opacity-50 flex items-center justify-center gap-2"
-          >
-            {saving ? (
-              <>
-                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                Saving...
-              </>
-            ) : (
-              <>Save {tempCustomers.length > 1 ? `${tempCustomers.length} Jobs` : 'Job'}</>
-            )}
-          </button>
+        {/* === STICKY SAVE BAR === */}
+        <div className="fixed bottom-0 left-0 right-0 z-40 bg-[var(--color-bg-page)]/95 backdrop-blur-lg border-t border-[var(--color-border)] px-4 py-3 sm:px-6">
+          <div className="max-w-3xl mx-auto flex items-center justify-between gap-3">
+            {/* Profit preview in sticky bar */}
+            <div className="hidden sm:flex items-center gap-4 text-sm">
+              {totalRevenue > 0 ? (
+                <>
+                  <span className="text-[var(--color-text-muted)]">Profit:</span>
+                  <span className={`font-bold ${liveProfit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500'}`}>{formatCurrency(liveProfit)}</span>
+                  <span className="text-[var(--color-text-faint)]">|</span>
+                  <span className="text-[var(--color-text-muted)]">Take Home:</span>
+                  <span className="font-bold text-purple-600 dark:text-purple-400">{formatCurrency(liveTakeHome)}</span>
+                </>
+              ) : (
+                <span className="text-[var(--color-text-faint)]">Enter revenue to see profit</span>
+              )}
+            </div>
+            <div className="flex gap-2 sm:gap-3 w-full sm:w-auto">
+              <button onClick={cancelForm} className="app-btn-secondary flex-1 sm:flex-none text-sm py-2.5 px-4">
+                Cancel
+              </button>
+              <button 
+                onClick={saveJobs} 
+                disabled={saving} 
+                className="app-btn-primary flex-1 sm:flex-none text-sm py-2.5 px-5"
+              >
+                {saving ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>Save {tempCustomers.length > 1 ? `${tempCustomers.length} Jobs` : 'Job'}</>
+                )}
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     )

@@ -16,50 +16,6 @@ const STRIPE_PRICES = {
   },
 }
 
-// Hidden demo access
-function DemoAccess() {
-  const [showInput, setShowInput] = useState(false)
-  const [password, setPassword] = useState('')
-  const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setStatus('loading')
-    try {
-      const res = await fetch('/api/demo/activate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password }),
-      })
-      if (res.ok) {
-        setStatus('success')
-        setTimeout(() => { window.location.href = '/app' }, 500)
-      } else {
-        setStatus('error')
-        setTimeout(() => setStatus('idle'), 2000)
-      }
-    } catch {
-      setStatus('error')
-      setTimeout(() => setStatus('idle'), 2000)
-    }
-  }
-
-  return (
-    <div className="mt-8 pt-6 border-t border-white/5">
-      {!showInput ? (
-        <button onClick={() => setShowInput(true)} className="text-slate-600 hover:text-slate-500 text-xs">•••</button>
-      ) : (
-        <form onSubmit={handleSubmit} className="flex items-center gap-2 justify-center">
-          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Demo password" className="px-3 py-1.5 text-xs border border-white/10 rounded-lg bg-white/5 text-white focus:outline-none focus:ring-2 focus:ring-orange-500/20 w-36" autoFocus />
-          <button type="submit" disabled={status === 'loading'} className={`px-3 py-1.5 text-xs rounded-lg font-medium transition ${status === 'success' ? 'bg-green-500 text-white' : status === 'error' ? 'bg-red-500 text-white' : 'bg-orange-500 text-white hover:bg-orange-400'}`}>
-            {status === 'loading' ? '...' : status === 'success' ? '✓' : status === 'error' ? '✗' : 'Go'}
-          </button>
-          <button type="button" onClick={() => { setShowInput(false); setPassword(''); setStatus('idle'); }} className="text-slate-500 hover:text-slate-400 text-xs">✕</button>
-        </form>
-      )}
-    </div>
-  )
-}
 
 // Dyia Avatar — brand gradient icon with fallback
 function DyiaAvatar({ className = "w-10 h-10" }: { className?: string }) {
@@ -194,7 +150,7 @@ export default function LandingPage() {
                     AI-powered business intelligence
                   </div>
                   <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-white/[0.06] border border-white/[0.08] text-slate-400 uppercase tracking-wider">
-                    Beta
+                    New
                   </span>
                 </div>
                 
@@ -737,101 +693,145 @@ export default function LandingPage() {
         {/* ===== PRICING ===== */}
         <section id="pricing" className="py-24 px-6">
           <div className="max-w-5xl mx-auto">
-            <div className="text-center mb-12">
-              <p className="text-orange-400 text-sm font-medium uppercase tracking-wider mb-3">Pricing</p>
-              <h2 className="text-4xl sm:text-5xl font-bold text-white mb-4">Start free. Upgrade when ready.</h2>
-              <p className="text-xl text-slate-400">14-day Pro trial included. Cancel anytime.</p>
-              <p className="text-sm text-slate-500 mt-2">🇺🇸 American company · All prices in USD</p>
+            <div className="text-center mb-6">
+              <p className="text-orange-400 text-sm font-medium uppercase tracking-wider mb-3">Simple, honest pricing</p>
+              <h2 className="text-4xl sm:text-5xl font-bold text-white mb-4">Less than a tank of gas.</h2>
+              <p className="text-xl text-slate-400 max-w-2xl mx-auto">Every plan starts with a 14-day free Pro trial. No hidden fees, no contracts, cancel anytime.</p>
             </div>
+
+            <p className="text-sm text-slate-500 text-center mb-10">🇺🇸 American company · All prices in USD · Secure payments via Stripe</p>
 
             {/* Toggle */}
             <div className="flex justify-center mb-10">
               <div className="bg-white/5 border border-white/10 rounded-full p-1 inline-flex">
-                <button onClick={() => setBillingCycle('monthly')} className={`px-6 py-2 rounded-full text-sm font-medium transition ${billingCycle === 'monthly' ? 'bg-orange-500 text-white' : 'text-slate-400 hover:text-white'}`}>
+                <button onClick={() => setBillingCycle('monthly')} className={`px-6 py-2.5 rounded-full text-sm font-medium transition ${billingCycle === 'monthly' ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/20' : 'text-slate-400 hover:text-white'}`}>
                   Monthly
                 </button>
-                <button onClick={() => setBillingCycle('annual')} className={`px-6 py-2 rounded-full text-sm font-medium transition flex items-center gap-2 ${billingCycle === 'annual' ? 'bg-orange-500 text-white' : 'text-slate-400 hover:text-white'}`}>
-                  Annual <span className="text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full">2 months free</span>
+                <button onClick={() => setBillingCycle('annual')} className={`px-6 py-2.5 rounded-full text-sm font-medium transition flex items-center gap-2 ${billingCycle === 'annual' ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/20' : 'text-slate-400 hover:text-white'}`}>
+                  Annual <span className="text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full font-bold">Save 17%</span>
                 </button>
               </div>
             </div>
             
             <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
               {/* Basic */}
-              <div className="bg-white/[0.02] border border-white/[0.06] rounded-2xl p-8">
-                <h3 className="text-2xl font-bold text-white mb-1">Basic</h3>
-                <p className="text-slate-500 text-sm mb-6">Essential profit tracking</p>
-                <div className="flex items-baseline gap-1 mb-6">
-                  <span className="text-5xl font-bold text-white">${billingCycle === 'monthly' ? '19.99' : '199.90'}</span>
-                  <span className="text-slate-500">/{billingCycle === 'monthly' ? 'mo' : 'year'}</span>
+              <div className="bg-white/[0.02] border border-white/[0.06] rounded-2xl p-8 flex flex-col">
+                <div className="mb-6">
+                  <h3 className="text-2xl font-bold text-white mb-1">Basic</h3>
+                  <p className="text-slate-400 text-sm">Everything you need for day-to-day operations</p>
                 </div>
-                {billingCycle === 'annual' && <p className="text-green-400 text-sm mb-6">$16.66/mo — 2 months free</p>}
-                <ul className="space-y-3 mb-8">
-                  {['Unlimited job tracking', 'Profit dashboard', 'Tax set-aside calculator', 'Quote builder + PDF export', 'Customer database & CRM', 'Follow-up pipeline', 'Fixed expense tracking', 'Review requests', 'Lead source analytics', 'CSV data export'].map((f, i) => (
-                    <li key={i} className="flex items-center gap-3 text-sm text-slate-300">
-                      <svg className="w-4 h-4 text-slate-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                      {f}
-                    </li>
-                  ))}
-                </ul>
-                <button onClick={() => checkout(billingCycle, 'basic')} disabled={!!loading || !checkoutReady} className="w-full py-3.5 bg-white/5 hover:bg-white/10 text-white rounded-xl font-semibold transition border border-white/10">
-                  {loading === `basic-${billingCycle}` ? 'Redirecting...' : !checkoutReady && isSignedIn ? 'Loading...' : 'Get Basic'}
-                </button>
+                <div className="flex items-baseline gap-1 mb-2">
+                  <span className="text-5xl font-bold text-white">${billingCycle === 'monthly' ? '19.99' : '16.66'}</span>
+                  <span className="text-slate-500">/mo</span>
+                </div>
+                {billingCycle === 'annual' && <p className="text-green-400 text-sm mb-4">$199.90 billed annually — save $40</p>}
+                {billingCycle === 'monthly' && <p className="text-slate-600 text-sm mb-4">Billed monthly</p>}
+
+                <div className="border-t border-white/[0.06] pt-6 mb-6">
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-4">Core features</p>
+                  <ul className="space-y-3">
+                    {[
+                      { text: 'Unlimited job tracking', desc: 'Log every job with full expense breakdown' },
+                      { text: 'Profit dashboard', desc: 'Real-time revenue, expenses, and take-home' },
+                      { text: 'Quote builder + PDF export', desc: 'Branded quotes with your logo and photos' },
+                      { text: 'Customer database & CRM', desc: 'Contact info, lifetime value, job history' },
+                      { text: 'Follow-up pipeline', desc: 'Kanban board with hot/warm/cold scoring' },
+                      { text: 'Tax set-aside calculator', desc: 'Auto-calculated on every job' },
+                      { text: 'Fixed expense tracking', desc: 'Insurance, truck payment, overhead' },
+                      { text: 'Review requests', desc: 'One-tap Google, Yelp, Facebook reviews' },
+                      { text: 'Lead source analytics', desc: 'See which marketing channels work' },
+                      { text: 'CSV data export', desc: 'Your data is always yours' },
+                    ].map((f, i) => (
+                      <li key={i} className="flex items-start gap-3">
+                        <svg className="w-4 h-4 text-green-500/70 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                        <div>
+                          <span className="text-sm text-slate-200">{f.text}</span>
+                          <p className="text-xs text-slate-500 mt-0.5">{f.desc}</p>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div className="mt-auto">
+                  <button onClick={() => checkout(billingCycle, 'basic')} disabled={!!loading || !checkoutReady} className="w-full py-3.5 bg-white/5 hover:bg-white/10 text-white rounded-xl font-semibold transition border border-white/10">
+                    {loading === `basic-${billingCycle}` ? 'Redirecting...' : !checkoutReady && isSignedIn ? 'Loading...' : 'Get Basic'}
+                  </button>
+                </div>
               </div>
 
               {/* Pro */}
-              <div className="relative bg-gradient-to-b from-orange-500/10 to-transparent border-2 border-orange-500/50 rounded-2xl p-8">
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-orange-500 to-amber-500 text-white px-4 py-1 rounded-full text-xs font-bold">
-                  RECOMMENDED
+              <div className="relative bg-gradient-to-b from-orange-500/10 to-transparent border-2 border-orange-500/50 rounded-2xl p-8 flex flex-col">
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-orange-500 to-amber-500 text-white px-5 py-1 rounded-full text-xs font-bold shadow-lg shadow-orange-500/20">
+                  MOST POPULAR
                 </div>
-                <div className="flex items-center gap-2 mb-1">
-                  <DyiaAvatar className="w-6 h-6" />
-                  <h3 className="text-2xl font-bold text-white">Pro</h3>
+                <div className="mb-6">
+                  <div className="flex items-center gap-2 mb-1">
+                    <DyiaAvatar className="w-6 h-6" />
+                    <h3 className="text-2xl font-bold text-white">Pro</h3>
+                  </div>
+                  <p className="text-slate-400 text-sm">Basic + AI assistant, email campaigns, and marketing tools</p>
                 </div>
-                <p className="text-slate-500 text-sm mb-6">Everything + Dyia AI + Marketing</p>
-                <div className="flex items-baseline gap-1 mb-6">
-                  <span className="text-5xl font-bold text-white">${billingCycle === 'monthly' ? '29.99' : '299.90'}</span>
-                  <span className="text-slate-500">/{billingCycle === 'monthly' ? 'mo' : 'year'}</span>
+                <div className="flex items-baseline gap-1 mb-2">
+                  <span className="text-5xl font-bold text-white">${billingCycle === 'monthly' ? '29.99' : '24.99'}</span>
+                  <span className="text-slate-500">/mo</span>
                 </div>
-                {billingCycle === 'annual' && <p className="text-green-400 text-sm mb-6">$24.99/mo — 2 months free</p>}
-                <ul className="space-y-3 mb-8">
-                  {[
-                    { text: 'Everything in Basic', highlight: false },
-                    { text: 'Dyia AI Assistant', highlight: true },
-                    { text: 'Natural language job logging', highlight: true },
-                    { text: 'AI-powered price suggestions', highlight: true },
-                    { text: 'Revenue forecasting', highlight: true },
-                    { text: 'Follow-up risk alerts', highlight: true },
-                    { text: 'Mass email campaigns', highlight: true },
-                    { text: 'Marketing ROI tracking', highlight: true },
-                    { text: 'Priority support', highlight: false },
-                  ].map((f, i) => (
-                    <li key={i} className="flex items-center gap-3 text-sm text-slate-300">
-                      <svg className={`w-4 h-4 shrink-0 ${f.highlight ? 'text-orange-400' : 'text-slate-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                      <span className={f.highlight ? 'text-orange-300' : ''}>{f.text}</span>
-                    </li>
-                  ))}
-                </ul>
-                <button onClick={() => checkout(billingCycle, 'pro')} disabled={!!loading || !checkoutReady} className="w-full py-3.5 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-xl font-bold shadow-lg shadow-orange-500/20 hover:-translate-y-0.5 transition-all">
-                  {loading === `pro-${billingCycle}` ? 'Redirecting...' : !checkoutReady && isSignedIn ? 'Loading...' : 'Start 14-Day Free Trial'}
-                </button>
-                <p className="text-xs text-slate-500 text-center mt-3">Card required to start trial</p>
+                {billingCycle === 'annual' && <p className="text-green-400 text-sm mb-4">$299.90 billed annually — save $60</p>}
+                {billingCycle === 'monthly' && <p className="text-slate-600 text-sm mb-4">Billed monthly</p>}
+
+                <div className="border-t border-orange-500/20 pt-6 mb-6">
+                  <p className="text-xs font-semibold text-orange-400 uppercase tracking-wider mb-4">Everything in Basic, plus</p>
+                  <ul className="space-y-3">
+                    {[
+                      { text: 'Dyia AI Assistant', desc: 'Your AI business partner — logs jobs, creates quotes, gives insights' },
+                      { text: 'Natural language job logging', desc: '"$350 for Mike, $40 dump fee" — Dyia handles the rest' },
+                      { text: 'AI-powered price suggestions', desc: 'Based on YOUR past jobs by type and difficulty' },
+                      { text: 'Revenue forecasting', desc: 'Predict monthly revenue with confidence scoring' },
+                      { text: 'Follow-up risk alerts', desc: 'Flags leads going cold before you lose them' },
+                      { text: 'Mass email campaigns', desc: 'Send via Gmail or Outlook to your customer list' },
+                      { text: 'Marketing ROI tracking', desc: 'See cost per lead by channel — Google, Yelp, Facebook' },
+                      { text: 'Weekly AI business insights', desc: 'Performance emails with trends and recommendations' },
+                      { text: 'Priority support', desc: 'Faster response times from our team' },
+                    ].map((f, i) => (
+                      <li key={i} className="flex items-start gap-3">
+                        <svg className="w-4 h-4 text-orange-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                        <div>
+                          <span className="text-sm text-orange-200">{f.text}</span>
+                          <p className="text-xs text-slate-500 mt-0.5">{f.desc}</p>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div className="mt-auto">
+                  <button onClick={() => checkout(billingCycle, 'pro')} disabled={!!loading || !checkoutReady} className="w-full py-3.5 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-xl font-bold shadow-lg shadow-orange-500/20 hover:-translate-y-0.5 transition-all">
+                    {loading === `pro-${billingCycle}` ? 'Redirecting...' : !checkoutReady && isSignedIn ? 'Loading...' : 'Start 14-Day Free Trial'}
+                  </button>
+                  <p className="text-xs text-slate-500 text-center mt-3">Card required · Cancel anytime during trial</p>
+                </div>
               </div>
             </div>
 
-            {/* Guarantee + Coupon */}
-            <div className="mt-12 text-center space-y-6">
-              <div className="inline-flex items-center gap-3 px-5 py-2.5 bg-white/[0.02] border border-white/[0.06] rounded-full text-sm">
-                <svg className="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                </svg>
-                <span className="text-slate-400">14-day money-back guarantee</span>
-              </div>
-              
-              <div className="max-w-xs mx-auto">
-                <input type="text" value={couponInput} onChange={(e) => setCouponInput(e.target.value.toUpperCase())} placeholder="Have a coupon?" className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-slate-600 focus:outline-none focus:border-orange-500 text-center text-sm" />
-                {couponInput && <p className="text-green-400 text-xs mt-2">✓ Will be applied at checkout</p>}
-              </div>
+            {/* Trust signals */}
+            <div className="mt-12 flex flex-wrap justify-center gap-4">
+              {[
+                { icon: '🛡️', text: '14-day money-back guarantee' },
+                { icon: '🔒', text: 'Secured by Stripe' },
+                { icon: '📥', text: 'Export your data anytime' },
+                { icon: '🚫', text: 'No contracts or lock-in' },
+              ].map((item, i) => (
+                <div key={i} className="flex items-center gap-2 px-4 py-2 bg-white/[0.02] border border-white/[0.06] rounded-full text-sm text-slate-400">
+                  <span>{item.icon}</span>
+                  {item.text}
+                </div>
+              ))}
+            </div>
+
+            {/* Coupon */}
+            <div className="mt-8 max-w-xs mx-auto">
+              <input type="text" value={couponInput} onChange={(e) => setCouponInput(e.target.value.toUpperCase())} placeholder="Have a coupon code?" className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-slate-600 focus:outline-none focus:border-orange-500 text-center text-sm" />
+              {couponInput && <p className="text-green-400 text-xs mt-2 text-center">✓ Will be applied at checkout</p>}
             </div>
           </div>
         </section>
@@ -842,19 +842,22 @@ export default function LandingPage() {
           <div className="max-w-3xl mx-auto relative">
             <div className="text-center mb-12">
               <p className="text-orange-400 text-sm font-medium uppercase tracking-wider mb-3">FAQ</p>
-              <h2 className="text-4xl sm:text-5xl font-bold text-white">Questions?</h2>
+              <h2 className="text-4xl sm:text-5xl font-bold text-white mb-4">Got questions?</h2>
+              <p className="text-lg text-slate-400">Everything you need to know before getting started.</p>
             </div>
 
             <div className="space-y-3">
               {[
-                { q: 'Is the free trial actually free?', a: '100%. 14 days of full Pro access including AI assistant, email blasts, and marketing tools. A card is required to start your trial, but you won\'t be charged until the trial ends. After the trial, you can continue with Basic (which is still powerful) or upgrade to keep Pro features.' },
-                { q: 'What\'s the difference between Basic and Pro?', a: 'Basic gives you everything for day-to-day operations: job tracking, profit calculator, quote builder with PDF, customer CRM, follow-up pipeline, tax set-aside, and review requests. Pro adds Dyia AI (natural language logging, smart pricing, forecasting), mass email campaigns, marketing ROI tracking, and priority support.' },
-                { q: 'Can I use this on my phone?', a: 'Yes. dyia is a progressive web app that works in any browser — iPhone, Android, tablet, laptop. Log jobs from your truck, check numbers at the dump, send quotes from your couch. No app download needed.' },
-                { q: 'How is this different from a spreadsheet?', a: 'A spreadsheet doesn\'t calculate profit per job automatically, generate branded PDF quotes, track customer history, manage your follow-up pipeline, set aside taxes, or give you AI insights. dyia does all of that in 30 seconds per job.' },
-                { q: 'Can I manage my customers in dyia?', a: 'Yes. dyia has a full customer database where you store contact info, notes, and tags. Every customer\'s lifetime value, job history, and quote history is tracked automatically. When you start a new job or quote, their info auto-fills.' },
-                { q: 'What if I want to cancel?', a: 'Cancel anytime from Settings > Account. No phone calls, no retention team. You keep access until your billing period ends. We hold your data for 90 days if you want to come back.' },
+                { q: 'Is the free trial actually free?', a: '100%. You get 14 days of full Pro access — AI assistant, email blasts, marketing tools, everything. A card is required to start, but you won\'t be charged a cent until day 15. Cancel anytime before then from Settings. After the trial, choose Basic ($19.99/mo) or keep Pro ($29.99/mo).' },
+                { q: 'What\'s the difference between Basic and Pro?', a: 'Basic gives you everything for day-to-day operations: unlimited job tracking, profit dashboard, quote builder with branded PDF export, customer CRM, follow-up pipeline with Kanban board, tax set-aside, review requests, fixed expenses, and CSV export. Pro adds the Dyia AI assistant (natural language job logging, smart pricing based on your history, revenue forecasting), mass email campaigns via Gmail/Outlook, marketing ROI tracking, follow-up risk alerts, weekly AI insights emails, and priority support.' },
+                { q: 'Can I use dyia on my phone?', a: 'Yes. Dyia is a progressive web app that works in any browser — iPhone, Android, tablet, laptop. Log jobs from your truck, check numbers at the dump, send quotes from your couch. No app download needed. Add it to your home screen for an app-like experience.' },
+                { q: 'How is this different from a spreadsheet?', a: 'A spreadsheet can\'t calculate profit per job after gas, dump fees, and labor automatically. It can\'t generate branded PDF quotes, track customer lifetime value, manage a follow-up pipeline with priority scoring, set aside taxes, forecast revenue, or let you log jobs by talking to an AI. Dyia does all of that in 30 seconds per job.' },
+                { q: 'How is this different from Jobber or Housecall Pro?', a: 'Those tools are built for enterprise fleets — complex scheduling, route optimization, dispatch for teams of 20+. Dyia is built for service pros who work with 1-5 people and need to know their real profit. We cost a fraction of the price ($19.99 vs $349/mo), set up in 2 minutes instead of hours, and include AI features they don\'t have.' },
+                { q: 'Can I manage my customers in dyia?', a: 'Yes. Dyia has a full customer database with contact info, notes, and tags. Every customer\'s lifetime value, job history, and quote history is tracked automatically. When you create a new job or quote, customer details auto-fill.' },
+                { q: 'How do email campaigns work?', a: 'Connect your Gmail or Outlook account via secure OAuth (Pro feature). Compose emails, select recipients from your customer database, and send to up to 50 customers at once. Track delivery status and campaign history. Emails are sent from your actual email address.' },
+                { q: 'What if I want to cancel?', a: 'Cancel anytime from Settings > Account. No phone calls, no retention team, no tricks. You keep access until your current billing period ends. We hold your data for 90 days if you decide to come back.' },
                 { q: 'Is my data safe?', a: 'Yes. Encrypted in transit and at rest, backed up daily, stored on secure cloud servers (Supabase/AWS). We never sell your data. You can export everything as CSV anytime — your data is always yours.' },
-                { q: 'Do you offer refunds?', a: '14-day money-back guarantee on all paid plans. Not happy? Email support@dyia.io for a full refund. No questions asked.' },
+                { q: 'Do you offer refunds?', a: '14-day money-back guarantee on all paid plans. Not happy? Email support@dyia.io and get a full refund. No questions asked.' },
               ].map((faq, i) => (
                 <div key={i} className="border border-white/[0.06] rounded-xl overflow-hidden bg-white/[0.01]">
                   <button onClick={() => setOpenFaq(openFaq === i ? null : i)} className="w-full px-5 py-4 text-left flex justify-between items-center hover:bg-white/[0.02] transition">
@@ -870,6 +873,15 @@ export default function LandingPage() {
                   )}
                 </div>
               ))}
+            </div>
+
+            <div className="mt-8 text-center">
+              <p className="text-sm text-slate-500">
+                Still have questions?{' '}
+                <Link href="/support" className="text-orange-400 hover:text-orange-300 underline underline-offset-2">Visit our Help Center</Link>
+                {' '}or email{' '}
+                <a href="mailto:support@dyia.io" className="text-orange-400 hover:text-orange-300 underline underline-offset-2">support@dyia.io</a>
+              </p>
             </div>
           </div>
         </section>
@@ -936,7 +948,6 @@ export default function LandingPage() {
             <p className="text-slate-600 text-sm">© 2026 dyia. All rights reserved.</p>
             <p className="text-slate-600 text-xs">Built with care for service businesses everywhere.</p>
           </div>
-          <DemoAccess />
         </div>
       </footer>
     </div>

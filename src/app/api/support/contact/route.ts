@@ -42,23 +42,29 @@ export async function POST(req: Request) {
 
     const subjectLabel = subjectLabels[subject] || 'Support Request'
 
-    if (isResendConfigured()) {
-      // Send internal notification to support team
-      await sendEmail(
-        'support@dyia.io',
-        `[${subjectLabel}] Support request from ${name}`,
-        supportTicketEmail(name, email, subjectLabel, message),
-        'welcome' // reusing email type for tracking
-      )
-
-      // Send confirmation to user
-      await sendEmail(
-        email,
-        'We received your message — dyia Support',
-        supportConfirmationEmail(name, subjectLabel),
-        'welcome' // reusing email type for tracking
+    if (!isResendConfigured()) {
+      console.error('Support form submitted but RESEND_API_KEY is not configured — email not sent')
+      return NextResponse.json(
+        { error: 'Support email is temporarily unavailable. Please email support@dyia.io directly.' },
+        { status: 503 }
       )
     }
+
+    // Send internal notification to support team
+    await sendEmail(
+      'support@dyia.io',
+      `[${subjectLabel}] Support request from ${name}`,
+      supportTicketEmail(name, email, subjectLabel, message),
+      'welcome'
+    )
+
+    // Send confirmation to user
+    await sendEmail(
+      email,
+      'We received your message — dyia Support',
+      supportConfirmationEmail(name, subjectLabel),
+      'welcome'
+    )
 
     return NextResponse.json({ success: true })
   } catch (error) {

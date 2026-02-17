@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState, useEffect, useCallback } from 'react'
+import { useMemo, useState, useEffect, useCallback, useRef } from 'react'
 import type { AppJob, AppQuote, AppCustomer } from '@/types/database'
 import { formatCurrency } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
@@ -96,8 +96,17 @@ export function Customers({ jobs, quotes = [], isPro = false, onCreateQuote, sho
   const [saving, setSaving] = useState(false)
   const [tagInput, setTagInput] = useState('')
   const [sortBy, setSortBy] = useState<SortOption>('revenue')
+  const mountedRef = useRef(true)
+  const [rawCustomers, setRawCustomers] = useState<Array<{
+    id: string; name: string; email: string | null; phone: string | null;
+    address: string | null; notes: string | null; tags: string[];
+    created_at: string; updated_at: string;
+  }>>([])
+  const [fetchVersion, setFetchVersion] = useState(0)
 
-  // Compute job/quote stats per customer
+  useEffect(() => { return () => { mountedRef.current = false } }, [])
+
+  // Compute job/quote stats per customer (fast, no network)
   const jobsByCustomer = useMemo(() => {
     const map: Record<string, AppJob[]> = {}
     for (const job of jobs) {
@@ -120,8 +129,41 @@ export function Customers({ jobs, quotes = [], isPro = false, onCreateQuote, sho
     return map
   }, [quotes])
 
-  // Load customers from database
-  const loadCustomers = useCallback(async () => {
+  // Effect 1: Fetch raw customer records from Supabase (only on mount + after saves)
+  const fetchCustomers = useCallback(async () => {
+    if (isDemoMode) {
+      if (mountedRef.current) setLoading(false)
+      return
+    }
+    try {
+      const supabase = createClient()
+      const { data, error } = await supabase
+        .from('dyia_customers')
+        .select('*')
+        .order('name', { ascending: true })
+      if (error) throw error
+      if (mountedRef.current) {
+        setRawCustomers((data || []).map(c => ({
+          id: c.id, name: c.name, email: c.email, phone: c.phone,
+          address: c.address, notes: c.notes,
+          tags: (c.tags || []) as string[],
+          created_at: c.created_at, updated_at: c.updated_at,
+        })))
+      }
+    } catch (err) {
+      console.error('Error loading customers:', err)
+    } finally {
+      if (mountedRef.current) setLoading(false)
+    }
+  }, [isDemoMode, fetchVersion]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => { fetchCustomers() }, [fetchCustomers])
+
+  // Trigger a refetch after saves/deletes
+  const refetchCustomers = useCallback(() => setFetchVersion(v => v + 1), [])
+
+  // Effect 2: Merge raw records with job/quote stats (runs instantly when jobs/quotes change, no flicker)
+  useEffect(() => {
     if (isDemoMode) {
       const byName: Record<string, { jobs: AppJob[]; totalRevenue: number }> = {}
       for (const job of jobs) {
@@ -134,90 +176,66 @@ export function Customers({ jobs, quotes = [], isPro = false, onCreateQuote, sho
       const derived: AppCustomer[] = Object.entries(byName).map(([name, data]) => ({
         id: `demo-${name}`,
         name,
-        email: null,
-        phone: null,
-        address: null,
-        notes: null,
+        email: null, phone: null, address: null, notes: null,
         tags: [],
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        createdAt: new Date(), updatedAt: new Date(),
         totalRevenue: data.totalRevenue,
         jobCount: data.jobs.length,
         quoteCount: 0,
-        lastJobDate: data.jobs.sort((a, b) => (b.date || '').localeCompare(a.date || ''))[0]?.date,
+        lastJobDate: [...data.jobs].sort((a, b) => (b.date || '').localeCompare(a.date || ''))[0]?.date,
       }))
       setCustomers(derived.sort((a, b) => (b.totalRevenue || 0) - (a.totalRevenue || 0)))
-      setLoading(false)
       return
     }
 
-    try {
-      const supabase = createClient()
-      const { data, error } = await supabase
-        .from('dyia_customers')
-        .select('*')
-        .order('name', { ascending: true })
+    if (rawCustomers.length === 0 && loading) return
 
-      if (error) throw error
+    const merged: AppCustomer[] = rawCustomers.map((c) => {
+      const nameLower = (c.name || '').trim().toLowerCase()
+      const cJobs = jobsByCustomer[nameLower] || []
+      const cQuotes = quotesByCustomer[nameLower] || []
+      const totalRevenue = cJobs.reduce((sum, j) => sum + (j.revenue || 0), 0)
+      const sortedJobs = [...cJobs].sort((a, b) => (b.date || '').localeCompare(a.date || ''))
 
-      const mapped: AppCustomer[] = (data || []).map((c) => {
-        const nameLower = c.name.toLowerCase()
-        const cJobs = jobsByCustomer[nameLower] || []
-        const cQuotes = quotesByCustomer[nameLower] || []
-        const totalRevenue = cJobs.reduce((sum, j) => sum + (j.revenue || 0), 0)
-        const sortedJobs = [...cJobs].sort((a, b) => (b.date || '').localeCompare(a.date || ''))
-
-        return {
-          id: c.id,
-          name: c.name,
-          email: c.email,
-          phone: c.phone,
-          address: c.address,
-          notes: c.notes,
-          tags: (c.tags || []) as string[],
-          createdAt: new Date(c.created_at),
-          updatedAt: new Date(c.updated_at),
-          totalRevenue,
-          jobCount: cJobs.length,
-          quoteCount: cQuotes.length,
-          lastJobDate: sortedJobs[0]?.date,
-        }
-      })
-
-      setCustomers(mapped)
-    } catch (err) {
-      console.error('Error loading customers:', err)
-      // Fallback: derive from jobs
-      const byName: Record<string, { jobs: AppJob[]; totalRevenue: number }> = {}
-      for (const job of jobs) {
-        const name = (job.customerName || '').trim() || 'Unknown'
-        if (name === 'Unknown') continue
-        if (!byName[name]) byName[name] = { jobs: [], totalRevenue: 0 }
-        byName[name].jobs.push(job)
-        byName[name].totalRevenue += job.revenue || 0
+      return {
+        id: c.id,
+        name: c.name,
+        email: c.email,
+        phone: c.phone,
+        address: c.address,
+        notes: c.notes,
+        tags: c.tags,
+        createdAt: new Date(c.created_at),
+        updatedAt: new Date(c.updated_at),
+        totalRevenue,
+        jobCount: cJobs.length,
+        quoteCount: cQuotes.length,
+        lastJobDate: sortedJobs[0]?.date,
       }
-      const derived: AppCustomer[] = Object.entries(byName).map(([name, data]) => ({
-        id: `derived-${name}`,
-        name,
-        email: null,
-        phone: null,
-        address: null,
-        notes: null,
-        tags: [],
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        totalRevenue: data.totalRevenue,
-        jobCount: data.jobs.length,
-        quoteCount: 0,
-        lastJobDate: data.jobs.sort((a, b) => (b.date || '').localeCompare(a.date || ''))[0]?.date,
-      }))
-      setCustomers(derived.sort((a, b) => (b.totalRevenue || 0) - (a.totalRevenue || 0)))
-    } finally {
-      setLoading(false)
-    }
-  }, [isDemoMode, jobs, jobsByCustomer, quotesByCustomer])
+    })
 
-  useEffect(() => { loadCustomers() }, [loadCustomers])
+    // Also include customers derived from jobs that aren't in the database yet
+    const dbNames = new Set(rawCustomers.map(c => (c.name || '').trim().toLowerCase()))
+    for (const [nameLower, cJobs] of Object.entries(jobsByCustomer)) {
+      if (dbNames.has(nameLower)) continue
+      const displayName = cJobs[0]?.customerName || nameLower
+      const totalRevenue = cJobs.reduce((sum, j) => sum + (j.revenue || 0), 0)
+      const sortedJobs = [...cJobs].sort((a, b) => (b.date || '').localeCompare(a.date || ''))
+      merged.push({
+        id: `derived-${nameLower}`,
+        name: displayName,
+        email: null, phone: null, address: null, notes: null,
+        tags: [],
+        createdAt: new Date(), updatedAt: new Date(),
+        totalRevenue,
+        jobCount: cJobs.length,
+        quoteCount: (quotesByCustomer[nameLower] || []).length,
+        lastJobDate: sortedJobs[0]?.date,
+      })
+    }
+
+    setCustomers(merged)
+  }, [rawCustomers, jobsByCustomer, quotesByCustomer, jobs, isDemoMode, loading])
 
   const handleSave = async () => {
     if (!formData.name.trim()) return
@@ -269,7 +287,7 @@ export function Customers({ jobs, quotes = [], isPro = false, onCreateQuote, sho
       setShowForm(false)
       setEditingCustomer(null)
       setFormData(emptyForm)
-      await loadCustomers()
+      refetchCustomers()
     } catch (err) {
       console.error('Error saving customer:', err)
     } finally {
@@ -285,7 +303,7 @@ export function Customers({ jobs, quotes = [], isPro = false, onCreateQuote, sho
       if (error) throw error
       showSuccess('Customer removed')
       setSelectedCustomer(null)
-      await loadCustomers()
+      refetchCustomers()
     } catch (err) {
       console.error('Error deleting customer:', err)
     }
