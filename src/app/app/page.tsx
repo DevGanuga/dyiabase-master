@@ -487,7 +487,7 @@ function AppPageContent() {
   }, [needsOnboarding, router, viewParam, checkoutLoading, needsSubscription])
 
   const handleReopenOnboarding = () => {
-    router.push('/app/onboarding')
+    router.push('/app/onboarding?redo=true')
   }
 
   const loadingOrRedirecting = (
@@ -539,6 +539,7 @@ function AppPageContent() {
       description: 'Set up your business profile',
       completed: settings.onboardingCompleted,
       action: settings.onboardingCompleted ? undefined : handleReopenOnboarding,
+      // Note: onboardingSkipped users can still re-enter via ?redo=true
     },
     {
       id: 'business-info',

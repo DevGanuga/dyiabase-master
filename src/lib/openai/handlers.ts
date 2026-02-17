@@ -1050,13 +1050,17 @@ async function getUserContext(args: Record<string, unknown>, dyiaUserId: string)
     const userName = userProfile?.first_name || undefined
 
     // Extract metadata for AI personalization
-    const metadata = settings?.metadata as Record<string, string> | null
-    const businessType = metadata?.business_type || undefined
-    const businessStage = metadata?.business_stage || undefined
-    const biggestChallenge = metadata?.biggest_challenge || undefined
-    const pricingPhilosophy = metadata?.pricing_philosophy || undefined
-    const serviceArea = metadata?.service_area || undefined
-    const yearsInBusiness = metadata?.years_in_business || undefined
+    const metadata = settings?.metadata as Record<string, unknown> | null
+    const businessType = (metadata?.business_type as string) || undefined
+    const businessStage = (metadata?.business_stage as string) || undefined
+    const biggestChallenge = (metadata?.biggest_challenge as string) || undefined
+    const pricingPhilosophy = (metadata?.pricing_philosophy as string) || undefined
+    const serviceArea = (metadata?.service_area as string) || undefined
+    const yearsInBusiness = (metadata?.years_in_business as string) || undefined
+    const weeklyJobCapacity = (metadata?.weekly_job_capacity as string) || undefined
+    const averageJobRevenue = (metadata?.average_job_revenue as number) || undefined
+    const marketingChannels = (metadata?.marketing_channels as string[]) || undefined
+    const commonServices = (metadata?.common_services as string) || undefined
 
     const userContext: UserContext = {
       settings: {
@@ -1113,9 +1117,13 @@ async function getUserContext(args: Record<string, unknown>, dyiaUserId: string)
       contextMessage += `💲 Pricing: ${pricingLabels[pricingPhilosophy] || pricingPhilosophy}\n`
     }
     if (biggestChallenge) {
-      const challengeLabels: Record<string, string> = { getting_customers: 'Getting customers', pricing: 'Pricing right', time_management: 'Managing time', tracking_money: 'Tracking money', hiring: 'Hiring & team' }
+      const challengeLabels: Record<string, string> = { getting_customers: 'Getting customers', pricing: 'Pricing right', time_management: 'Managing time', tracking_money: 'Tracking money', hiring: 'Hiring & team', marketing: 'Marketing' }
       contextMessage += `🎯 Focus: ${challengeLabels[biggestChallenge] || biggestChallenge}\n`
     }
+    if (weeklyJobCapacity) contextMessage += `📋 Capacity: ~${weeklyJobCapacity} jobs/week\n`
+    if (averageJobRevenue) contextMessage += `💵 Avg Job: $${averageJobRevenue}\n`
+    if (commonServices) contextMessage += `🔧 Services: ${commonServices}\n`
+    if (marketingChannels && marketingChannels.length > 0) contextMessage += `📣 Marketing: ${marketingChannels.join(', ')}\n`
     
     // Key stats
     if (userContext.settings.monthlyGoal > 0) {

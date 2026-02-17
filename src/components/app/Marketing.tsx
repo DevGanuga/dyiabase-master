@@ -173,6 +173,11 @@ export function Marketing({ showSuccess, isPro = false }: MarketingProps) {
     }
     setSaving(true)
     try {
+      // When editing, delete the old entry first (upsert key is source+month, so changing either would create a duplicate)
+      if (editingId) {
+        await fetch(`/api/marketing/spend?id=${editingId}`, { method: 'DELETE' })
+      }
+
       const body: { source: string; month: string; amount: number; notes?: string } = {
         source: formSource.trim(),
         month: formMonth.slice(0, 7) + '-01',
@@ -188,6 +193,7 @@ export function Marketing({ showSuccess, isPro = false }: MarketingProps) {
       if (!res.ok) throw new Error(data.error || 'Save failed')
       showSuccess(editingId ? 'Spend updated' : 'Spend added')
       setShowForm(false)
+      setEditingId(null)
       loadSpend()
       loadRoi()
     } catch (e) {
@@ -412,62 +418,113 @@ export function Marketing({ showSuccess, isPro = false }: MarketingProps) {
 
       {/* Add/Edit modal */}
       {showForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-[2px]" onClick={() => setShowForm(false)}>
-          <div
-            className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-2xl shadow-2xl max-w-md w-full p-6"
-            onClick={(e) => e.stopPropagation()}
-            style={{ animation: 'dyiaPanelPopIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) both' }}
-          >
-            <h3 className="text-lg font-semibold text-[var(--color-text-primary)] mb-4">{editingId ? 'Edit spend' : 'Add spend'}</h3>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">Channel / source</label>
-                <input
-                  list="channel-list"
-                  value={formSource}
-                  onChange={(e) => setFormSource(e.target.value)}
-                  placeholder="e.g. Google Ads"
-                  className="app-input w-full"
-                />
-                <datalist id="channel-list">
-                  {CHANNEL_PRESETS.map(c => <option key={c} value={c} />)}
-                </datalist>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">Month (YYYY-MM)</label>
-                <input
-                  type="month"
-                  value={formMonth}
-                  onChange={(e) => setFormMonth(e.target.value || selectedMonth)}
-                  className="app-input w-full"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">Amount ($)</label>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={formAmount}
-                  onChange={(e) => setFormAmount(e.target.value)}
-                  className="app-input w-full"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">Notes (optional)</label>
-                <input
-                  value={formNotes}
-                  onChange={(e) => setFormNotes(e.target.value)}
-                  placeholder="Optional"
-                  className="app-input w-full"
-                />
-              </div>
-            </div>
-            <div className="flex gap-2 mt-6">
-              <button onClick={saveSpend} disabled={saving} className="app-btn-primary flex-1">
-                {saving ? 'Saving…' : (editingId ? 'Update' : 'Add')}
+        <div
+          className="fixed inset-0 z-[200] overflow-y-auto"
+          role="dialog"
+          aria-modal="true"
+        >
+          {/* Backdrop */}
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={() => { setShowForm(false); setEditingId(null) }} />
+          
+          {/* Centering wrapper */}
+          <div className="flex min-h-full items-center justify-center p-4">
+            <div
+              className="relative bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-2xl shadow-2xl w-full max-w-md p-6 animate-in fade-in zoom-in-95 duration-200"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Close button */}
+              <button
+                onClick={() => { setShowForm(false); setEditingId(null) }}
+                className="absolute top-4 right-4 p-1 text-[var(--color-text-faint)] hover:text-[var(--color-text-primary)] rounded-lg transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
               </button>
-              <button onClick={() => setShowForm(false)} className="app-btn-secondary">Cancel</button>
+
+              <h3 className="text-lg font-semibold text-[var(--color-text-primary)] mb-1">
+                {editingId ? 'Edit Marketing Spend' : 'Add Marketing Spend'}
+              </h3>
+              <p className="text-sm text-[var(--color-text-muted)] mb-5">
+                {editingId ? 'Update this spend entry.' : 'Track what you spend on each marketing channel.'}
+              </p>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1.5">Channel / Source</label>
+                  <input
+                    list="channel-list"
+                    value={formSource}
+                    onChange={(e) => setFormSource(e.target.value)}
+                    placeholder="e.g. Google Ads"
+                    className="app-input w-full"
+                    autoFocus
+                  />
+                  <datalist id="channel-list">
+                    {CHANNEL_PRESETS.map(ch => <option key={ch} value={ch} />)}
+                  </datalist>
+                  {!formSource && (
+                    <div className="flex flex-wrap gap-1.5 mt-2">
+                      {CHANNEL_PRESETS.slice(0, 6).map(ch => (
+                        <button
+                          key={ch}
+                          type="button"
+                          onClick={() => setFormSource(ch)}
+                          className="px-2.5 py-1 text-xs rounded-lg border border-[var(--color-border)] text-[var(--color-text-muted)] hover:border-orange-300 hover:text-orange-600 transition-colors"
+                        >
+                          {ch}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1.5">Month</label>
+                    <input
+                      type="month"
+                      value={formMonth}
+                      onChange={(e) => setFormMonth(e.target.value || selectedMonth)}
+                      className="app-input w-full"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1.5">Amount</label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)]">$</span>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={formAmount}
+                        onChange={(e) => setFormAmount(e.target.value)}
+                        className="app-input w-full pl-7"
+                        placeholder="0.00"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1.5">Notes <span className="text-[var(--color-text-faint)] font-normal">(optional)</span></label>
+                  <input
+                    value={formNotes}
+                    onChange={(e) => setFormNotes(e.target.value)}
+                    placeholder="e.g. Monthly ad budget for local targeting"
+                    className="app-input w-full"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-2 mt-6">
+                <button onClick={saveSpend} disabled={saving} className="app-btn-primary flex-1">
+                  {saving ? 'Saving…' : (editingId ? 'Update Spend' : 'Add Spend')}
+                </button>
+                <button onClick={() => { setShowForm(false); setEditingId(null) }} className="app-btn-secondary">
+                  Cancel
+                </button>
+              </div>
             </div>
           </div>
         </div>
