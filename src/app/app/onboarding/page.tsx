@@ -6,9 +6,9 @@ import { useRouter } from 'next/navigation'
 import { createClient, initSupabaseAuth } from '@/lib/supabase/client'
 import { useTheme } from '@/hooks/useTheme'
 
-type Step = 'welcome' | 'you' | 'business' | 'strategy' | 'financials' | 'pricing'
+type Step = 'welcome' | 'you' | 'business' | 'strategy' | 'operations' | 'financials' | 'pricing'
 
-const STEPS: Step[] = ['welcome', 'you', 'business', 'strategy', 'financials', 'pricing']
+const STEPS: Step[] = ['welcome', 'you', 'business', 'strategy', 'operations', 'financials', 'pricing']
 
 const BUSINESS_TYPES = [
   { id: 'junk_removal', label: 'Junk Removal', icon: '🚛' },
@@ -416,6 +416,7 @@ export default function OnboardingPage() {
     you: 'You',
     business: 'Business',
     strategy: 'Strategy',
+    operations: 'Operations',
     financials: 'Finances',
     pricing: 'Pricing',
   }
@@ -469,35 +470,31 @@ export default function OnboardingPage() {
           <div className="w-full max-w-[540px]">
             {/* Steps */}
             <div className="mb-8">
-              <div className="flex items-center justify-between mb-4">
+              {/* Step indicator dots */}
+              <div className="flex items-center justify-center gap-2 mb-3">
                 {STEPS.map((step, index) => (
                   <button
                     key={step}
                     onClick={() => index < currentStepIndex && animateToStep(step, 'backward')}
                     disabled={index >= currentStepIndex}
-                    className="flex items-center gap-2 bg-transparent border-none p-0"
+                    className="p-0 bg-transparent border-none"
                     style={{ cursor: index < currentStepIndex ? 'pointer' : 'default' }}
+                    title={stepLabels[step]}
                   >
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold transition-all ${
+                    <div className={`rounded-full transition-all duration-300 ${
                       index === currentStepIndex 
-                        ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/40' 
+                        ? 'w-8 h-2 bg-orange-500 shadow-sm shadow-orange-500/40' 
                         : index < currentStepIndex 
-                          ? c.stepComplete 
-                          : c.stepPending
-                    }`}>
-                      {index < currentStepIndex ? (
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                      ) : index + 1}
-                    </div>
-                    <span className={`text-sm hidden sm:inline ${
-                      index === currentStepIndex ? c.text : index < currentStepIndex ? 'text-orange-500' : c.textSubtle
-                    }`}>{stepLabels[step]}</span>
+                          ? 'w-2 h-2 bg-orange-400/60'
+                          : `w-2 h-2 ${isDark ? 'bg-slate-700' : 'bg-slate-300'}`
+                    }`} />
                   </button>
                 ))}
               </div>
-              <div className={`h-1 rounded-full overflow-hidden ${isDark ? 'bg-slate-700' : 'bg-slate-200'}`}>
-                <div className="h-full bg-gradient-to-r from-orange-500 to-amber-500 rounded-full transition-all duration-300" style={{ width: `${progress}%` }} />
-              </div>
+              {/* Current step label */}
+              <p className={`text-center text-xs font-medium uppercase tracking-widest ${c.textSubtle}`}>
+                Step {currentStepIndex + 1} of {STEPS.length} — {stepLabels[currentStep]}
+              </p>
             </div>
 
             {/* Card */}
@@ -656,13 +653,13 @@ export default function OnboardingPage() {
                   </div>
                 )}
 
-                {/* ===== STRATEGY (AI-relevant) ===== */}
+                {/* ===== STRATEGY ===== */}
                 {currentStep === 'strategy' && (
                   <div>
-                    <h2 className="text-2xl font-bold mb-1">Your business strategy</h2>
-                    <p className={`mb-6 text-sm ${c.textMuted}`}>Dyia uses this to give you personalized advice, pricing suggestions, and insights</p>
+                    <h2 className="text-2xl font-bold mb-1">Your strategy</h2>
+                    <p className={`mb-6 text-sm ${c.textMuted}`}>Helps Dyia tailor advice to where you are</p>
                     
-                    <div className="mb-5">
+                    <div className="mb-6">
                       <label className={`block text-sm mb-2 ${c.textMuted}`}>Where is your business at?</label>
                       <div className="grid grid-cols-3 gap-2">
                         {BUSINESS_STAGES.map((stage) => (
@@ -670,65 +667,17 @@ export default function OnboardingPage() {
                             className={`px-3 py-3 rounded-xl border text-sm font-medium transition-all flex flex-col items-center gap-1 ${businessStage === stage.id ? c.chipActive : c.chip}`}>
                             <span className="text-lg">{stage.icon}</span>
                             <span className="text-xs font-semibold">{stage.label}</span>
-                            <span className={`text-[10px] ${businessStage === stage.id ? 'text-white/70' : c.textSubtle}`}>{stage.desc}</span>
                           </button>
                         ))}
                       </div>
                     </div>
 
-                    <div className="mb-5">
+                    <div className="mb-6">
                       <label className={`block text-sm mb-2 ${c.textMuted}`}>Biggest challenge right now?</label>
                       <div className="flex flex-wrap gap-2">
                         {BIGGEST_CHALLENGES.map((ch) => (
                           <button key={ch.id} type="button" onClick={() => setBiggestChallenge(ch.id)}
-                            className={`px-3 py-2 rounded-lg border text-sm font-medium transition-all ${biggestChallenge === ch.id ? c.chipActive : c.chip}`}>
-                            {ch.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="mb-5">
-                      <label className={`block text-sm mb-2 ${c.textMuted}`}>Pricing approach?</label>
-                      <div className="space-y-2">
-                        {PRICING_PHILOSOPHIES.map((ph) => (
-                          <button key={ph.id} type="button" onClick={() => setPricingPhilosophy(ph.id)}
-                            className={`w-full px-4 py-3 rounded-xl border text-left transition-all ${pricingPhilosophy === ph.id ? c.chipActive : c.chip}`}>
-                            <div className="font-medium text-sm">{ph.label}</div>
-                            <div className={`text-xs mt-0.5 ${pricingPhilosophy === ph.id ? 'text-white/70' : c.textSubtle}`}>{ph.desc}</div>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3 mb-5">
-                      <div>
-                        <label className={`block text-sm mb-2 ${c.textMuted}`}>Jobs per week?</label>
-                        <div className="flex gap-1.5">
-                          {WEEKLY_JOB_CAPACITY.map((cap) => (
-                            <button key={cap.id} type="button" onClick={() => setWeeklyJobCapacity(cap.id)}
-                              className={`flex-1 px-2 py-2 rounded-lg border text-xs font-medium transition-all ${weeklyJobCapacity === cap.id ? c.chipActive : c.chip}`}>
-                              {cap.label}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                      <div>
-                        <label className={`block text-sm mb-1.5 ${c.textMuted}`}>Avg job revenue?</label>
-                        <div className="relative">
-                          <span className={`absolute left-3 top-1/2 -translate-y-1/2 text-sm ${c.textSubtle}`}>$</span>
-                          <input type="number" value={averageJobRevenue || ''} onChange={(e) => setAverageJobRevenue(Number(e.target.value) || 0)} placeholder="350"
-                            className={`w-full pl-7 pr-3 py-2.5 rounded-xl border text-sm outline-none transition-all onboarding-input ${c.input}`} />
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="mb-5">
-                      <label className={`block text-sm mb-2 ${c.textMuted}`}>Where do you get customers?</label>
-                      <div className="flex flex-wrap gap-2">
-                        {MARKETING_CHANNELS.map((ch) => (
-                          <button key={ch.id} type="button" onClick={() => toggleMarketingChannel(ch.id)}
-                            className={`px-3 py-2 rounded-lg border text-xs font-medium transition-all ${marketingChannels.includes(ch.id) ? c.chipActive : c.chip}`}>
+                            className={`px-3.5 py-2 rounded-lg border text-sm font-medium transition-all ${biggestChallenge === ch.id ? c.chipActive : c.chip}`}>
                             {ch.label}
                           </button>
                         ))}
@@ -736,7 +685,69 @@ export default function OnboardingPage() {
                     </div>
 
                     <div>
-                      <label className={`block text-sm mb-1.5 ${c.textMuted}`}>Common services you offer</label>
+                      <label className={`block text-sm mb-2 ${c.textMuted}`}>Pricing approach?</label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {PRICING_PHILOSOPHIES.map((ph) => (
+                          <button key={ph.id} type="button" onClick={() => setPricingPhilosophy(ph.id)}
+                            className={`px-3 py-3 rounded-xl border text-center transition-all ${pricingPhilosophy === ph.id ? c.chipActive : c.chip}`}>
+                            <div className="font-medium text-xs">{ph.label}</div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* ===== OPERATIONS ===== */}
+                {currentStep === 'operations' && (
+                  <div>
+                    <h2 className="text-2xl font-bold mb-1">How you operate</h2>
+                    <p className={`mb-6 text-sm ${c.textMuted}`}>Dyia uses this for smarter pricing and revenue projections</p>
+                    
+                    <div className="grid grid-cols-2 gap-4 mb-6">
+                      <div>
+                        <label className={`block text-sm mb-2 ${c.textMuted}`}>Jobs per week?</label>
+                        <div className="grid grid-cols-2 gap-1.5">
+                          {WEEKLY_JOB_CAPACITY.map((cap) => (
+                            <button key={cap.id} type="button" onClick={() => setWeeklyJobCapacity(cap.id)}
+                              className={`px-3 py-2.5 rounded-lg border text-sm font-medium transition-all ${weeklyJobCapacity === cap.id ? c.chipActive : c.chip}`}>
+                              {cap.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <label className={`block text-sm mb-2 ${c.textMuted}`}>Avg job revenue?</label>
+                        <div className="relative">
+                          <span className={`absolute left-3 top-1/2 -translate-y-1/2 text-sm ${c.textSubtle}`}>$</span>
+                          <input type="number" value={averageJobRevenue || ''} onChange={(e) => setAverageJobRevenue(Number(e.target.value) || 0)} placeholder="350"
+                            className={`w-full pl-7 pr-3 py-3 rounded-xl border text-base outline-none transition-all onboarding-input ${c.input}`} />
+                        </div>
+                        <div className="flex gap-1.5 mt-2">
+                          {[200, 350, 500].map((amt) => (
+                            <button key={amt} type="button" onClick={() => setAverageJobRevenue(amt)}
+                              className={`flex-1 px-2 py-1.5 rounded-lg border text-xs font-medium transition-all ${averageJobRevenue === amt ? c.chipActive : c.chip}`}>
+                              ${amt}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mb-6">
+                      <label className={`block text-sm mb-2 ${c.textMuted}`}>Where do you get customers?</label>
+                      <div className="flex flex-wrap gap-2">
+                        {MARKETING_CHANNELS.map((ch) => (
+                          <button key={ch.id} type="button" onClick={() => toggleMarketingChannel(ch.id)}
+                            className={`px-3.5 py-2 rounded-lg border text-sm font-medium transition-all ${marketingChannels.includes(ch.id) ? c.chipActive : c.chip}`}>
+                            {ch.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className={`block text-sm mb-1.5 ${c.textMuted}`}>Services you offer</label>
                       <input type="text" value={commonServices} onChange={(e) => setCommonServices(e.target.value)}
                         placeholder="e.g. Garage cleanouts, furniture removal, yard debris"
                         className={`w-full px-4 py-3 rounded-xl border text-sm outline-none transition-all onboarding-input ${c.input}`} />
