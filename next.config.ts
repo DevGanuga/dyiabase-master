@@ -33,9 +33,8 @@ const securityHeaders = [
     key: 'Strict-Transport-Security',
     value: 'max-age=63072000; includeSubDomains; preload',
   },
-  // CSP removed — was blocking Clerk/Stripe in production.
-  // TODO: Re-add CSP using Clerk's automatic CSP middleware (clerkMiddleware contentSecurityPolicy option)
-  // which auto-detects the correct FAPI domain. See: https://clerk.com/docs/security/clerk-csp
+  // CSP is configured via Clerk's automatic CSP middleware (clerkMiddleware contentSecurityPolicy option)
+  // in src/middleware.ts. See: https://clerk.com/docs/security/clerk-csp
 ];
 
 const nextConfig: NextConfig = {

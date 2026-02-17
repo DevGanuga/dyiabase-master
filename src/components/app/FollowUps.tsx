@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useConfirm } from '@/components/providers/ConfirmProvider'
-import KanbanBoard, { type KanbanColumn, type KanbanFollowUp } from '@/components/ui/kanban-board'
+import KanbanBoard, { type KanbanColumn, type KanbanFollowUp, type RiskLevel } from '@/components/ui/kanban-board'
 
 type FollowUpStatus = 'pending' | 'contacted' | 'converted' | 'lost' | 'snoozed'
 type FollowUpPriority = 'hot' | 'warm' | 'cold'
@@ -52,6 +52,14 @@ function getPriority(daysSinceQuote: number): FollowUpPriority {
   if (daysSinceQuote <= 3) return 'hot'
   if (daysSinceQuote <= 7) return 'warm'
   return 'cold'
+}
+
+function getRiskLevel(daysSinceQuote: number, contactCount: number, status: FollowUpStatus): RiskLevel {
+  if (status === 'converted' || status === 'lost') return 'low'
+  if (daysSinceQuote > 14 && contactCount === 0) return 'critical'
+  if (daysSinceQuote > 10 || (daysSinceQuote > 7 && contactCount === 0)) return 'high'
+  if (daysSinceQuote > 5 && contactCount <= 1) return 'medium'
+  return 'low'
 }
 
 function generateFollowUpMessage(quote: QuoteSummary, businessName: string) {
@@ -263,21 +271,26 @@ export function FollowUps({ userId, businessName = 'dyia', showSuccess }: Follow
       ...col,
       items: kanbanRows
         .filter((r) => (r.followUp?.status || 'pending') === col.id)
-        .map((r): KanbanFollowUp => ({
-          id: r.followUp?.id || r.quote.id,
-          quoteId: r.quote.id,
-          customerName: r.quote.customerName,
-          phone: r.quote.phone,
-          jobDescription: r.quote.jobDescription,
-          estimateLow: r.quote.estimateLow,
-          estimateHigh: r.quote.estimateHigh,
-          status: (r.followUp?.status || 'pending') as FollowUpStatus,
-          priority: r.priority,
-          daysSinceQuote: r.daysSinceQuote,
-          contactCount: r.followUp?.contact_count || 0,
-          notes: r.followUp?.notes,
-          nextFollowUpAt: r.followUp?.next_follow_up_at,
-        })),
+        .map((r): KanbanFollowUp => {
+          const status = (r.followUp?.status || 'pending') as FollowUpStatus
+          const contactCount = r.followUp?.contact_count || 0
+          return {
+            id: r.followUp?.id || r.quote.id,
+            quoteId: r.quote.id,
+            customerName: r.quote.customerName,
+            phone: r.quote.phone,
+            jobDescription: r.quote.jobDescription,
+            estimateLow: r.quote.estimateLow,
+            estimateHigh: r.quote.estimateHigh,
+            status,
+            priority: r.priority,
+            daysSinceQuote: r.daysSinceQuote,
+            contactCount,
+            notes: r.followUp?.notes,
+            nextFollowUpAt: r.followUp?.next_follow_up_at,
+            riskLevel: getRiskLevel(r.daysSinceQuote, contactCount, status),
+          }
+        }),
     }))
   }, [rows, priorityFilter])
 

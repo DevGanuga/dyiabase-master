@@ -111,7 +111,6 @@ export async function POST(req: Request) {
           }
         }
 
-        console.log(`User created: ${id}`)
         break
       }
 
@@ -133,7 +132,6 @@ export async function POST(req: Request) {
           throw error
         }
 
-        console.log(`User updated: ${id}`)
         break
       }
 
@@ -151,14 +149,12 @@ export async function POST(req: Request) {
             console.error('Error deleting user:', error)
             throw error
           }
-
-          console.log(`User deleted: ${id}`)
         }
         break
       }
 
       default:
-        console.log(`Unhandled event type: ${eventType}`)
+        console.warn(`Unhandled event type: ${eventType}`)
     }
 
     // Log successful webhook event

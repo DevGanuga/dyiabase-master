@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { sendEmail, isResendConfigured } from '@/lib/resend/client'
 import { quizReportEmail } from '@/lib/resend/templates'
+import { getBaseUrl } from '@/lib/env'
 
 function getSupabase() {
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
@@ -109,7 +110,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000')
+    const baseUrl = getBaseUrl()
     const resultsUrl = `${baseUrl}/profit-calculator/results/${(row as { id: string }).id}`
 
     if (isResendConfigured()) {

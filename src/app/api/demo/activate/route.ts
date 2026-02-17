@@ -12,7 +12,7 @@ function deriveToken(password: string): string {
 
 export async function POST(request: NextRequest) {
   // Rate limit: 5 attempts per 15 minutes per IP
-  const rateLimited = rateLimiters.demoActivate.check(request)
+  const rateLimited = await rateLimiters.demoActivate.checkAsync(request)
   if (rateLimited) return rateLimited
 
   const DEMO_PASSWORD = process.env.DEMO_PASSWORD

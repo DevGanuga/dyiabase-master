@@ -8,6 +8,107 @@ import { PendingActionsCard } from './PendingActionsCard'
 import { DyiaActionButton, DYIA_PROMPTS } from './DyiaActionButton'
 import type { LaunchpadItem } from './Launchpad'
 
+// Revenue Forecast card (Pro) — client-side calculation using job data
+function RevenueForecastCard({ jobs, onOpenDyiaWithPrompt }: { jobs: AppJob[]; onOpenDyiaWithPrompt?: (prompt: string) => void }) {
+  const forecast = useMemo(() => {
+    const now = new Date()
+    const threeMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 3, 1)
+    const recentJobs = jobs.filter(j => new Date(j.date) >= threeMonthsAgo)
+
+    if (recentJobs.length < 5) return null
+
+    // This month calculations
+    const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+    const dayOfMonth = now.getDate()
+    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()
+    const daysRemaining = daysInMonth - dayOfMonth
+
+    const thisMonthRevenue = recentJobs
+      .filter(j => new Date(j.date) >= thisMonthStart)
+      .reduce((sum, j) => sum + (j.revenue || 0), 0)
+
+    // Last month
+    const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+    const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0)
+    const lastMonthRevenue = recentJobs
+      .filter(j => { const d = new Date(j.date); return d >= lastMonthStart && d <= lastMonthEnd })
+      .reduce((sum, j) => sum + (j.revenue || 0), 0)
+
+    // Two months ago
+    const twoMonthsAgoStart = new Date(now.getFullYear(), now.getMonth() - 2, 1)
+    const twoMonthsAgoEnd = new Date(now.getFullYear(), now.getMonth() - 1, 0)
+    const twoMonthsAgoRevenue = recentJobs
+      .filter(j => { const d = new Date(j.date); return d >= twoMonthsAgoStart && d <= twoMonthsAgoEnd })
+      .reduce((sum, j) => sum + (j.revenue || 0), 0)
+
+    const monthlyAverage = (lastMonthRevenue + twoMonthsAgoRevenue) / 2
+    const dailyPace = dayOfMonth > 0 ? thisMonthRevenue / dayOfMonth : 0
+    const pacedForecast = thisMonthRevenue + (dailyPace * daysRemaining)
+    const paceWeight = Math.min(dayOfMonth / daysInMonth + 0.3, 0.8)
+    const projected = Math.round((pacedForecast * paceWeight) + (monthlyAverage * (1 - paceWeight)))
+    const confidence: 'high' | 'medium' | 'low' = dayOfMonth >= 15 ? 'high' : dayOfMonth >= 7 ? 'medium' : 'low'
+
+    return {
+      projected,
+      current: thisMonthRevenue,
+      remaining: Math.max(0, projected - thisMonthRevenue),
+      daysRemaining,
+      confidence,
+      percentComplete: projected > 0 ? Math.round((thisMonthRevenue / projected) * 100) : 0,
+    }
+  }, [jobs])
+
+  if (!forecast) return null
+
+  const confidenceLabel = { high: 'High confidence', medium: 'Moderate confidence', low: 'Early estimate' }
+  const confidenceColor = { high: 'text-green-600 dark:text-green-400', medium: 'text-amber-600 dark:text-amber-400', low: 'text-slate-500' }
+
+  return (
+    <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl p-4 sm:p-5">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <div className="w-6 h-6 rounded-full bg-violet-100 dark:bg-violet-900/40 flex items-center justify-center">
+            <svg className="w-3.5 h-3.5 text-violet-600 dark:text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+            </svg>
+          </div>
+          <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">Revenue Forecast</h3>
+          <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-orange-500/10 text-orange-500 uppercase">Pro</span>
+        </div>
+        <span className={`text-xs font-medium ${confidenceColor[forecast.confidence]}`}>
+          {confidenceLabel[forecast.confidence]}
+        </span>
+      </div>
+
+      <div className="flex items-baseline gap-2 mb-1">
+        <span className="text-2xl font-bold text-[var(--color-text-primary)]">{formatCurrency(forecast.projected)}</span>
+        <span className="text-xs text-[var(--color-text-muted)]">projected this month</span>
+      </div>
+
+      <div className="h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden mb-2">
+        <div
+          className="h-full rounded-full bg-gradient-to-r from-violet-500 to-purple-500 progress-animated"
+          style={{ width: `${Math.min(forecast.percentComplete, 100)}%` }}
+        />
+      </div>
+
+      <div className="flex items-center justify-between text-xs text-[var(--color-text-muted)]">
+        <span>{formatCurrency(forecast.current)} earned so far</span>
+        <span>{forecast.daysRemaining} days left</span>
+      </div>
+
+      {onOpenDyiaWithPrompt && (
+        <button
+          onClick={() => onOpenDyiaWithPrompt('Give me a detailed revenue forecast for this month and next month. Include trends and recommendations.')}
+          className="mt-3 w-full text-xs text-violet-600 dark:text-violet-400 hover:underline font-medium text-center"
+        >
+          Ask Dyia for detailed forecast &rarr;
+        </button>
+      )}
+    </div>
+  )
+}
+
 // AI Briefing card — fetches from /api/ai/briefing once per session
 function DyiaBriefingCard() {
   const [briefing, setBriefing] = useState<{ briefing: string; tip: string | null } | null>(null)
@@ -555,6 +656,13 @@ export function Dashboard({
               style={{ width: `${Math.min(stats.goalProgress, 100)}%` }} 
             />
           </div>
+        </div>
+      )}
+
+      {/* ===== REVENUE FORECAST (Pro) ===== */}
+      {isPro && (
+        <div className="animate-fade-in delay-fade-2">
+          <RevenueForecastCard jobs={jobs} onOpenDyiaWithPrompt={onOpenDyiaWithPrompt} />
         </div>
       )}
 

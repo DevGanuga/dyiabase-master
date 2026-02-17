@@ -8,6 +8,8 @@ import { formatCurrency } from '@/lib/utils'
 type FollowUpStatus = 'pending' | 'contacted' | 'converted' | 'lost' | 'snoozed'
 type FollowUpPriority = 'hot' | 'warm' | 'cold'
 
+export type RiskLevel = 'critical' | 'high' | 'medium' | 'low'
+
 export interface KanbanFollowUp {
   id: string
   quoteId: string
@@ -22,6 +24,7 @@ export interface KanbanFollowUp {
   contactCount: number
   notes?: string | null
   nextFollowUpAt?: string | null
+  riskLevel?: RiskLevel
 }
 
 export interface KanbanColumn {
@@ -41,6 +44,13 @@ const PRIORITY_STYLES: Record<FollowUpPriority, { label: string; className: stri
   hot: { label: 'Hot 🔥', className: 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300 border-red-200 dark:border-red-800' },
   warm: { label: 'Warm 🌡️', className: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 border-amber-200 dark:border-amber-800' },
   cold: { label: 'Cold ❄️', className: 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300 border-blue-200 dark:border-blue-800' },
+}
+
+const RISK_STYLES: Record<RiskLevel, { label: string; className: string }> = {
+  critical: { label: 'At Risk', className: 'bg-red-500 text-white dark:bg-red-600 border-red-600' },
+  high: { label: 'Fading', className: 'bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300 border-orange-200 dark:border-orange-800' },
+  medium: { label: 'Monitor', className: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800' },
+  low: { label: '', className: '' },
 }
 
 export default function KanbanBoard({ columns, onStatusChange, onCopyMessage }: KanbanBoardProps) {
@@ -118,6 +128,11 @@ export default function KanbanBoard({ columns, onStatusChange, onCopyMessage }: 
                           <Badge className={`text-[10px] sm:text-xs ${priorityStyle.className}`}>
                             {priorityStyle.label}
                           </Badge>
+                          {item.riskLevel && item.riskLevel !== 'low' && RISK_STYLES[item.riskLevel] && (
+                            <Badge className={`text-[10px] sm:text-xs ${RISK_STYLES[item.riskLevel].className}`}>
+                              {RISK_STYLES[item.riskLevel].label}
+                            </Badge>
+                          )}
                         </div>
 
                         <div className="text-xs sm:text-sm font-semibold text-orange-600 dark:text-orange-400">

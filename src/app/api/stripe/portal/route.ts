@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
+import { getBaseUrl } from '@/lib/env'
 
 function getStripe() {
   if (!process.env.STRIPE_SECRET_KEY) throw new Error('STRIPE_SECRET_KEY not set')
@@ -39,7 +40,7 @@ export async function POST() {
       )
     }
 
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+    const baseUrl = getBaseUrl()
     const stripe = getStripe()
     const session = await stripe.billingPortal.sessions.create({
       customer: customerId,

@@ -40,12 +40,16 @@ async function refreshGmailToken(connection: {
     throw new Error('No refresh token available')
   }
 
+  if (!process.env.GMAIL_CLIENT_ID || !process.env.GMAIL_CLIENT_SECRET) {
+    throw new Error('Gmail OAuth not configured: GMAIL_CLIENT_ID and GMAIL_CLIENT_SECRET are required')
+  }
+
   const response = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
-      client_id: process.env.GMAIL_CLIENT_ID!,
-      client_secret: process.env.GMAIL_CLIENT_SECRET!,
+      client_id: process.env.GMAIL_CLIENT_ID,
+      client_secret: process.env.GMAIL_CLIENT_SECRET,
       refresh_token: connection.refresh_token,
       grant_type: 'refresh_token',
     }),
@@ -91,12 +95,16 @@ async function refreshOutlookToken(connection: {
     throw new Error('No refresh token available')
   }
 
+  if (!process.env.OUTLOOK_CLIENT_ID || !process.env.OUTLOOK_CLIENT_SECRET) {
+    throw new Error('Outlook OAuth not configured: OUTLOOK_CLIENT_ID and OUTLOOK_CLIENT_SECRET are required')
+  }
+
   const response = await fetch('https://login.microsoftonline.com/common/oauth2/v2.0/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
-      client_id: process.env.OUTLOOK_CLIENT_ID!,
-      client_secret: process.env.OUTLOOK_CLIENT_SECRET!,
+      client_id: process.env.OUTLOOK_CLIENT_ID,
+      client_secret: process.env.OUTLOOK_CLIENT_SECRET,
       refresh_token: connection.refresh_token,
       grant_type: 'refresh_token',
       scope: 'openid email offline_access https://graph.microsoft.com/Mail.Send',

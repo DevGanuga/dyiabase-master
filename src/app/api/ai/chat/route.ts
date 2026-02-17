@@ -35,7 +35,7 @@ interface ResponseData {
 
 export async function POST(req: NextRequest) {
   // Rate limit: 30 requests per minute per IP
-  const rateLimited = rateLimiters.aiChat.check(req)
+  const rateLimited = await rateLimiters.aiChat.checkAsync(req)
   if (rateLimited) return rateLimited
 
   try {
@@ -129,8 +129,6 @@ export async function POST(req: NextRequest) {
         
         const functionName = toolCall.name as DyiaFunctionName
         const functionArgs = JSON.parse(toolCall.arguments)
-
-        console.log(`[AI] Calling function: ${functionName}`, functionArgs)
 
         // Execute the function handler
         const result = await handleFunctionCall(functionName, functionArgs, clerkUserId)

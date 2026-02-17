@@ -52,7 +52,6 @@ export async function POST(req: NextRequest) {
     }
 
     // 6. Execute the handler
-    console.log(`[AI Confirm] Executing ${actionType}`, data)
     const result = await handleFunctionCall(actionType, data, clerkUserId)
 
     // 7. Generate appropriate success message

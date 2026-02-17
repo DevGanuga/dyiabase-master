@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { getBaseUrl } from '@/lib/env'
 
 const OUTLOOK_CLIENT_ID = process.env.OUTLOOK_CLIENT_ID
 const OUTLOOK_CLIENT_SECRET = process.env.OUTLOOK_CLIENT_SECRET
-const OUTLOOK_REDIRECT_URI = process.env.NEXT_PUBLIC_APP_URL 
-  ? `${process.env.NEXT_PUBLIC_APP_URL}/api/email/connect/outlook/callback`
-  : 'http://localhost:3000/api/email/connect/outlook/callback'
+const OUTLOOK_REDIRECT_URI = `${getBaseUrl()}/api/email/connect/outlook/callback`
 
 function getSupabase() {
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
@@ -19,7 +18,7 @@ function getSupabase() {
 
 // GET - Handle Outlook OAuth callback
 export async function GET(request: NextRequest) {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+  const baseUrl = getBaseUrl()
   
   try {
     const searchParams = request.nextUrl.searchParams

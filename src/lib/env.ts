@@ -68,8 +68,22 @@ export function validateEnv(): void {
 
   // Stripe mode detection
   if (process.env.STRIPE_SECRET_KEY?.startsWith('sk_test_')) {
-    console.log('[ENV] Stripe is running in TEST mode')
+    console.info('[ENV] Stripe is running in TEST mode')
   } else if (process.env.STRIPE_SECRET_KEY?.startsWith('sk_live_')) {
-    console.log('[ENV] Stripe is running in LIVE mode')
+    console.info('[ENV] Stripe is running in LIVE mode')
   }
+}
+
+/**
+ * Returns the application base URL, with appropriate fallbacks for
+ * production, Vercel preview deployments, and local development.
+ */
+export function getBaseUrl(): string {
+  if (process.env.NEXT_PUBLIC_APP_URL) {
+    return process.env.NEXT_PUBLIC_APP_URL
+  }
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`
+  }
+  return 'http://localhost:3000'
 }

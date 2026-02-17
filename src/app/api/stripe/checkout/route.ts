@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
 import { rateLimiters } from '@/lib/rate-limit'
+import { getBaseUrl } from '@/lib/env'
 
 function getStripe() {
   if (!process.env.STRIPE_SECRET_KEY) {
@@ -22,7 +23,7 @@ function getSupabase() {
 
 export async function POST(request: NextRequest) {
   // Rate limit: 10 requests per minute per IP
-  const rateLimited = rateLimiters.checkout.check(request)
+  const rateLimited = await rateLimiters.checkout.checkAsync(request)
   if (rateLimited) return rateLimited
 
   try {
@@ -51,7 +52,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+    const baseUrl = getBaseUrl()
     const isOneTime = mode === 'payment'
 
     // Build session params based on mode

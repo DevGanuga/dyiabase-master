@@ -95,7 +95,6 @@ async function createJob(args: Record<string, unknown>, dyiaUserId: string): Pro
               embedding_text: embeddingText 
             })
             .eq('id', data.id)
-          console.log(`[Embedding] Job ${data.id} embedded successfully`)
         })
         .catch((err) => {
           console.error(`[Embedding] Failed to embed job ${data.id}:`, err)
@@ -1365,8 +1364,6 @@ async function updateUserPatterns(dyiaUserId: string): Promise<void> {
           calculated_at: new Date().toISOString()
         }, { onConflict: 'user_id,pattern_type' })
     }
-    
-    console.log(`[Patterns] Updated patterns for user ${dyiaUserId}`)
   } catch (error) {
     console.error(`[Patterns] Failed to update patterns for user ${dyiaUserId}:`, error)
   }

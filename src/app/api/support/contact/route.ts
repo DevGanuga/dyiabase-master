@@ -58,9 +58,6 @@ export async function POST(req: Request) {
         supportConfirmationEmail(name, subjectLabel),
         'welcome' // reusing email type for tracking
       )
-    } else {
-      // Log to console if Resend not configured (dev mode)
-      console.log('[Support Contact]', { name, email, subject: subjectLabel, message })
     }
 
     return NextResponse.json({ success: true })
