@@ -456,7 +456,10 @@ function AppPageContent() {
 
   // Subscription gate: users who haven't completed Stripe checkout must subscribe first.
   // A user is "subscribed" if they have an active, trialing, or past_due status (they at least started paying).
-  const hasActiveSubscription = !!userProfile && ['active', 'trialing', 'past_due'].includes(userProfile.subscription_status || '')
+  // Admins and super_admins bypass the subscription gate entirely.
+  const isAdmin = !!userProfile?.is_admin || ['admin', 'super_admin'].includes(userProfile?.role || '')
+  const isPro = isAdmin || ['active', 'trialing'].includes(userProfile?.subscription_status || '')
+  const hasActiveSubscription = !!userProfile && (isAdmin || ['active', 'trialing', 'past_due'].includes(userProfile.subscription_status || ''))
   const needsSubscription = !loading && !isDemoMode && !!userProfile && !hasActiveSubscription
 
   // Redirect unsubscribed users to pricing — skip if checkout flow is already in progress (plan/tier params)
@@ -587,7 +590,7 @@ function AppPageContent() {
             onNavigate={(view) => setCurrentView(view as View)}
             pendingFollowUps={pendingFollowUpsCount}
             fixedMonthlyExpenses={fixedMonthlyExpenses}
-            isPro={['active', 'trialing'].includes(userProfile?.subscription_status || '')}
+            isPro={isPro}
             taxPercentage={settings.taxPercentage}
             launchpadItems={launchpadItems}
             showLaunchpad={showLaunchpadOnDashboard}
@@ -663,17 +666,17 @@ function AppPageContent() {
             jobs={jobs}
             quotes={quotes}
             fixedMonthlyExpenses={fixedMonthlyExpenses}
-            isPro={['active', 'trialing'].includes(userProfile?.subscription_status || '')}
+            isPro={isPro}
           />
         )
       case 'marketing':
-        return <Marketing showSuccess={showSuccess} isPro={['active', 'trialing'].includes(userProfile?.subscription_status || '')} />
+        return <Marketing showSuccess={showSuccess} isPro={isPro} />
       case 'customers':
         return (
           <Customers
             jobs={jobs}
             quotes={quotes}
-            isPro={['active', 'trialing'].includes(userProfile?.subscription_status || '')}
+            isPro={isPro}
             onNavigate={(view) => setCurrentView(view as View)}
             onCreateQuote={(job) => { setSelectedJobForQuote(job ?? null); setCurrentView('quoteBuilder') }}
             showSuccess={showSuccess}
@@ -685,7 +688,7 @@ function AppPageContent() {
           <MassEmail
             jobs={jobs}
             quotes={quotes}
-            isPro={['active', 'trialing'].includes(userProfile?.subscription_status || '')}
+            isPro={isPro}
             showSuccess={showSuccess}
             showError={showError}
           />
@@ -720,11 +723,12 @@ function AppPageContent() {
         userName={isDemoMode ? 'Demo User' : (userProfile?.first_name || user?.firstName || '')}
         userImageUrl={isDemoMode ? undefined : user?.imageUrl}
         onLogout={handleLogout}
-        isPro={['active', 'trialing'].includes(userProfile?.subscription_status || '')}
+        isPro={isPro}
         subscriptionTier={
-          userProfile?.subscription_status === 'trialing' ? 'trial'
-            : ['active', 'trialing'].includes(userProfile?.subscription_status || '') ? 'pro'
-              : 'basic'
+          isAdmin ? 'pro'
+            : userProfile?.subscription_status === 'trialing' ? 'trial'
+              : isPro ? 'pro'
+                : 'basic'
         }
         trialDaysRemaining={
           userProfile?.subscription_ends_at

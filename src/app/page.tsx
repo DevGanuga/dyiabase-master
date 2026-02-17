@@ -943,7 +943,6 @@ export default function LandingPage() {
                 <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm text-slate-500 mt-6">
                   <span>14 days free</span>
                   <span>Cancel anytime</span>
-                  <span>No credit card until trial ends</span>
                 </div>
               </div>
             </div>
