@@ -330,7 +330,7 @@ export function quizReportEmail(data: QuizReportData): string {
   `)
 }
 
-// Support ticket email (sent to support@dyia.io)
+// Support ticket email (sent to support inbox)
 export function supportTicketEmail(name: string, email: string, subject: string, message: string): string {
   return wrap(`
     <h1 class="header">New Support Request</h1>
@@ -356,7 +356,7 @@ export function supportConfirmationEmail(name: string, subject: string): string 
       <p class="text-small">In the meantime, check out our help resources:</p>
       <ul style="color: #475569; font-size: 14px; padding-left: 20px;">
         <li style="margin-bottom: 8px;">Visit our <a href="${getBaseUrl()}/support" style="color: #f97316;">Support page</a> for FAQs</li>
-        <li style="margin-bottom: 8px;">Email us anytime at <a href="mailto:support@dyia.io" style="color: #f97316;">support@dyia.io</a></li>
+        <li style="margin-bottom: 8px;">Email us anytime at <a href="mailto:dyia.io.app@gmail.com" style="color: #f97316;">dyia.io.app@gmail.com</a></li>
       </ul>
     </div>
     <p class="text-small">— The Dyia Team</p>

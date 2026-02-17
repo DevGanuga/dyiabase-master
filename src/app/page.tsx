@@ -211,12 +211,12 @@ export default function LandingPage() {
                   </div>
                   
                   {/* App Layout — Sidebar + Dashboard */}
-                  <div className="flex" style={{ height: '340px' }}>
+                  <div className="flex" style={{ height: '420px' }}>
                     {/* Mini Sidebar */}
                     <div className="w-11 bg-[#0f1117] border-r border-white/[0.06] flex flex-col items-center py-3 gap-1 shrink-0">
                       {/* Logo dot */}
                       <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center mb-3">
-                        <span className="text-[8px] font-black text-white">d</span>
+                        <img src="/dyia-agent.png" alt="" className="w-4 h-4 object-contain" />
                       </div>
                       {/* Nav icons */}
                       {[
@@ -232,10 +232,8 @@ export default function LandingPage() {
                         </div>
                       ))}
                       {/* Dyia AI nav item */}
-                      <div className="mt-auto w-7 h-7 rounded-lg flex items-center justify-center bg-white/5">
-                        <div className="w-3.5 h-3.5 rounded-full bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center">
-                          <span className="text-[5px] font-bold text-white">AI</span>
-                        </div>
+                      <div className="mt-auto w-7 h-7 rounded-lg flex items-center justify-center bg-orange-500/10">
+                        <img src="/dyia-agent.png" alt="" className="w-3.5 h-3.5 object-contain" />
                       </div>
                     </div>
                     
@@ -326,12 +324,40 @@ export default function LandingPage() {
                       {/* Dyia AI Insight Strip */}
                       <div className="bg-white border border-orange-200/60 rounded-lg p-2 flex items-start gap-2">
                         <div className="w-5 h-5 rounded-md bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center shrink-0">
-                          <span className="text-[6px] font-bold text-white">AI</span>
+                          <img src="/dyia-agent.png" alt="" className="w-3 h-3 object-contain" />
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-[8px] text-slate-600 leading-relaxed">
                             Hot tub removals average <span className="text-orange-600 font-semibold">$485 profit</span> — 40% more than general hauling. Worth focusing your ads there.
                           </p>
+                        </div>
+                      </div>
+
+                      {/* Recent Jobs */}
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <p className="text-[7px] font-semibold text-slate-400 uppercase tracking-wider">Recent Jobs</p>
+                          <span className="text-[7px] text-orange-500 font-medium">View all</span>
+                        </div>
+                        <div className="bg-white rounded-lg border border-slate-200/80 divide-y divide-slate-100 overflow-hidden">
+                          {[
+                            { name: 'Mike R.', amount: '$520', profit: '68%', date: 'Today', color: 'text-green-600' },
+                            { name: 'Sarah K.', amount: '$280', profit: '87%', date: 'Yesterday', color: 'text-green-600' },
+                            { name: 'Tom L.', amount: '$1,200', profit: '54%', date: 'Feb 14', color: 'text-green-600' },
+                          ].map((job, i) => (
+                            <div key={i} className="flex items-center justify-between px-2 py-1.5">
+                              <div className="flex items-center gap-1.5">
+                                <div className={`w-5 h-5 rounded-md bg-green-50 flex items-center justify-center`}>
+                                  <span className="text-[7px] font-bold text-green-600">{job.profit}</span>
+                                </div>
+                                <div>
+                                  <p className="text-[8px] font-medium text-slate-800">{job.name}</p>
+                                  <p className="text-[7px] text-slate-400">{job.date}</p>
+                                </div>
+                              </div>
+                              <span className="text-[9px] font-semibold text-green-600">{job.amount}</span>
+                            </div>
+                          ))}
                         </div>
                       </div>
                     </div>
@@ -343,18 +369,19 @@ export default function LandingPage() {
         </section>
 
         {/* ===== SOCIAL PROOF STRIP ===== */}
-        <section className="py-10 px-6 border-y border-white/[0.04]">
+        <section className="py-12 px-6 border-y border-white/[0.04]">
           <div className="max-w-5xl mx-auto">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
               {[
-                { value: '30 sec', label: 'to log a job' },
-                { value: '100%', label: 'profit visibility' },
-                { value: '2 min', label: 'setup time' },
-                { value: '$0', label: 'to start' },
+                { value: '30 sec', label: 'Average time to log a job', detail: 'From your truck' },
+                { value: '100%', label: 'Profit visibility', detail: 'Every dollar tracked' },
+                { value: '2 min', label: 'Setup to first job', detail: 'No training needed' },
+                { value: '$0', label: 'To start your trial', detail: '14 days free' },
               ].map((stat, i) => (
-                <div key={i}>
-                  <p className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-orange-400 to-amber-400 bg-clip-text text-transparent">{stat.value}</p>
-                  <p className="text-sm text-slate-500 mt-1">{stat.label}</p>
+                <div key={i} className="text-center">
+                  <p className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-orange-400 to-amber-400 bg-clip-text text-transparent">{stat.value}</p>
+                  <p className="text-sm text-slate-300 mt-1.5 font-medium">{stat.label}</p>
+                  <p className="text-xs text-slate-600 mt-0.5">{stat.detail}</p>
                 </div>
               ))}
             </div>
@@ -402,9 +429,13 @@ export default function LandingPage() {
             </div>
 
             <div className="mt-12 text-center">
-              <p className="text-slate-500">
-                dyia fixes all of this — for less than a tank of gas.
+              <p className="text-lg text-slate-400 mb-6">
+                dyia fixes all of this — for <span className="text-orange-400 font-semibold">less than a tank of gas</span>.
               </p>
+              <button onClick={startFreeTrial} className="px-6 py-3 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-xl font-semibold text-sm shadow-lg shadow-orange-500/20 hover:shadow-xl hover:-translate-y-0.5 transition-all inline-flex items-center gap-2">
+                See for yourself
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
+              </button>
             </div>
           </div>
         </section>
@@ -660,7 +691,7 @@ export default function LandingPage() {
                       { feature: 'Smart pricing', jobber: false, housecall: false, dyia: true },
                       { feature: 'Revenue forecasting', jobber: false, housecall: false, dyia: true },
                       { feature: 'Email blasts', jobber: true, housecall: false, dyia: true },
-                      { feature: 'Based in', jobber: 'Canada 🇨🇦', housecall: 'USA 🇺🇸', dyia: 'USA 🇺🇸' },
+                      { feature: 'Based in', jobber: 'Canada', housecall: 'USA', dyia: 'USA' },
                       { feature: 'Billing currency', jobber: 'CAD', housecall: 'USD', dyia: 'USD' },
                       { feature: 'Setup time', jobber: 'Hours', housecall: '30 min', dyia: '2 min' },
                     ].map((row, i) => (
@@ -699,7 +730,7 @@ export default function LandingPage() {
               <p className="text-xl text-slate-400 max-w-2xl mx-auto">Every plan starts with a 14-day free Pro trial. No hidden fees, no contracts, cancel anytime.</p>
             </div>
 
-            <p className="text-sm text-slate-500 text-center mb-10">🇺🇸 American company · All prices in USD · Secure payments via Stripe</p>
+            <p className="text-sm text-slate-500 text-center mb-10">American company · All prices in USD · Secure payments via Stripe</p>
 
             {/* Toggle */}
             <div className="flex justify-center mb-10">
@@ -857,7 +888,7 @@ export default function LandingPage() {
                 { q: 'How do email campaigns work?', a: 'Connect your Gmail or Outlook account via secure OAuth (Pro feature). Compose emails, select recipients from your customer database, and send to up to 50 customers at once. Track delivery status and campaign history. Emails are sent from your actual email address.' },
                 { q: 'What if I want to cancel?', a: 'Cancel anytime from Settings > Account. No phone calls, no retention team, no tricks. You keep access until your current billing period ends. We hold your data for 90 days if you decide to come back.' },
                 { q: 'Is my data safe?', a: 'Yes. Encrypted in transit and at rest, backed up daily, stored on secure cloud servers (Supabase/AWS). We never sell your data. You can export everything as CSV anytime — your data is always yours.' },
-                { q: 'Do you offer refunds?', a: '14-day money-back guarantee on all paid plans. Not happy? Email support@dyia.io and get a full refund. No questions asked.' },
+                { q: 'Do you offer refunds?', a: '14-day money-back guarantee on all paid plans. Not happy? Email dyia.io.app@gmail.com and get a full refund. No questions asked.' },
               ].map((faq, i) => (
                 <div key={i} className="border border-white/[0.06] rounded-xl overflow-hidden bg-white/[0.01]">
                   <button onClick={() => setOpenFaq(openFaq === i ? null : i)} className="w-full px-5 py-4 text-left flex justify-between items-center hover:bg-white/[0.02] transition">
@@ -880,7 +911,7 @@ export default function LandingPage() {
                 Still have questions?{' '}
                 <Link href="/support" className="text-orange-400 hover:text-orange-300 underline underline-offset-2">Visit our Help Center</Link>
                 {' '}or email{' '}
-                <a href="mailto:support@dyia.io" className="text-orange-400 hover:text-orange-300 underline underline-offset-2">support@dyia.io</a>
+                <a href="mailto:dyia.io.app@gmail.com" className="text-orange-400 hover:text-orange-300 underline underline-offset-2">dyia.io.app@gmail.com</a>
               </p>
             </div>
           </div>
@@ -888,21 +919,34 @@ export default function LandingPage() {
 
         {/* ===== CTA ===== */}
         <section className="py-24 px-6">
-          <div className="max-w-3xl mx-auto text-center">
-            <DyiaAvatar className="w-16 h-16 mx-auto mb-8" />
-            <h2 className="text-4xl sm:text-5xl font-bold text-white mb-4">
-              Ready to know your real numbers?
-            </h2>
-            <p className="text-xl text-slate-400 mb-10 max-w-xl mx-auto">
-              Stop guessing. Start knowing. Takes 2 minutes to set up, 30 seconds to log your first job.
-            </p>
-            <button onClick={startFreeTrial} className="px-10 py-5 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-2xl font-bold text-lg shadow-lg shadow-orange-500/20 hover:shadow-xl hover:shadow-orange-500/30 hover:-translate-y-0.5 transition-all inline-flex items-center gap-2">
-              Start Free Trial
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
-              </svg>
-            </button>
-            <p className="text-slate-600 text-sm mt-6">14 days free • Cancel anytime</p>
+          <div className="max-w-3xl mx-auto">
+            <div className="relative bg-gradient-to-b from-orange-500/10 via-orange-500/5 to-transparent border border-orange-500/20 rounded-3xl p-10 sm:p-14 text-center overflow-hidden">
+              {/* Decorative glow */}
+              <div className="absolute -top-20 left-1/2 -translate-x-1/2 w-80 h-80 bg-orange-500/10 rounded-full blur-3xl" />
+              
+              <div className="relative">
+                <div className="w-16 h-16 bg-gradient-to-br from-orange-500 to-amber-500 rounded-2xl flex items-center justify-center mx-auto mb-8 shadow-lg shadow-orange-500/30">
+                  <img src="/dyia-agent.png" alt="" className="w-10 h-10 object-contain" />
+                </div>
+                <h2 className="text-4xl sm:text-5xl font-bold text-white mb-4">
+                  Stop guessing.<br />Start knowing.
+                </h2>
+                <p className="text-lg text-slate-400 mb-10 max-w-lg mx-auto">
+                  Join service pros who finally know what they take home. 2 minutes to set up. 30 seconds to log your first job.
+                </p>
+                <button onClick={startFreeTrial} className="px-10 py-5 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-2xl font-bold text-lg shadow-lg shadow-orange-500/25 hover:shadow-xl hover:shadow-orange-500/35 hover:-translate-y-0.5 transition-all inline-flex items-center gap-2">
+                  Start Free Trial
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                  </svg>
+                </button>
+                <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm text-slate-500 mt-6">
+                  <span>14 days free</span>
+                  <span>Cancel anytime</span>
+                  <span>No credit card until trial ends</span>
+                </div>
+              </div>
+            </div>
           </div>
         </section>
       </main>
@@ -916,7 +960,7 @@ export default function LandingPage() {
                 <img src="/dyia-logo-full.png" alt="dyia" className="h-7 object-contain brightness-0 invert" />
               </div>
               <p className="text-sm text-slate-500 leading-relaxed">Your day, decoded. The AI-powered business manager for service professionals.</p>
-              <p className="text-xs text-slate-600 mt-2 flex items-center gap-1.5">🇺🇸 Proudly American-based · All prices in USD</p>
+              <p className="text-xs text-slate-600 mt-2">Proudly American-based · All prices in USD</p>
             </div>
             <div>
               <h4 className="text-sm font-semibold text-white mb-4">Product</h4>

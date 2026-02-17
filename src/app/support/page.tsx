@@ -85,7 +85,7 @@ const FAQ_CATEGORIES = [
       },
       {
         q: 'Do you offer refunds?',
-        a: '14-day money-back guarantee on all paid plans. Not happy? Email support@dyia.io for a full refund. No questions asked.',
+        a: '14-day money-back guarantee on all paid plans. Not happy? Email dyia.io.app@gmail.com for a full refund. No questions asked.',
       },
       {
         q: 'Do you offer annual billing?',
@@ -192,7 +192,7 @@ export default function SupportPage() {
           {[
             { value: '< 4 hrs', label: 'Avg response time', icon: '⚡' },
             { value: '24/7', label: 'Email support', icon: '📧' },
-            { value: 'USA', label: 'Based & built', icon: '🇺🇸' },
+            { value: 'USA', label: 'Based & built', icon: '🏠' },
           ].map((stat, i) => (
             <div key={i} className="text-center p-4 bg-white/[0.02] border border-white/[0.06] rounded-xl">
               <span className="text-lg mb-1 block">{stat.icon}</span>
@@ -365,13 +365,13 @@ export default function SupportPage() {
                   <p className="text-xs text-slate-500 mt-0.5">Reach us directly anytime</p>
                 </div>
                 <a
-                  href="mailto:support@dyia.io"
+                  href="mailto:dyia.io.app@gmail.com"
                   className="inline-flex items-center gap-2 px-4 py-2.5 bg-white/[0.04] border border-white/[0.08] rounded-lg text-sm text-orange-400 hover:text-orange-300 hover:border-orange-500/20 font-medium transition-all"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                   </svg>
-                  support@dyia.io
+                  dyia.io.app@gmail.com
                 </a>
               </div>
             </div>

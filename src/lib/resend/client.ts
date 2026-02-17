@@ -21,7 +21,7 @@ export function isResendConfigured(): boolean {
 // Email configuration
 export const EMAIL_CONFIG = {
   from: process.env.RESEND_FROM_EMAIL || 'Dyia <hello@dyia.io>',
-  replyTo: 'support@dyia.io',
+  replyTo: process.env.SUPPORT_EMAIL || 'dyia.io.app@gmail.com',
 }
 
 // Email types for tracking

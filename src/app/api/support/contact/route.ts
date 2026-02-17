@@ -45,14 +45,15 @@ export async function POST(req: Request) {
     if (!isResendConfigured()) {
       console.error('Support form submitted but RESEND_API_KEY is not configured — email not sent')
       return NextResponse.json(
-        { error: 'Support email is temporarily unavailable. Please email support@dyia.io directly.' },
+        { error: 'Support email is temporarily unavailable. Please email dyia.io.app@gmail.com directly.' },
         { status: 503 }
       )
     }
 
     // Send internal notification to support team
+    const supportInbox = process.env.SUPPORT_EMAIL || 'dyia.io.app@gmail.com'
     await sendEmail(
-      'support@dyia.io',
+      supportInbox,
       `[${subjectLabel}] Support request from ${name}`,
       supportTicketEmail(name, email, subjectLabel, message),
       'welcome'
