@@ -642,57 +642,110 @@ export function Settings({ settings, setSettings, userId, showSuccess, userProfi
           ) : (
             <>
               {/* Current Plan Display */}
-              <div className="flex flex-col sm:flex-row sm:items-center gap-4 p-4 rounded-xl bg-[var(--color-bg-subtle)] border border-[var(--color-border)] mb-5">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2.5 mb-1">
-                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${
-                      subscription.tier === 'pro' 
-                        ? 'bg-orange-500/15 text-orange-600 dark:text-orange-400' 
-                        : subscription.tier === 'trial'
-                          ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
+              <div className={`p-4 rounded-xl border mb-5 ${
+                subscription.tier === 'pro' || subscription.tier === 'trial'
+                  ? 'bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-950/20 dark:to-amber-950/20 border-orange-200/50 dark:border-orange-800/30'
+                  : 'bg-[var(--color-bg-subtle)] border-[var(--color-border)]'
+              }`}>
+                <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2.5 mb-1.5">
+                      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${
+                        subscription.tier === 'pro' || subscription.tier === 'trial'
+                          ? 'bg-orange-500/15 text-orange-600 dark:text-orange-400' 
                           : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
-                    }`}>
-                      {subscription.tier === 'pro' ? 'PRO' : subscription.tier === 'trial' ? 'TRIAL' : 'FREE'}
-                    </span>
-                    {subscription.plan && (
-                      <span className="text-xs text-[var(--color-text-muted)] capitalize">{subscription.plan}</span>
+                      }`}>
+                        {subscription.tier === 'pro' || subscription.tier === 'trial' ? 'PRO' : 'FREE'}
+                      </span>
+                      {subscription.tier === 'trial' && (
+                        <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-200 dark:border-emerald-800 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 uppercase">
+                          Free Trial
+                        </span>
+                      )}
+                      {subscription.tier === 'pro' && subscription.plan && (
+                        <span className="px-2 py-0.5 rounded-full bg-[var(--color-bg-card)] border border-[var(--color-border)] text-[10px] font-semibold text-[var(--color-text-muted)] uppercase">
+                          {subscription.plan === 'annual' ? 'Annual Plan' : 'Monthly Plan'}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-sm text-[var(--color-text-secondary)]">
+                      {subscription.tier === 'trial'
+                        ? 'You have full Pro access. Your card will be charged when the free trial ends.'
+                        : subscription.tier === 'pro' 
+                          ? 'Full access to all features including AI assistant, reports, and marketing tools.'
+                          : 'Basic access. Upgrade to Pro for AI assistant, advanced reports, marketing tools, and email blasts.'}
+                    </p>
+                    {subscription.tier === 'trial' && (
+                      <div className="mt-3">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs font-medium text-[var(--color-text-secondary)]">
+                            Billing starts in {subscription.daysRemaining} day{subscription.daysRemaining !== 1 ? 's' : ''}
+                          </span>
+                          <span className="text-xs text-[var(--color-text-faint)]">14 day free trial</span>
+                        </div>
+                        <div className="h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                          <div 
+                            className={`h-full rounded-full transition-all ${subscription.daysRemaining <= 3 ? 'bg-amber-500' : 'bg-gradient-to-r from-orange-500 to-amber-500'}`}
+                            style={{ width: `${Math.max(5, (subscription.daysRemaining / 14) * 100)}%` }}
+                          />
+                        </div>
+                      </div>
                     )}
                   </div>
-                  <p className="text-sm text-[var(--color-text-secondary)]">
-                    {subscription.tier === 'pro' 
-                      ? 'Full access to all features including AI assistant, reports, and marketing tools.'
-                      : subscription.tier === 'trial'
-                        ? `Your free trial is active. ${subscription.daysRemaining} day${subscription.daysRemaining !== 1 ? 's' : ''} remaining.`
-                        : 'Basic access. Upgrade to Pro for AI assistant, advanced reports, marketing tools, and email blasts.'}
-                  </p>
-                  {subscription.tier === 'trial' && (
-                    <div className="mt-2">
-                      <div className="h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden w-40">
-                        <div 
-                          className={`h-full rounded-full transition-all ${subscription.daysRemaining <= 3 ? 'bg-red-500' : 'bg-amber-500'}`}
-                          style={{ width: `${Math.max(5, (subscription.daysRemaining / 14) * 100)}%` }}
-                        />
-                      </div>
-                      <p className="text-xs text-[var(--color-text-faint)] mt-1">{subscription.daysRemaining} of 14 days remaining</p>
+                  {subscription.canUseAI && (
+                    <div className="text-center px-4 py-2 rounded-lg bg-[var(--color-bg-card)] border border-[var(--color-border)]">
+                      <p className="text-lg font-bold text-[var(--color-text-primary)]">{subscription.aiCredits}</p>
+                      <p className="text-xs text-[var(--color-text-muted)]">AI Credits</p>
                     </div>
                   )}
                 </div>
-                {subscription.canUseAI && (
-                  <div className="text-center px-4 py-2 rounded-lg bg-[var(--color-bg-card)] border border-[var(--color-border)]">
-                    <p className="text-lg font-bold text-[var(--color-text-primary)]">{subscription.aiCredits}</p>
-                    <p className="text-xs text-[var(--color-text-muted)]">AI Credits</p>
-                  </div>
-                )}
               </div>
 
-              {/* Plan Comparison */}
-              {subscription.tier !== 'pro' && !isDemoMode && (
+              {/* Trial user: manage billing (card already on file) */}
+              {subscription.tier === 'trial' && !isDemoMode && (
                 <div className="mb-5">
-                  <h4 className="text-sm font-semibold text-[var(--color-text-primary)] mb-1">
-                    {subscription.tier === 'basic' ? 'Start Your 14-Day Free Trial' : 'Upgrade to Pro'}
-                  </h4>
+                  <div className="p-4 rounded-xl bg-[var(--color-bg-subtle)] border border-[var(--color-border)]">
+                    <div className="flex items-start gap-3">
+                      <div className="w-8 h-8 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg flex items-center justify-center shrink-0 mt-0.5">
+                        <svg className="w-4 h-4 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-[var(--color-text-primary)]">Your payment method is on file</p>
+                        <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
+                          You&apos;ll be automatically charged when your free trial ends. You can manage your billing details or cancel anytime.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={openBillingPortal}
+                      disabled={portalLoading}
+                      className="app-btn-secondary"
+                    >
+                      {portalLoading ? 'Opening…' : 'Manage Billing'}
+                    </button>
+                  </div>
+                  <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs text-[var(--color-text-muted)]">
+                    {['AI Business Assistant', 'Advanced Reports', 'Marketing Tools', 'Mass Email Blasts'].map(feat => (
+                      <div key={feat} className="flex items-center gap-1.5">
+                        <svg className="w-3.5 h-3.5 text-green-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                        {feat}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Basic user: needs to subscribe */}
+              {subscription.tier === 'basic' && !isDemoMode && (
+                <div className="mb-5">
+                  <h4 className="text-sm font-semibold text-[var(--color-text-primary)] mb-1">Upgrade to Pro</h4>
                   <p className="text-xs text-[var(--color-text-muted)] mb-3">
-                    {subscription.tier === 'basic' ? 'Try Pro free for 14 days. You won\'t be charged until the trial ends.' : 'Keep your Pro features active.'}
+                    Get full access to AI assistant, advanced reports, marketing tools, and email blasts.
                   </p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {/* Monthly */}
@@ -715,11 +768,12 @@ export function Settings({ settings, setSettings, userId, showSuccess, userProfi
                           else if (data.error) await alert({ title: 'Error', message: data.error, variant: 'error' })
                         } catch { await alert({ title: 'Error', message: 'Could not start checkout.', variant: 'error' }) }
                       }}
-                      className="flex flex-col items-center p-4 rounded-xl border-2 border-[var(--color-border)] hover:border-orange-500 transition-colors text-left group"
+                      className="flex flex-col items-center p-4 rounded-xl border-2 border-[var(--color-border)] hover:border-orange-500 transition-all hover:shadow-md text-center group"
                     >
                       <span className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wide mb-1">Monthly</span>
                       <span className="text-2xl font-bold text-[var(--color-text-primary)]">$29.99<span className="text-sm font-normal text-[var(--color-text-muted)]">/mo</span></span>
                       <span className="text-xs text-[var(--color-text-muted)] mt-1">Cancel anytime</span>
+                      <span className="mt-3 text-xs font-semibold text-orange-500 group-hover:underline">Get Started</span>
                     </button>
                     {/* Annual */}
                     <button
@@ -741,44 +795,59 @@ export function Settings({ settings, setSettings, userId, showSuccess, userProfi
                           else if (data.error) await alert({ title: 'Error', message: data.error, variant: 'error' })
                         } catch { await alert({ title: 'Error', message: 'Could not start checkout.', variant: 'error' }) }
                       }}
-                      className="relative flex flex-col items-center p-4 rounded-xl border-2 border-orange-500/50 hover:border-orange-500 bg-orange-500/5 transition-colors text-left group"
+                      className="relative flex flex-col items-center p-4 rounded-xl border-2 border-orange-500/50 hover:border-orange-500 bg-orange-500/5 transition-all hover:shadow-md text-center group"
                     >
-                      <span className="absolute -top-2.5 right-3 px-2 py-0.5 bg-orange-500 text-white text-[10px] font-bold rounded-full">2 MONTHS FREE</span>
+                      <span className="absolute -top-2.5 right-3 px-2 py-0.5 bg-orange-500 text-white text-[10px] font-bold rounded-full">BEST VALUE</span>
                       <span className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wide mb-1">Annual</span>
                       <span className="text-2xl font-bold text-[var(--color-text-primary)]">$24.99<span className="text-sm font-normal text-[var(--color-text-muted)]">/mo</span></span>
-                      <span className="text-xs text-[var(--color-text-muted)] mt-1">$299.90 billed yearly</span>
+                      <span className="text-xs text-[var(--color-text-muted)] mt-1">$299.90/yr — save $60</span>
+                      <span className="mt-3 text-xs font-semibold text-orange-500 group-hover:underline">Get Started</span>
                     </button>
                   </div>
                   <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs text-[var(--color-text-muted)]">
-                    <div className="flex items-center gap-1.5">
-                      <svg className="w-3.5 h-3.5 text-green-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                      AI Business Assistant
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <svg className="w-3.5 h-3.5 text-green-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                      Advanced Reports
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <svg className="w-3.5 h-3.5 text-green-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                      Marketing Tools
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <svg className="w-3.5 h-3.5 text-green-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                      Mass Email Blasts
-                    </div>
+                    {['AI Business Assistant', 'Advanced Reports', 'Marketing Tools', 'Mass Email Blasts'].map(feat => (
+                      <div key={feat} className="flex items-center gap-1.5">
+                        <svg className="w-3.5 h-3.5 text-green-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                        {feat}
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}
 
-              {/* Manage Billing */}
-              {(subscription.tier === 'pro' || userProfile?.stripe_customer_id) && (
+              {/* Pro user: Manage plan / Switch plan */}
+              {subscription.tier === 'pro' && !isDemoMode && (
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={openBillingPortal}
+                    disabled={portalLoading}
+                    className="app-btn-primary"
+                  >
+                    {portalLoading ? 'Opening…' : 'Manage Billing & Invoices'}
+                  </button>
+                  {subscription.plan === 'monthly' && (
+                    <button
+                      type="button"
+                      onClick={openBillingPortal}
+                      disabled={portalLoading}
+                      className="app-btn-secondary"
+                    >
+                      Switch to Annual (Save $60/yr)
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {/* Basic user with Stripe history: billing portal */}
+              {subscription.tier === 'basic' && userProfile?.stripe_customer_id && (
                 <button
                   type="button"
                   onClick={openBillingPortal}
                   disabled={portalLoading}
-                  className="app-btn-secondary w-full sm:w-auto"
+                  className="app-btn-secondary w-full sm:w-auto mt-2"
                 >
-                  {portalLoading ? 'Opening…' : 'Manage Billing & Invoices'}
+                  {portalLoading ? 'Opening…' : 'View Billing History'}
                 </button>
               )}
             </>

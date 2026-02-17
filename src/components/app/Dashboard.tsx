@@ -8,6 +8,87 @@ import { PendingActionsCard } from './PendingActionsCard'
 import { DyiaActionButton, DYIA_PROMPTS } from './DyiaActionButton'
 import type { LaunchpadItem } from './Launchpad'
 
+// Getting Started checklist — promoted to a dashboard card
+function GettingStartedCard({ items }: { items: LaunchpadItem[] }) {
+  const completedCount = items.filter(i => i.completed).length
+  const totalCount = items.length
+  const progress = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0
+
+  if (completedCount === totalCount) return null
+
+  return (
+    <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl overflow-hidden">
+      <div className="px-5 py-4 border-b border-[var(--color-border-light)] flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 bg-gradient-to-br from-orange-500 to-amber-500 rounded-lg flex items-center justify-center shadow-sm">
+            <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">Getting Started</h3>
+            <p className="text-xs text-[var(--color-text-muted)]">{completedCount} of {totalCount} complete</p>
+          </div>
+        </div>
+        <span className="text-sm font-bold text-orange-500">{progress}%</span>
+      </div>
+
+      {/* Progress bar */}
+      <div className="h-1 bg-slate-100 dark:bg-slate-700">
+        <div 
+          className="h-full bg-gradient-to-r from-orange-500 to-amber-500 transition-all duration-500"
+          style={{ width: `${progress}%` }}
+        />
+      </div>
+
+      {/* Checklist items */}
+      <div className="divide-y divide-[var(--color-border-light)]">
+        {items.map((item) => (
+          <button
+            key={item.id}
+            onClick={item.action}
+            disabled={item.completed || !item.action}
+            className={`w-full flex items-center gap-3 px-5 py-3 text-left transition-all group ${
+              item.completed 
+                ? 'opacity-60 cursor-default' 
+                : item.action
+                  ? 'hover:bg-[var(--color-bg-subtle)] cursor-pointer'
+                  : 'cursor-default'
+            }`}
+          >
+            <span className="flex-shrink-0">
+              {item.completed ? (
+                <div className="w-5 h-5 bg-green-100 dark:bg-green-900/40 rounded-full flex items-center justify-center">
+                  <svg className="w-3 h-3 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+              ) : (
+                <div className={`w-5 h-5 rounded-full border-2 transition-colors ${
+                  item.action ? 'border-slate-300 dark:border-slate-600 group-hover:border-orange-400' : 'border-slate-200 dark:border-slate-700'
+                }`} />
+              )}
+            </span>
+            <div className="flex-1 min-w-0">
+              <p className={`text-sm font-medium ${item.completed ? 'text-[var(--color-text-muted)] line-through' : 'text-[var(--color-text-primary)]'}`}>
+                {item.label}
+              </p>
+              {item.description && (
+                <p className="text-xs text-[var(--color-text-muted)] truncate">{item.description}</p>
+              )}
+            </div>
+            {!item.completed && item.action && (
+              <svg className="w-4 h-4 text-[var(--color-text-faint)] opacity-0 group-hover:opacity-100 transition-opacity shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            )}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 // Revenue Forecast card (Pro) — client-side calculation using job data
 function RevenueForecastCard({ jobs, onOpenDyiaWithPrompt }: { jobs: AppJob[]; onOpenDyiaWithPrompt?: (prompt: string) => void }) {
   const forecast = useMemo(() => {
@@ -798,37 +879,70 @@ export function Dashboard({
         </div>
       )}
 
-      {/* ===== EMPTY STATE ===== */}
+      {/* ===== GETTING STARTED CHECKLIST (prominent dashboard card) ===== */}
+      {showLaunchpad && launchpadItems.length > 0 && (
+        <div className="animate-fade-in delay-fade-1">
+          <GettingStartedCard items={launchpadItems} />
+        </div>
+      )}
+
+      {/* ===== WELCOMING EMPTY STATE ===== */}
       {jobs.length === 0 && !showLaunchpad && (
-        <div className="animate-card-pop bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl text-center py-10 px-6">
-          <div className="empty-state-float w-14 h-14 bg-orange-50 dark:bg-orange-900/30 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <img src="/dyia-agent.png" alt="" className="w-8 h-8 object-contain" />
+        <div className="animate-card-pop bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-950/30 dark:to-amber-950/20 border border-orange-200/50 dark:border-orange-800/30 rounded-2xl text-center py-10 px-6">
+          <div className="empty-state-float w-16 h-16 bg-white dark:bg-slate-800 rounded-2xl flex items-center justify-center mx-auto mb-5 shadow-lg shadow-orange-500/10 border border-orange-200/50 dark:border-orange-800/30">
+            <img src="/dyia-agent.png" alt="" className="w-10 h-10 object-contain" />
           </div>
-          <h3 className="text-lg font-semibold text-[var(--color-text-primary)] mb-2">
-            Welcome to dyia
+          <h3 className="text-xl font-bold text-[var(--color-text-primary)] mb-2">
+            Welcome to Dyia
           </h3>
-          <p className="text-sm text-[var(--color-text-muted)] mb-6 max-w-sm mx-auto">
-            I&apos;m Dyia, your business sidekick. Tap the orange orb in the corner to chat with me, or get started below.
+          <p className="text-sm text-[var(--color-text-muted)] mb-8 max-w-md mx-auto leading-relaxed">
+            Your business command center is ready. Start by logging your first job to see your revenue, profits, and insights come to life.
           </p>
           <div className="flex flex-wrap justify-center gap-3">
             <button 
               onClick={() => onNavigate('jobs')}
-              className="btn-press inline-flex items-center gap-2 px-5 py-2.5 bg-orange-500 hover:bg-orange-600 hover:shadow-lg hover:shadow-orange-500/25 text-white text-sm font-medium rounded-xl transition-all duration-200 group"
+              className="btn-press inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 hover:shadow-lg hover:shadow-orange-500/25 text-white text-sm font-semibold rounded-xl transition-all duration-200 group"
             >
               <svg className="w-4 h-4 group-hover:rotate-90 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
               Log Your First Job
             </button>
-            {onOpenDyia && (
-              <button
-                onClick={onOpenDyia}
-                className="btn-press inline-flex items-center gap-2 px-5 py-2.5 bg-[var(--color-bg-card)] border border-[var(--color-border)] hover:border-orange-300 text-[var(--color-text-secondary)] text-sm font-medium rounded-xl transition-all duration-200"
-              >
-                <img src="/dyia-agent.png" alt="" className="w-4 h-4 object-contain" />
-                Chat with Dyia
-              </button>
-            )}
+            <button 
+              onClick={() => onNavigate('quoteBuilder')}
+              className="btn-press inline-flex items-center gap-2 px-6 py-3 bg-[var(--color-bg-card)] border border-[var(--color-border)] hover:border-orange-300 text-[var(--color-text-secondary)] text-sm font-medium rounded-xl transition-all duration-200"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              Create a Quote
+            </button>
+          </div>
+          <div className="mt-8 grid grid-cols-3 gap-4 max-w-lg mx-auto">
+            <div className="text-center">
+              <div className="w-8 h-8 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center mx-auto mb-1.5">
+                <svg className="w-4 h-4 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <span className="text-[11px] text-[var(--color-text-muted)] font-medium">Track Revenue</span>
+            </div>
+            <div className="text-center">
+              <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center mx-auto mb-1.5">
+                <svg className="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
+              <span className="text-[11px] text-[var(--color-text-muted)] font-medium">Send Quotes</span>
+            </div>
+            <div className="text-center">
+              <div className="w-8 h-8 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center mx-auto mb-1.5">
+                <svg className="w-4 h-4 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+              </div>
+              <span className="text-[11px] text-[var(--color-text-muted)] font-medium">Grow Profits</span>
+            </div>
           </div>
         </div>
       )}

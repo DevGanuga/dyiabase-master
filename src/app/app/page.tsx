@@ -18,7 +18,7 @@ import { Customers } from '@/components/app/Customers'
 import { MassEmail } from '@/components/app/MassEmail'
 import { Assistant } from '@/components/app/Assistant'
 import { TrialBanner } from '@/components/app/TrialBanner'
-import { BetaBanner } from '@/components/app/BetaBanner'
+// BetaBanner removed - app is in production
 import { ConfirmProvider } from '@/components/providers/ConfirmProvider'
 import { AdminPanel } from '@/components/app/AdminPanel'
 import type { LaunchpadItem } from '@/components/app/Launchpad'
@@ -735,14 +735,13 @@ function AppPageContent() {
             ? Math.max(0, Math.ceil((new Date(userProfile.subscription_ends_at).getTime() - Date.now()) / 86400000))
             : 0
         }
-        launchpadItems={showLaunchpadOnDashboard ? launchpadItems : undefined}
+        subscriptionPlan={(userProfile?.subscription_plan || null) as 'monthly' | 'annual' | null}
         isDemoMode={isDemoMode}
         isAdmin={userProfile?.is_admin || false}
       />
       
       <main className={`flex-1 flex flex-col overflow-hidden ${isDemoMode ? 'pt-16' : ''}`} style={{ animation: 'contentReveal 0.6s cubic-bezier(0.16, 1, 0.3, 1) both' }}>
-        {!isDemoMode && <TrialBanner />}
-        {!isDemoMode && <BetaBanner />}
+        {!isDemoMode && !isAdmin && <TrialBanner />}
         {/* Assistant: render when open; keep mounted after first visit so conversation persists when switching views */}
         {(currentView === 'assistant' || hasViewedAssistant) && (
           <div

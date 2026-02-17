@@ -4,7 +4,6 @@ import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useTheme } from '@/hooks/useTheme'
-import { Launchpad, type LaunchpadItem } from '@/components/app/Launchpad'
 
 type View = 'dashboard' | 'jobs' | 'quotes' | 'quoteBuilder' | 'followUps' | 'reports' | 'marketing' | 'customers' | 'massEmail' | 'assistant' | 'settings' | 'admin'
 
@@ -20,7 +19,7 @@ interface SidebarProps {
   isPro?: boolean
   subscriptionTier?: SubscriptionTier
   trialDaysRemaining?: number
-  launchpadItems?: LaunchpadItem[]
+  subscriptionPlan?: 'monthly' | 'annual' | null
   isDemoMode?: boolean
   isAdmin?: boolean
 }
@@ -53,7 +52,7 @@ const Icons = {
     </svg>
   ),
   dyia: (
-    <img src="/dyia-agent.png" alt="Dyia AI" className="w-5 h-5 rounded-full object-cover" />
+    <img src="/dyia-agent.png" alt="Dyia AI" className="w-5 h-5 object-contain" />
   ),
   cog: (
     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -177,7 +176,7 @@ function NavButton({
   )
 }
 
-export function Sidebar({ currentView, setCurrentView, userEmail, userName, userImageUrl, onLogout, isPro = false, subscriptionTier = 'basic', trialDaysRemaining = 0, launchpadItems, isDemoMode = false, isAdmin = false }: SidebarProps) {
+export function Sidebar({ currentView, setCurrentView, userEmail, userName, userImageUrl, onLogout, isPro = false, subscriptionTier = 'basic', trialDaysRemaining = 0, subscriptionPlan, isDemoMode = false, isAdmin = false }: SidebarProps) {
   const { resolvedTheme, setTheme } = useTheme()
   const [createOpen, setCreateOpen] = useState(false)
   const [mobileMoreOpen, setMobileMoreOpen] = useState(false)
@@ -195,8 +194,6 @@ export function Sidebar({ currentView, setCurrentView, userEmail, userName, user
       return () => document.removeEventListener('mousedown', handleClickOutside)
     }
   }, [createOpen])
-
-  const showLaunchpad = launchpadItems && launchpadItems.length > 0
 
   // Flat list of all nav items for convenience
   const allNavItems = NAV_SECTIONS.flatMap(s => s.items)
@@ -346,27 +343,33 @@ export function Sidebar({ currentView, setCurrentView, userEmail, userName, user
           </div>
         </nav>
 
-        {/* Launchpad - Getting Started Checklist (Desktop) */}
-        {showLaunchpad && (
-          <div className="hidden sm:block sidebar-launchpad">
-            <Launchpad items={launchpadItems} />
-          </div>
-        )}
-
         {/* Footer - hidden on mobile */}
         <div className="p-3 border-t border-slate-800 hidden sm:block space-y-1">
-          {/* Trial upgrade nudge */}
+          {/* Subscription info */}
           {subscriptionTier === 'trial' && (
             <button
               onClick={() => setCurrentView('settings')}
-              className="w-full flex items-center gap-2 px-3 py-2 mb-1 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 hover:bg-amber-500/15 transition-colors"
+              className="w-full px-3 py-2.5 mb-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500/15 transition-colors"
             >
-              <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <span className="sidebar-text text-xs font-medium truncate">
-                {trialDaysRemaining} day{trialDaysRemaining !== 1 ? 's' : ''} left in trial
-              </span>
+              <div className="flex items-center gap-2 mb-1.5">
+                <svg className="w-4 h-4 shrink-0 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                <span className="sidebar-text text-xs font-medium text-emerald-400 truncate">
+                  Pro — Free Trial
+                </span>
+              </div>
+              <div className="sidebar-text">
+                <div className="h-1 bg-slate-700 rounded-full overflow-hidden mb-1">
+                  <div
+                    className={`h-full rounded-full transition-all ${trialDaysRemaining <= 3 ? 'bg-amber-500' : 'bg-emerald-500'}`}
+                    style={{ width: `${Math.max(5, (trialDaysRemaining / 14) * 100)}%` }}
+                  />
+                </div>
+                <span className="text-[10px] text-slate-500">
+                  {trialDaysRemaining} day{trialDaysRemaining !== 1 ? 's' : ''} until billing
+                </span>
+              </div>
             </button>
           )}
           {subscriptionTier === 'basic' && (
@@ -448,13 +451,11 @@ export function Sidebar({ currentView, setCurrentView, userEmail, userName, user
               <p className={`${userName ? 'text-[11px]' : 'text-sm'} text-slate-400 truncate leading-tight`}>{userEmail}</p>
             </div>
             <span className={`sidebar-text shrink-0 px-1.5 py-0.5 rounded text-[9px] font-bold ${
-              subscriptionTier === 'pro'
+              subscriptionTier === 'pro' || subscriptionTier === 'trial'
                 ? 'bg-orange-500/20 text-orange-400'
-                : subscriptionTier === 'trial'
-                  ? 'bg-amber-500/20 text-amber-400'
-                  : 'bg-slate-700 text-slate-400'
+                : 'bg-slate-700 text-slate-400'
             }`}>
-              {subscriptionTier === 'pro' ? 'PRO' : subscriptionTier === 'trial' ? 'TRIAL' : 'FREE'}
+              {subscriptionTier === 'pro' || subscriptionTier === 'trial' ? 'PRO' : 'FREE'}
             </span>
           </div>
 
