@@ -136,9 +136,6 @@ export default function OnboardingPage() {
 
       if (user.firstName) setFirstName(user.firstName)
       if (user.lastName) setLastName(user.lastName)
-      if (user.primaryEmailAddress?.emailAddress) {
-        setBusinessEmail(user.primaryEmailAddress.emailAddress)
-      }
 
       try {
         const { data: profile } = await supabase
@@ -148,6 +145,8 @@ export default function OnboardingPage() {
           .single()
 
         if (!profile) {
+          // No profile yet — still use Clerk email as the default suggestion
+          setBusinessEmail(user.primaryEmailAddress?.emailAddress || '')
           setLoading(false)
           return
         }
@@ -170,10 +169,16 @@ export default function OnboardingPage() {
         if (settings) {
           if (settings.business_name) setBusinessName(settings.business_name)
           if (settings.business_phone) setBusinessPhone(settings.business_phone)
-          if (settings.business_email) setBusinessEmail(settings.business_email)
+          // Set email once, after the async query: prefer saved business_email,
+          // fall back to Clerk email. This avoids the race where an early Clerk
+          // assignment gets overwritten by the async DB result mid-typing.
+          setBusinessEmail(settings.business_email || user.primaryEmailAddress?.emailAddress || '')
           if (settings.business_logo) setLogoPreview(settings.business_logo)
           if (settings.tax_percentage) setTaxPercentage(settings.tax_percentage)
           if (settings.monthly_goal) setMonthlyGoal(settings.monthly_goal)
+        } else {
+          // Settings row exists but is empty: use Clerk email as the default suggestion
+          setBusinessEmail(user.primaryEmailAddress?.emailAddress || '')
         }
 
         setLoading(false)
@@ -539,7 +544,7 @@ export default function OnboardingPage() {
             </div>
 
             {/* Card */}
-            <div className={`backdrop-blur-xl rounded-2xl p-8 border transition-colors ${colors.card}`}>
+            <div className={`backdrop-blur-xl rounded-2xl p-5 sm:p-8 border transition-colors ${colors.card}`}>
               <div className={`transition-all duration-150 ${animationClass}`}>
                 {currentStep === 'welcome' && (
                   <div className="text-center">
@@ -671,13 +676,13 @@ export default function OnboardingPage() {
 
                     <div className="mb-5">
                       <label className={`block text-sm mb-2 ${colors.textMuted}`}>Team size</label>
-                      <div className="flex gap-2">
+                      <div className="flex gap-1.5">
                         {TEAM_SIZES.map((size) => (
                           <button
                             key={size.id}
                             type="button"
                             onClick={() => setTeamSize(size.id)}
-                            className={`flex-1 px-3 py-2 rounded-lg border text-sm font-medium transition-all ${
+                            className={`flex-1 px-2 py-2.5 rounded-lg border text-xs font-medium transition-all text-center leading-tight ${
                               teamSize === size.id ? colors.chipActive : colors.chip
                             }`}
                           >
@@ -687,7 +692,7 @@ export default function OnboardingPage() {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3 mb-5">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5">
                       <div>
                         <label className={`block text-sm mb-1.5 ${colors.textMuted}`}>Phone</label>
                         <input
@@ -722,33 +727,32 @@ export default function OnboardingPage() {
                       <p className={`text-[10px] mt-1 ${colors.textSubtle}`}>Shows on your quote PDFs</p>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className={`block text-sm mb-1.5 ${colors.textMuted}`}>Service Area</label>
-                        <input
-                          type="text"
-                          value={serviceArea}
-                          onChange={(e) => setServiceArea(e.target.value)}
-                          placeholder="e.g. Metro Atlanta"
-                          className={`w-full px-4 py-3 rounded-xl border text-sm outline-none transition-all ${colors.input}`}
-                        />
-                      </div>
-                      <div>
-                        <label className={`block text-sm mb-2 ${colors.textMuted}`}>Years in Business</label>
-                        <div className="flex gap-1.5">
-                          {YEARS_OPTIONS.map((opt) => (
-                            <button
-                              key={opt.id}
-                              type="button"
-                              onClick={() => setYearsInBusiness(opt.id)}
-                              className={`flex-1 px-1.5 py-2 rounded-lg border text-[11px] font-medium transition-all ${
-                                yearsInBusiness === opt.id ? colors.chipActive : colors.chip
-                              }`}
-                            >
-                              {opt.label}
-                            </button>
-                          ))}
-                        </div>
+                    <div className="mb-5">
+                      <label className={`block text-sm mb-1.5 ${colors.textMuted}`}>Service Area</label>
+                      <input
+                        type="text"
+                        value={serviceArea}
+                        onChange={(e) => setServiceArea(e.target.value)}
+                        placeholder="e.g. Metro Atlanta"
+                        className={`w-full px-4 py-3 rounded-xl border text-sm outline-none transition-all ${colors.input}`}
+                      />
+                    </div>
+
+                    <div>
+                      <label className={`block text-sm mb-2 ${colors.textMuted}`}>Years in Business</label>
+                      <div className="flex gap-2">
+                        {YEARS_OPTIONS.map((opt) => (
+                          <button
+                            key={opt.id}
+                            type="button"
+                            onClick={() => setYearsInBusiness(opt.id)}
+                            className={`flex-1 px-2 py-2.5 rounded-lg border text-xs font-medium transition-all ${
+                              yearsInBusiness === opt.id ? colors.chipActive : colors.chip
+                            }`}
+                          >
+                            {opt.label}
+                          </button>
+                        ))}
                       </div>
                     </div>
                   </div>
