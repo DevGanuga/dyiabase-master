@@ -329,30 +329,24 @@ function AppPageContent() {
 
     const initUserProfile = async () => {
       try {
-        // Check if user profile exists
-        let { data: profile } = await supabase
-          .from('dyia_users')
-          .select('*')
-          .eq('clerk_user_id', user.id)
-          .single()
+        // Always load profile through server API (uses service role key, bypasses RLS).
+        // This ensures admin fields (is_admin, role) are always returned correctly
+        // regardless of RLS policies on the browser client.
+        const response = await fetch('/api/user/init', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            email: user.primaryEmailAddress?.emailAddress || '' 
+          }),
+        })
 
-        // If no profile, create one via API (uses service role key)
-        if (!profile) {
-          const response = await fetch('/api/user/init', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-              email: user.primaryEmailAddress?.emailAddress || '' 
-            }),
-          })
-
-          if (response.ok) {
-            const data = await response.json()
-            profile = data.profile
-          } else {
-            const error = await response.json()
-            console.error('Error creating user profile:', error)
-          }
+        let profile = null
+        if (response.ok) {
+          const data = await response.json()
+          profile = data.profile
+        } else {
+          const error = await response.json()
+          console.error('Error loading user profile:', error)
         }
 
         if (profile) {
@@ -738,7 +732,7 @@ function AppPageContent() {
         }
         subscriptionPlan={(userProfile?.subscription_plan || null) as 'monthly' | 'annual' | null}
         isDemoMode={isDemoMode}
-        isAdmin={userProfile?.is_admin || false}
+        isAdmin={isAdmin}
       />
       
       <main className={`flex-1 flex flex-col overflow-hidden ${isDemoMode ? 'pt-16' : ''}`} style={{ animation: 'contentReveal 0.6s cubic-bezier(0.16, 1, 0.3, 1) both' }}>
