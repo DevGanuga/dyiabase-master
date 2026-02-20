@@ -189,7 +189,8 @@ async function handleCheckoutComplete(stripe: Stripe, supabase: any, session: St
           u.email,
           'Welcome to Dyia Pro! 🚀',
           subscriptionConfirmedEmail(u.first_name || 'there', plan),
-          'subscription_confirmed'
+          'subscription_confirmed',
+          dyiaUserId
         )
       }
     } catch (emailErr) {

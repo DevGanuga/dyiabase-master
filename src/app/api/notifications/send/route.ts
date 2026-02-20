@@ -118,18 +118,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: `Unknown email type: ${type}` }, { status: 400 })
     }
 
-    // Send the email
-    const result = await sendEmail(userEmail, subject, html, type)
-
-    // Log the email
-    await supabase.from('dyia_email_logs').insert({
-      user_id: userId || null,
-      email_type: type,
-      recipient_email: userEmail,
-      resend_id: result.messageId,
-      status: result.success ? 'sent' : 'failed',
-      metadata: { error: result.error },
-    })
+    const result = await sendEmail(userEmail, subject, html, type, userId || null)
 
     if (!result.success) {
       return NextResponse.json(

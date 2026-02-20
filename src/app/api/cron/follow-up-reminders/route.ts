@@ -85,7 +85,8 @@ export async function GET(req: NextRequest) {
           u.email,
           `You have ${list.length} quote${list.length > 1 ? 's' : ''} to follow up on`,
           followUpReminderEmail(u.first_name || 'there', list),
-          'follow_up_reminder'
+          'follow_up_reminder',
+          u.id
         )
         if (result.success) sent++
       } catch (err) {

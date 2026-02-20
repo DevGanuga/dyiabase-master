@@ -82,7 +82,8 @@ export async function POST(req: Request) {
             newProfile.email,
             'Welcome to Dyia! 🎉',
             welcomeEmail(newProfile.first_name || 'there'),
-            'welcome'
+            'welcome',
+            newProfile.id
           )
         } catch (emailErr) {
           console.error('Welcome email failed:', emailErr)

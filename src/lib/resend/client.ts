@@ -1,6 +1,6 @@
 import { Resend } from 'resend'
+import { createClient } from '@supabase/supabase-js'
 
-// Lazy-initialized Resend client
 let _resend: Resend | null = null
 
 export function getResend(): Resend {
@@ -13,18 +13,15 @@ export function getResend(): Resend {
   return _resend
 }
 
-// Check if Resend is configured
 export function isResendConfigured(): boolean {
   return !!process.env.RESEND_API_KEY
 }
 
-// Email configuration
 export const EMAIL_CONFIG = {
   from: process.env.RESEND_FROM_EMAIL || 'Dyia <hello@dyia.io>',
   replyTo: process.env.SUPPORT_EMAIL || 'dyia.io.app@gmail.com',
 }
 
-// Email types for tracking
 export type EmailType = 
   | 'welcome'
   | 'trial_ending'
@@ -38,20 +35,25 @@ export type EmailType =
   | 'quiz_report'
   | 'quiz_followup'
 
-// Email send result
 export interface EmailSendResult {
   success: boolean
   messageId?: string
   error?: string
 }
 
-// Generic email send function
+/**
+ * Send an email via Resend and automatically log it to dyia_email_logs.
+ * Logging is best-effort — a logging failure never blocks the send result.
+ */
 export async function sendEmail(
   to: string,
   subject: string,
   html: string,
-  emailType: EmailType
+  emailType: EmailType,
+  userId?: string | null
 ): Promise<EmailSendResult> {
+  let result: EmailSendResult
+
   try {
     const resend = getResend()
     
@@ -67,12 +69,42 @@ export async function sendEmail(
 
     if (error) {
       console.error(`Failed to send ${emailType} email:`, error)
-      return { success: false, error: error.message }
+      result = { success: false, error: error.message }
+    } else {
+      result = { success: true, messageId: data?.id }
     }
-
-    return { success: true, messageId: data?.id }
   } catch (err) {
     console.error(`Error sending ${emailType} email:`, err)
-    return { success: false, error: err instanceof Error ? err.message : 'Unknown error' }
+    result = { success: false, error: err instanceof Error ? err.message : 'Unknown error' }
+  }
+
+  logEmailSend(to, emailType, subject, userId || null, result).catch(() => {})
+
+  return result
+}
+
+async function logEmailSend(
+  recipientEmail: string,
+  emailType: EmailType,
+  _subject: string,
+  userId: string | null,
+  result: EmailSendResult
+): Promise<void> {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) return
+  try {
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+    )
+    await supabase.from('dyia_email_logs').insert({
+      user_id: userId,
+      email_type: emailType,
+      recipient_email: recipientEmail,
+      resend_id: result.messageId || null,
+      status: result.success ? 'sent' : 'failed',
+      metadata: result.error ? { error: result.error, subject: _subject } : { subject: _subject },
+    })
+  } catch {
+    console.error(`Failed to log ${emailType} email send`)
   }
 }
