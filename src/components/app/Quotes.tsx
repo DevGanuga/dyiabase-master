@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import type { AppQuote, AppSettings, AppJob, QuoteStatus } from '@/types/database'
 import { formatCurrency } from '@/lib/utils'
 import { getReviewRequestMessage } from '@/lib/reviews'
-import { jsPDF } from 'jspdf'
+import { downloadQuotePdf } from '@/lib/quote-pdf'
 import { useConfirm } from '@/components/providers/ConfirmProvider'
 import { DyiaActionButton, DYIA_PROMPTS } from './DyiaActionButton'
 
@@ -185,139 +185,35 @@ export function Quotes({ quotes, setQuotes, jobs, userId, settings, onCreateQuot
     }
   }
 
-  const downloadQuotePDF = async (quote: AppQuote) => {
-    try {
-      const doc = new jsPDF()
-      let y = 20
-
-      doc.setFontSize(24)
-      doc.setFont('helvetica', 'bold')
-      doc.text('ESTIMATE', 105, y, { align: 'center' })
-      y += 15
-
-      const businessInfo = settings.businessInfo
-
-      if (businessInfo?.logo) {
-        try {
-          const logoFormat = businessInfo.logo.startsWith('data:image/png') ? 'PNG' : 'JPEG'
-          doc.addImage(businessInfo.logo, logoFormat, 80, y, 50, 50)
-          y += 55
-        } catch (logoError) {
-          console.error('Error adding logo to PDF:', logoError)
-        }
+  const downloadQuotePDF = (quote: AppQuote) => {
+    const pdfLineItems = (quote.pricing?.lineItems as Array<{description: string; amount: number}>) || []
+    downloadQuotePdf(
+      {
+        customerName: quote.customer.name,
+        customerPhone: quote.customer.phone,
+        customerEmail: quote.customer.email,
+        customerAddress: quote.customer.address,
+        jobDescription: quote.customer.jobDescription,
+        estimateLow: quote.estimateRange.low,
+        estimateHigh: quote.estimateRange.high,
+        lineItems: pdfLineItems.length > 0 ? pdfLineItems : undefined,
+        photos: quote.photos,
+        createdAt: new Date(quote.createdAt),
+      },
+      {
+        name: settings.businessInfo.name,
+        phone: settings.businessInfo.phone,
+        email: settings.businessInfo.email,
+        address: settings.businessInfo.address,
+        logo: settings.businessInfo.logo,
       }
-
-      if (businessInfo?.name?.trim()) {
-        doc.setFontSize(14)
-        doc.setFont('helvetica', 'bold')
-        doc.text(businessInfo.name, 105, y, { align: 'center' })
-        y += 7
-        doc.setFont('helvetica', 'normal')
-        doc.setFontSize(11)
-        if (businessInfo.phone?.trim()) {
-          doc.text(businessInfo.phone, 105, y, { align: 'center' })
-          y += 6
-        }
-        if (businessInfo.email?.trim()) {
-          doc.text(businessInfo.email, 105, y, { align: 'center' })
-          y += 6
-        }
-        y += 5
-      }
-      y += 10
-
-      doc.setFontSize(12)
-      doc.setFont('helvetica', 'bold')
-      doc.text('PREPARED FOR:', 20, y)
-      y += 7
-      doc.setFont('helvetica', 'normal')
-      doc.text(quote.customer.name, 20, y)
-      y += 6
-
-      if (quote.customer.phone) {
-        doc.text(quote.customer.phone, 20, y)
-        y += 6
-      }
-      if (quote.customer.address) {
-        doc.text(quote.customer.address, 20, y)
-        y += 6
-      }
-      y += 10
-
-      doc.setFillColor(249, 115, 22)
-      doc.rect(20, y, 170, 30, 'F')
-      doc.setTextColor(255, 255, 255)
-      doc.setFontSize(14)
-      doc.setFont('helvetica', 'bold')
-      doc.text('ESTIMATED COST', 105, y + 12, { align: 'center' })
-      doc.setFontSize(22)
-      doc.text(
-        `${formatCurrency(quote.estimateRange.low)} - ${formatCurrency(quote.estimateRange.high)}`,
-        105, y + 24, { align: 'center' }
-      )
-      doc.setTextColor(0, 0, 0)
-      y += 40
-
-      doc.setFontSize(10)
-      doc.setFont('helvetica', 'italic')
-      doc.text('Labor and disposal fees are all included', 105, y, { align: 'center' })
-      y += 8
-
-      doc.setFont('helvetica', 'normal')
-      doc.text(`Date: ${new Date(quote.createdAt).toLocaleDateString()}`, 20, y)
-      y += 10
-
-      if (quote.customer.jobDescription) {
-        doc.setFont('helvetica', 'bold')
-        if (y > 250) { doc.addPage(); y = 20 }
-        doc.text('Job Description:', 20, y)
-        y += 6
-        doc.setFont('helvetica', 'normal')
-        const splitDesc = doc.splitTextToSize(quote.customer.jobDescription, 170)
-        for (let i = 0; i < splitDesc.length; i++) {
-          if (y > 270) { doc.addPage(); y = 20 }
-          doc.text(splitDesc[i], 20, y)
-          y += 5
-        }
-        y += 5
-      }
-
-      if (quote.photos && quote.photos.length > 0) {
-        if (y > 200) { doc.addPage(); y = 20 }
-        doc.setFont('helvetica', 'bold')
-        doc.setFontSize(12)
-        doc.text('Job Photos:', 20, y)
-        y += 10
-
-        const photoWidth = 55
-        const photoHeight = 45
-        let x = 20
-
-        for (let i = 0; i < quote.photos.length && i < 3; i++) {
-          try {
-            if (y + photoHeight > 280) { doc.addPage(); y = 20; x = 20 }
-            const photoFormat = quote.photos[i].startsWith('data:image/png') ? 'PNG' : 'JPEG'
-            doc.addImage(quote.photos[i], photoFormat, x, y, photoWidth, photoHeight)
-            x += photoWidth + 5
-            if (x > 160) { x = 20; y += photoHeight + 5 }
-          } catch (photoError) {
-            console.error('Error adding photo to PDF:', photoError)
-          }
-        }
-      }
-
-      doc.save(`quote-${quote.customer.name.replace(/\s/g, '-')}-${Date.now()}.pdf`)
-      showSuccess('PDF downloaded!')
-    } catch (error) {
-      console.error('PDF generation error:', error)
-      await alert({ title: 'Error', message: 'Error generating PDF.', variant: 'error' })
-    }
+    )
   }
 
   // Empty state
   if (quotes.length === 0) {
     return (
-      <div className="animate-fade-in">
+      <div className="page-content">
         <div className="page-header">
           <div>
             <h1 className="page-title">Quotes</h1>
@@ -325,39 +221,22 @@ export function Quotes({ quotes, setQuotes, jobs, userId, settings, onCreateQuot
           </div>
         </div>
 
-        <div className="app-card">
+        <div className="content-list">
           <div className="text-center py-12 px-6">
-            <div className="w-20 h-20 bg-orange-50 dark:bg-orange-900/30 rounded-2xl flex items-center justify-center mx-auto mb-6">
-              <svg className="w-10 h-10 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="w-14 h-14 bg-orange-50 dark:bg-orange-900/30 rounded-xl flex items-center justify-center mx-auto mb-4">
+              <svg className="w-7 h-7 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
             </div>
-            <h3 className="text-xl font-semibold text-[var(--color-text-primary)] mb-3">
+            <h3 className="text-lg font-semibold text-[var(--color-text-primary)] mb-1.5">
               Win More Jobs With Professional Quotes
             </h3>
-            <p className="text-[var(--color-text-muted)] mb-4 max-w-md mx-auto">
+            <p className="text-sm text-[var(--color-text-muted)] mb-6 max-w-md mx-auto leading-relaxed">
               Send polished estimates to potential customers with your branding, pricing, and photos. Quotes can be shared as PDFs and tracked through the follow-up pipeline.
             </p>
-            <div className="flex flex-wrap justify-center gap-4 text-sm text-[var(--color-text-muted)] mb-6">
-              <div className="flex items-center gap-1.5">
-                <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                PDF export
-              </div>
-              <div className="flex items-center gap-1.5">
-                <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                Photo attachments
-              </div>
-              <div className="flex items-center gap-1.5">
-                <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                Auto follow-ups
-              </div>
-            </div>
             <div className="flex flex-wrap justify-center gap-3">
-              <button
-                onClick={() => onCreateQuote()}
-                className="inline-flex items-center gap-2 px-5 py-2.5 bg-orange-500 hover:bg-orange-600 text-white font-medium rounded-xl transition-all duration-200 group"
-              >
-                <svg className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <button onClick={() => onCreateQuote()} className="app-btn-primary text-sm">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                 </svg>
                 Create Your First Quote
@@ -378,7 +257,7 @@ export function Quotes({ quotes, setQuotes, jobs, userId, settings, onCreateQuot
   }
 
   return (
-    <div className="animate-fade-in">
+    <div className="page-content">
       <div className="page-header">
         <div>
           <h1 className="page-title">Quotes</h1>
@@ -394,8 +273,8 @@ export function Quotes({ quotes, setQuotes, jobs, userId, settings, onCreateQuot
               isPro={isPro}
             />
           )}
-          <button onClick={() => onCreateQuote()} className="app-btn-primary">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <button onClick={() => onCreateQuote()} className="app-btn-primary text-sm py-2.5 px-4">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
             New Quote
@@ -404,10 +283,9 @@ export function Quotes({ quotes, setQuotes, jobs, userId, settings, onCreateQuot
       </div>
 
       {/* Filters Row */}
-      <div className="flex flex-col sm:flex-row gap-3 mb-6">
-        {/* Search */}
-        <div className="relative flex-1 max-w-md">
-          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--color-text-faint)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <div className="filter-toolbar">
+        <div className="filter-search max-w-md">
+          <svg className="filter-search-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
           <input
@@ -415,12 +293,11 @@ export function Quotes({ quotes, setQuotes, jobs, userId, settings, onCreateQuot
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search by customer..."
-            className="w-full pl-10 pr-4 py-2.5 bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500"
+            className="filter-search-input"
           />
         </div>
 
-        {/* Status filter pills */}
-        <div className="flex flex-wrap gap-2">
+        <div className="filter-pills">
           {(['all', 'draft', 'sent', 'accepted', 'declined', 'expired'] as const).map(s => {
             const count = statusCounts[s] || 0
             if (s !== 'all' && count === 0) return null
@@ -430,11 +307,7 @@ export function Quotes({ quotes, setQuotes, jobs, userId, settings, onCreateQuot
               <button
                 key={s}
                 onClick={() => setStatusFilter(s)}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                  isActive
-                    ? 'bg-orange-500 text-white'
-                    : 'bg-[var(--color-bg-subtle)] text-[var(--color-text-muted)] hover:bg-[var(--color-bg-card)]'
-                }`}
+                className={`filter-pill ${isActive ? 'active' : ''}`}
               >
                 {s === 'all' ? 'All' : config!.label} ({count})
               </button>
@@ -444,8 +317,8 @@ export function Quotes({ quotes, setQuotes, jobs, userId, settings, onCreateQuot
       </div>
 
       {/* Quotes Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredQuotes.map((quote, index) => {
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+        {filteredQuotes.map((quote) => {
           const linkedJob = quote.jobId ? jobMap.get(quote.jobId) : undefined
           const statusConf = STATUS_CONFIG[quote.status]
           const isLinking = linkingQuoteId === quote.id
@@ -453,8 +326,7 @@ export function Quotes({ quotes, setQuotes, jobs, userId, settings, onCreateQuot
           return (
             <div
               key={quote.id}
-              className="stagger-card bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl p-5 hover:border-orange-300 hover:shadow-md transition-all duration-200 group"
-              style={{ animationDelay: `${Math.min(index * 0.04, 0.3)}s` }}
+              className="stat-card !p-5 hover:border-[var(--color-border-hover)] group"
             >
               {/* Header: customer + status */}
               <div className="flex items-start justify-between mb-3">
@@ -661,13 +533,13 @@ export function Quotes({ quotes, setQuotes, jobs, userId, settings, onCreateQuot
 
       {/* Request Review modal */}
       {reviewModalQuote && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={() => setReviewModalQuote(null)}>
+        <div className="modal-overlay" onClick={() => setReviewModalQuote(null)}>
           <div
-            className="bg-[var(--color-bg)] border border-[var(--color-border)] rounded-xl shadow-xl max-w-md w-full p-6"
+            className="modal-panel"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-lg font-semibold text-[var(--color-text-primary)] mb-2">Request review</h3>
-            <p className="text-sm text-[var(--color-text-muted)] mb-4">Copy the message and send it to {reviewModalQuote.customer.name} (e.g. by text or email).</p>
+            <h3 className="modal-title">Request review</h3>
+            <p className="modal-description">Copy the message and send it to {reviewModalQuote.customer.name} (e.g. by text or email).</p>
             {reviewHistory.length > 0 && (
               <p className="text-xs text-[var(--color-text-muted)] mb-3">
                 Previously requested: {reviewHistory.map(h => `${h.platform} (${new Date(h.requestedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })})`).join(', ')}
@@ -692,7 +564,7 @@ export function Quotes({ quotes, setQuotes, jobs, userId, settings, onCreateQuot
                 className="app-input w-full resize-none text-sm"
               />
             </div>
-            <div className="flex gap-2">
+            <div className="modal-actions">
               <button
                 type="button"
                 onClick={async () => {

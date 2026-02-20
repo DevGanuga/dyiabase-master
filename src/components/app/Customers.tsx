@@ -110,10 +110,9 @@ export function Customers({ jobs, quotes = [], isPro = false, onCreateQuote, sho
   const jobsByCustomer = useMemo(() => {
     const map: Record<string, AppJob[]> = {}
     for (const job of jobs) {
-      const name = (job.customerName || '').trim().toLowerCase()
-      if (!name || name === 'unknown') continue
-      if (!map[name]) map[name] = []
-      map[name].push(job)
+      if (!job.customerId) continue
+      if (!map[job.customerId]) map[job.customerId] = []
+      map[job.customerId].push(job)
     }
     return map
   }, [jobs])
@@ -121,10 +120,9 @@ export function Customers({ jobs, quotes = [], isPro = false, onCreateQuote, sho
   const quotesByCustomer = useMemo(() => {
     const map: Record<string, AppQuote[]> = {}
     for (const quote of quotes) {
-      const name = (quote.customer?.name || '').trim().toLowerCase()
-      if (!name) continue
-      if (!map[name]) map[name] = []
-      map[name].push(quote)
+      if (!quote.customerId) continue
+      if (!map[quote.customerId]) map[quote.customerId] = []
+      map[quote.customerId].push(quote)
     }
     return map
   }, [quotes])
@@ -191,9 +189,8 @@ export function Customers({ jobs, quotes = [], isPro = false, onCreateQuote, sho
     if (rawCustomers.length === 0 && loading) return
 
     const merged: AppCustomer[] = rawCustomers.map((c) => {
-      const nameLower = (c.name || '').trim().toLowerCase()
-      const cJobs = jobsByCustomer[nameLower] || []
-      const cQuotes = quotesByCustomer[nameLower] || []
+      const cJobs = jobsByCustomer[c.id] || []
+      const cQuotes = quotesByCustomer[c.id] || []
       const totalRevenue = cJobs.reduce((sum, j) => sum + (j.revenue || 0), 0)
       const sortedJobs = [...cJobs].sort((a, b) => (b.date || '').localeCompare(a.date || ''))
 
@@ -214,26 +211,6 @@ export function Customers({ jobs, quotes = [], isPro = false, onCreateQuote, sho
       }
     })
 
-    // Also include customers derived from jobs that aren't in the database yet
-    const dbNames = new Set(rawCustomers.map(c => (c.name || '').trim().toLowerCase()))
-    for (const [nameLower, cJobs] of Object.entries(jobsByCustomer)) {
-      if (dbNames.has(nameLower)) continue
-      const displayName = cJobs[0]?.customerName || nameLower
-      const totalRevenue = cJobs.reduce((sum, j) => sum + (j.revenue || 0), 0)
-      const sortedJobs = [...cJobs].sort((a, b) => (b.date || '').localeCompare(a.date || ''))
-      merged.push({
-        id: `derived-${nameLower}`,
-        name: displayName,
-        email: null, phone: null, address: null, notes: null,
-        tags: [],
-        createdAt: new Date(), updatedAt: new Date(),
-        totalRevenue,
-        jobCount: cJobs.length,
-        quoteCount: (quotesByCustomer[nameLower] || []).length,
-        lastJobDate: sortedJobs[0]?.date,
-      })
-    }
-
     setCustomers(merged)
   }, [rawCustomers, jobsByCustomer, quotesByCustomer, jobs, isDemoMode, loading])
 
@@ -253,7 +230,7 @@ export function Customers({ jobs, quotes = [], isPro = false, onCreateQuote, sho
 
       const supabase = createClient()
 
-      if (editingCustomer && !editingCustomer.id.startsWith('derived-') && !editingCustomer.id.startsWith('demo-')) {
+      if (editingCustomer && !editingCustomer.id.startsWith('demo-')) {
         const { error } = await supabase
           .from('dyia_customers')
           .update({
@@ -296,7 +273,7 @@ export function Customers({ jobs, quotes = [], isPro = false, onCreateQuote, sho
   }
 
   const handleDelete = async (customer: AppCustomer) => {
-    if (isDemoMode || customer.id.startsWith('derived-') || customer.id.startsWith('demo-')) return
+    if (isDemoMode || customer.id.startsWith('demo-')) return
     try {
       const supabase = createClient()
       const { error } = await supabase.from('dyia_customers').delete().eq('id', customer.id)
@@ -377,14 +354,12 @@ export function Customers({ jobs, quotes = [], isPro = false, onCreateQuote, sho
 
   // Get job history for a customer
   const getJobHistory = (customer: AppCustomer) => {
-    const nameLower = customer.name.toLowerCase()
-    return (jobsByCustomer[nameLower] || []).sort((a, b) => (b.date || '').localeCompare(a.date || ''))
+    return (jobsByCustomer[customer.id] || []).sort((a, b) => (b.date || '').localeCompare(a.date || ''))
   }
 
   // Get quote history for a customer
   const getQuoteHistory = (customer: AppCustomer) => {
-    const nameLower = customer.name.toLowerCase()
-    return (quotesByCustomer[nameLower] || []).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
+    return (quotesByCustomer[customer.id] || []).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
   }
 
   // Summary stats
@@ -397,9 +372,9 @@ export function Customers({ jobs, quotes = [], isPro = false, onCreateQuote, sho
 
   if (loading) {
     return (
-      <div className="space-y-8 animate-view-enter">
+      <div className="page-content">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-[var(--color-text-primary)]">Customers</h1>
+          <h1 className="page-title">Customers</h1>
         </div>
         <div className="flex items-center justify-center py-16">
           <div className="w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
@@ -411,7 +386,7 @@ export function Customers({ jobs, quotes = [], isPro = false, onCreateQuote, sho
   // ================ ADD/EDIT FORM ================
   if (showForm) {
     return (
-      <div className="space-y-5 animate-view-enter">
+      <div className="page-content">
         <div className="flex items-center gap-3">
           <button
             onClick={() => { setShowForm(false); setEditingCustomer(null); setFormData(emptyForm) }}
@@ -421,7 +396,7 @@ export function Customers({ jobs, quotes = [], isPro = false, onCreateQuote, sho
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>
           </button>
-          <h1 className="text-xl sm:text-2xl font-bold text-[var(--color-text-primary)]">
+          <h1 className="page-title">
             {editingCustomer ? 'Edit Customer' : 'Add Customer'}
           </h1>
         </div>
@@ -537,7 +512,7 @@ export function Customers({ jobs, quotes = [], isPro = false, onCreateQuote, sho
       : 0
 
     return (
-      <div className="space-y-5 animate-view-enter">
+      <div className="page-content">
         {/* Back nav */}
         <button
           onClick={() => setSelectedCustomer(null)}
@@ -756,7 +731,7 @@ export function Customers({ jobs, quotes = [], isPro = false, onCreateQuote, sho
         </div>
 
         {/* Danger zone */}
-        {!isDemoMode && !selectedCustomer.id.startsWith('derived-') && !selectedCustomer.id.startsWith('demo-') && (
+        {!isDemoMode && !selectedCustomer.id.startsWith('demo-') && (
           <div className="pt-2 border-t border-[var(--color-border)]">
             <button
               onClick={async () => {
@@ -780,17 +755,17 @@ export function Customers({ jobs, quotes = [], isPro = false, onCreateQuote, sho
 
   // ================ CUSTOMER LIST ================
   return (
-    <div className="space-y-5 animate-view-enter">
+    <div className="page-content">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+      <div className="page-header">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-[var(--color-text-primary)]">Customers</h1>
-          <p className="text-sm text-[var(--color-text-muted)] mt-0.5">
+          <h1 className="page-title">Customers</h1>
+          <p className="page-subtitle">
             {customers.length} customer{customers.length !== 1 ? 's' : ''}
             {summaryStats.totalRevenue > 0 && <> · {formatCurrency(summaryStats.totalRevenue)} total revenue</>}
           </p>
         </div>
-        <button onClick={openNewForm} className="app-btn-primary flex items-center gap-2 shrink-0">
+        <button onClick={openNewForm} className="app-btn-primary text-sm py-2.5 px-4">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
           </svg>

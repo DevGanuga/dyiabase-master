@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { AppSettings, UserProfile } from '@/types/database'
 import { compressImage, formatCurrency } from '@/lib/utils'
@@ -146,7 +146,7 @@ export function Settings({ settings, setSettings, userId, showSuccess, userProfi
         onboardingCompletedAt: settings.onboardingCompletedAt
       })
 
-      showSuccess('✅ Settings saved!')
+      showSuccess('Settings saved')
     } catch (error) {
       console.error('Error saving settings:', error)
       await alert({ title: 'Error', message: 'Error saving settings.', variant: 'error' })
@@ -188,7 +188,7 @@ export function Settings({ settings, setSettings, userId, showSuccess, userProfi
           businessInfo: { ...settings.businessInfo, logo: compressed }
         })
 
-        showSuccess('✅ Logo uploaded!')
+        showSuccess('Logo uploaded')
       } catch (err) {
         console.error('Error processing logo:', err)
         await alert({ title: 'Error', message: 'Error processing logo image.', variant: 'error' })
@@ -223,17 +223,45 @@ export function Settings({ settings, setSettings, userId, showSuccess, userProfi
       businessInfo: { ...settings.businessInfo, logo: null }
     })
 
-    showSuccess('🗑️ Logo removed!')
+    showSuccess('Logo removed')
   }
 
   const [activeTab, setActiveTab] = useState<'business' | 'financial' | 'expenses' | 'templates' | 'account'>('business')
 
+  const tabIcons: Record<string, React.ReactNode> = {
+    business: (
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+      </svg>
+    ),
+    financial: (
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    ),
+    expenses: (
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z" />
+      </svg>
+    ),
+    templates: (
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+      </svg>
+    ),
+    account: (
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+      </svg>
+    ),
+  }
+
   const tabs = [
-    { id: 'business' as const, label: 'Business', icon: '🏢' },
-    { id: 'financial' as const, label: 'Financial', icon: '🐷' },
-    { id: 'expenses' as const, label: 'Expenses', icon: '📊' },
-    { id: 'templates' as const, label: 'Templates', icon: '📋' },
-    { id: 'account' as const, label: 'Account', icon: '👤' },
+    { id: 'business' as const, label: 'Business' },
+    { id: 'financial' as const, label: 'Financial' },
+    { id: 'expenses' as const, label: 'Expenses' },
+    { id: 'templates' as const, label: 'Templates' },
+    { id: 'account' as const, label: 'Account' },
   ]
 
   return (
@@ -246,18 +274,18 @@ export function Settings({ settings, setSettings, userId, showSuccess, userProfi
       </div>
 
       {/* Tab Navigation */}
-      <div className="flex gap-1 mb-6 overflow-x-auto pb-1 -mx-1 px-1">
+      <div className="flex gap-1 p-1 mb-8 rounded-xl bg-[var(--color-bg-subtle)] border border-[var(--color-border-light)] overflow-x-auto">
         {tabs.map(tab => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg whitespace-nowrap transition-all ${
+            className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-lg whitespace-nowrap transition-all ${
               activeTab === tab.id
-                ? 'bg-orange-500/10 text-orange-600 dark:text-orange-400'
-                : 'text-[var(--color-text-muted)] hover:bg-[var(--color-bg-secondary)] hover:text-[var(--color-text-primary)]'
+                ? 'bg-[var(--color-bg-card)] text-[var(--color-text-primary)] shadow-sm'
+                : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'
             }`}
           >
-            <span className="text-base">{tab.icon}</span>
+            <span className={activeTab === tab.id ? 'text-orange-500' : ''}>{tabIcons[tab.id]}</span>
             <span>{tab.label}</span>
           </button>
         ))}
@@ -268,7 +296,11 @@ export function Settings({ settings, setSettings, userId, showSuccess, userProfi
       <>
       <div className="app-card mb-6">
         <div className="flex items-center gap-3 mb-6">
-          <span className="text-2xl">🏢</span>
+          <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center shrink-0">
+            <svg className="w-5 h-5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+            </svg>
+          </div>
           <div>
             <h3 className="font-semibold text-[var(--color-text-primary)]">Business Information</h3>
             <p className="text-sm text-[var(--color-text-muted)]">This appears on your quotes</p>
@@ -465,7 +497,11 @@ export function Settings({ settings, setSettings, userId, showSuccess, userProfi
       <>
       <div className="app-card mb-6">
         <div className="flex items-center gap-3 mb-6">
-          <span className="text-2xl">🐷</span>
+          <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center shrink-0">
+            <svg className="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
           <div>
             <h3 className="font-semibold text-[var(--color-text-primary)]">Tax & Savings Set-Aside</h3>
             <p className="text-sm text-[var(--color-text-muted)]">Percentage of profit to set aside for taxes</p>
@@ -494,17 +530,28 @@ export function Settings({ settings, setSettings, userId, showSuccess, userProfi
           </div>
         </div>
         
-        <div className="bg-amber-50 border border-amber-100 rounded-xl p-4 mt-5">
-          <p className="text-sm text-amber-800">
-            💡 <strong>Pro tip:</strong> Most self-employed contractors should set aside 25-30% for federal + state taxes and self-employment tax.
-          </p>
+        <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200/50 dark:border-amber-800/30 rounded-xl p-4 mt-5">
+          <div className="flex gap-3">
+            <div className="w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center shrink-0">
+              <svg className="w-4 h-4 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+              </svg>
+            </div>
+            <p className="text-sm text-amber-800 dark:text-amber-200">
+              <strong>Pro tip:</strong> Most self-employed contractors should set aside 25-30% for federal + state taxes and self-employment tax.
+            </p>
+          </div>
         </div>
       </div>
 
       {/* Monthly Goal */}
       <div className="app-card mb-8">
         <div className="flex items-center gap-3 mb-6">
-          <span className="text-2xl">🎯</span>
+          <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center shrink-0">
+            <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+          </div>
           <div>
             <h3 className="font-semibold text-[var(--color-text-primary)]">Monthly Revenue Goal</h3>
             <p className="text-sm text-[var(--color-text-muted)]">Track your progress on the dashboard</p>
@@ -575,7 +622,11 @@ export function Settings({ settings, setSettings, userId, showSuccess, userProfi
         {/* Profile Card */}
         <div className="app-card mb-6">
           <div className="flex items-center gap-3 mb-5">
-            <span className="text-2xl">👤</span>
+            <div className="w-10 h-10 rounded-xl bg-violet-500/10 flex items-center justify-center shrink-0">
+              <svg className="w-5 h-5 text-violet-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+            </div>
             <div>
               <h3 className="font-semibold text-[var(--color-text-primary)]">Profile</h3>
               <p className="text-sm text-[var(--color-text-muted)]">Your personal information</p>
@@ -627,7 +678,11 @@ export function Settings({ settings, setSettings, userId, showSuccess, userProfi
         {/* Subscription Card */}
         <div className="app-card mb-6">
           <div className="flex items-center gap-3 mb-5">
-            <span className="text-2xl">💎</span>
+            <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center shrink-0">
+              <svg className="w-5 h-5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+              </svg>
+            </div>
             <div>
               <h3 className="font-semibold text-[var(--color-text-primary)]">Subscription</h3>
               <p className="text-sm text-[var(--color-text-muted)]">Your current plan and billing</p>
@@ -857,7 +912,11 @@ export function Settings({ settings, setSettings, userId, showSuccess, userProfi
         {/* Data & Export Card */}
         <div className="app-card mb-6">
           <div className="flex items-center gap-3 mb-5">
-            <span className="text-2xl">📦</span>
+            <div className="w-10 h-10 rounded-xl bg-sky-500/10 flex items-center justify-center shrink-0">
+              <svg className="w-5 h-5 text-sky-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+            </div>
             <div>
               <h3 className="font-semibold text-[var(--color-text-primary)]">Data</h3>
               <p className="text-sm text-[var(--color-text-muted)]">Export your business data</p>

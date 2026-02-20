@@ -145,7 +145,7 @@ function RevenueForecastCard({ jobs, onOpenDyiaWithPrompt }: { jobs: AppJob[]; o
   const confidenceColor = { high: 'text-green-600 dark:text-green-400', medium: 'text-amber-600 dark:text-amber-400', low: 'text-slate-500' }
 
   return (
-    <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl p-4 sm:p-5">
+    <div className="stat-card !p-5">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <div className="w-6 h-6 rounded-full bg-violet-100 dark:bg-violet-900/40 flex items-center justify-center">
@@ -418,12 +418,6 @@ export function Dashboard({
     return items
   }, [pendingFollowUps, stats, settings.monthlyGoal, onNavigate])
 
-  const urgencyColors = {
-    hot: 'border-l-red-500 bg-red-50/50 dark:bg-red-950/20',
-    warm: 'border-l-amber-500 bg-amber-50/30 dark:bg-amber-950/10',
-    info: 'border-l-blue-500 bg-blue-50/30 dark:bg-blue-950/10',
-  }
-
   const typeIcons = {
     followup: (
       <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -448,181 +442,82 @@ export function Dashboard({
   }
 
   return (
-    <div className="space-y-6 animate-view-enter">
-      {/* ===== BRIEFING STRIP ===== */}
-      <div className="animate-fade-in">
-        <div className="bg-gradient-to-r from-orange-500 to-amber-500 rounded-xl sm:rounded-2xl p-4 sm:p-5 text-white relative overflow-hidden">
-          {/* Decorative background pattern */}
-          <div className="absolute inset-0 opacity-10">
-            <div className="absolute -right-8 -top-8 w-32 h-32 rounded-full bg-white/20" />
-            <div className="absolute -left-4 -bottom-4 w-24 h-24 rounded-full bg-white/10" />
-          </div>
-          
-          <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="flex items-start gap-3">
-              <img src="/dyia-agent.png" alt="" className="w-8 h-8 sm:w-10 sm:h-10 object-contain mt-0.5 shrink-0 drop-shadow-md" />
-              <div>
-                <h1 className="text-lg sm:text-xl font-bold">
-                  {greeting}, {capitalizedName}
-                </h1>
-                <p className="text-sm text-white/80 mt-0.5">
-                  {stats.todayJobsCount > 0 
-                    ? `${stats.todayJobsCount} job${stats.todayJobsCount !== 1 ? 's' : ''} today worth ${formatCurrency(stats.todayRevenue)}.`
-                    : jobs.length > 0 
-                      ? `${stats.jobsThisMonth} jobs this month, ${formatCurrency(stats.revenueThisMonth)} revenue.`
-                      : 'Let\u2019s get your business rolling.'
-                  }
-                  {pendingFollowUps > 0 && ` ${pendingFollowUps} follow-up${pendingFollowUps !== 1 ? 's' : ''} waiting.`}
-                  {stats.goalProgress > 0 && stats.goalProgress < 100 && ` ${stats.goalProgress}% to your goal.`}
-                </p>
-              </div>
-            </div>
-            
-            {/* Quick Actions */}
-            <div className="flex gap-2 shrink-0">
-              <button 
-                onClick={() => onNavigate('jobs')}
-                className="inline-flex items-center gap-1.5 px-3 py-2 bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white text-sm font-medium rounded-lg transition-all duration-200"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-                <span>Log Job</span>
-              </button>
-              <button 
-                onClick={() => onNavigate('quoteBuilder')}
-                className="inline-flex items-center gap-1.5 px-3 py-2 bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white text-sm font-medium rounded-lg transition-all duration-200"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                </svg>
-                <span>New Quote</span>
-              </button>
-            </div>
-          </div>
+    <div className="page-content">
+      {/* ===== PAGE HEADER ===== */}
+      <div className="page-header">
+        <div>
+          <h1 className="page-title">{greeting}, {capitalizedName}</h1>
+          <p className="page-subtitle">
+            {stats.todayJobsCount > 0 
+              ? `${stats.todayJobsCount} job${stats.todayJobsCount !== 1 ? 's' : ''} today worth ${formatCurrency(stats.todayRevenue)}`
+              : jobs.length > 0 
+                ? `${stats.jobsThisMonth} jobs this month, ${formatCurrency(stats.revenueThisMonth)} revenue`
+                : 'Let\u2019s get your business rolling'
+            }
+            {pendingFollowUps > 0 && ` \u00B7 ${pendingFollowUps} follow-up${pendingFollowUps !== 1 ? 's' : ''} waiting`}
+          </p>
+        </div>
+        <div className="flex gap-2 shrink-0">
+          <button 
+            onClick={() => onNavigate('jobs')}
+            className="app-btn-primary text-sm py-2.5 px-4"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Log Job
+          </button>
+          <button 
+            onClick={() => onNavigate('quoteBuilder')}
+            className="app-btn-secondary text-sm py-2.5 px-4"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+            </svg>
+            New Quote
+          </button>
         </div>
       </div>
 
       {/* ===== AI BRIEFING (Dyia Pro) ===== */}
       {isPro && <DyiaBriefingCard />}
 
-      {/* ===== VISUAL WORKFLOW PIPELINE ===== */}
-      <div className="animate-fade-in delay-fade-1">
-        <div className="flex items-center gap-2 mb-3">
-          <h2 className="text-xs sm:text-sm font-semibold text-[var(--color-text-muted)] uppercase tracking-wide">
-            Business Pipeline
-          </h2>
-          {stats.jobsAwayFromBest > 0 && stats.jobsThisWeek > 0 && (
-            <span className="text-xs text-[var(--color-text-faint)]">
-              {stats.jobsAwayFromBest} job{stats.jobsAwayFromBest !== 1 ? 's' : ''} from best week
-            </span>
-          )}
-        </div>
-        
-        {/* Pipeline - Horizontal flow with arrows */}
-        <div className="relative">
-          <div className="flex items-stretch gap-0 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide">
-            {/* Quotes Stage */}
-            <button 
-              onClick={() => onNavigate('quotes')}
-              className="flex-1 min-w-[120px] bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-l-xl p-3 sm:p-4 text-left hover:bg-blue-50/50 dark:hover:bg-blue-950/20 transition-all group"
-            >
-              <div className="flex items-center gap-2 mb-2">
-                <div className="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center">
-                  <svg className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                </div>
-                <span className="text-[10px] sm:text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase">Quotes</span>
-              </div>
-              <p className="text-xl sm:text-2xl font-bold text-[var(--color-text-primary)]">{stats.pendingQuotes}</p>
-              <p className="text-[10px] sm:text-xs text-[var(--color-text-faint)]">{formatCurrency(stats.quoteValue)}</p>
-            </button>
-
-            {/* Arrow */}
-            <div className="flex items-center -mx-1.5 z-10 text-[var(--color-text-faint)]">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </div>
-
-            {/* Follow-ups Stage */}
-            <button 
-              onClick={() => onNavigate('followUps')}
-              className="flex-1 min-w-[120px] bg-[var(--color-bg-card)] border border-[var(--color-border)] p-3 sm:p-4 text-left hover:bg-amber-50/50 dark:hover:bg-amber-950/20 transition-all group"
-            >
-              <div className="flex items-center gap-2 mb-2">
-                <div className="w-6 h-6 rounded-full bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center">
-                  <svg className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                  </svg>
-                </div>
-                <span className="text-[10px] sm:text-xs font-semibold text-amber-600 dark:text-amber-400 uppercase">Follow-ups</span>
-              </div>
-              <p className="text-xl sm:text-2xl font-bold text-[var(--color-text-primary)]">{pendingFollowUps}</p>
-              <p className="text-[10px] sm:text-xs text-[var(--color-text-faint)]">Pending</p>
-            </button>
-
-            {/* Arrow */}
-            <div className="flex items-center -mx-1.5 z-10 text-[var(--color-text-faint)]">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </div>
-
-            {/* Jobs Stage */}
-            <button 
-              onClick={() => onNavigate('jobs')}
-              className="flex-1 min-w-[120px] bg-[var(--color-bg-card)] border border-[var(--color-border)] p-3 sm:p-4 text-left hover:bg-green-50/50 dark:hover:bg-green-950/20 transition-all group"
-            >
-              <div className="flex items-center gap-2 mb-2">
-                <div className="w-6 h-6 rounded-full bg-green-100 dark:bg-green-900/40 flex items-center justify-center">
-                  <svg className="w-3.5 h-3.5 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                </div>
-                <span className="text-[10px] sm:text-xs font-semibold text-green-600 dark:text-green-400 uppercase">Jobs</span>
-              </div>
-              <p className="text-xl sm:text-2xl font-bold text-[var(--color-text-primary)]">{stats.jobsThisMonth}</p>
-              <p className="text-[10px] sm:text-xs text-[var(--color-text-faint)]">{formatCurrency(stats.revenueThisMonth)}</p>
-            </button>
-
-            {/* Arrow */}
-            <div className="flex items-center -mx-1.5 z-10 text-[var(--color-text-faint)]">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </div>
-
-            {/* Revenue Stage */}
-            <div className="flex-1 min-w-[120px] bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-r-xl p-3 sm:p-4 text-left">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="w-6 h-6 rounded-full bg-purple-100 dark:bg-purple-900/40 flex items-center justify-center">
-                  <svg className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <span className="text-[10px] sm:text-xs font-semibold text-purple-600 dark:text-purple-400 uppercase">Take Home</span>
-              </div>
-              <p className={`text-xl sm:text-2xl font-bold ${stats.takeHome >= 0 ? 'text-[var(--color-text-primary)]' : 'text-red-600 dark:text-red-400'}`}>{formatCurrency(stats.takeHome)}</p>
-              <p className="text-[10px] sm:text-xs text-[var(--color-text-faint)]">After {taxPercentage}% tax</p>
-            </div>
-          </div>
+      {/* ===== STAT CARDS ===== */}
+      <div className="stat-grid">
+        <button onClick={() => onNavigate('quotes')} className="stat-card text-left hover:border-blue-300 dark:hover:border-blue-700 transition-colors">
+          <p className="stat-card-label">Quotes</p>
+          <p className="stat-card-value text-blue-600 dark:text-blue-400">{stats.pendingQuotes}</p>
+          <p className="text-xs text-[var(--color-text-faint)] mt-0.5">{formatCurrency(stats.quoteValue)}</p>
+        </button>
+        <button onClick={() => onNavigate('followUps')} className="stat-card text-left hover:border-amber-300 dark:hover:border-amber-700 transition-colors">
+          <p className="stat-card-label">Follow-ups</p>
+          <p className="stat-card-value text-amber-600 dark:text-amber-400">{pendingFollowUps}</p>
+          <p className="text-xs text-[var(--color-text-faint)] mt-0.5">Pending</p>
+        </button>
+        <button onClick={() => onNavigate('jobs')} className="stat-card text-left hover:border-green-300 dark:hover:border-green-700 transition-colors">
+          <p className="stat-card-label">Jobs This Month</p>
+          <p className="stat-card-value text-green-600 dark:text-green-400">{stats.jobsThisMonth}</p>
+          <p className="text-xs text-[var(--color-text-faint)] mt-0.5">{formatCurrency(stats.revenueThisMonth)}</p>
+        </button>
+        <div className="stat-card">
+          <p className="stat-card-label">Take Home</p>
+          <p className={`stat-card-value ${stats.takeHome >= 0 ? 'text-purple-600 dark:text-purple-400' : 'text-red-600 dark:text-red-400'}`}>{formatCurrency(stats.takeHome)}</p>
+          <p className="text-xs text-[var(--color-text-faint)] mt-0.5">After {taxPercentage}% tax</p>
         </div>
       </div>
 
       {/* ===== ACTION FEED ===== */}
       {actionItems.length > 0 && (
-        <div className="animate-fade-in delay-fade-2">
-          <h2 className="text-xs sm:text-sm font-semibold text-[var(--color-text-muted)] uppercase tracking-wide mb-3">
-            Needs Your Attention
-          </h2>
-          <div className="space-y-2">
+        <div>
+          <h2 className="page-section-label">Needs Your Attention</h2>
+          <div className="content-list">
             {actionItems.map((item) => (
               <button
                 key={item.id}
                 onClick={item.action}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border-l-4 border border-[var(--color-border)] text-left transition-all hover:shadow-md group ${urgencyColors[item.urgency]}`}
+                className={`content-list-item w-full gap-3 text-left group border-l-[3px] ${
+                  item.urgency === 'hot' ? 'border-l-red-500' : item.urgency === 'warm' ? 'border-l-amber-500' : 'border-l-blue-500'
+                }`}
               >
                 <span className="shrink-0">{typeIcons[item.type]}</span>
                 <div className="flex-1 min-w-0">
@@ -640,12 +535,10 @@ export function Dashboard({
 
       {/* ===== DO IT WITH DYIA PRO ===== */}
       {onOpenDyiaWithPrompt && (
-        <div className="animate-fade-in delay-fade-2">
+        <div>
           <div className="flex items-center gap-2 mb-3">
             <img src="/dyia-agent.png" alt="" className="w-4 h-4 object-contain" />
-            <h2 className="text-xs sm:text-sm font-semibold text-[var(--color-text-muted)] uppercase tracking-wide">
-              Do it with Dyia
-            </h2>
+            <h2 className="page-section-label !mb-0">Do it with Dyia</h2>
             {!isPro && (
               <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-orange-500/10 text-orange-500 uppercase">Pro</span>
             )}
@@ -669,11 +562,8 @@ export function Dashboard({
 
       {/* ===== DYIA PRO UPGRADE NUDGE (for basic users only) ===== */}
       {!isPro && (
-        <div className="animate-fade-in delay-fade-2">
-          <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 to-slate-800 dark:from-slate-800 dark:to-slate-900 rounded-2xl p-5 sm:p-6 text-white">
-            {/* Decorative glow */}
-            <div className="absolute -top-12 -right-12 w-40 h-40 bg-orange-500/20 rounded-full blur-3xl" />
-            <div className="absolute -bottom-8 -left-8 w-32 h-32 bg-amber-500/10 rounded-full blur-2xl" />
+        <div>
+          <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 to-slate-800 dark:from-slate-800 dark:to-slate-900 rounded-xl p-5 sm:p-6 text-white">
 
             <div className="relative z-10">
               <div className="flex items-center gap-3 mb-3">
@@ -717,7 +607,7 @@ export function Dashboard({
 
       {/* ===== GOAL PROGRESS ===== */}
       {settings.monthlyGoal > 0 && (
-        <div className="animate-fade-in delay-fade-2 bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl p-4 sm:p-5">
+        <div className="stat-card !p-5">
           <div className="flex items-center justify-between mb-3">
             <div>
               <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">Monthly Goal</h3>
@@ -741,14 +631,10 @@ export function Dashboard({
       )}
 
       {/* ===== REVENUE FORECAST (Pro) ===== */}
-      {isPro && (
-        <div className="animate-fade-in delay-fade-2">
-          <RevenueForecastCard jobs={jobs} onOpenDyiaWithPrompt={onOpenDyiaWithPrompt} />
-        </div>
-      )}
+      {isPro && <RevenueForecastCard jobs={jobs} onOpenDyiaWithPrompt={onOpenDyiaWithPrompt} />}
 
       {/* Pending Actions from Dyia */}
-      <div className="animate-fade-in delay-fade-2">
+      <div>
         <PendingActionsCard 
           onResume={(action) => {
             if (onResumePendingAction) {
@@ -763,9 +649,9 @@ export function Dashboard({
 
       {/* ===== MONTHLY BREAKDOWN (collapsible) ===== */}
       {stats.revenueThisMonth > 0 && (
-        <details className="animate-fade-in delay-fade-3 bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl overflow-hidden">
+        <details className="content-list overflow-hidden">
           <summary className="px-4 sm:px-5 py-3 cursor-pointer hover:bg-[var(--color-bg-subtle)] transition-colors select-none flex items-center justify-between">
-            <span className="text-xs sm:text-sm font-semibold text-[var(--color-text-muted)] uppercase tracking-wide">
+            <span className="text-xs font-semibold text-[var(--color-text-faint)] uppercase tracking-wider">
               Monthly Breakdown
             </span>
             <svg className="w-4 h-4 text-[var(--color-text-faint)] transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -801,148 +687,114 @@ export function Dashboard({
 
       {/* ===== RECENT ACTIVITY ===== */}
       {(jobs.length > 0 || recentQuotes.length > 0) && (
-        <div className="animate-fade-in delay-fade-3">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {/* Recent Jobs */}
-            {jobs.length > 0 && (
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <h2 className="text-xs sm:text-sm font-semibold text-[var(--color-text-muted)] uppercase tracking-wide">
-                    Recent Jobs
-                  </h2>
-                  <button onClick={() => onNavigate('jobs')} className="text-xs text-orange-600 dark:text-orange-400 hover:underline font-medium">
-                    View all
-                  </button>
-                </div>
-                <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl divide-y divide-slate-100 dark:divide-slate-700 overflow-hidden">
-                  {jobs.slice(0, 4).map((job) => (
-                    <div key={job.id} className="flex items-center justify-between p-3 hover:bg-[var(--color-bg-subtle)] transition-colors cursor-pointer" onClick={() => onNavigate('jobs')}>
-                      <div className="flex items-center gap-3 min-w-0 flex-1">
-                        <div className="w-7 h-7 bg-green-50 dark:bg-green-900/30 rounded-lg flex items-center justify-center shrink-0">
-                          <svg className="w-3.5 h-3.5 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                          </svg>
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium text-[var(--color-text-primary)] truncate">{job.customerName}</p>
-                          <p className="text-xs text-[var(--color-text-muted)]">
-                            {new Date(job.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                          </p>
-                        </div>
-                      </div>
-                      <span className="text-sm font-semibold text-green-600 dark:text-green-400 shrink-0 ml-2">{formatCurrency(job.revenue)}</span>
-                    </div>
-                  ))}
-                </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Recent Jobs */}
+          {jobs.length > 0 && (
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="page-section-label !mb-0">Recent Jobs</h2>
+                <button onClick={() => onNavigate('jobs')} className="text-xs text-orange-600 dark:text-orange-400 hover:underline font-medium">
+                  View all
+                </button>
               </div>
-            )}
+              <div className="content-list">
+                {jobs.slice(0, 4).map((job) => (
+                  <div key={job.id} className="content-list-item cursor-pointer" onClick={() => onNavigate('jobs')}>
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      <div className="w-7 h-7 bg-green-50 dark:bg-green-900/30 rounded-lg flex items-center justify-center shrink-0">
+                        <svg className="w-3.5 h-3.5 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-[var(--color-text-primary)] truncate">{job.customerName}</p>
+                        <p className="text-xs text-[var(--color-text-muted)]">
+                          {new Date(job.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        </p>
+                      </div>
+                    </div>
+                    <span className="text-sm font-semibold text-green-600 dark:text-green-400 shrink-0 ml-2">{formatCurrency(job.revenue)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
-            {/* Recent Quotes */}
-            {recentQuotes.length > 0 && (
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <h2 className="text-xs sm:text-sm font-semibold text-[var(--color-text-muted)] uppercase tracking-wide">
-                    Recent Quotes
-                  </h2>
-                  <button onClick={() => onNavigate('quotes')} className="text-xs text-orange-600 dark:text-orange-400 hover:underline font-medium">
-                    View all
-                  </button>
-                </div>
-                <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl divide-y divide-slate-100 dark:divide-slate-700 overflow-hidden">
-                  {recentQuotes.slice(0, 4).map((quote) => (
-                    <div key={quote.id} className="flex items-center justify-between p-3 hover:bg-[var(--color-bg-subtle)] transition-colors cursor-pointer" onClick={() => onNavigate('quotes')}>
-                      <div className="flex items-center gap-3 min-w-0 flex-1">
-                        <div className="w-7 h-7 bg-blue-50 dark:bg-blue-900/30 rounded-lg flex items-center justify-center shrink-0">
-                          <svg className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                          </svg>
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium text-[var(--color-text-primary)] truncate">{quote.customer.name}</p>
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-xs text-[var(--color-text-muted)]">{new Date(quote.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
-                            <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${
-                              quote.status === 'accepted' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' :
-                              quote.status === 'sent' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' :
-                              'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
-                            }`}>{quote.status}</span>
-                          </div>
+          {/* Recent Quotes */}
+          {recentQuotes.length > 0 && (
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="page-section-label !mb-0">Recent Quotes</h2>
+                <button onClick={() => onNavigate('quotes')} className="text-xs text-orange-600 dark:text-orange-400 hover:underline font-medium">
+                  View all
+                </button>
+              </div>
+              <div className="content-list">
+                {recentQuotes.slice(0, 4).map((quote) => (
+                  <div key={quote.id} className="content-list-item cursor-pointer" onClick={() => onNavigate('quotes')}>
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      <div className="w-7 h-7 bg-blue-50 dark:bg-blue-900/30 rounded-lg flex items-center justify-center shrink-0">
+                        <svg className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-[var(--color-text-primary)] truncate">{quote.customer.name}</p>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs text-[var(--color-text-muted)]">{new Date(quote.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                          <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${
+                            quote.status === 'accepted' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' :
+                            quote.status === 'sent' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' :
+                            'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                          }`}>{quote.status}</span>
                         </div>
                       </div>
-                      <span className="text-sm font-semibold text-blue-600 dark:text-blue-400 shrink-0 ml-2">{formatCurrency(quote.total)}</span>
                     </div>
-                  ))}
-                </div>
+                    <span className="text-sm font-semibold text-blue-600 dark:text-blue-400 shrink-0 ml-2">{formatCurrency(quote.total)}</span>
+                  </div>
+                ))}
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       )}
 
-      {/* ===== GETTING STARTED CHECKLIST (prominent dashboard card) ===== */}
+      {/* ===== GETTING STARTED CHECKLIST ===== */}
       {showLaunchpad && launchpadItems.length > 0 && (
-        <div className="animate-fade-in delay-fade-1">
-          <GettingStartedCard items={launchpadItems} />
-        </div>
+        <GettingStartedCard items={launchpadItems} />
       )}
 
       {/* ===== WELCOMING EMPTY STATE ===== */}
       {jobs.length === 0 && !showLaunchpad && (
-        <div className="animate-card-pop bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-950/30 dark:to-amber-950/20 border border-orange-200/50 dark:border-orange-800/30 rounded-2xl text-center py-10 px-6">
-          <div className="empty-state-float w-16 h-16 bg-white dark:bg-slate-800 rounded-2xl flex items-center justify-center mx-auto mb-5 shadow-lg shadow-orange-500/10 border border-orange-200/50 dark:border-orange-800/30">
-            <img src="/dyia-agent.png" alt="" className="w-10 h-10 object-contain" />
+        <div className="content-list text-center py-12 px-6">
+          <div className="w-14 h-14 bg-orange-50 dark:bg-orange-900/30 rounded-xl flex items-center justify-center mx-auto mb-4">
+            <img src="/dyia-agent.png" alt="" className="w-8 h-8 object-contain" />
           </div>
-          <h3 className="text-xl font-bold text-[var(--color-text-primary)] mb-2">
+          <h3 className="text-lg font-semibold text-[var(--color-text-primary)] mb-1.5">
             Welcome to Dyia
           </h3>
-          <p className="text-sm text-[var(--color-text-muted)] mb-8 max-w-md mx-auto leading-relaxed">
+          <p className="text-sm text-[var(--color-text-muted)] mb-6 max-w-md mx-auto leading-relaxed">
             Your business command center is ready. Start by logging your first job to see your revenue, profits, and insights come to life.
           </p>
           <div className="flex flex-wrap justify-center gap-3">
             <button 
               onClick={() => onNavigate('jobs')}
-              className="btn-press inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 hover:shadow-lg hover:shadow-orange-500/25 text-white text-sm font-semibold rounded-xl transition-all duration-200 group"
+              className="app-btn-primary text-sm"
             >
-              <svg className="w-4 h-4 group-hover:rotate-90 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
               Log Your First Job
             </button>
             <button 
               onClick={() => onNavigate('quoteBuilder')}
-              className="btn-press inline-flex items-center gap-2 px-6 py-3 bg-[var(--color-bg-card)] border border-[var(--color-border)] hover:border-orange-300 text-[var(--color-text-secondary)] text-sm font-medium rounded-xl transition-all duration-200"
+              className="app-btn-secondary text-sm"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
               Create a Quote
             </button>
-          </div>
-          <div className="mt-8 grid grid-cols-3 gap-4 max-w-lg mx-auto">
-            <div className="text-center">
-              <div className="w-8 h-8 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center mx-auto mb-1.5">
-                <svg className="w-4 h-4 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <span className="text-[11px] text-[var(--color-text-muted)] font-medium">Track Revenue</span>
-            </div>
-            <div className="text-center">
-              <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center mx-auto mb-1.5">
-                <svg className="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-              </div>
-              <span className="text-[11px] text-[var(--color-text-muted)] font-medium">Send Quotes</span>
-            </div>
-            <div className="text-center">
-              <div className="w-8 h-8 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center mx-auto mb-1.5">
-                <svg className="w-4 h-4 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                </svg>
-              </div>
-              <span className="text-[11px] text-[var(--color-text-muted)] font-medium">Grow Profits</span>
-            </div>
           </div>
         </div>
       )}

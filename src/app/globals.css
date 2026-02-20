@@ -508,6 +508,36 @@
   animation: modalSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+.modal-overlay {
+  @apply fixed inset-0 z-50 flex items-center justify-center p-4;
+  background: var(--color-overlay);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+  animation: fadeIn 0.15s ease-out both;
+}
+
+.modal-panel {
+  @apply relative w-full max-w-md rounded-2xl p-6 sm:p-8;
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-xl);
+  animation: modalSlideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.modal-title {
+  @apply text-lg font-semibold mb-1;
+  color: var(--color-text-primary);
+}
+
+.modal-description {
+  @apply text-sm mb-5;
+  color: var(--color-text-muted);
+}
+
+.modal-actions {
+  @apply flex gap-3 mt-6;
+}
+
 /* ============================================ */
 /* TOAST NOTIFICATIONS */
 /* ============================================ */
@@ -773,18 +803,137 @@
 /* ============================================ */
 
 .page-header {
-  @apply flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-8;
+  @apply flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6;
 }
 
 .page-title {
-  @apply text-2xl sm:text-3xl font-bold tracking-tight;
+  @apply text-xl sm:text-2xl font-bold tracking-tight;
   color: var(--color-text-primary);
-  letter-spacing: -0.025em;
+  letter-spacing: -0.02em;
 }
 
 .page-subtitle {
-  @apply mt-1 text-sm sm:text-base;
+  @apply mt-0.5 text-sm;
   color: var(--color-text-muted);
+}
+
+.page-section-label {
+  @apply text-xs font-semibold uppercase tracking-wider mb-3;
+  color: var(--color-text-faint);
+  letter-spacing: 0.05em;
+}
+
+.page-content {
+  @apply space-y-6;
+}
+
+/* ============================================ */
+/* STAT CARDS */
+/* ============================================ */
+
+.stat-grid {
+  @apply grid grid-cols-2 lg:grid-cols-4 gap-3;
+}
+
+.stat-card {
+  @apply rounded-xl p-4;
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border-light);
+  transition: var(--transition-fast);
+}
+
+.stat-card:hover {
+  border-color: var(--color-border);
+}
+
+.stat-card-label {
+  @apply text-xs font-medium mb-1;
+  color: var(--color-text-muted);
+}
+
+.stat-card-value {
+  @apply text-xl sm:text-2xl font-bold;
+  color: var(--color-text-primary);
+  font-feature-settings: "tnum";
+}
+
+/* ============================================ */
+/* FILTER TOOLBAR */
+/* ============================================ */
+
+.filter-toolbar {
+  @apply flex flex-col sm:flex-row gap-3;
+}
+
+.filter-search {
+  @apply relative flex-1;
+}
+
+.filter-search-icon {
+  @apply absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4;
+  color: var(--color-text-faint);
+}
+
+.filter-search-input {
+  @apply w-full pl-9 pr-3 py-2.5 rounded-xl text-sm;
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-primary);
+  transition: var(--transition-fast);
+}
+
+.filter-search-input::placeholder {
+  color: var(--color-text-faint);
+}
+
+.filter-search-input:focus {
+  outline: none;
+  border-color: var(--color-input-focus-border);
+  box-shadow: 0 0 0 3px var(--color-input-focus-ring);
+}
+
+.filter-pills {
+  @apply flex flex-wrap gap-1.5;
+}
+
+.filter-pill {
+  @apply px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer;
+  background: var(--color-bg-subtle);
+  color: var(--color-text-muted);
+}
+
+.filter-pill:hover {
+  background: var(--color-bg-card);
+  color: var(--color-text-secondary);
+}
+
+.filter-pill.active {
+  @apply text-white;
+  background: var(--color-brand);
+}
+
+/* ============================================ */
+/* CONTENT LIST (jobs, follow-ups, etc.) */
+/* ============================================ */
+
+.content-list {
+  @apply rounded-xl overflow-hidden;
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border-light);
+}
+
+.content-list-item {
+  @apply flex items-center justify-between p-3 sm:p-4;
+  transition: var(--transition-fast);
+  border-bottom: 1px solid var(--color-border-light);
+}
+
+.content-list-item:last-child {
+  border-bottom: none;
+}
+
+.content-list-item:hover {
+  background: var(--color-bg-hover);
 }
 
 /* ============================================ */
@@ -823,6 +972,13 @@
 
 .dark .badge-warning {
   color: #fbbf24;
+}
+
+/* Top Bar */
+.top-bar {
+  background: color-mix(in srgb, var(--color-bg-page) 80%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 /* Responsive sidebar */

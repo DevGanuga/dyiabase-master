@@ -18,7 +18,7 @@ import { Customers } from '@/components/app/Customers'
 import { MassEmail } from '@/components/app/MassEmail'
 import { Assistant } from '@/components/app/Assistant'
 import { TrialBanner } from '@/components/app/TrialBanner'
-// BetaBanner removed - app is in production
+import { TopBar } from '@/components/app/TopBar'
 import { ConfirmProvider } from '@/components/providers/ConfirmProvider'
 import { AdminPanel } from '@/components/app/AdminPanel'
 import type { LaunchpadItem } from '@/components/app/Launchpad'
@@ -192,6 +192,7 @@ function AppPageContent() {
           id: j.id,
           date: j.date,
           customerName: j.customer_name,
+          customerId: j.customer_id || null,
           source: j.source || undefined,
           revenue: parseFloat(j.revenue) || 0,
           labor: parseFloat(j.labor) || 0,
@@ -216,6 +217,7 @@ function AppPageContent() {
         setQuotes(quotesData.map(q => ({
           id: q.id,
           jobId: q.job_id || undefined,
+          customerId: q.customer_id || null,
           createdAt: new Date(q.created_at).getTime(),
           customer: {
             name: q.customer_name,
@@ -473,15 +475,18 @@ function AppPageContent() {
     await signOut()
   }
 
-  // Subscription gate: users who haven't completed Stripe checkout must subscribe first.
-  // A user is "subscribed" if they have an active, trialing, or past_due status (they at least started paying).
-  // Admins and super_admins bypass the subscription gate entirely.
+  // Subscription gate
   const isAdmin = !!userProfile?.is_admin || ['admin', 'super_admin'].includes(userProfile?.role || '')
-  const isPro = isAdmin || ['active', 'trialing'].includes(userProfile?.subscription_status || '')
-  const hasActiveSubscription = !!userProfile && (isAdmin || ['active', 'trialing', 'past_due'].includes(userProfile.subscription_status || ''))
-  const needsSubscription = !loading && !isDemoMode && !!userProfile && !hasActiveSubscription
+  const subStatus = userProfile?.subscription_status || ''
+  const subEndsAt = userProfile?.subscription_ends_at ? new Date(userProfile.subscription_ends_at) : null
+  const canceledWithTimeLeft = subStatus === 'canceled' && subEndsAt !== null && subEndsAt.getTime() > Date.now()
+  const isPro = isAdmin || ['active', 'trialing'].includes(subStatus) || canceledWithTimeLeft
+  const hasActiveSubscription = !!userProfile && (isAdmin || ['active', 'trialing', 'past_due'].includes(subStatus) || canceledWithTimeLeft)
+  const trialFullyExpired = !loading && !isDemoMode && !!userProfile && !hasActiveSubscription && (subStatus === 'canceled' || subStatus === 'inactive' || (subStatus === 'trialing' && subEndsAt !== null && subEndsAt.getTime() <= Date.now()))
+  const neverSubscribed = !loading && !isDemoMode && !!userProfile && !hasActiveSubscription && !trialFullyExpired
+  const needsSubscription = neverSubscribed
 
-  // Redirect unsubscribed users to pricing — skip if checkout flow is already in progress
+  // Redirect only users who never started a trial to pricing
   useEffect(() => {
     if (needsSubscription && !planParam && !checkoutLoading && !checkoutTriggeredRef.current && !sessionIdParam && !verifyingCheckout) {
       window.location.href = '/#pricing'
@@ -542,6 +547,49 @@ function AppPageContent() {
   // Show loading while redirecting unsubscribed users to pricing
   if (needsSubscription && !planParam) {
     return loadingOrRedirecting
+  }
+
+  // Expired trial / canceled — show in-app upgrade gate
+  if (trialFullyExpired) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4" style={{ background: 'linear-gradient(135deg, rgba(255,247,237,0.4), #fafafa 50%, rgba(255,251,235,0.3))' }}>
+        <div className="max-w-md w-full text-center">
+          <img src="/dyia-logo-full.png" alt="dyia" className="h-8 mb-8 mx-auto opacity-80" />
+          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 p-8">
+            <div className="w-16 h-16 bg-orange-100 dark:bg-orange-900/30 rounded-2xl flex items-center justify-center mx-auto mb-5">
+              <svg className="w-8 h-8 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <h1 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Your free trial has ended</h1>
+            <p className="text-slate-500 dark:text-slate-400 text-sm mb-6 leading-relaxed">
+              Upgrade to Pro to keep using the AI assistant, advanced reports, marketing tools, and everything else that helps you grow your business.
+            </p>
+            <div className="space-y-3">
+              <button
+                onClick={() => {
+                  const checkoutUrl = `/api/stripe/checkout?plan=annual&clerk_user_id=${user?.id}`
+                  window.location.href = checkoutUrl
+                }}
+                className="w-full px-6 py-3 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-semibold rounded-xl transition-all shadow-lg shadow-orange-500/25"
+              >
+                Upgrade to Pro — $24.99/mo
+              </button>
+              <button
+                onClick={() => {
+                  const checkoutUrl = `/api/stripe/checkout?plan=monthly&clerk_user_id=${user?.id}`
+                  window.location.href = checkoutUrl
+                }}
+                className="w-full px-6 py-2.5 text-sm text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors"
+              >
+                Or $29.99/mo monthly
+              </button>
+            </div>
+            <p className="text-xs text-slate-400 mt-4">Cancel anytime. Your data is safe and waiting for you.</p>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   // Don't flash dashboard: show loading-style screen until redirect to onboarding
@@ -743,16 +791,14 @@ function AppPageContent() {
       <Sidebar
         currentView={currentView}
         setCurrentView={setCurrentView}
-        userEmail={isDemoMode ? 'demo@dyia.co' : (user?.primaryEmailAddress?.emailAddress || '')}
-        userName={isDemoMode ? 'Demo User' : (userProfile?.first_name || user?.firstName || '')}
-        userImageUrl={isDemoMode ? undefined : user?.imageUrl}
         onLogout={handleLogout}
         isPro={isPro}
         subscriptionTier={
           isAdmin ? 'pro'
             : userProfile?.subscription_status === 'trialing' ? 'trial'
-              : isPro ? 'pro'
-                : 'basic'
+              : canceledWithTimeLeft ? 'trial'
+                : isPro ? 'pro'
+                  : 'basic'
         }
         trialDaysRemaining={
           userProfile?.subscription_ends_at
@@ -766,6 +812,20 @@ function AppPageContent() {
       
       <main className={`flex-1 flex flex-col overflow-hidden ${isDemoMode ? 'pt-16' : ''}`} style={{ animation: 'contentReveal 0.6s cubic-bezier(0.16, 1, 0.3, 1) both' }}>
         {!isDemoMode && !isAdmin && <TrialBanner />}
+        <TopBar
+          userName={isDemoMode ? 'Demo User' : (userProfile?.first_name || user?.firstName || '')}
+          userEmail={isDemoMode ? 'demo@dyia.co' : (user?.primaryEmailAddress?.emailAddress || '')}
+          userImageUrl={isDemoMode ? undefined : user?.imageUrl}
+          onLogout={handleLogout}
+          subscriptionTier={
+            isAdmin ? 'pro'
+              : userProfile?.subscription_status === 'trialing' ? 'trial'
+                : canceledWithTimeLeft ? 'trial'
+                  : isPro ? 'pro'
+                    : 'basic'
+          }
+          isDemoMode={isDemoMode}
+        />
         {/* Assistant: render when open; keep mounted after first visit so conversation persists when switching views */}
         {(currentView === 'assistant' || hasViewedAssistant) && (
           <div
@@ -784,7 +844,7 @@ function AppPageContent() {
           >
             <div
               key={currentView}
-              className="max-w-6xl mx-auto animate-view-enter"
+              className="max-w-5xl mx-auto animate-view-enter"
             >
               {renderContent()}
             </div>

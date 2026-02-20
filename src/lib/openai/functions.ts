@@ -547,6 +547,31 @@ export const DYIA_TOOLS: FunctionTool[] = [
       additionalProperties: false
     },
     strict: true
+  },
+  // ============================================
+  // MEMORY TOOL
+  // ============================================
+  {
+    type: 'function',
+    name: 'save_memory',
+    description: 'Save an important fact, preference, or instruction about the user for future conversations. Use this when you learn something worth remembering: their preferred name, typical dump fee, common job types, pricing preferences, work schedule, crew size, truck capacity, etc. Memories persist across all conversations. Do NOT save trivial or one-time information.',
+    parameters: {
+      type: 'object',
+      properties: {
+        category: {
+          type: 'string',
+          enum: ['preference', 'fact', 'pattern', 'instruction'],
+          description: 'preference = how they like things done. fact = a concrete detail about them/their business. pattern = a recurring behavior. instruction = something they told you to always/never do.'
+        },
+        content: {
+          type: 'string',
+          description: 'The memory to save. Write it as a clear, reusable note. Example: "Prefers to be called Marco", "Typical dump fee is $45-55", "Runs a 2-person crew on most jobs", "Always charges extra for stairs"'
+        }
+      },
+      required: ['category', 'content'],
+      additionalProperties: false
+    },
+    strict: true
   }
 ]
 
@@ -568,8 +593,12 @@ export type DyiaFunctionName =
   | 'get_revenue_forecast'
   | 'get_follow_up_risk_analysis'
   | 'batch_store_customers'
-  | 'batch_create_quotes'// Proposal function names (require user confirmation)
-export type ProposalFunctionName = 'propose_job' | 'propose_quote'// Check if a function is a proposal function
+  | 'batch_create_quotes'
+  | 'save_memory'
+
+export type ProposalFunctionName = 'propose_job' | 'propose_quote'
+
+
 export function isProposalFunction(name: string): name is ProposalFunctionName {
   return name === 'propose_job' || name === 'propose_quote'
 }

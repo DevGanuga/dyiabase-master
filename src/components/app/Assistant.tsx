@@ -30,8 +30,10 @@ export interface Message {
   content: string
   timestamp: Date
   toolResults?: ToolResult[]
-  // Track if this message has a pending action that needs confirmation
   hasPendingAction?: boolean
+  attachmentUrl?: string
+  attachmentName?: string
+  attachmentFileType?: string
 }
 
 export interface Thread {
@@ -98,6 +100,12 @@ export function Assistant({ userId, showSuccess }: AssistantProps) {
   const [attachmentContent, setAttachmentContent] = useState<string | null>(null)
   const [isUploading, setIsUploading] = useState(false)
   const [isDragOver, setIsDragOver] = useState(false)
+  const [isListening, setIsListening] = useState(false)
+  const [showCapTip, setShowCapTip] = useState(() => {
+    if (typeof window === 'undefined') return true
+    return !localStorage.getItem('dyia_cap_tip_dismissed')
+  })
+  const recognitionRef = useRef<SpeechRecognition | null>(null)
   const dragCounterRef = useRef(0)
   const fileInputRef = useRef<HTMLInputElement>(null)
   
@@ -290,6 +298,43 @@ export function Assistant({ userId, showSuccess }: AssistantProps) {
     if (file) processFile(file)
   }
 
+  const supportsVoice = typeof window !== 'undefined' && ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)
+
+  const toggleVoice = useCallback(() => {
+    if (isListening) {
+      recognitionRef.current?.stop()
+      setIsListening(false)
+      return
+    }
+
+    const SpeechRecognition = (window as unknown as { SpeechRecognition?: typeof window.SpeechRecognition; webkitSpeechRecognition?: typeof window.SpeechRecognition }).SpeechRecognition
+      || (window as unknown as { webkitSpeechRecognition?: typeof window.SpeechRecognition }).webkitSpeechRecognition
+    if (!SpeechRecognition) return
+
+    const recognition = new SpeechRecognition()
+    recognition.continuous = false
+    recognition.interimResults = true
+    recognition.lang = 'en-US'
+
+    recognition.onresult = (event: SpeechRecognitionEvent) => {
+      const transcript = Array.from(event.results)
+        .map(r => r[0].transcript)
+        .join('')
+      setInputValue(transcript)
+      if (inputRef.current) {
+        inputRef.current.style.height = 'auto'
+        inputRef.current.style.height = `${Math.min(inputRef.current.scrollHeight, 120)}px`
+      }
+    }
+
+    recognition.onend = () => setIsListening(false)
+    recognition.onerror = () => setIsListening(false)
+
+    recognitionRef.current = recognition
+    recognition.start()
+    setIsListening(true)
+  }, [isListening])
+
   const handleSend = async (customMessage?: string) => {
     const content = (customMessage || inputValue).trim()
     if ((!content && !attachmentUrl) || isSending) return
@@ -300,6 +345,11 @@ export function Assistant({ userId, showSuccess }: AssistantProps) {
       role: 'user',
       content,
       timestamp: new Date(),
+      ...(attachmentUrl && {
+        attachmentUrl,
+        attachmentName: attachmentName || undefined,
+        attachmentFileType: attachmentFileType || undefined,
+      }),
     }
     setMessages(prev => [...prev, userMessage])
     setInputValue('')
@@ -460,6 +510,7 @@ export function Assistant({ userId, showSuccess }: AssistantProps) {
           data: {
             date: jobData.date,
             customer_name: jobData.customerName,
+            customer_id: jobData.customerId || undefined,
             source: jobData.source || 'Unknown',
             revenue: jobData.revenue,
             labor: jobData.labor,
@@ -539,6 +590,7 @@ export function Assistant({ userId, showSuccess }: AssistantProps) {
           actionType: 'generate_quote',
           data: {
             customer_name: quoteData.customerName,
+            customer_id: quoteData.customerId || undefined,
             customer_phone: quoteData.customerPhone || '',
             customer_email: quoteData.customerEmail || '',
             customer_address: quoteData.customerAddress || '',
@@ -845,6 +897,24 @@ export function Assistant({ userId, showSuccess }: AssistantProps) {
         {/* Input Area */}
         <div className="p-3 sm:p-4 border-t border-[var(--color-border)] bg-[var(--color-bg-card)]">
           <div className="max-w-3xl mx-auto">
+            {showCapTip && messages.length <= 1 && (
+              <div className="mb-2.5 flex items-start gap-2 px-3 py-2 bg-orange-500/5 border border-orange-500/15 rounded-lg text-xs text-[var(--color-text-muted)]">
+                <svg className="w-4 h-4 text-orange-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span className="flex-1 leading-relaxed">
+                  <strong className="text-[var(--color-text-secondary)]">Tip:</strong> You can drop CSV, Excel, PDF, or image files here and Dyia will read them. Try the mic button to talk instead of typing.
+                </span>
+                <button
+                  onClick={() => { setShowCapTip(false); localStorage.setItem('dyia_cap_tip_dismissed', '1') }}
+                  className="text-slate-400 hover:text-slate-200 shrink-0 mt-0.5"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            )}
             {attachmentUrl && (
               <div className="flex items-center gap-2 mb-2 px-1">
                 <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-orange-500/10 border border-orange-500/20 rounded-lg">
@@ -878,7 +948,7 @@ export function Assistant({ userId, showSuccess }: AssistantProps) {
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isSending || isUploading}
                 className="p-2 text-[var(--color-text-faint)] hover:text-orange-500 rounded-lg transition-colors flex-shrink-0"
-                title="Attach file (image, PDF, CSV)"
+                title="Attach file (image, PDF, CSV, Excel)"
               >
                 {isUploading ? (
                   <div className="w-5 h-5 border-2 border-orange-500/30 border-t-orange-500 rounded-full animate-spin" />
@@ -888,6 +958,23 @@ export function Assistant({ userId, showSuccess }: AssistantProps) {
                   </svg>
                 )}
               </button>
+              {supportsVoice && (
+                <button
+                  type="button"
+                  onClick={toggleVoice}
+                  disabled={isSending}
+                  className={`p-2 rounded-lg transition-colors flex-shrink-0 ${
+                    isListening
+                      ? 'text-red-500 bg-red-500/10 animate-pulse'
+                      : 'text-[var(--color-text-faint)] hover:text-orange-500'
+                  }`}
+                  title={isListening ? 'Stop listening' : 'Voice input'}
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                  </svg>
+                </button>
+              )}
               <textarea
                 ref={inputRef}
                 value={inputValue}
@@ -914,7 +1001,7 @@ export function Assistant({ userId, showSuccess }: AssistantProps) {
               </button>
             </div>
             <p className="text-[10px] sm:text-xs text-[var(--color-text-faint)] mt-1.5 sm:mt-2 text-center hidden sm:block">
-              Enter to send · Shift+Enter for new line
+              Enter to send · Shift+Enter for new line · Drop files to attach
             </p>
           </div>
         </div>

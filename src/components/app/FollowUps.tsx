@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useConfirm } from '@/components/providers/ConfirmProvider'
 import KanbanBoard, { type KanbanColumn, type KanbanFollowUp, type RiskLevel } from '@/components/ui/kanban-board'
+import { ensureCustomer } from '@/lib/customers'
 
 type FollowUpStatus = 'pending' | 'contacted' | 'converted' | 'lost' | 'snoozed'
 type FollowUpPriority = 'hot' | 'warm' | 'cold'
@@ -21,11 +22,15 @@ interface FollowUpRecord {
 interface QuoteSummary {
   id: string
   createdAt: number
+  customerId?: string
   customerName: string
   phone?: string
+  email?: string
   jobDescription?: string
   estimateLow: number
   estimateHigh: number
+  customerJobCount?: number
+  customerLifetimeValue?: number
 }
 
 interface FollowUpRow {
@@ -90,7 +95,7 @@ export function FollowUps({ userId, businessName = 'dyia', showSuccess }: Follow
       try {
         const { data: quotesData, error: quotesError } = await supabase
           .from('dyia_quotes')
-          .select('id, created_at, customer_name, customer_phone, job_description, estimate_low, estimate_high')
+          .select('id, created_at, customer_id, customer_name, customer_phone, customer_email, job_description, estimate_low, estimate_high')
           .eq('user_id', userId)
           .order('created_at', { ascending: false })
 
@@ -103,24 +108,44 @@ export function FollowUps({ userId, businessName = 'dyia', showSuccess }: Follow
 
         if (followUpsError) throw followUpsError
 
+        // Load customer stats for pipeline context
+        const { data: jobsData } = await supabase
+          .from('dyia_jobs')
+          .select('customer_id, revenue')
+          .eq('user_id', userId)
+
+        const customerStats = new Map<string, { jobCount: number; totalRevenue: number }>()
+        for (const j of (jobsData || [])) {
+          if (!j.customer_id) continue
+          const existing = customerStats.get(j.customer_id) || { jobCount: 0, totalRevenue: 0 }
+          existing.jobCount++
+          existing.totalRevenue += parseFloat(j.revenue) || 0
+          customerStats.set(j.customer_id, existing)
+        }
+
         const followUpMap = new Map<string, FollowUpRecord>()
         ;(followUpsData || []).forEach((followUp: FollowUpRecord) => {
           followUpMap.set(followUp.quote_id, followUp)
         })
 
-        const nextRows: FollowUpRow[] = (quotesData || []).map((q) => {
+        const nextRows: FollowUpRow[] = (quotesData || []).map((q: { id: string; created_at: string; customer_id?: string; customer_name: string; customer_phone?: string; customer_email?: string; job_description?: string; estimate_low: string; estimate_high: string }) => {
           const createdAt = new Date(q.created_at).getTime()
           const daysSinceQuote = Math.max(0, Math.floor((Date.now() - createdAt) / 86400000))
           const priority = getPriority(daysSinceQuote)
+          const stats = q.customer_id ? customerStats.get(q.customer_id) : undefined
 
           const quote: QuoteSummary = {
             id: q.id,
             createdAt,
+            customerId: q.customer_id || undefined,
             customerName: q.customer_name,
             phone: q.customer_phone || undefined,
+            email: q.customer_email || undefined,
             jobDescription: q.job_description || undefined,
             estimateLow: parseFloat(q.estimate_low) || 0,
             estimateHigh: parseFloat(q.estimate_high) || 0,
+            customerJobCount: stats?.jobCount,
+            customerLifetimeValue: stats?.totalRevenue,
           }
 
           return {
@@ -225,11 +250,13 @@ export function FollowUps({ userId, businessName = 'dyia', showSuccess }: Follow
       const q = row.quote
       const avgEstimate = Math.round((q.estimateLow + q.estimateHigh) / 2)
 
-      // Create a new job pre-filled from the quote
+      const customerId = q.customerId || await ensureCustomer(supabase, userId, q.customerName)
+
       const { data: job, error: jobError } = await supabase
         .from('dyia_jobs')
         .insert({
           user_id: userId,
+          customer_id: customerId,
           date: new Date().toISOString().split('T')[0],
           customer_name: q.customerName,
           source: 'Quote',
@@ -277,8 +304,10 @@ export function FollowUps({ userId, businessName = 'dyia', showSuccess }: Follow
           return {
             id: r.followUp?.id || r.quote.id,
             quoteId: r.quote.id,
+            customerId: r.quote.customerId,
             customerName: r.quote.customerName,
             phone: r.quote.phone,
+            email: r.quote.email,
             jobDescription: r.quote.jobDescription,
             estimateLow: r.quote.estimateLow,
             estimateHigh: r.quote.estimateHigh,
@@ -289,6 +318,8 @@ export function FollowUps({ userId, businessName = 'dyia', showSuccess }: Follow
             notes: r.followUp?.notes,
             nextFollowUpAt: r.followUp?.next_follow_up_at,
             riskLevel: getRiskLevel(r.daysSinceQuote, contactCount, status),
+            customerJobCount: r.quote.customerJobCount,
+            customerLifetimeValue: r.quote.customerLifetimeValue,
           }
         }),
     }))
@@ -328,14 +359,29 @@ export function FollowUps({ userId, businessName = 'dyia', showSuccess }: Follow
     }
   }
 
+  const pipelineMetrics = useMemo(() => {
+    const activeRows = rows.filter(r => {
+      const status = r.followUp?.status || 'pending'
+      return status === 'pending' || status === 'contacted' || status === 'snoozed'
+    })
+    const pipelineValue = activeRows.reduce((sum, r) =>
+      sum + Math.round((r.quote.estimateLow + r.quote.estimateHigh) / 2), 0)
+    const converted = rows.filter(r => r.followUp?.status === 'converted').length
+    const lost = rows.filter(r => r.followUp?.status === 'lost').length
+    const closedTotal = converted + lost
+    const conversionRate = closedTotal > 0 ? Math.round((converted / closedTotal) * 100) : 0
+    const hotCount = activeRows.filter(r => r.priority === 'hot').length
+    return { pipelineValue, conversionRate, hotCount, activeCount: activeRows.length }
+  }, [rows])
+
   return (
     <div className="animate-fade-in">
       <div className="page-header">
         <div className="flex items-center justify-between w-full">
           <div>
-            <h1 className="page-title text-xl sm:text-3xl">Follow-Ups</h1>
+            <h1 className="page-title text-xl sm:text-3xl">Pipeline</h1>
             <p className="page-subtitle text-sm sm:text-base">
-              {`${rows.length} total follow-up${rows.length !== 1 ? 's' : ''}`}
+              {`${rows.length} total · ${pipelineMetrics.activeCount} active`}
             </p>
           </div>
           <div className="w-full sm:w-48">
@@ -351,6 +397,27 @@ export function FollowUps({ userId, businessName = 'dyia', showSuccess }: Follow
           </div>
         </div>
       </div>
+
+      {!loading && rows.length > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+          <div className="app-card p-3 sm:p-4 text-center">
+            <p className="text-lg sm:text-2xl font-bold text-orange-500">${pipelineMetrics.pipelineValue.toLocaleString()}</p>
+            <p className="text-[10px] sm:text-xs text-[var(--color-text-muted)] mt-0.5">Pipeline Value</p>
+          </div>
+          <div className="app-card p-3 sm:p-4 text-center">
+            <p className="text-lg sm:text-2xl font-bold text-[var(--color-text-primary)]">{pipelineMetrics.conversionRate}%</p>
+            <p className="text-[10px] sm:text-xs text-[var(--color-text-muted)] mt-0.5">Close Rate</p>
+          </div>
+          <div className="app-card p-3 sm:p-4 text-center">
+            <p className="text-lg sm:text-2xl font-bold text-red-500">{pipelineMetrics.hotCount}</p>
+            <p className="text-[10px] sm:text-xs text-[var(--color-text-muted)] mt-0.5">Hot Leads</p>
+          </div>
+          <div className="app-card p-3 sm:p-4 text-center">
+            <p className="text-lg sm:text-2xl font-bold text-[var(--color-text-primary)]">{pipelineMetrics.activeCount}</p>
+            <p className="text-[10px] sm:text-xs text-[var(--color-text-muted)] mt-0.5">Active Leads</p>
+          </div>
+        </div>
+      )}
 
       {loading ? (
         <div className="app-card">

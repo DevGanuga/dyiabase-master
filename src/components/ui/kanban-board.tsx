@@ -13,8 +13,10 @@ export type RiskLevel = 'critical' | 'high' | 'medium' | 'low'
 export interface KanbanFollowUp {
   id: string
   quoteId: string
+  customerId?: string | null
   customerName: string
   phone?: string
+  email?: string
   jobDescription?: string
   estimateLow: number
   estimateHigh: number
@@ -25,6 +27,8 @@ export interface KanbanFollowUp {
   notes?: string | null
   nextFollowUpAt?: string | null
   riskLevel?: RiskLevel
+  customerJobCount?: number
+  customerLifetimeValue?: number
 }
 
 export interface KanbanColumn {
@@ -139,6 +143,18 @@ export default function KanbanBoard({ columns, onStatusChange, onCopyMessage }: 
                           {formatCurrency(item.estimateLow)} - {formatCurrency(item.estimateHigh)}
                         </div>
 
+                        {(item.customerJobCount !== undefined && item.customerJobCount > 0) && (
+                          <div className="text-[10px] sm:text-xs text-[var(--color-text-muted)] flex items-center gap-2">
+                            <span>{item.customerJobCount} past job{item.customerJobCount !== 1 ? 's' : ''}</span>
+                            {item.customerLifetimeValue !== undefined && item.customerLifetimeValue > 0 && (
+                              <>
+                                <span className="text-[var(--color-text-faint)]">·</span>
+                                <span>{formatCurrency(item.customerLifetimeValue)} lifetime</span>
+                              </>
+                            )}
+                          </div>
+                        )}
+
                         <div className="flex items-center justify-between pt-2 border-t border-[var(--color-border)]">
                           <div className="flex items-center gap-3 text-[var(--color-text-faint)]">
                             <div className="flex items-center gap-1" title={`${item.daysSinceQuote} days since quote`}>
@@ -153,13 +169,25 @@ export default function KanbanBoard({ columns, onStatusChange, onCopyMessage }: 
                             )}
                           </div>
 
-                          <button
-                            onClick={(e) => { e.stopPropagation(); onCopyMessage(item) }}
-                            className="p-1 rounded hover:bg-[var(--color-bg-hover)] transition-colors"
-                            title="Copy follow-up message"
-                          >
-                            <ClipboardCopy className="w-3.5 h-3.5 text-[var(--color-text-faint)]" />
-                          </button>
+                          <div className="flex items-center gap-1">
+                            {item.phone && (
+                              <a
+                                href={`tel:${item.phone}`}
+                                onClick={(e) => e.stopPropagation()}
+                                className="p-1 rounded hover:bg-[var(--color-bg-hover)] transition-colors"
+                                title={`Call ${item.phone}`}
+                              >
+                                <Phone className="w-3.5 h-3.5 text-green-500" />
+                              </a>
+                            )}
+                            <button
+                              onClick={(e) => { e.stopPropagation(); onCopyMessage(item) }}
+                              className="p-1 rounded hover:bg-[var(--color-bg-hover)] transition-colors"
+                              title="Copy follow-up message"
+                            >
+                              <ClipboardCopy className="w-3.5 h-3.5 text-[var(--color-text-faint)]" />
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </CardContent>

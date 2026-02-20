@@ -6,7 +6,8 @@ import type { AppQuote, AppPriceTemplate, AppJob, QuoteStatus } from '@/types/da
 import { formatCurrency, compressImage } from '@/lib/utils'
 import { useConfirm } from '@/components/providers/ConfirmProvider'
 import { useCustomerAutocomplete } from '@/hooks/useCustomerAutocomplete'
-import { upsertCustomer } from '@/lib/customers'
+import { ensureCustomer } from '@/lib/customers'
+import { downloadQuotePdf } from '@/lib/quote-pdf'
 
 interface QuoteBuilderProps {
   quotes: AppQuote[]
@@ -18,13 +19,14 @@ interface QuoteBuilderProps {
   showSuccess: (message: string) => void
   onOpenDyiaWithPrompt?: (prompt: string) => void
   isPro?: boolean
+  settings?: { businessInfo?: { name?: string; phone?: string; email?: string; address?: string; logo?: string | null } }
 }
 
-const PRICE_FIELDS = [
-  'minimumFee', 'quarterLoad', 'halfLoad', 'threeQuarterLoad', 'fullLoad',
-  'trampoline', 'shed', 'fridge', 'furniture', 'hotTub', 'customDemo',
-  'laborFee', 'heavyItemFee', 'distanceFee', 'timeFee', 'hazardFee', 'customFee'
-]
+interface LineItem {
+  id: string
+  description: string
+  amount: number
+}
 
 const VOLUME_FIELDS = [
   { field: 'minimumFee', label: 'Minimum Fee' },
@@ -33,7 +35,6 @@ const VOLUME_FIELDS = [
   { field: 'threeQuarterLoad', label: '3/4 Load' },
   { field: 'fullLoad', label: 'Full Load' },
 ]
-
 const SPECIALTY_FIELDS = [
   { field: 'trampoline', label: 'Trampoline' },
   { field: 'shed', label: 'Shed Demo' },
@@ -42,7 +43,6 @@ const SPECIALTY_FIELDS = [
   { field: 'hotTub', label: 'Hot Tub' },
   { field: 'customDemo', label: 'Custom Demo' },
 ]
-
 const FEE_FIELDS = [
   { field: 'laborFee', label: 'Labor' },
   { field: 'heavyItemFee', label: 'Heavy Item' },
@@ -52,416 +52,303 @@ const FEE_FIELDS = [
   { field: 'customFee', label: 'Custom' },
 ]
 
-// Collapsible section component
-function Section({ title, icon, badge, defaultOpen = true, children }: {
-  title: string
-  icon: string
-  badge?: string
-  defaultOpen?: boolean
-  children: React.ReactNode
-}) {
-  const [open, setOpen] = useState(defaultOpen)
-  return (
-    <div className="app-card mb-4 sm:mb-5 overflow-hidden">
-      <button
-        type="button"
-        onClick={() => setOpen(!open)}
-        className="w-full flex items-center justify-between p-4 sm:p-5 text-left hover:bg-[var(--color-bg-subtle)] transition-colors"
-      >
-        <div className="flex items-center gap-2 sm:gap-3">
-          <span className="text-lg sm:text-xl">{icon}</span>
-          <h3 className="text-sm sm:text-base font-semibold text-[var(--color-text-primary)]">{title}</h3>
-          {badge && <span className="text-[10px] sm:text-xs bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 px-2 py-0.5 rounded-full">{badge}</span>}
-        </div>
-        <svg className={`w-4 h-4 text-[var(--color-text-faint)] transition-transform ${open ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-        </svg>
-      </button>
-      {open && <div className="px-4 sm:px-5 pb-4 sm:pb-5">{children}</div>}
-    </div>
-  )
-}
+const SOURCES = ['Google', 'Facebook', 'Referral', 'Repeat Customer', 'Yelp', 'Craigslist', 'Instagram', 'Nextdoor', 'Thumbtack', 'HomeAdvisor', 'Website', 'Other']
 
-export function QuoteBuilder({ quotes, setQuotes, userId, selectedJob, customerNames = [], onBack, showSuccess, onOpenDyiaWithPrompt, isPro = true }: QuoteBuilderProps) {
+export function QuoteBuilder({ quotes, setQuotes, userId, selectedJob, customerNames = [], onBack, showSuccess, onOpenDyiaWithPrompt, isPro = true, settings }: QuoteBuilderProps) {
   const { nameList, findByName } = useCustomerAutocomplete(customerNames)
+  const supabase = useMemo(() => createClient(), [])
+  const { alert } = useConfirm()
 
+  // Customer state
   const [customer, setCustomer] = useState(() => ({
     name: selectedJob?.customerName || '',
     phone: '',
     email: '',
     address: '',
-    jobDescription: selectedJob?.notes || ''
+    jobDescription: selectedJob?.notes || '',
   }))
+  const [customerFound, setCustomerFound] = useState(false)
+  const [editingCustomer, setEditingCustomer] = useState(!selectedJob)
 
-  const handleCustomerNameChange = useCallback((name: string) => {
-    setCustomer(prev => {
-      const match = findByName(name)
-      if (match) {
-        return {
-          ...prev,
-          name,
-          phone: match.phone || prev.phone,
-          email: match.email || prev.email,
-          address: match.address || prev.address,
-        }
-      }
-      return { ...prev, name }
-    })
-  }, [findByName])
+  // Estimate range (direct inputs)
+  const [estimateLow, setEstimateLow] = useState(0)
+  const [estimateHigh, setEstimateHigh] = useState(0)
+
+  // Line items
+  const [lineItems, setLineItems] = useState<LineItem[]>([])
+
+  // Pricing calculator (hidden by default)
+  const [showCalculator, setShowCalculator] = useState(false)
   const [pricing, setPricing] = useState<Record<string, number>>({})
   const [numLoads, setNumLoads] = useState(0)
   const [pricePerLoad, setPricePerLoad] = useState(0)
+
+  // Details (collapsed)
+  const [showDetails, setShowDetails] = useState(false)
   const [photos, setPhotos] = useState<(string | null)[]>([null, null, null])
-  const [total, setTotal] = useState(0)
-  const [saving, setSaving] = useState(false)
-  const [defaultTemplate, setDefaultTemplate] = useState<AppPriceTemplate | null>(null)
-  const [templateLoaded, setTemplateLoaded] = useState(false)
-  const [showSummary, setShowSummary] = useState(false)
   const [quoteSource, setQuoteSource] = useState('')
+  const [notes, setNotes] = useState('')
 
-  const supabase = useMemo(() => createClient(), [])
-  const { alert } = useConfirm()
+  // Other state
+  const [saving, setSaving] = useState(false)
+  const [templateLoaded, setTemplateLoaded] = useState(false)
 
-  // Load default price template on mount
+  // Pre-fill customer from autocomplete match
+  const handleCustomerNameChange = useCallback((name: string) => {
+    const match = findByName(name)
+    if (match) {
+      setCustomer(prev => ({
+        ...prev,
+        name,
+        phone: match.phone || prev.phone,
+        email: match.email || prev.email,
+        address: match.address || prev.address,
+      }))
+      setCustomerFound(true)
+      setEditingCustomer(false)
+    } else {
+      setCustomer(prev => ({ ...prev, name }))
+      setCustomerFound(false)
+      if (name.length > 0) setEditingCustomer(true)
+    }
+  }, [findByName])
+
+  // Pre-fill from selectedJob's customer_id
   useEffect(() => {
-    const loadDefaultTemplate = async () => {
-      if (!userId || templateLoaded) return
+    if (!selectedJob?.customerId || !userId) return
+    const loadCustomer = async () => {
+      const { data } = await supabase
+        .from('dyia_customers')
+        .select('name, phone, email, address')
+        .eq('id', selectedJob.customerId)
+        .single()
+      if (data) {
+        setCustomer(prev => ({
+          ...prev,
+          name: data.name || prev.name,
+          phone: data.phone || prev.phone,
+          email: data.email || prev.email,
+          address: data.address || prev.address,
+        }))
+        setCustomerFound(true)
+        setEditingCustomer(false)
+      }
+    }
+    loadCustomer()
+  }, [selectedJob?.customerId, userId, supabase])
 
+  // Load default pricing template
+  useEffect(() => {
+    if (!userId || templateLoaded) return
+    const loadTemplate = async () => {
       try {
-        const { data, error } = await supabase
+        const { data } = await supabase
           .from('dyia_price_templates')
           .select('*')
           .eq('user_id', userId)
           .eq('is_default', true)
           .single()
 
-        if (error && error.code !== 'PGRST116') throw error
-
         if (data) {
-          const template: AppPriceTemplate = {
-            id: data.id,
-            name: data.name,
-            isDefault: data.is_default,
-            prices: data.prices
-          }
-          setDefaultTemplate(template)
-          
-          const templatePricing: Record<string, number> = {}
-          if (template.prices.minimumFee) templatePricing.minimumFee = template.prices.minimumFee
-          if (template.prices.quarterLoad) templatePricing.quarterLoad = template.prices.quarterLoad
-          if (template.prices.halfLoad) templatePricing.halfLoad = template.prices.halfLoad
-          if (template.prices.threeQuarterLoad) templatePricing.threeQuarterLoad = template.prices.threeQuarterLoad
-          if (template.prices.fullLoad) templatePricing.fullLoad = template.prices.fullLoad
-          if (template.prices.surcharges?.trampoline) templatePricing.trampoline = template.prices.surcharges.trampoline
-          if (template.prices.surcharges?.hotTub) templatePricing.hotTub = template.prices.surcharges.hotTub
-          
-          setPricing(templatePricing)
+          const p: Record<string, number> = {}
+          const prices = data.prices as Record<string, unknown>
+          if (prices.minimumFee) p.minimumFee = prices.minimumFee as number
+          if (prices.quarterLoad) p.quarterLoad = prices.quarterLoad as number
+          if (prices.halfLoad) p.halfLoad = prices.halfLoad as number
+          if (prices.threeQuarterLoad) p.threeQuarterLoad = prices.threeQuarterLoad as number
+          if (prices.fullLoad) p.fullLoad = prices.fullLoad as number
+          const surcharges = prices.surcharges as Record<string, number> | undefined
+          if (surcharges?.trampoline) p.trampoline = surcharges.trampoline
+          if (surcharges?.hotTub) p.hotTub = surcharges.hotTub
+          setPricing(p)
         }
-      } catch (error) {
-        console.error('Error loading default template:', error)
-      } finally {
-        setTemplateLoaded(true)
-      }
+      } catch { /* no template is fine */ }
+      setTemplateLoaded(true)
     }
-
-    loadDefaultTemplate()
+    loadTemplate()
   }, [userId, supabase, templateLoaded])
 
-  const calculateTotal = useCallback(() => {
-    const multipleLoadsTotal = numLoads * pricePerLoad
-    let sum = multipleLoadsTotal
-    PRICE_FIELDS.forEach(field => {
-      sum += Math.max(0, pricing[field] || 0)
-    })
-    setTotal(sum)
-  }, [numLoads, pricePerLoad, pricing])
+  // When calculator values change, generate line items and update estimate range
+  const applyCalculator = useCallback(() => {
+    const items: LineItem[] = []
+    let total = 0
 
-  useEffect(() => {
-    calculateTotal()
-  }, [calculateTotal])
+    for (const { field, label } of VOLUME_FIELDS) {
+      const val = pricing[field] || 0
+      if (val > 0) { items.push({ id: `vol-${field}`, description: label, amount: val }); total += val }
+    }
+    if (numLoads > 0 && pricePerLoad > 0) {
+      const amt = numLoads * pricePerLoad
+      items.push({ id: 'multi-loads', description: `${numLoads} Full Loads @ ${formatCurrency(pricePerLoad)}`, amount: amt })
+      total += amt
+    }
+    for (const { field, label } of SPECIALTY_FIELDS) {
+      const val = pricing[field] || 0
+      if (val > 0) { items.push({ id: `spec-${field}`, description: `${label} Removal`, amount: val }); total += val }
+    }
+    for (const { field, label } of FEE_FIELDS) {
+      const val = pricing[field] || 0
+      if (val > 0) { items.push({ id: `fee-${field}`, description: `${label} Fee`, amount: val }); total += val }
+    }
 
-  const handlePricingChange = (field: string, value: number) => {
-    setPricing(prev => ({ ...prev, [field]: Math.max(0, value) }))
+    setLineItems(items)
+    if (total > 0) {
+      setEstimateLow(Math.floor(total * 0.9))
+      setEstimateHigh(Math.ceil(total * 1.1))
+    }
+    setShowCalculator(false)
+  }, [pricing, numLoads, pricePerLoad])
+
+  const addLineItem = () => {
+    setLineItems(prev => [...prev, { id: `li-${Date.now()}`, description: '', amount: 0 }])
   }
+
+  const updateLineItem = (id: string, field: 'description' | 'amount', value: string | number) => {
+    setLineItems(prev => prev.map(li => li.id === id ? { ...li, [field]: value } : li))
+  }
+
+  const removeLineItem = (id: string) => {
+    setLineItems(prev => prev.filter(li => li.id !== id))
+  }
+
+  const lineItemsTotal = lineItems.reduce((sum, li) => sum + (li.amount || 0), 0)
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
     const file = e.target.files?.[0]
     if (!file) return
-
     const reader = new FileReader()
     reader.onload = async (event) => {
       const dataUrl = event.target?.result as string
       const compressed = await compressImage(dataUrl, 800, 0.7)
-      const newPhotos = [...photos]
-      newPhotos[index] = compressed
-      setPhotos(newPhotos)
+      setPhotos(prev => { const n = [...prev]; n[index] = compressed; return n })
     }
     reader.readAsDataURL(file)
   }
 
-  const removeImage = (index: number) => {
-    const newPhotos = [...photos]
-    newPhotos[index] = null
-    setPhotos(newPhotos)
-  }
-
-  // Build line items for summary
-  const lineItems = useMemo(() => {
-    const items: { label: string; amount: number }[] = []
-    
-    // Volume
-    VOLUME_FIELDS.forEach(({ field, label }) => {
-      const val = pricing[field] || 0
-      if (val > 0) items.push({ label, amount: val })
-    })
-    
-    // Multiple loads
-    if (numLoads > 0 && pricePerLoad > 0) {
-      items.push({ label: `${numLoads} Full Loads × ${formatCurrency(pricePerLoad)}`, amount: numLoads * pricePerLoad })
-    }
-    
-    // Specialty
-    SPECIALTY_FIELDS.forEach(({ field, label }) => {
-      const val = pricing[field] || 0
-      if (val > 0) items.push({ label, amount: val })
-    })
-    
-    // Fees
-    FEE_FIELDS.forEach(({ field, label }) => {
-      const val = pricing[field] || 0
-      if (val > 0) items.push({ label: `${label} Fee`, amount: val })
-    })
-    
-    return items
-  }, [pricing, numLoads, pricePerLoad])
-
-  const saveQuote = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const saveQuote = async (downloadPdf = false) => {
     if (!customer.name.trim()) {
       await alert({ title: 'Missing Name', message: 'Please enter a customer name.', variant: 'warning' })
       return
     }
-
-    if (total === 0) {
-      await alert({ title: 'No Pricing', message: 'Please add at least one price before generating a quote.', variant: 'warning' })
-      return
-    }
-
-    // Show summary first for confirmation
-    if (!showSummary) {
-      setShowSummary(true)
+    if (estimateLow <= 0 && estimateHigh <= 0) {
+      await alert({ title: 'No Estimate', message: 'Please enter an estimate range.', variant: 'warning' })
       return
     }
 
     setSaving(true)
-
     try {
-      const multipleLoadsTotal = numLoads * pricePerLoad
-      const rangeLow = Math.floor(total * 0.9)
-      const rangeHigh = Math.ceil(total * 1.1)
+      const low = Math.min(estimateLow, estimateHigh)
+      const high = Math.max(estimateLow, estimateHigh)
+      const total = Math.round((low + high) / 2)
 
-      const quoteData = {
-        user_id: userId,
-        job_id: selectedJob?.id || null,
-        customer_name: customer.name,
-        customer_phone: customer.phone || null,
-        customer_email: customer.email || null,
-        customer_address: customer.address || null,
-        job_description: customer.jobDescription || null,
-        source: quoteSource || null,
-        pricing: {
-          ...pricing,
-          multipleLoads: { numLoads, pricePerLoad, total: multipleLoadsTotal }
-        },
-        estimate_low: rangeLow,
-        estimate_high: rangeHigh,
-        total,
-        status: 'draft',
-        photo_urls: photos.filter(p => p) as string[]
+      const customerId = await ensureCustomer(supabase, userId, customer.name.trim(), {
+        phone: customer.phone || null,
+        email: customer.email || null,
+        address: customer.address || null,
+      })
+
+      const pricingData = {
+        ...pricing,
+        lineItems: lineItems.filter(li => li.description && li.amount > 0).map(li => ({ description: li.description, amount: li.amount })),
+        ...(numLoads > 0 && pricePerLoad > 0 ? { multipleLoads: { numLoads, pricePerLoad, total: numLoads * pricePerLoad } } : {}),
       }
 
       const { data, error } = await supabase
         .from('dyia_quotes')
-        .insert(quoteData)
+        .insert({
+          user_id: userId,
+          customer_id: customerId,
+          job_id: selectedJob?.id || null,
+          customer_name: customer.name.trim(),
+          customer_phone: customer.phone || null,
+          customer_email: customer.email || null,
+          customer_address: customer.address || null,
+          job_description: customer.jobDescription || null,
+          source: quoteSource || null,
+          pricing: pricingData,
+          estimate_low: low,
+          estimate_high: high,
+          total,
+          status: 'draft' as QuoteStatus,
+          photo_urls: photos.filter(Boolean) as string[],
+        })
         .select()
         .single()
 
-      if (error) {
-        console.error('Supabase insert error:', error.message, error.code, error.details, error.hint)
-        throw error
-      }
+      if (error) throw error
 
-      // Auto-create a follow-up for this quote
-      try {
-        await supabase
-          .from('dyia_follow_ups')
-          .insert({
-            user_id: userId,
-            quote_id: data.id,
-            status: 'pending',
-            contact_count: 0
-          })
-      } catch (followUpError) {
-        console.error('Error creating follow-up:', followUpError)
-        // Non-fatal: quote was saved, follow-up creation failed
-      }
-
-      // Auto-sync customer (fire and forget)
-      upsertCustomer(supabase, userId, customer.name.trim(), {
-        phone: customer.phone || null,
-        email: customer.email || null,
-        address: customer.address || null,
-      }).catch(() => {})
+      await supabase.from('dyia_follow_ups').insert({
+        user_id: userId,
+        customer_id: customerId,
+        quote_id: data.id,
+        status: 'pending',
+        contact_count: 0,
+      })
 
       const newQuote: AppQuote = {
         id: data.id,
+        customerId,
         jobId: selectedJob?.id,
         createdAt: new Date(data.created_at).getTime(),
-        customer: {
-          name: customer.name,
-          phone: customer.phone,
-          email: customer.email,
-          address: customer.address,
-          jobDescription: customer.jobDescription
-        },
-        pricing: quoteData.pricing,
-        photos: quoteData.photo_urls,
-        estimateRange: { low: rangeLow, high: rangeHigh },
+        customer: { name: customer.name, phone: customer.phone, email: customer.email, address: customer.address, jobDescription: customer.jobDescription },
+        pricing: pricingData,
+        photos: photos.filter(Boolean) as string[],
+        estimateRange: { low, high },
         total,
-        status: 'draft' as QuoteStatus
+        status: 'draft',
       }
 
       setQuotes([newQuote, ...quotes])
-      showSuccess(`Quote for ${customer.name} — ${formatCurrency(rangeLow)}–${formatCurrency(rangeHigh)}`)
-      setTimeout(onBack, 500)
+
+      if (downloadPdf) {
+        const pdfLineItems = lineItems.filter(li => li.description && li.amount > 0).map(li => ({ description: li.description, amount: li.amount }))
+        downloadQuotePdf(
+          {
+            customerName: customer.name,
+            customerPhone: customer.phone,
+            customerEmail: customer.email,
+            customerAddress: customer.address,
+            jobDescription: customer.jobDescription,
+            estimateLow: low,
+            estimateHigh: high,
+            lineItems: pdfLineItems.length > 0 ? pdfLineItems : undefined,
+            photos: photos.filter(Boolean) as string[],
+            createdAt: new Date(),
+          },
+          {
+            name: settings?.businessInfo?.name,
+            phone: settings?.businessInfo?.phone,
+            email: settings?.businessInfo?.email,
+            address: settings?.businessInfo?.address,
+            logo: settings?.businessInfo?.logo,
+          }
+        )
+        showSuccess(`Quote saved & PDF downloaded for ${customer.name}`)
+      } else {
+        showSuccess(`Quote saved for ${customer.name} — ${formatCurrency(low)}–${formatCurrency(high)}`)
+      }
+
+      setTimeout(onBack, 400)
     } catch (error) {
       console.error('Error saving quote:', error)
-      await alert({ title: 'Error', message: 'Error saving quote.', variant: 'error' })
+      await alert({ title: 'Error', message: 'Failed to save quote. Please try again.', variant: 'error' })
     } finally {
       setSaving(false)
     }
   }
 
-  const rangeLow = Math.floor(total * 0.9)
-  const rangeHigh = Math.ceil(total * 1.1)
   const photoCount = photos.filter(Boolean).length
-  const hasSpecialty = SPECIALTY_FIELDS.some(({ field }) => (pricing[field] || 0) > 0)
-  const hasFees = FEE_FIELDS.some(({ field }) => (pricing[field] || 0) > 0)
 
-  // ======== SUMMARY / CONFIRMATION VIEW ========
-  if (showSummary) {
-    return (
-      <div className="animate-fade-in max-w-lg mx-auto">
-        <div className="page-header">
-          <div>
-            <h1 className="page-title text-xl sm:text-2xl">Review Quote</h1>
-            <p className="page-subtitle text-sm">Confirm before generating</p>
-          </div>
-          <button onClick={() => setShowSummary(false)} className="app-btn-secondary text-sm px-4 py-2">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-            </svg>
-            Edit
-          </button>
-        </div>
-
-        {/* Customer */}
-        <div className="app-card p-5 mb-4">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-10 h-10 bg-orange-500/10 rounded-full flex items-center justify-center shrink-0">
-              <span className="text-sm font-bold text-orange-500">{customer.name.charAt(0).toUpperCase()}</span>
-            </div>
-            <div>
-              <p className="font-semibold text-[var(--color-text-primary)]">{customer.name}</p>
-              <div className="flex flex-wrap gap-2 text-xs text-[var(--color-text-muted)]">
-                {customer.phone && <span>{customer.phone}</span>}
-                {customer.email && <span>{customer.email}</span>}
-              </div>
-            </div>
-          </div>
-          {customer.address && <p className="text-xs text-[var(--color-text-muted)] mt-1">{customer.address}</p>}
-          {customer.jobDescription && (
-            <p className="text-sm text-[var(--color-text-secondary)] mt-2 border-t border-[var(--color-border)] pt-2">{customer.jobDescription}</p>
-          )}
-        </div>
-
-        {/* Line Items */}
-        <div className="app-card p-5 mb-4">
-          <h3 className="text-sm font-semibold text-[var(--color-text-primary)] mb-3">Pricing Breakdown</h3>
-          <div className="space-y-2">
-            {lineItems.map((item, i) => (
-              <div key={i} className="flex justify-between items-center py-1.5">
-                <span className="text-sm text-[var(--color-text-secondary)]">{item.label}</span>
-                <span className="text-sm font-medium text-[var(--color-text-primary)]">{formatCurrency(item.amount)}</span>
-              </div>
-            ))}
-          </div>
-          <div className="border-t border-[var(--color-border)] mt-3 pt-3 flex justify-between items-center">
-            <span className="text-sm font-semibold text-[var(--color-text-primary)]">Total</span>
-            <span className="text-lg font-bold text-orange-600 dark:text-orange-400">{formatCurrency(total)}</span>
-          </div>
-        </div>
-
-        {/* Estimate Range */}
-        <div className="app-card p-5 mb-4 bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-900/20 dark:to-amber-900/20 border-2 border-orange-500">
-          <div className="text-center">
-            <p className="text-xs font-semibold text-orange-600 dark:text-orange-400 uppercase tracking-wider mb-1">Estimate Range (±10%)</p>
-            <p className="text-2xl sm:text-3xl font-bold text-orange-700 dark:text-orange-300">
-              {formatCurrency(rangeLow)} – {formatCurrency(rangeHigh)}
-            </p>
-          </div>
-        </div>
-
-        {/* Photos */}
-        {photoCount > 0 && (
-          <div className="app-card p-5 mb-4">
-            <p className="text-xs text-[var(--color-text-muted)] mb-2">{photoCount} photo{photoCount !== 1 ? 's' : ''} attached</p>
-            <div className="flex gap-2">
-              {photos.filter(Boolean).map((photo, i) => (
-                <img key={i} src={photo!} alt={`Photo ${i + 1}`} className="w-16 h-16 object-cover rounded-lg" />
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Actions */}
-        <form onSubmit={saveQuote}>
-          <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3">
-            <button type="button" onClick={() => setShowSummary(false)} className="app-btn-secondary w-full sm:w-auto py-3">
-              Back to Edit
-            </button>
-            <button type="submit" disabled={saving} className="app-btn-primary w-full sm:flex-1 py-3">
-              {saving ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  Generating...
-                </>
-              ) : (
-                <>
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  Generate Quote
-                </>
-              )}
-            </button>
-          </div>
-        </form>
-      </div>
-    )
-  }
-
-  // ======== BUILDER VIEW ========
   return (
-    <div className="animate-fade-in">
+    <div className="animate-fade-in pb-28">
+      {/* Header */}
       <div className="page-header">
         <div>
-          <h1 className="page-title text-xl sm:text-2xl">Quote Builder</h1>
+          <h1 className="page-title text-xl sm:text-2xl">New Estimate</h1>
           <p className="page-subtitle text-sm">
-            {selectedJob 
+            {selectedJob
               ? <>For <span className="text-orange-600 dark:text-orange-400 font-medium">{selectedJob.customerName}</span></>
-              : 'Build a professional estimate'
-            }
+              : 'Create a professional estimate'}
           </p>
         </div>
         <button onClick={onBack} className="app-btn-secondary text-sm px-4 py-2">
@@ -472,286 +359,371 @@ export function QuoteBuilder({ quotes, setQuotes, userId, selectedJob, customerN
         </button>
       </div>
 
-      <form onSubmit={saveQuote} className="pb-24">
-        {/* Customer Information — always open */}
-        <div className="app-card mb-4 sm:mb-5 p-4 sm:p-5">
-          <div className="flex items-center gap-2 mb-4">
-            <span className="text-lg">👤</span>
-            <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">Customer</h3>
+      <div className="max-w-2xl mx-auto space-y-4">
+        {/* Customer Section */}
+        <div className="app-card p-4 sm:p-5">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-[var(--color-text-primary)] flex items-center gap-2">
+              <svg className="w-4 h-4 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+              Customer
+            </h3>
+            {customerFound && !editingCustomer && (
+              <button type="button" onClick={() => setEditingCustomer(true)} className="text-xs text-orange-500 hover:text-orange-600">Edit</button>
+            )}
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="app-label">Name *</label>
-              <input
-                list="quote-customer-names"
-                type="text"
-                value={customer.name}
-                onChange={(e) => handleCustomerNameChange(e.target.value)}
-                className="app-input"
-                placeholder="John Smith"
-                required
-                autoFocus
-              />
-              <datalist id="quote-customer-names">
-                {nameList.map(n => <option key={n} value={n} />)}
-              </datalist>
+
+          {/* Compact card when customer is known and not editing */}
+          {customerFound && !editingCustomer ? (
+            <div className="flex items-center gap-3 p-3 bg-[var(--color-bg-subtle)] rounded-lg">
+              <div className="w-10 h-10 bg-orange-500/10 rounded-full flex items-center justify-center shrink-0">
+                <span className="text-sm font-bold text-orange-500">{customer.name.charAt(0).toUpperCase()}</span>
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="font-semibold text-sm text-[var(--color-text-primary)] truncate">{customer.name}</p>
+                <div className="flex flex-wrap gap-x-3 text-xs text-[var(--color-text-muted)]">
+                  {customer.phone && <span>{customer.phone}</span>}
+                  {customer.email && <span>{customer.email}</span>}
+                  {customer.address && <span className="truncate max-w-[200px]">{customer.address}</span>}
+                </div>
+              </div>
             </div>
-            <div>
-              <label className="app-label">Phone</label>
-              <input
-                type="tel"
-                value={customer.phone}
-                onChange={(e) => setCustomer({ ...customer, phone: e.target.value })}
-                className="app-input"
-                placeholder="(555) 123-4567"
-              />
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="sm:col-span-2">
+                <label className="app-label">Name *</label>
+                <input
+                  list="qb-names"
+                  type="text"
+                  value={customer.name}
+                  onChange={(e) => handleCustomerNameChange(e.target.value)}
+                  className="app-input"
+                  placeholder="Customer name"
+                  required
+                  autoFocus
+                />
+                <datalist id="qb-names">
+                  {nameList.map(n => <option key={n} value={n} />)}
+                </datalist>
+              </div>
+              <div>
+                <label className="app-label">Phone</label>
+                <input type="tel" value={customer.phone} onChange={(e) => setCustomer(p => ({ ...p, phone: e.target.value }))} className="app-input" placeholder="(555) 123-4567" />
+              </div>
+              <div>
+                <label className="app-label">Email</label>
+                <input type="email" value={customer.email} onChange={(e) => setCustomer(p => ({ ...p, email: e.target.value }))} className="app-input" placeholder="email@example.com" />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="app-label">Address</label>
+                <input type="text" value={customer.address} onChange={(e) => setCustomer(p => ({ ...p, address: e.target.value }))} className="app-input" placeholder="123 Main St, City, FL" />
+              </div>
             </div>
-            <div>
-              <label className="app-label">Email</label>
-              <input
-                type="email"
-                value={customer.email}
-                onChange={(e) => setCustomer({ ...customer, email: e.target.value })}
-                className="app-input"
-                placeholder="john@example.com"
-              />
-            </div>
-            <div>
-              <label className="app-label">Address</label>
-              <input
-                type="text"
-                value={customer.address}
-                onChange={(e) => setCustomer({ ...customer, address: e.target.value })}
-                className="app-input"
-                placeholder="123 Main St, City, State"
-              />
-            </div>
-          </div>
+          )}
+
+          {/* Job Description */}
           <div className="mt-3">
             <label className="app-label">Job Description</label>
             <textarea
               value={customer.jobDescription}
-              onChange={(e) => setCustomer({ ...customer, jobDescription: e.target.value })}
+              onChange={(e) => setCustomer(p => ({ ...p, jobDescription: e.target.value }))}
               className="app-input resize-none"
               rows={2}
-              placeholder="Describe the work to be done..."
+              placeholder="Describe the work..."
             />
-            {/* AI Pricing Suggestion */}
             {customer.jobDescription && customer.jobDescription.length > 10 && onOpenDyiaWithPrompt && isPro && (
               <button
                 type="button"
-                onClick={() => onOpenDyiaWithPrompt(`I need to price a job: "${customer.jobDescription}". Based on my job history, what should I charge? Give me a suggested price range.`)}
+                onClick={() => onOpenDyiaWithPrompt(`I need to price a job: "${customer.jobDescription}". What should I charge?`)}
                 className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-orange-600 dark:text-orange-400 bg-orange-50/80 dark:bg-orange-950/30 border border-orange-200/50 dark:border-orange-800/30 rounded-lg hover:bg-orange-100 dark:hover:bg-orange-950/50 transition-all"
               >
                 <img src="/dyia-agent.png" alt="" className="w-3.5 h-3.5 object-contain" />
                 Get AI pricing suggestion
               </button>
             )}
-            {customer.jobDescription && customer.jobDescription.length > 10 && !isPro && (
-              <div className="mt-2 flex items-center gap-1.5 text-xs text-slate-400">
-                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
-                AI pricing suggestions available with <span className="text-orange-500 font-medium">Dyia Pro</span>
-              </div>
-            )}
-          </div>
-          <div className="mt-3">
-            <label className="app-label">Lead Source</label>
-            <select
-              value={quoteSource}
-              onChange={(e) => setQuoteSource(e.target.value)}
-              className="app-input"
-            >
-              <option value="">Select source...</option>
-              {['Google', 'Facebook', 'Referral', 'Repeat Customer', 'Yelp', 'Craigslist', 'Instagram', 'Nextdoor', 'Thumbtack', 'HomeAdvisor', 'Website', 'Other'].map(s => (
-                <option key={s} value={s}>{s}</option>
-              ))}
-            </select>
           </div>
         </div>
 
-        {/* Volume-Based Pricing — always open */}
-        <Section title="Volume-Based Pricing" icon="📦" badge={defaultTemplate ? `Using: ${defaultTemplate.name}` : undefined}>
-          <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-            {VOLUME_FIELDS.map(({ field, label }) => (
-              <div key={field}>
-                <label className="app-label text-sm">{label}</label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)] text-sm">$</span>
-                  <input
-                    type="number"
-                    value={pricing[field] || ''}
-                    onChange={(e) => handlePricingChange(field, parseFloat(e.target.value) || 0)}
-                    className="app-input pl-7 text-sm"
-                    min="0"
-                    placeholder="0"
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Multiple Full Loads */}
-          <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/50 rounded-xl p-4 mt-4">
-            <div className="flex items-center gap-2 mb-3">
-              <span className="text-base">🚛</span>
-              <h4 className="text-sm font-semibold text-amber-900 dark:text-amber-300">Multiple Full Loads</h4>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="app-label text-sm text-amber-800 dark:text-amber-400"># of Loads</label>
+        {/* Estimate Range */}
+        <div className="app-card p-4 sm:p-5">
+          <h3 className="text-sm font-semibold text-[var(--color-text-primary)] mb-3 flex items-center gap-2">
+            <svg className="w-4 h-4 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Estimate Range
+          </h3>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="app-label">Low</label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)]">$</span>
                 <input
                   type="number"
-                  value={numLoads || ''}
-                  onChange={(e) => setNumLoads(Math.max(0, parseInt(e.target.value) || 0))}
-                  className="app-input"
+                  value={estimateLow || ''}
+                  onChange={(e) => setEstimateLow(Math.max(0, parseFloat(e.target.value) || 0))}
+                  className="app-input pl-7 text-lg font-semibold"
                   min="0"
-                  placeholder="e.g., 3"
+                  placeholder="250"
                 />
+              </div>
+            </div>
+            <div>
+              <label className="app-label">High</label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)]">$</span>
+                <input
+                  type="number"
+                  value={estimateHigh || ''}
+                  onChange={(e) => setEstimateHigh(Math.max(0, parseFloat(e.target.value) || 0))}
+                  className="app-input pl-7 text-lg font-semibold"
+                  min="0"
+                  placeholder="350"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Pricing Calculator Toggle */}
+          <button
+            type="button"
+            onClick={() => setShowCalculator(!showCalculator)}
+            className="mt-3 w-full text-left flex items-center justify-between py-2 px-3 text-xs font-medium text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] bg-[var(--color-bg-subtle)] hover:bg-[var(--color-bg-hover)] rounded-lg transition-colors"
+          >
+            <span className="flex items-center gap-1.5">
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+              </svg>
+              Use pricing calculator
+            </span>
+            <svg className={`w-3.5 h-3.5 transition-transform ${showCalculator ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+
+          {/* Calculator Panel */}
+          {showCalculator && (
+            <div className="mt-3 border border-[var(--color-border)] rounded-xl p-4 space-y-4">
+              <div>
+                <p className="text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider mb-2">Volume Pricing</p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+                  {VOLUME_FIELDS.map(({ field, label }) => (
+                    <div key={field}>
+                      <label className="text-[10px] text-[var(--color-text-muted)]">{label}</label>
+                      <div className="relative">
+                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)] text-xs">$</span>
+                        <input type="number" value={pricing[field] || ''} onChange={(e) => setPricing(p => ({ ...p, [field]: parseFloat(e.target.value) || 0 }))} className="app-input pl-6 text-sm py-1.5" min="0" placeholder="0" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
               <div>
-                <label className="app-label text-sm text-amber-800 dark:text-amber-400">Price Per Load</label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)]">$</span>
-                  <input
-                    type="number"
-                    value={pricePerLoad || ''}
-                    onChange={(e) => setPricePerLoad(Math.max(0, parseFloat(e.target.value) || 0))}
-                    className="app-input pl-7"
-                    min="0"
-                    placeholder="e.g., 500"
-                  />
-                </div>
-              </div>
-            </div>
-            {numLoads > 0 && pricePerLoad > 0 && (
-              <p className="text-amber-800 dark:text-amber-300 mt-2 font-medium text-sm">
-                {numLoads} loads × {formatCurrency(pricePerLoad)} = <strong>{formatCurrency(numLoads * pricePerLoad)}</strong>
-              </p>
-            )}
-          </div>
-        </Section>
-
-        {/* Specialty Jobs — collapsed by default unless has values */}
-        <Section title="Specialty Items" icon="🔧" defaultOpen={hasSpecialty} badge={hasSpecialty ? `${SPECIALTY_FIELDS.filter(f => (pricing[f.field] || 0) > 0).length} items` : undefined}>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {SPECIALTY_FIELDS.map(({ field, label }) => (
-              <div key={field}>
-                <label className="app-label text-sm">{label}</label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)] text-sm">$</span>
-                  <input
-                    type="number"
-                    value={pricing[field] || ''}
-                    onChange={(e) => handlePricingChange(field, parseFloat(e.target.value) || 0)}
-                    className="app-input pl-7 text-sm"
-                    min="0"
-                    placeholder="0"
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        </Section>
-
-        {/* Additional Fees — collapsed by default unless has values */}
-        <Section title="Additional Fees" icon="💰" defaultOpen={hasFees} badge={hasFees ? `${FEE_FIELDS.filter(f => (pricing[f.field] || 0) > 0).length} fees` : undefined}>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {FEE_FIELDS.map(({ field, label }) => (
-              <div key={field}>
-                <label className="app-label text-sm">{label}</label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)] text-sm">$</span>
-                  <input
-                    type="number"
-                    value={pricing[field] || ''}
-                    onChange={(e) => handlePricingChange(field, parseFloat(e.target.value) || 0)}
-                    className="app-input pl-7 text-sm"
-                    min="0"
-                    placeholder="0"
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        </Section>
-
-        {/* Job Photos — collapsed by default */}
-        <Section title="Job Photos" icon="📸" defaultOpen={photoCount > 0} badge={photoCount > 0 ? `${photoCount} photo${photoCount !== 1 ? 's' : ''}` : 'optional'}>
-          <div className="grid grid-cols-3 gap-3">
-            {[0, 1, 2].map(i => (
-              <div key={i} className="image-upload-box">
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => handleImageUpload(e, i)}
-                />
-                {photos[i] ? (
-                  <>
-                    <img src={photos[i]!} alt={`Photo ${i + 1}`} className="image-preview" />
-                    <button
-                      type="button"
-                      onClick={() => removeImage(i)}
-                      className="image-remove-btn"
-                    >
-                      ✕
-                    </button>
-                  </>
-                ) : (
-                  <div className="image-upload-placeholder">
-                    <svg className="w-7 h-7 text-[var(--color-text-faint)] mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                    <span className="text-xs text-[var(--color-text-faint)]">Photo {i + 1}</span>
-                    <span className="text-[10px] text-[var(--color-text-faint)] mt-0.5">Tap to upload</span>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-          <p className="text-[var(--color-text-faint)] text-xs mt-3">Photos will be included in the quote PDF. Supports JPEG and PNG.</p>
-        </Section>
-
-        {/* Sticky bottom bar — estimate + actions */}
-        <div className="fixed bottom-0 left-0 right-0 z-40 bg-[var(--color-bg-page)]/95 backdrop-blur-lg border-t border-[var(--color-border)] px-4 sm:px-6 py-3">
-          <div className="max-w-3xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
-            {/* Estimate preview */}
-            <div className="flex items-center gap-4 w-full sm:w-auto">
-              {total > 0 ? (
-                <>
-                  <div>
-                    <p className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] font-medium">Estimate Range</p>
-                    <p className="text-xl sm:text-2xl font-bold text-orange-600 dark:text-orange-400">
-                      {formatCurrency(rangeLow)} – {formatCurrency(rangeHigh)}
-                    </p>
-                  </div>
-                  {lineItems.length > 0 && (
-                    <div className="hidden sm:block text-xs text-[var(--color-text-muted)] bg-[var(--color-bg-subtle)] px-2 py-1 rounded-lg">
-                      {lineItems.length} item{lineItems.length !== 1 ? 's' : ''}
+                <p className="text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider mb-2">Specialty Items</p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {SPECIALTY_FIELDS.map(({ field, label }) => (
+                    <div key={field}>
+                      <label className="text-[10px] text-[var(--color-text-muted)]">{label}</label>
+                      <div className="relative">
+                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)] text-xs">$</span>
+                        <input type="number" value={pricing[field] || ''} onChange={(e) => setPricing(p => ({ ...p, [field]: parseFloat(e.target.value) || 0 }))} className="app-input pl-6 text-sm py-1.5" min="0" placeholder="0" />
+                      </div>
                     </div>
-                  )}
-                </>
-              ) : (
-                <p className="text-sm text-[var(--color-text-muted)]">Add pricing to see estimate</p>
-              )}
-            </div>
-
-            {/* Actions */}
-            <div className="flex gap-2 w-full sm:w-auto">
-              <button type="button" onClick={onBack} className="app-btn-secondary w-full sm:w-auto text-sm py-2.5 px-4">Cancel</button>
-              <button type="submit" disabled={saving || total === 0} className="app-btn-primary w-full sm:w-auto text-sm py-2.5 px-5 disabled:opacity-40">
-                {saving ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    Saving...
-                  </>
-                ) : (
-                  'Review & Generate'
-                )}
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider mb-2">Additional Fees</p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {FEE_FIELDS.map(({ field, label }) => (
+                    <div key={field}>
+                      <label className="text-[10px] text-[var(--color-text-muted)]">{label}</label>
+                      <div className="relative">
+                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)] text-xs">$</span>
+                        <input type="number" value={pricing[field] || ''} onChange={(e) => setPricing(p => ({ ...p, [field]: parseFloat(e.target.value) || 0 }))} className="app-input pl-6 text-sm py-1.5" min="0" placeholder="0" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              {/* Multiple loads */}
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[10px] text-[var(--color-text-muted)]"># of Full Loads</label>
+                  <input type="number" value={numLoads || ''} onChange={(e) => setNumLoads(parseInt(e.target.value) || 0)} className="app-input text-sm py-1.5" min="0" />
+                </div>
+                <div>
+                  <label className="text-[10px] text-[var(--color-text-muted)]">Price Per Load</label>
+                  <div className="relative">
+                    <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)] text-xs">$</span>
+                    <input type="number" value={pricePerLoad || ''} onChange={(e) => setPricePerLoad(parseFloat(e.target.value) || 0)} className="app-input pl-6 text-sm py-1.5" min="0" />
+                  </div>
+                </div>
+              </div>
+              <button type="button" onClick={applyCalculator} className="app-btn-primary w-full py-2 text-sm">
+                Apply to Estimate
               </button>
             </div>
-          </div>
+          )}
         </div>
-      </form>
+
+        {/* Line Items */}
+        <div className="app-card p-4 sm:p-5">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-[var(--color-text-primary)] flex items-center gap-2">
+              <svg className="w-4 h-4 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              </svg>
+              Line Items
+              {lineItems.length > 0 && <span className="text-[10px] bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 px-1.5 py-0.5 rounded-full">{lineItems.length}</span>}
+            </h3>
+            <button type="button" onClick={addLineItem} className="text-xs text-orange-500 hover:text-orange-600 font-medium flex items-center gap-1">
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+              Add item
+            </button>
+          </div>
+
+          {lineItems.length === 0 ? (
+            <p className="text-xs text-[var(--color-text-faint)] text-center py-4">Line items appear on the PDF as an itemized breakdown. Optional but recommended.</p>
+          ) : (
+            <div className="space-y-2">
+              {lineItems.map((li) => (
+                <div key={li.id} className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={li.description}
+                    onChange={(e) => updateLineItem(li.id, 'description', e.target.value)}
+                    className="app-input flex-1 text-sm py-1.5"
+                    placeholder="Description"
+                  />
+                  <div className="relative w-28 shrink-0">
+                    <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)] text-xs">$</span>
+                    <input
+                      type="number"
+                      value={li.amount || ''}
+                      onChange={(e) => updateLineItem(li.id, 'amount', parseFloat(e.target.value) || 0)}
+                      className="app-input pl-6 text-sm py-1.5"
+                      min="0"
+                      placeholder="0"
+                    />
+                  </div>
+                  <button type="button" onClick={() => removeLineItem(li.id)} className="p-1 text-slate-400 hover:text-red-500 transition-colors">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                  </button>
+                </div>
+              ))}
+              {lineItemsTotal > 0 && (
+                <div className="flex justify-end pt-2 border-t border-[var(--color-border)]">
+                  <span className="text-sm font-semibold text-[var(--color-text-primary)]">Total: {formatCurrency(lineItemsTotal)}</span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Details (collapsed) */}
+        <div className="app-card overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setShowDetails(!showDetails)}
+            className="w-full flex items-center justify-between p-4 sm:p-5 hover:bg-[var(--color-bg-subtle)] transition-colors"
+          >
+            <h3 className="text-sm font-semibold text-[var(--color-text-primary)] flex items-center gap-2">
+              <svg className="w-4 h-4 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Details
+              {(photoCount > 0 || quoteSource || notes) && (
+                <span className="text-[10px] bg-slate-100 dark:bg-slate-800 text-[var(--color-text-muted)] px-1.5 py-0.5 rounded-full">
+                  {[photoCount > 0 && `${photoCount} photo${photoCount !== 1 ? 's' : ''}`, quoteSource, notes && 'notes'].filter(Boolean).join(' · ')}
+                </span>
+              )}
+            </h3>
+            <svg className={`w-4 h-4 text-[var(--color-text-faint)] transition-transform ${showDetails ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          {showDetails && (
+            <div className="px-4 sm:px-5 pb-4 sm:pb-5 space-y-3">
+              <div>
+                <label className="app-label">Lead Source</label>
+                <select value={quoteSource} onChange={(e) => setQuoteSource(e.target.value)} className="app-input">
+                  <option value="">Select source...</option>
+                  {SOURCES.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="app-label">Internal Notes</label>
+                <textarea value={notes} onChange={(e) => setNotes(e.target.value)} className="app-input resize-none" rows={2} placeholder="Notes for your records (not shown to customer)" />
+              </div>
+              <div>
+                <label className="app-label">Photos ({photoCount}/3)</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {[0, 1, 2].map(i => (
+                    <div key={i} className="image-upload-box aspect-square">
+                      <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, i)} />
+                      {photos[i] ? (
+                        <>
+                          <img src={photos[i]!} alt={`Photo ${i + 1}`} className="image-preview" />
+                          <button type="button" onClick={() => setPhotos(prev => { const n = [...prev]; n[i] = null; return n })} className="image-remove-btn">✕</button>
+                        </>
+                      ) : (
+                        <div className="image-upload-placeholder">
+                          <svg className="w-6 h-6 text-[var(--color-text-faint)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Inline Preview */}
+        {(estimateLow > 0 || estimateHigh > 0) && (
+          <div className="app-card p-4 sm:p-5 bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-950/20 dark:to-amber-950/20 border-orange-200/50 dark:border-orange-800/30">
+            <div className="text-center">
+              <p className="text-[10px] uppercase tracking-wider text-orange-600/70 dark:text-orange-400/70 font-semibold mb-1">Estimate</p>
+              <p className="text-2xl sm:text-3xl font-bold text-orange-600 dark:text-orange-400">
+                {formatCurrency(Math.min(estimateLow, estimateHigh))} – {formatCurrency(Math.max(estimateLow, estimateHigh))}
+              </p>
+              {lineItems.length > 0 && (
+                <p className="text-xs text-[var(--color-text-muted)] mt-1">{lineItems.length} line item{lineItems.length !== 1 ? 's' : ''} · {formatCurrency(lineItemsTotal)} subtotal</p>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Sticky Action Bar */}
+      <div className="fixed bottom-0 left-0 right-0 z-40 bg-[var(--color-bg-page)]/95 backdrop-blur-lg border-t border-[var(--color-border)] px-4 sm:px-6 py-3">
+        <div className="max-w-2xl mx-auto flex gap-2">
+          <button type="button" onClick={onBack} className="app-btn-secondary flex-shrink-0 text-sm py-2.5 px-4">Cancel</button>
+          <button
+            type="button"
+            onClick={() => saveQuote(false)}
+            disabled={saving || (estimateLow <= 0 && estimateHigh <= 0)}
+            className="app-btn-secondary flex-1 text-sm py-2.5 disabled:opacity-40"
+          >
+            Save Draft
+          </button>
+          <button
+            type="button"
+            onClick={() => saveQuote(true)}
+            disabled={saving || (estimateLow <= 0 && estimateHigh <= 0)}
+            className="app-btn-primary flex-1 text-sm py-2.5 disabled:opacity-40"
+          >
+            {saving ? (
+              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            ) : (
+              'Save & Download PDF'
+            )}
+          </button>
+        </div>
+      </div>
     </div>
   )
 }

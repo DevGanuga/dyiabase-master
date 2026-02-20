@@ -2,7 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 import type { DyiaFunctionName } from './functions'
 import type { JobProposal, QuoteProposal, UserContext, ConfidenceLevel } from '@/types/database'
 import { generateEmbedding, buildJobEmbeddingText } from './client'
-import { upsertCustomer } from '@/lib/customers'
+import { ensureCustomer } from '@/lib/customers'
 
 // Create Supabase client with service role for server-side operations
 const getSupabase = () => createClient(
@@ -44,10 +44,13 @@ async function createJob(args: Record<string, unknown>, dyiaUserId: string): Pro
     const address = (args.address as string) || null
     const status = (args.status as string) || 'completed'
 
+    const customerId = (args.customer_id as string) || await ensureCustomer(supabase, dyiaUserId, customerName)
+
     const { data, error } = await supabase
       .from('dyia_jobs')
       .insert({
         user_id: dyiaUserId,
+        customer_id: customerId,
         date: jobDate,
         customer_name: customerName,
         source: source,
@@ -72,8 +75,6 @@ async function createJob(args: Record<string, unknown>, dyiaUserId: string): Pro
     const profit = revenue - totalExpenses
     const margin = revenue > 0 ? Math.round((profit / revenue) * 100) : 0
 
-    // Generate embedding asynchronously (don't block the response)
-    // This enables semantic search for similar jobs later
     if (data) {
       const embeddingText = buildJobEmbeddingText({
         customerName: customerName,
@@ -82,11 +83,9 @@ async function createJob(args: Record<string, unknown>, dyiaUserId: string): Pro
         revenue: revenue
       })
       
-      // Fire and forget - embedding generation happens in background
       generateEmbedding(embeddingText)
         .then(async (embedding) => {
           const updateSupabase = getSupabase()
-          // pgvector expects vector as string format: '[0.1, 0.2, ...]'
           const vectorString = `[${embedding.join(',')}]`
           await updateSupabase
             .from('dyia_jobs')
@@ -101,15 +100,11 @@ async function createJob(args: Record<string, unknown>, dyiaUserId: string): Pro
         })
     }
 
-    // Auto-create/update customer record (fire and forget)
-    upsertCustomer(supabase, dyiaUserId, customerName).catch(err =>
-      console.error('[Customer] Failed to upsert from job:', err)
-    )
-
     return {
       success: true,
       data: { 
-        jobId: data.id, 
+        jobId: data.id,
+        customerId,
         date: jobDate,
         customer: customerName,
         revenue,
@@ -135,12 +130,20 @@ async function generateQuote(args: Record<string, unknown>, dyiaUserId: string):
     const estimateLow = args.estimate_low as number
     const estimateHigh = args.estimate_high as number
     const total = Math.round((estimateLow + estimateHigh) / 2)
+    const customerName = args.customer_name as string
+
+    const customerId = (args.customer_id as string) || await ensureCustomer(supabase, dyiaUserId, customerName, {
+      phone: (args.customer_phone as string) || null,
+      email: (args.customer_email as string) || null,
+      address: (args.customer_address as string) || null,
+    })
     
     const { data, error } = await supabase
       .from('dyia_quotes')
       .insert({
         user_id: dyiaUserId,
-        customer_name: args.customer_name as string,
+        customer_id: customerId,
+        customer_name: customerName,
         customer_phone: (args.customer_phone as string) || null,
         customer_email: (args.customer_email as string) || null,
         customer_address: (args.customer_address as string) || null,
@@ -157,32 +160,26 @@ async function generateQuote(args: Record<string, unknown>, dyiaUserId: string):
 
     if (error) throw error
 
-    // Auto-create a follow-up for this quote
     await supabase
       .from('dyia_follow_ups')
       .insert({
         user_id: dyiaUserId,
+        customer_id: customerId,
         quote_id: data.id,
         status: 'pending',
         contact_count: 0
       })
 
-    // Auto-create/update customer record with contact info (fire and forget)
-    upsertCustomer(supabase, dyiaUserId, args.customer_name as string, {
-      phone: (args.customer_phone as string) || null,
-      email: (args.customer_email as string) || null,
-      address: (args.customer_address as string) || null,
-    }).catch(err => console.error('[Customer] Failed to upsert from quote:', err))
-
     return {
       success: true,
       data: { 
         quoteId: data.id,
-        customer: args.customer_name,
+        customerId,
+        customer: customerName,
         estimate: `$${estimateLow.toLocaleString()} - $${estimateHigh.toLocaleString()}`,
         description: args.job_description
       },
-      message: `✅ Quote created for ${args.customer_name}!\n\n📋 ${args.job_description}\n💵 Estimate: $${estimateLow.toLocaleString()} - $${estimateHigh.toLocaleString()}\n\n📍 A follow-up has been automatically scheduled.`
+      message: `✅ Quote created for ${customerName}!\n\n📋 ${args.job_description}\n💵 Estimate: $${estimateLow.toLocaleString()} - $${estimateHigh.toLocaleString()}\n\n📍 A follow-up has been automatically scheduled.`
     }
   } catch (error) {
     console.error('Error generating quote:', error)
@@ -334,7 +331,8 @@ async function getPendingFollowUps(args: Record<string, unknown>, dyiaUserId: st
       .from('dyia_follow_ups')
       .select(`
         *,
-        quote:dyia_quotes(*)
+        quote:dyia_quotes(*),
+        customer:dyia_customers(id, name, phone, email, address)
       `)
       .eq('user_id', dyiaUserId)
       .in('status', ['pending', 'contacted', 'snoozed'])
@@ -365,9 +363,11 @@ async function getPendingFollowUps(args: Record<string, unknown>, dyiaUserId: st
     }
 
     const summaries = limited.map(fu => {
+      const name = fu.customer?.name || fu.quote?.customer_name
       const emoji = fu.priority === 'hot' ? '🔥' : fu.priority === 'warm' ? '🌡️' : '❄️'
-      const phone = fu.quote?.customer_phone ? ` • ${fu.quote.customer_phone}` : ''
-      return `${emoji} **${fu.quote?.customer_name}**${phone}\n   $${fu.quote?.estimate_low}-$${fu.quote?.estimate_high} • ${fu.daysSince}d ago`
+      const phone = fu.customer?.phone || fu.quote?.customer_phone
+      const phoneStr = phone ? ` • ${phone}` : ''
+      return `${emoji} **${name}**${phoneStr}\n   $${fu.quote?.estimate_low}-$${fu.quote?.estimate_high} • ${fu.daysSince}d ago`
     })
 
     return {
@@ -375,8 +375,10 @@ async function getPendingFollowUps(args: Record<string, unknown>, dyiaUserId: st
       data: { 
         followUps: limited.map(fu => ({
           id: fu.id,
-          customerName: fu.quote?.customer_name,
-          phone: fu.quote?.customer_phone,
+          customerId: fu.customer_id,
+          customerName: fu.customer?.name || fu.quote?.customer_name,
+          phone: fu.customer?.phone || fu.quote?.customer_phone,
+          email: fu.customer?.email,
           estimate: `$${fu.quote?.estimate_low}-$${fu.quote?.estimate_high}`,
           daysSince: fu.daysSince,
           priority: fu.priority
@@ -606,10 +608,12 @@ async function updateFollowUpStatus(args: Record<string, unknown>, dyiaUserId: s
 
         if (quoteData) {
           const avgEstimate = Math.round(((parseFloat(quoteData.estimate_low) || 0) + (parseFloat(quoteData.estimate_high) || 0)) / 2)
+          const cid = quoteData.customer_id || await ensureCustomer(supabase, dyiaUserId, quoteData.customer_name)
           const { data: newJob } = await supabase
             .from('dyia_jobs')
             .insert({
               user_id: dyiaUserId,
+              customer_id: cid,
               date: new Date().toISOString().split('T')[0],
               customer_name: quoteData.customer_name,
               source: 'Quote',
@@ -686,11 +690,13 @@ async function convertQuoteToJob(args: Record<string, unknown>, dyiaUserId: stri
     const avgEstimate = Math.round(((parseFloat(quote.estimate_low) || 0) + (parseFloat(quote.estimate_high) || 0)) / 2)
     const revenue = (args.revenue as number) || avgEstimate
 
-    // Create the job - preserve the quote's original lead source for marketing attribution
+    const customerId = quote.customer_id || await ensureCustomer(supabase, dyiaUserId, quote.customer_name)
+
     const { data: job, error: jobError } = await supabase
       .from('dyia_jobs')
       .insert({
         user_id: dyiaUserId,
+        customer_id: customerId,
         date: jobDate,
         customer_name: quote.customer_name,
         source: quote.source || 'Quote',
@@ -1022,6 +1028,20 @@ async function getUserContext(args: Record<string, unknown>, dyiaUserId: string)
       .order('date', { ascending: false })
       .limit(includeRecentJobs)
 
+    // Load cross-thread memories
+    const { data: memories } = await supabase
+      .from('dyia_user_memory')
+      .select('category, content')
+      .eq('user_id', dyiaUserId)
+      .order('confidence', { ascending: false })
+      .limit(30)
+
+    // Get customer count
+    const { count: customerCount } = await supabase
+      .from('dyia_customers')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', dyiaUserId)
+
     // Get total pending follow-ups count
     const { count: pendingFollowUps } = await supabase
       .from('dyia_follow_ups')
@@ -1134,7 +1154,10 @@ async function getUserContext(args: Record<string, unknown>, dyiaUserId: string)
       contextMessage += `💵 Tax Set-aside: ${userContext.settings.taxPercentage}%\n`
     }
 
-    // Recent activity
+    if (customerCount && customerCount > 0) {
+      contextMessage += `👥 Customers: ${customerCount}\n`
+    }
+
     if (userContext.recentJobs.length > 0) {
       const totalRecent = userContext.recentJobs.reduce((sum, j) => sum + j.revenue, 0)
       contextMessage += `📊 Recent Jobs: ${userContext.recentJobs.length} ($${totalRecent.toLocaleString()} revenue)\n`
@@ -1146,6 +1169,14 @@ async function getUserContext(args: Record<string, unknown>, dyiaUserId: string)
         contextMessage += `\n🔥 **${hotFollowUps} hot follow-ups** waiting (${pendingFollowUps} total pending)\n`
       } else {
         contextMessage += `\n📞 ${pendingFollowUps} pending follow-ups\n`
+      }
+    }
+
+    // Cross-thread memories
+    if (memories && memories.length > 0) {
+      contextMessage += `\n🧠 **What I remember about you:**\n`
+      for (const mem of memories) {
+        contextMessage += `• [${mem.category}] ${mem.content}\n`
       }
     }
 
@@ -1764,6 +1795,59 @@ async function getFollowUpRiskAnalysis(args: Record<string, unknown>, dyiaUserId
 }
 
 // =============================================
+// MEMORY HANDLER
+// =============================================
+
+async function saveMemory(args: Record<string, unknown>, dyiaUserId: string): Promise<HandlerResult> {
+  const supabase = getSupabase()
+  try {
+    const category = args.category as string
+    const content = (args.content as string)?.trim()
+
+    if (!content || content.length < 5) {
+      return { success: false, message: 'Memory content too short to save.', error: 'too_short' }
+    }
+
+    // Check if memory already exists (functional unique index on lower(content))
+    const { data: existing } = await supabase
+      .from('dyia_user_memory')
+      .select('id')
+      .eq('user_id', dyiaUserId)
+      .ilike('content', content)
+      .single()
+
+    if (existing) {
+      await supabase.from('dyia_user_memory').update({
+        category,
+        confidence: 1.0,
+        last_referenced_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }).eq('id', existing.id)
+    } else {
+      const { error } = await supabase.from('dyia_user_memory').insert({
+        user_id: dyiaUserId,
+        category,
+        content,
+        source: 'conversation',
+        confidence: 1.0,
+        last_referenced_at: new Date().toISOString(),
+      })
+
+      if (error && error.code !== '23505') throw error
+    }
+
+    return {
+      success: true,
+      data: { category, content },
+      message: `Noted — I'll remember that.`
+    }
+  } catch (error) {
+    console.error('Error saving memory:', error)
+    return { success: false, error: String(error), message: 'Failed to save memory.' }
+  }
+}
+
+// =============================================
 // BATCH HANDLERS
 // =============================================
 
@@ -1781,44 +1865,32 @@ async function batchStoreCustomers(args: Record<string, unknown>, dyiaUserId: st
     let stored = 0
     let updated = 0
     let failed = 0
-    const results: string[] = []
+    const results: Array<{ customerId: string; name: string }> = []
 
     for (const c of customers) {
       if (!c.name?.trim()) { failed++; continue }
 
       try {
+        const customerId = await ensureCustomer(supabase, dyiaUserId, c.name.trim(), {
+          phone: c.phone || null,
+          email: c.email || null,
+          address: c.address || null,
+          notes: c.notes || null,
+          tags: c.tags?.length ? c.tags : undefined,
+        })
+
         const { data: existing } = await supabase
           .from('dyia_customers')
-          .select('id, phone, email, address')
-          .eq('user_id', dyiaUserId)
-          .ilike('name', c.name.trim())
+          .select('created_at, updated_at')
+          .eq('id', customerId)
           .single()
 
-        if (existing) {
-          const updates: Record<string, unknown> = {}
-          if (c.phone && !existing.phone) updates.phone = c.phone
-          if (c.email && !existing.email) updates.email = c.email
-          if (c.address && !existing.address) updates.address = c.address
-          if (c.notes) updates.notes = c.notes
-          if (c.tags?.length) updates.tags = c.tags
-
-          if (Object.keys(updates).length > 0) {
-            await supabase.from('dyia_customers').update(updates).eq('id', existing.id)
-          }
+        if (existing && existing.created_at !== existing.updated_at) {
           updated++
         } else {
-          await supabase.from('dyia_customers').insert({
-            user_id: dyiaUserId,
-            name: c.name.trim(),
-            phone: c.phone || null,
-            email: c.email || null,
-            address: c.address || null,
-            notes: c.notes || null,
-            tags: c.tags?.length ? c.tags : [],
-          })
           stored++
         }
-        results.push(c.name.trim())
+        results.push({ customerId, name: c.name.trim() })
       } catch (err) {
         const error = err as { code?: string }
         if (error.code !== '23505') failed++
@@ -1834,7 +1906,7 @@ async function batchStoreCustomers(args: Record<string, unknown>, dyiaUserId: st
 
     return {
       success: true,
-      data: { stored, updated, failed, total, customerNames: results },
+      data: { stored, updated, failed, total, customers: results, customerNames: results.map(r => r.name) },
       message
     }
   } catch (error) {
@@ -1874,10 +1946,17 @@ async function batchCreateQuotes(args: Record<string, unknown>, dyiaUserId: stri
         if (q.notes) noteParts.push(q.notes)
         const fullDescription = noteParts.filter(Boolean).join(' | ')
 
+        const customerId = await ensureCustomer(supabase, dyiaUserId, q.customer_name.trim(), {
+          phone: q.customer_phone || null,
+          email: q.customer_email || null,
+          address: q.customer_address || null,
+        })
+
         const { data, error } = await supabase
           .from('dyia_quotes')
           .insert({
             user_id: dyiaUserId,
+            customer_id: customerId,
             customer_name: q.customer_name.trim(),
             customer_phone: q.customer_phone || null,
             customer_email: q.customer_email || null,
@@ -1895,21 +1974,14 @@ async function batchCreateQuotes(args: Record<string, unknown>, dyiaUserId: stri
 
         if (error) throw error
 
-        // Auto-create follow-up
         await supabase.from('dyia_follow_ups').insert({
           user_id: dyiaUserId,
+          customer_id: customerId,
           quote_id: data.id,
           status: 'pending',
           contact_count: 0,
           ...(q.preferred_date ? { next_follow_up_at: q.preferred_date } : {})
         })
-
-        // Upsert customer
-        upsertCustomer(supabase, dyiaUserId, q.customer_name.trim(), {
-          phone: q.customer_phone || null,
-          email: q.customer_email || null,
-          address: q.customer_address || null,
-        }).catch(() => {})
 
         created++
         totalValue += total
@@ -2027,6 +2099,9 @@ export async function handleFunctionCall(
 
     case 'batch_create_quotes':
       return batchCreateQuotes(args, dyiaUserId)
+
+    case 'save_memory':
+      return saveMemory(args, dyiaUserId)
     
     default:
       return {

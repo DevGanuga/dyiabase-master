@@ -93,8 +93,15 @@ export async function POST(req: NextRequest) {
       input = `${message}\n\n[User attached a file: ${fileName || 'file'} (${fileType || 'unknown type'}) — ${fileUrl}]`
     }
 
-    // 5. Build request params
-    const requestParams: Record<string, unknown> = {
+    // 5. Non-streaming request helper for tool-calling loop
+    const callAPI = async (params: Record<string, unknown>): Promise<ResponseData> => {
+      const openai = getOpenAI()
+      return await openai.responses.create(
+        params as Parameters<typeof openai.responses.create>[0]
+      ) as unknown as ResponseData
+    }
+
+    const baseParams: Record<string, unknown> = {
       model: DYIA_MODEL,
       instructions: DYIA_INSTRUCTIONS,
       input,
@@ -105,49 +112,37 @@ export async function POST(req: NextRequest) {
       stream: false,
     }
 
-    // If continuing a conversation, pass the previous response ID
     if (previousResponseId) {
-      requestParams.previous_response_id = previousResponseId
+      baseParams.previous_response_id = previousResponseId
     }
 
-    // Cast and call API
-    const openai = getOpenAI()
-    let response = await openai.responses.create(
-      requestParams as Parameters<typeof openai.responses.create>[0]
-    ) as unknown as ResponseData
+    let response = await callAPI(baseParams)
 
-    // 6. Handle tool calls in an agentic loop (increased to 10 for batch operations)
+    // 6. Handle tool calls in an agentic loop
     const toolResults: HandlerResult[] = []
     let iterations = 0
     const maxIterations = 10
 
-    // Check if the response requires action (has function_call items)
-    const hasFunctionCalls = (output: OutputItem[]) => {
-      return output.some(item => item.type === 'function_call')
-    }
+    const hasFunctionCalls = (output: OutputItem[]) =>
+      output.some(item => item.type === 'function_call')
 
     while (hasFunctionCalls(response.output) && iterations < maxIterations) {
       iterations++
 
-      // Get the tool calls from the response
       const toolCalls = response.output.filter(item => item.type === 'function_call')
-
-      // Process each tool call
       const toolOutputs: Array<{ type: 'function_call_output'; call_id: string; output: string }> = []
 
       for (const toolCall of toolCalls) {
         if (toolCall.type !== 'function_call' || !toolCall.name || !toolCall.arguments || !toolCall.call_id) {
           continue
         }
-        
+
         const functionName = toolCall.name as DyiaFunctionName
         const functionArgs = JSON.parse(toolCall.arguments)
 
-        // Execute the function handler
         const result = await handleFunctionCall(functionName, functionArgs, clerkUserId)
         toolResults.push(result)
 
-        // Add tool output
         toolOutputs.push({
           type: 'function_call_output',
           call_id: toolCall.call_id,
@@ -155,8 +150,7 @@ export async function POST(req: NextRequest) {
         })
       }
 
-      // Continue the conversation with tool outputs
-      const continueParams: Record<string, unknown> = {
+      response = await callAPI({
         model: DYIA_MODEL,
         instructions: DYIA_INSTRUCTIONS,
         input: toolOutputs,
@@ -166,11 +160,7 @@ export async function POST(req: NextRequest) {
         store: true,
         stream: false,
         previous_response_id: response.id,
-      }
-
-      response = await openai.responses.create(
-        continueParams as Parameters<typeof openai.responses.create>[0]
-      ) as unknown as ResponseData
+      })
     }
 
     // 7. Extract the assistant's text response

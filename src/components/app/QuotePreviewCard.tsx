@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { jsPDF } from 'jspdf'
+import { downloadQuotePdf } from '@/lib/quote-pdf'
 import type { QuoteProposal, ConfidenceLevel, AppSettings } from '@/types/database'
 import { formatCurrency } from '@/lib/utils'
 
@@ -61,145 +61,25 @@ export function QuotePreviewCard({ proposal, onConfirm, onCancel, isSubmitting, 
     onConfirm(editedData, downloadPdf)
   }
 
-  // Generate professional PDF quote
   const generatePdfPreview = () => {
-    const doc = new jsPDF()
-    const businessInfo = settings?.businessInfo
-    const pageWidth = 210
-    const margin = 20
-    const contentWidth = pageWidth - margin * 2
-    let y = 20
-
-    // ── Header: Business info + Quote title ──
-    if (businessInfo?.logo) {
-      try { doc.addImage(businessInfo.logo, 'PNG', margin, y, 35, 35); } catch { /* skip */ }
-    }
-
-    const headerX = businessInfo?.logo ? margin + 42 : margin
-    doc.setFontSize(18)
-    doc.setFont('helvetica', 'bold')
-    doc.text(businessInfo?.name || 'Estimate', headerX, y + 8)
-
-    doc.setFontSize(9)
-    doc.setFont('helvetica', 'normal')
-    doc.setTextColor(100, 100, 100)
-    let subY = y + 15
-    if (businessInfo?.phone) { doc.text(businessInfo.phone, headerX, subY); subY += 5 }
-    if (businessInfo?.email) { doc.text(businessInfo.email, headerX, subY); subY += 5 }
-    if (businessInfo?.address) { doc.text(businessInfo.address, headerX, subY); subY += 5 }
-
-    // Quote badge (right side)
-    doc.setFontSize(22)
-    doc.setFont('helvetica', 'bold')
-    doc.setTextColor(249, 115, 22)
-    doc.text('ESTIMATE', pageWidth - margin, y + 8, { align: 'right' })
-    doc.setFontSize(9)
-    doc.setTextColor(120, 120, 120)
-    const quoteRef = `#Q-${Date.now().toString(36).toUpperCase().slice(-6)}`
-    doc.text(quoteRef, pageWidth - margin, y + 16, { align: 'right' })
-    doc.text(`Date: ${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`, pageWidth - margin, y + 22, { align: 'right' })
-    doc.text('Valid for 30 days', pageWidth - margin, y + 28, { align: 'right' })
-
-    y = Math.max(subY, y + 32) + 8
-
-    // ── Divider ──
-    doc.setDrawColor(230, 230, 230)
-    doc.line(margin, y, pageWidth - margin, y)
-    y += 10
-
-    // ── Customer info ──
-    doc.setTextColor(100, 100, 100)
-    doc.setFontSize(8)
-    doc.setFont('helvetica', 'bold')
-    doc.text('PREPARED FOR', margin, y)
-    y += 6
-    doc.setTextColor(30, 30, 30)
-    doc.setFontSize(12)
-    doc.setFont('helvetica', 'bold')
-    doc.text(editedData.customerName, margin, y)
-    y += 6
-    doc.setFontSize(9)
-    doc.setFont('helvetica', 'normal')
-    doc.setTextColor(80, 80, 80)
-    if (editedData.customerPhone) { doc.text(editedData.customerPhone, margin, y); y += 5 }
-    if (editedData.customerEmail) { doc.text(editedData.customerEmail, margin, y); y += 5 }
-    if (editedData.customerAddress) { doc.text(editedData.customerAddress, margin, y); y += 5 }
-    y += 10
-
-    // ── Job description ──
-    if (editedData.jobDescription) {
-      doc.setTextColor(100, 100, 100)
-      doc.setFontSize(8)
-      doc.setFont('helvetica', 'bold')
-      doc.text('SCOPE OF WORK', margin, y)
-      y += 6
-      doc.setTextColor(50, 50, 50)
-      doc.setFontSize(10)
-      doc.setFont('helvetica', 'normal')
-      const lines = doc.splitTextToSize(editedData.jobDescription, contentWidth)
-      for (const line of lines) {
-        if (y > 260) { doc.addPage(); y = 20 }
-        doc.text(line, margin, y)
-        y += 5
+    downloadQuotePdf(
+      {
+        customerName: editedData.customerName,
+        customerPhone: editedData.customerPhone,
+        customerEmail: editedData.customerEmail,
+        customerAddress: editedData.customerAddress,
+        jobDescription: editedData.jobDescription,
+        estimateLow: editedData.estimateLow,
+        estimateHigh: editedData.estimateHigh,
+      },
+      {
+        name: settings?.businessInfo?.name,
+        phone: settings?.businessInfo?.phone,
+        email: settings?.businessInfo?.email,
+        address: settings?.businessInfo?.address,
+        logo: settings?.businessInfo?.logo,
       }
-      y += 8
-    }
-
-    // ── Price box ──
-    const boxH = 35
-    // Orange gradient effect (solid orange)
-    doc.setFillColor(249, 115, 22)
-    doc.roundedRect(margin, y, contentWidth, boxH, 3, 3, 'F')
-
-    doc.setTextColor(255, 255, 255)
-    doc.setFontSize(10)
-    doc.setFont('helvetica', 'normal')
-    doc.text('ESTIMATED COST', margin + contentWidth / 2, y + 12, { align: 'center' })
-    doc.setFontSize(22)
-    doc.setFont('helvetica', 'bold')
-    doc.text(
-      `${formatCurrency(editedData.estimateLow)} – ${formatCurrency(editedData.estimateHigh)}`,
-      margin + contentWidth / 2, y + 27, { align: 'center' }
     )
-    y += boxH + 6
-
-    doc.setTextColor(120, 120, 120)
-    doc.setFontSize(8)
-    doc.setFont('helvetica', 'italic')
-    doc.text('All labor, materials, and disposal fees are included in this estimate.', margin + contentWidth / 2, y, { align: 'center' })
-    y += 15
-
-    // ── Terms & conditions ──
-    doc.setDrawColor(230, 230, 230)
-    doc.line(margin, y, pageWidth - margin, y)
-    y += 8
-    doc.setTextColor(100, 100, 100)
-    doc.setFontSize(8)
-    doc.setFont('helvetica', 'bold')
-    doc.text('TERMS & CONDITIONS', margin, y)
-    y += 6
-    doc.setFont('helvetica', 'normal')
-    doc.setFontSize(7.5)
-    const terms = [
-      '1. This estimate is valid for 30 days from the date shown above.',
-      '2. Final price may vary based on actual conditions found on site.',
-      '3. Payment is due upon completion of work unless otherwise agreed.',
-      '4. Additional items or scope changes may result in price adjustments.',
-    ]
-    for (const term of terms) {
-      doc.text(term, margin, y)
-      y += 4.5
-    }
-
-    // ── Footer ──
-    y = 280
-    doc.setDrawColor(230, 230, 230)
-    doc.line(margin, y, pageWidth - margin, y)
-    doc.setFontSize(8)
-    doc.setTextColor(150, 150, 150)
-    doc.text(`${businessInfo?.name || 'Dyia'} — Thank you for your business!`, margin + contentWidth / 2, y + 5, { align: 'center' })
-
-    doc.save(`estimate-${editedData.customerName.replace(/\s+/g, '-').toLowerCase()}-${quoteRef.slice(1)}.pdf`)
   }
 
   // Check if we have missing customer contact info

@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { createClient } from '@supabase/supabase-js'
+import pdfParse from 'pdf-parse'
+import * as XLSX from 'xlsx'
 
 const BUCKET = 'dyia-files'
 const MAX_SIZE = 10 * 1024 * 1024 // 10MB
+const MAX_EXTRACT_CHARS = 12000
 
 const IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp']
 const TEXT_TYPES = ['text/plain', 'text/csv', 'text/tab-separated-values']
@@ -29,6 +32,11 @@ function isTextExtractable(mime: string, fileName: string): boolean {
   return TEXT_TYPES.includes(t) || ['csv', 'txt', 'tsv'].includes(ext)
 }
 
+function isSpreadsheet(mime: string, fileName: string): boolean {
+  const ext = fileName.toLowerCase().split('.').pop() || ''
+  return SPREADSHEET_TYPES.includes(mime.toLowerCase()) || ['xlsx', 'xls'].includes(ext)
+}
+
 function getSupabase() {
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
     throw new Error('Supabase env not set')
@@ -48,19 +56,45 @@ async function getDyiaUserId(supabase: ReturnType<typeof getSupabase>, clerkUser
   return (data as { id: string } | null)?.id ?? null
 }
 
-/**
- * Extract text content from text-based files (CSV, TXT, TSV).
- * Truncates to ~8000 chars to stay within token limits.
- */
+function truncate(text: string): string {
+  if (text.length > MAX_EXTRACT_CHARS) {
+    return text.slice(0, MAX_EXTRACT_CHARS) + `\n\n... [truncated, ${text.length} total characters]`
+  }
+  return text
+}
+
 async function extractTextContent(file: File): Promise<string | null> {
   try {
-    const text = await file.text()
-    const MAX_CHARS = 8000
-    if (text.length > MAX_CHARS) {
-      return text.slice(0, MAX_CHARS) + `\n\n... [truncated, ${text.length} total characters]`
-    }
-    return text
+    return truncate(await file.text())
   } catch {
+    return null
+  }
+}
+
+async function extractPdfContent(file: File): Promise<string | null> {
+  try {
+    const buffer = Buffer.from(await file.arrayBuffer())
+    const result = await pdfParse(buffer)
+    if (!result.text?.trim()) return null
+    return truncate(result.text.trim())
+  } catch (err) {
+    console.error('[PDF Extract]', err)
+    return null
+  }
+}
+
+async function extractSpreadsheetContent(file: File): Promise<string | null> {
+  try {
+    const buffer = Buffer.from(await file.arrayBuffer())
+    const workbook = XLSX.read(buffer, { type: 'buffer' })
+    const sheetName = workbook.SheetNames[0]
+    if (!sheetName) return null
+    const sheet = workbook.Sheets[sheetName]
+    const csv = XLSX.utils.sheet_to_csv(sheet)
+    if (!csv?.trim()) return null
+    return truncate(csv.trim())
+  } catch (err) {
+    console.error('[XLSX Extract]', err)
     return null
   }
 }
@@ -84,7 +118,7 @@ export async function POST(req: NextRequest) {
     if (!file || !file.size) return NextResponse.json({ error: 'No file provided' }, { status: 400 })
     if (file.size > MAX_SIZE) return NextResponse.json({ error: 'File too large (max 10MB)' }, { status: 400 })
     if (!isAllowedType(file.type || '')) {
-      return NextResponse.json({ error: 'File type not allowed. Use image, PDF, CSV, or text.' }, { status: 400 })
+      return NextResponse.json({ error: 'File type not allowed. Use image, PDF, CSV, Excel, or text.' }, { status: 400 })
     }
 
     const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 80)
@@ -112,8 +146,10 @@ export async function POST(req: NextRequest) {
       extractedContent = await extractTextContent(file)
     } else if (mime === 'application/pdf') {
       fileType = 'pdf'
-    } else if (SPREADSHEET_TYPES.includes(mime)) {
+      extractedContent = await extractPdfContent(file)
+    } else if (isSpreadsheet(mime, file.name)) {
       fileType = 'spreadsheet'
+      extractedContent = await extractSpreadsheetContent(file)
     }
 
     return NextResponse.json({
