@@ -116,7 +116,9 @@ function AppPageContent() {
   const [priceTemplatesCount, setPriceTemplatesCount] = useState(0)
   const [hasViewedAssistant, setHasViewedAssistant] = useState(false)
   const [checkoutLoading, setCheckoutLoading] = useState(false)
+  const [verifyingCheckout, setVerifyingCheckout] = useState(false)
   const checkoutTriggeredRef = useRef(false)
+  const verifyAttemptedRef = useRef(false)
   const contentScrollRef = useRef<HTMLDivElement>(null)
   const initAttemptedRef = useRef(false)
 
@@ -419,23 +421,46 @@ function AppPageContent() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [planParam, userProfile, loading, isDemoMode])
 
-  // Handle successful return from Stripe checkout — persist flag through potential onboarding redirect
+  // Handle successful return from Stripe checkout — verify session server-side to
+  // synchronously activate subscription before the subscription gate evaluates.
+  // This eliminates the race condition where the webhook hasn't fired yet.
   useEffect(() => {
-    if (sessionIdParam && !loading) {
-      sessionStorage.setItem('dyia_checkout_success', '1')
-      const url = new URL(window.location.href)
-      url.searchParams.delete('session_id')
-      router.replace(url.pathname + (url.search || ''), { scroll: false })
+    if (!sessionIdParam || loading || !userProfile || verifyAttemptedRef.current) return
+    verifyAttemptedRef.current = true
+    setVerifyingCheckout(true)
+
+    const verifySession = async () => {
+      try {
+        const res = await fetch('/api/stripe/verify-session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId: sessionIdParam }),
+        })
+        const data = await res.json()
+        if (res.ok && data.profile) {
+          setUserProfile(data.profile)
+        }
+      } catch (err) {
+        console.error('Failed to verify checkout session:', err)
+      } finally {
+        sessionStorage.setItem('dyia_checkout_success', '1')
+        const url = new URL(window.location.href)
+        url.searchParams.delete('session_id')
+        router.replace(url.pathname + (url.search || ''), { scroll: false })
+        setVerifyingCheckout(false)
+      }
     }
-  }, [sessionIdParam, loading, router])
+
+    verifySession()
+  }, [sessionIdParam, loading, userProfile, router])
 
   // Show checkout success toast (works after direct return AND after onboarding redirect)
   useEffect(() => {
-    if (!loading && userProfile && sessionStorage.getItem('dyia_checkout_success')) {
+    if (!loading && !verifyingCheckout && userProfile && sessionStorage.getItem('dyia_checkout_success')) {
       sessionStorage.removeItem('dyia_checkout_success')
       showSuccess('Your Pro trial is active! Welcome to Dyia Pro.')
     }
-  }, [loading, userProfile, showSuccess])
+  }, [loading, verifyingCheckout, userProfile, showSuccess])
 
   const handleLogout = async () => {
     if (isDemoMode) {
@@ -456,12 +481,12 @@ function AppPageContent() {
   const hasActiveSubscription = !!userProfile && (isAdmin || ['active', 'trialing', 'past_due'].includes(userProfile.subscription_status || ''))
   const needsSubscription = !loading && !isDemoMode && !!userProfile && !hasActiveSubscription
 
-  // Redirect unsubscribed users to pricing — skip if checkout flow is already in progress (plan/tier params)
+  // Redirect unsubscribed users to pricing — skip if checkout flow is already in progress
   useEffect(() => {
-    if (needsSubscription && !planParam && !checkoutLoading && !checkoutTriggeredRef.current) {
+    if (needsSubscription && !planParam && !checkoutLoading && !checkoutTriggeredRef.current && !sessionIdParam && !verifyingCheckout) {
       window.location.href = '/#pricing'
     }
-  }, [needsSubscription, planParam, checkoutLoading])
+  }, [needsSubscription, planParam, checkoutLoading, sessionIdParam, verifyingCheckout])
 
   // Only redirect to onboarding if user hasn't completed it AND has no data yet
   // Users who've already been using the app (have jobs/quotes) don't need onboarding
@@ -469,16 +494,15 @@ function AppPageContent() {
   const needsOnboarding = !loading && !isDemoMode && !!userProfile && !settings.onboardingCompleted && !settings.onboardingSkipped && !hasExistingData
 
   // Redirect to onboarding for new users (after loading completes)
-  // Skip if checkout is in progress OR user hasn't subscribed yet — checkout/subscription takes priority
+  // Skip if checkout is in progress, session is being verified, or user hasn't subscribed yet
   useEffect(() => {
-    if (needsOnboarding && !checkoutLoading && !checkoutTriggeredRef.current && !needsSubscription) {
-      // Preserve the intended view through the onboarding redirect
+    if (needsOnboarding && !checkoutLoading && !checkoutTriggeredRef.current && !needsSubscription && !verifyingCheckout && !sessionIdParam) {
       const returnUrl = viewParam && viewParam !== 'dashboard' 
         ? `/app?view=${viewParam}` 
         : '/app'
       router.push(`/app/onboarding?returnUrl=${encodeURIComponent(returnUrl)}`)
     }
-  }, [needsOnboarding, router, viewParam, checkoutLoading, needsSubscription])
+  }, [needsOnboarding, router, viewParam, checkoutLoading, needsSubscription, verifyingCheckout, sessionIdParam])
 
   const handleReopenOnboarding = () => {
     router.push('/app/onboarding?redo=true')
@@ -494,7 +518,7 @@ function AppPageContent() {
         />
         <div className="w-8 h-8 border-2 border-orange-500/30 border-t-orange-500 rounded-full animate-spin mx-auto mb-4" />
         <p className="text-sm text-slate-500 font-medium">
-          {checkoutLoading ? 'Redirecting to checkout...' : needsSubscription ? 'Redirecting to plans...' : needsOnboarding ? 'Setting up your account...' : 'Loading...'}
+          {verifyingCheckout ? 'Activating your subscription...' : checkoutLoading ? 'Redirecting to checkout...' : needsSubscription ? 'Redirecting to plans...' : needsOnboarding ? 'Setting up your account...' : 'Loading...'}
         </p>
       </div>
     </div>
@@ -502,6 +526,11 @@ function AppPageContent() {
 
   // Loading State
   if ((!isLoaded && !isDemoMode) || loading) {
+    return loadingOrRedirecting
+  }
+
+  // Show loading while verifying Stripe checkout session
+  if (verifyingCheckout) {
     return loadingOrRedirecting
   }
 
