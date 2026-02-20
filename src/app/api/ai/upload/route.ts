@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { createClient } from '@supabase/supabase-js'
-import pdfParse from 'pdf-parse'
+import { PDFParse } from 'pdf-parse'
 import * as XLSX from 'xlsx'
 
 const BUCKET = 'dyia-files'
@@ -73,10 +73,15 @@ async function extractTextContent(file: File): Promise<string | null> {
 
 async function extractPdfContent(file: File): Promise<string | null> {
   try {
-    const buffer = Buffer.from(await file.arrayBuffer())
-    const result = await pdfParse(buffer)
-    if (!result.text?.trim()) return null
-    return truncate(result.text.trim())
+    const arrayBuffer = await file.arrayBuffer()
+    const uint8 = new Uint8Array(arrayBuffer)
+    const parser = new PDFParse(uint8)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (parser as any).load()
+    const result = await parser.getText()
+    const text = (result as unknown as { text: string })?.text || ''
+    if (!text.trim()) return null
+    return truncate(text.trim())
   } catch (err) {
     console.error('[PDF Extract]', err)
     return null
