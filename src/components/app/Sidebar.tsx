@@ -436,9 +436,9 @@ export function Sidebar({ currentView, setCurrentView, userEmail, userName, user
                title="Account settings"
           >
             {userImageUrl ? (
-              <img src={userImageUrl} alt="" className="w-8 h-8 rounded-full object-cover shrink-0 ring-2 ring-slate-700 group-hover:ring-slate-600" />
+              <img src={userImageUrl} alt="" className="w-8 h-8 rounded-full object-cover shrink-0" />
             ) : (
-              <div className="w-8 h-8 bg-gradient-to-br from-orange-500 to-amber-500 rounded-full flex items-center justify-center shrink-0 ring-2 ring-slate-700 group-hover:ring-slate-600">
+              <div className="w-8 h-8 bg-gradient-to-br from-orange-500 to-amber-500 rounded-full flex items-center justify-center shrink-0">
                 <span className="text-sm text-white font-semibold">
                   {(userName || userEmail || 'U').charAt(0).toUpperCase()}
                 </span>

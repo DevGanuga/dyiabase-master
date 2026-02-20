@@ -1764,6 +1764,188 @@ async function getFollowUpRiskAnalysis(args: Record<string, unknown>, dyiaUserId
 }
 
 // =============================================
+// BATCH HANDLERS
+// =============================================
+
+async function batchStoreCustomers(args: Record<string, unknown>, dyiaUserId: string): Promise<HandlerResult> {
+  const supabase = getSupabase()
+  try {
+    const customers = args.customers as Array<{
+      name: string; phone: string; email: string; address: string; notes: string; tags: string[]
+    }>
+
+    if (!customers || customers.length === 0) {
+      return { success: false, message: 'No customer data provided.', error: 'empty_array' }
+    }
+
+    let stored = 0
+    let updated = 0
+    let failed = 0
+    const results: string[] = []
+
+    for (const c of customers) {
+      if (!c.name?.trim()) { failed++; continue }
+
+      try {
+        const { data: existing } = await supabase
+          .from('dyia_customers')
+          .select('id, phone, email, address')
+          .eq('user_id', dyiaUserId)
+          .ilike('name', c.name.trim())
+          .single()
+
+        if (existing) {
+          const updates: Record<string, unknown> = {}
+          if (c.phone && !existing.phone) updates.phone = c.phone
+          if (c.email && !existing.email) updates.email = c.email
+          if (c.address && !existing.address) updates.address = c.address
+          if (c.notes) updates.notes = c.notes
+          if (c.tags?.length) updates.tags = c.tags
+
+          if (Object.keys(updates).length > 0) {
+            await supabase.from('dyia_customers').update(updates).eq('id', existing.id)
+          }
+          updated++
+        } else {
+          await supabase.from('dyia_customers').insert({
+            user_id: dyiaUserId,
+            name: c.name.trim(),
+            phone: c.phone || null,
+            email: c.email || null,
+            address: c.address || null,
+            notes: c.notes || null,
+            tags: c.tags?.length ? c.tags : [],
+          })
+          stored++
+        }
+        results.push(c.name.trim())
+      } catch (err) {
+        const error = err as { code?: string }
+        if (error.code !== '23505') failed++
+        else updated++
+      }
+    }
+
+    const total = stored + updated
+    let message = `✅ **${total} customer${total !== 1 ? 's' : ''} processed**\n\n`
+    if (stored > 0) message += `• ${stored} new customer${stored !== 1 ? 's' : ''} added\n`
+    if (updated > 0) message += `• ${updated} existing customer${updated !== 1 ? 's' : ''} updated\n`
+    if (failed > 0) message += `• ${failed} skipped (missing name)\n`
+
+    return {
+      success: true,
+      data: { stored, updated, failed, total, customerNames: results },
+      message
+    }
+  } catch (error) {
+    console.error('Error batch storing customers:', error)
+    return { success: false, error: String(error), message: 'Failed to store customers. Please try again.' }
+  }
+}
+
+async function batchCreateQuotes(args: Record<string, unknown>, dyiaUserId: string): Promise<HandlerResult> {
+  const supabase = getSupabase()
+  try {
+    const quotes = args.quotes as Array<{
+      customer_name: string; customer_phone: string; customer_email: string
+      customer_address: string; job_description: string; estimate_low: number
+      estimate_high: number; preferred_date: string; notes: string
+    }>
+
+    if (!quotes || quotes.length === 0) {
+      return { success: false, message: 'No quote data provided.', error: 'empty_array' }
+    }
+
+    let created = 0
+    let failed = 0
+    const createdQuotes: Array<{ customer: string; range: string }> = []
+    let totalValue = 0
+
+    for (const q of quotes) {
+      if (!q.customer_name?.trim()) { failed++; continue }
+
+      try {
+        const estimateLow = q.estimate_low || 0
+        const estimateHigh = q.estimate_high || estimateLow
+        const total = Math.round((estimateLow + estimateHigh) / 2)
+
+        const noteParts = [q.job_description || '']
+        if (q.preferred_date) noteParts.push(`Preferred date: ${q.preferred_date}`)
+        if (q.notes) noteParts.push(q.notes)
+        const fullDescription = noteParts.filter(Boolean).join(' | ')
+
+        const { data, error } = await supabase
+          .from('dyia_quotes')
+          .insert({
+            user_id: dyiaUserId,
+            customer_name: q.customer_name.trim(),
+            customer_phone: q.customer_phone || null,
+            customer_email: q.customer_email || null,
+            customer_address: q.customer_address || null,
+            job_description: fullDescription,
+            pricing: {},
+            estimate_low: estimateLow,
+            estimate_high: estimateHigh,
+            total,
+            status: 'draft',
+            photo_urls: []
+          })
+          .select('id')
+          .single()
+
+        if (error) throw error
+
+        // Auto-create follow-up
+        await supabase.from('dyia_follow_ups').insert({
+          user_id: dyiaUserId,
+          quote_id: data.id,
+          status: 'pending',
+          contact_count: 0,
+          ...(q.preferred_date ? { next_follow_up_at: q.preferred_date } : {})
+        })
+
+        // Upsert customer
+        upsertCustomer(supabase, dyiaUserId, q.customer_name.trim(), {
+          phone: q.customer_phone || null,
+          email: q.customer_email || null,
+          address: q.customer_address || null,
+        }).catch(() => {})
+
+        created++
+        totalValue += total
+        createdQuotes.push({
+          customer: q.customer_name.trim(),
+          range: `$${estimateLow.toLocaleString()}-$${estimateHigh.toLocaleString()}`
+        })
+      } catch {
+        failed++
+      }
+    }
+
+    let message = `✅ **${created} quote${created !== 1 ? 's' : ''} created** (total value: ~$${totalValue.toLocaleString()})\n\n`
+
+    for (const q of createdQuotes.slice(0, 10)) {
+      message += `• **${q.customer}**: ${q.range}\n`
+    }
+    if (createdQuotes.length > 10) {
+      message += `• ...and ${createdQuotes.length - 10} more\n`
+    }
+
+    if (failed > 0) message += `\n⚠️ ${failed} quote${failed !== 1 ? 's' : ''} failed to create.`
+    message += `\n\n📍 Follow-ups have been auto-scheduled for all quotes.`
+
+    return {
+      success: true,
+      data: { created, failed, totalValue, quotes: createdQuotes },
+      message
+    }
+  } catch (error) {
+    console.error('Error batch creating quotes:', error)
+    return { success: false, error: String(error), message: 'Failed to create quotes. Please try again.' }
+  }
+}
+
+// =============================================
 // MAIN HANDLER ROUTER
 // =============================================
 
@@ -1839,6 +2021,12 @@ export async function handleFunctionCall(
     
     case 'get_follow_up_risk_analysis':
       return getFollowUpRiskAnalysis(args, dyiaUserId)
+    
+    case 'batch_store_customers':
+      return batchStoreCustomers(args, dyiaUserId)
+
+    case 'batch_create_quotes':
+      return batchCreateQuotes(args, dyiaUserId)
     
     default:
       return {

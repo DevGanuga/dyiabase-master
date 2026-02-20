@@ -2,18 +2,25 @@
 // These define what actions the AI can take in the Dyia platform
 // Using Responses API format (internally-tagged, strict by default)
 
+interface ParameterProperty {
+  type: string
+  description: string
+  enum?: string[]
+  items?: {
+    type: string
+    properties?: Record<string, ParameterProperty>
+    required?: string[]
+    additionalProperties?: false
+  }
+}
+
 export interface FunctionTool {
   type: 'function'
   name: string
   description: string
   parameters: {
     type: 'object'
-    properties: Record<string, {
-      type: string
-      description: string
-      enum?: string[]
-      items?: { type: string }
-    }>
+    properties: Record<string, ParameterProperty>
     required: string[]
     additionalProperties: false
   }
@@ -470,6 +477,76 @@ export const DYIA_TOOLS: FunctionTool[] = [
       additionalProperties: false
     },
     strict: true
+  },
+  // ============================================
+  // BATCH TOOLS (Handle bulk operations from CSV/spreadsheet data)
+  // ============================================
+  {
+    type: 'function',
+    name: 'batch_store_customers',
+    description: 'Store multiple customers at once from parsed CSV/spreadsheet data. Use this when the user uploads or pastes a CSV with customer data. Extract all customers and store them in one call. This is a DIRECT action — no confirmation needed. After storing, tell the user what was saved and ask what they want to do next (create quotes, etc).',
+    parameters: {
+      type: 'object',
+      properties: {
+        customers: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              name: { type: 'string', description: 'Customer name (required)' },
+              phone: { type: 'string', description: 'Phone number. Empty string if unknown.' },
+              email: { type: 'string', description: 'Email address. Empty string if unknown.' },
+              address: { type: 'string', description: 'Full address (street, city, state, zip combined). Empty string if unknown.' },
+              notes: { type: 'string', description: 'Notes about the customer or job details. Combine service_type, items, load_size, special instructions, etc.' },
+              tags: {
+                type: 'array',
+                items: { type: 'string' },
+                description: 'Tags for categorization (e.g. service type, city, priority)'
+              }
+            },
+            required: ['name', 'phone', 'email', 'address', 'notes', 'tags'],
+            additionalProperties: false
+          },
+          description: 'Array of customer records to store'
+        }
+      },
+      required: ['customers'],
+      additionalProperties: false
+    },
+    strict: true
+  },
+  {
+    type: 'function',
+    name: 'batch_create_quotes',
+    description: 'Create multiple quotes at once from parsed CSV/spreadsheet data or batch of customer info. Use this after customers have been stored, when the user wants to generate quotes for all of them. This is a DIRECT action — creates all quotes, follow-ups, and links to customers in one call. Use suggest_quote_price logic or user-provided pricing template to set estimate ranges.',
+    parameters: {
+      type: 'object',
+      properties: {
+        quotes: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              customer_name: { type: 'string', description: 'Customer name (must match a stored customer)' },
+              customer_phone: { type: 'string', description: 'Phone. Empty string if unknown.' },
+              customer_email: { type: 'string', description: 'Email. Empty string if unknown.' },
+              customer_address: { type: 'string', description: 'Address. Empty string if unknown.' },
+              job_description: { type: 'string', description: 'Description of the work to be done' },
+              estimate_low: { type: 'number', description: 'Low end estimate in dollars' },
+              estimate_high: { type: 'number', description: 'High end estimate in dollars' },
+              preferred_date: { type: 'string', description: 'Preferred date for the job (YYYY-MM-DD or empty string)' },
+              notes: { type: 'string', description: 'Additional notes (time window, special instructions, etc.)' }
+            },
+            required: ['customer_name', 'customer_phone', 'customer_email', 'customer_address', 'job_description', 'estimate_low', 'estimate_high', 'preferred_date', 'notes'],
+            additionalProperties: false
+          },
+          description: 'Array of quotes to create'
+        }
+      },
+      required: ['quotes'],
+      additionalProperties: false
+    },
+    strict: true
   }
 ]
 
@@ -489,7 +566,9 @@ export type DyiaFunctionName =
   | 'get_user_context'
   | 'find_similar_jobs'
   | 'get_revenue_forecast'
-  | 'get_follow_up_risk_analysis'// Proposal function names (require user confirmation)
+  | 'get_follow_up_risk_analysis'
+  | 'batch_store_customers'
+  | 'batch_create_quotes'// Proposal function names (require user confirmation)
 export type ProposalFunctionName = 'propose_job' | 'propose_quote'// Check if a function is a proposal function
 export function isProposalFunction(name: string): name is ProposalFunctionName {
   return name === 'propose_job' || name === 'propose_quote'

@@ -4,11 +4,29 @@ import { createClient } from '@supabase/supabase-js'
 
 const BUCKET = 'dyia-files'
 const MAX_SIZE = 10 * 1024 * 1024 // 10MB
+
+const IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp']
+const TEXT_TYPES = ['text/plain', 'text/csv', 'text/tab-separated-values']
+const SPREADSHEET_TYPES = [
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.ms-excel'
+]
+
 function isAllowedType(mime: string): boolean {
   if (!mime) return false
   const t = mime.toLowerCase()
   return t.startsWith('image/') || t === 'application/pdf' || t.startsWith('text/') ||
-    t === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' || t === 'application/vnd.ms-excel'
+    SPREADSHEET_TYPES.includes(t)
+}
+
+function isImageType(mime: string): boolean {
+  return IMAGE_TYPES.includes(mime.toLowerCase())
+}
+
+function isTextExtractable(mime: string, fileName: string): boolean {
+  const t = mime.toLowerCase()
+  const ext = fileName.toLowerCase().split('.').pop() || ''
+  return TEXT_TYPES.includes(t) || ['csv', 'txt', 'tsv'].includes(ext)
 }
 
 function getSupabase() {
@@ -31,10 +49,26 @@ async function getDyiaUserId(supabase: ReturnType<typeof getSupabase>, clerkUser
 }
 
 /**
+ * Extract text content from text-based files (CSV, TXT, TSV).
+ * Truncates to ~8000 chars to stay within token limits.
+ */
+async function extractTextContent(file: File): Promise<string | null> {
+  try {
+    const text = await file.text()
+    const MAX_CHARS = 8000
+    if (text.length > MAX_CHARS) {
+      return text.slice(0, MAX_CHARS) + `\n\n... [truncated, ${text.length} total characters]`
+    }
+    return text
+  } catch {
+    return null
+  }
+}
+
+/**
  * POST: upload a file for use in Dyia chat (extraction / reference).
  * Body: multipart/form-data with field "file".
- * Returns: { url, fileName }.
- * Create a storage bucket "dyia-files" in Supabase Dashboard if needed.
+ * Returns: { url, fileName, fileType, extractedContent? }.
  */
 export async function POST(req: NextRequest) {
   try {
@@ -66,7 +100,28 @@ export async function POST(req: NextRequest) {
     }
 
     const { data: { publicUrl } } = supabase.storage.from(BUCKET).getPublicUrl(path)
-    return NextResponse.json({ url: publicUrl, fileName: file.name })
+
+    const mime = (file.type || '').toLowerCase()
+    let fileType: 'image' | 'text' | 'pdf' | 'spreadsheet' | 'other' = 'other'
+    let extractedContent: string | null = null
+
+    if (isImageType(mime)) {
+      fileType = 'image'
+    } else if (isTextExtractable(mime, file.name)) {
+      fileType = 'text'
+      extractedContent = await extractTextContent(file)
+    } else if (mime === 'application/pdf') {
+      fileType = 'pdf'
+    } else if (SPREADSHEET_TYPES.includes(mime)) {
+      fileType = 'spreadsheet'
+    }
+
+    return NextResponse.json({
+      url: publicUrl,
+      fileName: file.name,
+      fileType,
+      ...(extractedContent && { extractedContent }),
+    })
   } catch (err) {
     console.error('Upload:', err)
     return NextResponse.json(

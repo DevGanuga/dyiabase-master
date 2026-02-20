@@ -94,7 +94,11 @@ export function Assistant({ userId, showSuccess }: AssistantProps) {
   // File attachment for upload & extraction
   const [attachmentUrl, setAttachmentUrl] = useState<string | null>(null)
   const [attachmentName, setAttachmentName] = useState<string | null>(null)
+  const [attachmentFileType, setAttachmentFileType] = useState<string | null>(null)
+  const [attachmentContent, setAttachmentContent] = useState<string | null>(null)
   const [isUploading, setIsUploading] = useState(false)
+  const [isDragOver, setIsDragOver] = useState(false)
+  const dragCounterRef = useRef(0)
   const fileInputRef = useRef<HTMLInputElement>(null)
   
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -225,6 +229,11 @@ export function Assistant({ userId, showSuccess }: AssistantProps) {
     const file = e.target.files?.[0]
     if (!file) return
     e.target.value = ''
+    processFile(file)
+  }
+
+  const processFile = async (file: File) => {
+    if (isUploading) return
     setIsUploading(true)
     try {
       const form = new FormData()
@@ -234,8 +243,9 @@ export function Assistant({ userId, showSuccess }: AssistantProps) {
       if (!res.ok) throw new Error(data.error || 'Upload failed')
       setAttachmentUrl(data.url)
       setAttachmentName(data.fileName || file.name)
+      setAttachmentFileType(data.fileType || null)
+      setAttachmentContent(data.extractedContent || null)
     } catch (err) {
-      // Show upload error as a system message in the chat
       const errorMsg = err instanceof Error ? err.message : 'Upload failed'
       setMessages(prev => [...prev, {
         id: `error-${Date.now()}`,
@@ -246,6 +256,38 @@ export function Assistant({ userId, showSuccess }: AssistantProps) {
     } finally {
       setIsUploading(false)
     }
+  }
+
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    dragCounterRef.current++
+    if (e.dataTransfer.types.includes('Files')) {
+      setIsDragOver(true)
+    }
+  }
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    dragCounterRef.current--
+    if (dragCounterRef.current === 0) {
+      setIsDragOver(false)
+    }
+  }
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    dragCounterRef.current = 0
+    setIsDragOver(false)
+    const file = e.dataTransfer.files?.[0]
+    if (file) processFile(file)
   }
 
   const handleSend = async (customMessage?: string) => {
@@ -270,9 +312,13 @@ export function Assistant({ userId, showSuccess }: AssistantProps) {
 
     const urlToSend = attachmentUrl
     const nameToSend = attachmentName
+    const fileTypeToSend = attachmentFileType
+    const contentToSend = attachmentContent
     if (attachmentUrl) {
       setAttachmentUrl(null)
       setAttachmentName(null)
+      setAttachmentFileType(null)
+      setAttachmentContent(null)
     }
 
     try {
@@ -283,7 +329,12 @@ export function Assistant({ userId, showSuccess }: AssistantProps) {
           message: content || '(see attached file)',
           conversationId: currentThreadId,
           previousResponseId: lastResponseId,
-          ...(urlToSend && { fileUrl: urlToSend, fileName: nameToSend || 'file' }),
+          ...(urlToSend && {
+            fileUrl: urlToSend,
+            fileName: nameToSend || 'file',
+            fileType: fileTypeToSend,
+            ...(contentToSend && { extractedContent: contentToSend }),
+          }),
         }),
       })
 
@@ -635,7 +686,29 @@ export function Assistant({ userId, showSuccess }: AssistantProps) {
       </div>
 
       {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col min-w-0 h-full">
+      <div
+        className="flex-1 flex flex-col min-w-0 h-full relative"
+        onDragEnter={handleDragEnter}
+        onDragLeave={handleDragLeave}
+        onDragOver={handleDragOver}
+        onDrop={handleDrop}
+      >
+        {/* Drop zone overlay */}
+        {isDragOver && (
+          <div className="absolute inset-0 z-50 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center pointer-events-none">
+            <div className="flex flex-col items-center gap-3 p-8 rounded-2xl border-2 border-dashed border-orange-400 bg-orange-500/10">
+              <div className="w-14 h-14 rounded-full bg-orange-500/20 flex items-center justify-center">
+                <svg className="w-7 h-7 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                </svg>
+              </div>
+              <div className="text-center">
+                <p className="text-white font-semibold text-base">Drop file here</p>
+                <p className="text-slate-400 text-sm mt-1">Images, PDFs, CSV, Excel, or text files</p>
+              </div>
+            </div>
+          </div>
+        )}
         {/* Header */}
         <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-[var(--color-border)] flex items-center gap-2 sm:gap-3 bg-[var(--color-bg-card)]">
           <button
@@ -653,7 +726,7 @@ export function Assistant({ userId, showSuccess }: AssistantProps) {
           </button>
           <div className="flex items-center gap-1.5 sm:gap-2 flex-1 min-w-0">
             {/* Dyia Avatar */}
-            <img src="/dyia-agent.png" alt="Dyia AI" className="w-7 h-7 sm:w-8 sm:h-8 rounded-full shadow-md ring-2 ring-orange-400/30 object-cover" />
+            <img src="/dyia-agent.png" alt="Dyia AI" className="w-7 h-7 sm:w-8 sm:h-8 rounded-full shadow-md object-cover" />
             <span className="font-semibold text-[var(--color-text-primary)] text-sm sm:text-base">Dyia</span>
             <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
               isSending ? 'bg-orange-500 animate-pulse' : 'bg-green-500'
@@ -688,7 +761,7 @@ export function Assistant({ userId, showSuccess }: AssistantProps) {
                 {pendingAction && pendingAction.status === 'pending' && (
                   <div className="flex justify-start">
                     <div className="flex gap-3 w-full max-w-md">
-                      <div className="w-8 h-8 bg-gradient-to-br from-orange-500 to-amber-500 rounded-full flex items-center justify-center shadow-md flex-shrink-0 ring-2 ring-orange-400/30">
+                      <div className="w-8 h-8 bg-gradient-to-br from-orange-500 to-amber-500 rounded-full flex items-center justify-center shadow-md flex-shrink-0">
                         <svg className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                           <circle cx="12" cy="12" r="3" fill="currentColor" stroke="none" />
                           <path d="M12 2v4m0 12v4M2 12h4m12 0h4" strokeLinecap="round" />
@@ -719,7 +792,7 @@ export function Assistant({ userId, showSuccess }: AssistantProps) {
                 {isSending && (
                   <div className="flex justify-start">
                     <div className="flex gap-3 items-center">
-                      <div className="w-8 h-8 bg-gradient-to-br from-orange-500 to-amber-500 rounded-full flex items-center justify-center shadow-md ring-2 ring-orange-400/30 animate-pulse">
+                      <div className="w-8 h-8 bg-gradient-to-br from-orange-500 to-amber-500 rounded-full flex items-center justify-center shadow-md animate-pulse">
                         <svg className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                           <circle cx="12" cy="12" r="3" fill="currentColor" stroke="none" />
                           <path d="M12 2v4m0 12v4M2 12h4m12 0h4" strokeLinecap="round" />
@@ -773,15 +846,22 @@ export function Assistant({ userId, showSuccess }: AssistantProps) {
         <div className="p-3 sm:p-4 border-t border-[var(--color-border)] bg-[var(--color-bg-card)]">
           <div className="max-w-3xl mx-auto">
             {attachmentUrl && (
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-xs text-[var(--color-text-muted)]">Attached: {attachmentName}</span>
-                <button
-                  type="button"
-                  onClick={() => { setAttachmentUrl(null); setAttachmentName(null) }}
-                  className="text-[var(--color-text-faint)] hover:text-red-500 text-xs"
-                >
-                  Remove
-                </button>
+              <div className="flex items-center gap-2 mb-2 px-1">
+                <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-orange-500/10 border border-orange-500/20 rounded-lg">
+                  <svg className="w-3.5 h-3.5 text-orange-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.414a4 4 0 00-5.656-5.656l-6.586 6.586a6 6 0 008.486 8.486l6.414-6.414" />
+                  </svg>
+                  <span className="text-xs text-orange-300 truncate max-w-[200px]">{attachmentName}</span>
+                  <button
+                    type="button"
+                    onClick={() => { setAttachmentUrl(null); setAttachmentName(null); setAttachmentFileType(null); setAttachmentContent(null) }}
+                    className="text-slate-400 hover:text-red-400 transition-colors ml-1"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
               </div>
             )}
             <div className="chat-input-wrapper">
