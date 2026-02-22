@@ -5,8 +5,8 @@ import { type SupabaseClient } from '@supabase/supabase-js'
  * If a customer with the same name exists (case-insensitive), updates contact info and returns the ID.
  * If not, creates a new customer record and returns the new ID.
  *
- * This is the SINGLE ENTRY POINT for all customer creation.
- * Every job, quote, and follow-up creation should call this FIRST.
+ * NEVER THROWS — returns null on failure so callers can proceed without a customer_id.
+ * Jobs/quotes should always save regardless of whether customer linking succeeds.
  */
 export async function ensureCustomer(
   supabase: SupabaseClient,
@@ -19,15 +19,13 @@ export async function ensureCustomer(
     notes?: string | null
     tags?: string[]
   }
-): Promise<string> {
-  if (!customerName?.trim()) {
-    throw new Error('Customer name is required')
-  }
+): Promise<string | null> {
+  if (!customerName?.trim()) return null
 
   const name = customerName.trim()
 
   try {
-    // Check for existing customer (use maybeSingle to handle 0 or 1 results without throwing)
+    // Look for existing customer
     const { data: matches } = await supabase
       .from('dyia_customers')
       .select('id, phone, email, address')
@@ -38,6 +36,7 @@ export async function ensureCustomer(
     const existing = matches?.[0]
 
     if (existing) {
+      // Merge in any new contact info
       const updates: Record<string, unknown> = {}
       if (contactInfo?.phone && !existing.phone) updates.phone = contactInfo.phone
       if (contactInfo?.email && !existing.email) updates.email = contactInfo.email
@@ -69,40 +68,29 @@ export async function ensureCustomer(
       .single()
 
     if (error) {
-      // Duplicate key = race condition, look up the winner
       if (error.code === '23505') {
-        const { data: raceWinner } = await supabase
+        // Race condition — another insert won, look up the winner
+        const { data: fallback } = await supabase
           .from('dyia_customers')
           .select('id')
           .eq('user_id', userId)
           .ilike('name', name)
           .limit(1)
-        if (raceWinner?.[0]) return raceWinner[0].id
+        return fallback?.[0]?.id ?? null
       }
-      throw error
+      console.error('[ensureCustomer] Insert failed:', error.message)
+      return null
     }
 
-    if (!created) {
-      // Insert succeeded but select-back failed (RLS issue) — try to look it up
-      const { data: fallback } = await supabase
-        .from('dyia_customers')
-        .select('id')
-        .eq('user_id', userId)
-        .ilike('name', name)
-        .limit(1)
-      if (fallback?.[0]) return fallback[0].id
-      throw new Error('Customer created but could not retrieve ID')
-    }
-
-    return created.id
+    return created?.id ?? null
   } catch (err) {
     console.error('[ensureCustomer] Failed for:', name, err)
-    throw err
+    return null
   }
 }
 
 /**
- * @deprecated Use ensureCustomer() instead. Kept for backwards compat during migration.
+ * @deprecated Use ensureCustomer() instead.
  */
 export async function upsertCustomer(
   supabase: SupabaseClient,
@@ -114,12 +102,5 @@ export async function upsertCustomer(
     address?: string | null
   }
 ): Promise<void> {
-  try {
-    await ensureCustomer(supabase, userId, customerName, contactInfo)
-  } catch (err) {
-    const error = err as { code?: string; message?: string }
-    if (error.code !== '23505') {
-      console.error('[Customer Upsert] Failed:', error.message || err)
-    }
-  }
+  await ensureCustomer(supabase, userId, customerName, contactInfo)
 }

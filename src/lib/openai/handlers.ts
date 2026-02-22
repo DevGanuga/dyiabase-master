@@ -1865,7 +1865,7 @@ async function batchStoreCustomers(args: Record<string, unknown>, dyiaUserId: st
     let stored = 0
     let updated = 0
     let failed = 0
-    const results: Array<{ customerId: string; name: string }> = []
+    const results: Array<{ customerId: string | null; name: string }> = []
 
     for (const c of customers) {
       if (!c.name?.trim()) { failed++; continue }
@@ -1879,13 +1879,15 @@ async function batchStoreCustomers(args: Record<string, unknown>, dyiaUserId: st
           tags: c.tags?.length ? c.tags : undefined,
         })
 
+        if (!customerId) { failed++; continue }
+
         const { data: existing } = await supabase
           .from('dyia_customers')
           .select('created_at, updated_at')
           .eq('id', customerId)
-          .single()
+          .limit(1)
 
-        if (existing && existing.created_at !== existing.updated_at) {
+        if (existing?.[0] && existing[0].created_at !== existing[0].updated_at) {
           updated++
         } else {
           stored++
