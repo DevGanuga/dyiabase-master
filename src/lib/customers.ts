@@ -26,57 +26,79 @@ export async function ensureCustomer(
 
   const name = customerName.trim()
 
-  const { data: existing } = await supabase
-    .from('dyia_customers')
-    .select('id, phone, email, address')
-    .eq('user_id', userId)
-    .ilike('name', name)
-    .single()
+  try {
+    // Check for existing customer (use maybeSingle to handle 0 or 1 results without throwing)
+    const { data: matches } = await supabase
+      .from('dyia_customers')
+      .select('id, phone, email, address')
+      .eq('user_id', userId)
+      .ilike('name', name)
+      .limit(1)
 
-  if (existing) {
-    const updates: Record<string, unknown> = {}
-    if (contactInfo?.phone && !existing.phone) updates.phone = contactInfo.phone
-    if (contactInfo?.email && !existing.email) updates.email = contactInfo.email
-    if (contactInfo?.address && !existing.address) updates.address = contactInfo.address
-    if (contactInfo?.notes) updates.notes = contactInfo.notes
-    if (contactInfo?.tags?.length) updates.tags = contactInfo.tags
+    const existing = matches?.[0]
 
-    if (Object.keys(updates).length > 0) {
-      updates.updated_at = new Date().toISOString()
-      await supabase.from('dyia_customers').update(updates).eq('id', existing.id)
+    if (existing) {
+      const updates: Record<string, unknown> = {}
+      if (contactInfo?.phone && !existing.phone) updates.phone = contactInfo.phone
+      if (contactInfo?.email && !existing.email) updates.email = contactInfo.email
+      if (contactInfo?.address && !existing.address) updates.address = contactInfo.address
+      if (contactInfo?.notes) updates.notes = contactInfo.notes
+      if (contactInfo?.tags?.length) updates.tags = contactInfo.tags
+
+      if (Object.keys(updates).length > 0) {
+        updates.updated_at = new Date().toISOString()
+        await supabase.from('dyia_customers').update(updates).eq('id', existing.id)
+      }
+
+      return existing.id
     }
 
-    return existing.id
-  }
+    // Create new customer
+    const { data: created, error } = await supabase
+      .from('dyia_customers')
+      .insert({
+        user_id: userId,
+        name,
+        phone: contactInfo?.phone || null,
+        email: contactInfo?.email || null,
+        address: contactInfo?.address || null,
+        notes: contactInfo?.notes || null,
+        tags: contactInfo?.tags?.length ? contactInfo.tags : [],
+      })
+      .select('id')
+      .single()
 
-  const { data: created, error } = await supabase
-    .from('dyia_customers')
-    .insert({
-      user_id: userId,
-      name,
-      phone: contactInfo?.phone || null,
-      email: contactInfo?.email || null,
-      address: contactInfo?.address || null,
-      notes: contactInfo?.notes || null,
-      tags: contactInfo?.tags?.length ? contactInfo.tags : [],
-    })
-    .select('id')
-    .single()
+    if (error) {
+      // Duplicate key = race condition, look up the winner
+      if (error.code === '23505') {
+        const { data: raceWinner } = await supabase
+          .from('dyia_customers')
+          .select('id')
+          .eq('user_id', userId)
+          .ilike('name', name)
+          .limit(1)
+        if (raceWinner?.[0]) return raceWinner[0].id
+      }
+      throw error
+    }
 
-  if (error) {
-    if (error.code === '23505') {
-      const { data: raceWinner } = await supabase
+    if (!created) {
+      // Insert succeeded but select-back failed (RLS issue) — try to look it up
+      const { data: fallback } = await supabase
         .from('dyia_customers')
         .select('id')
         .eq('user_id', userId)
         .ilike('name', name)
-        .single()
-      if (raceWinner) return raceWinner.id
+        .limit(1)
+      if (fallback?.[0]) return fallback[0].id
+      throw new Error('Customer created but could not retrieve ID')
     }
-    throw error
-  }
 
-  return created.id
+    return created.id
+  } catch (err) {
+    console.error('[ensureCustomer] Failed for:', name, err)
+    throw err
+  }
 }
 
 /**

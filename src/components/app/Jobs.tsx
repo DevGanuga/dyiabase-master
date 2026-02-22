@@ -304,7 +304,8 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
       cancelForm()
     } catch (error) {
       console.error('Error saving jobs:', error)
-      await alert({ title: 'Error', message: 'Error saving jobs.', variant: 'error' })
+      const msg = error instanceof Error ? error.message : (error as { message?: string })?.message || 'Unknown error'
+      await alert({ title: 'Error Saving Job', message: `Something went wrong: ${msg}. Please try again.`, variant: 'error' })
     } finally {
       setSaving(false)
     }

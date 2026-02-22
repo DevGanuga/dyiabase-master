@@ -625,7 +625,7 @@ export default function OnboardingPage() {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3 mb-5">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5">
                       <div>
                         <label className={`block text-sm mb-1.5 ${c.textMuted}`}>Phone</label>
                         <input type="tel" value={businessPhone} onChange={(e) => setBusinessPhone(e.target.value)} placeholder="(555) 123-4567"
@@ -634,11 +634,11 @@ export default function OnboardingPage() {
                       <div>
                         <label className={`block text-sm mb-1.5 ${c.textMuted}`}>Email</label>
                         <input type="email" value={businessEmail} onChange={(e) => setBusinessEmail(e.target.value)} placeholder="hello@business.com"
-                          className={`w-full px-4 py-3 rounded-xl border text-sm outline-none transition-all onboarding-input ${c.input}`} />
+                          className={`w-full px-4 py-3 rounded-xl border text-sm outline-none transition-all onboarding-input ${c.input}`} autoComplete="email" />
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
                         <label className={`block text-sm mb-1.5 ${c.textMuted}`}>Address</label>
                         <input type="text" value={businessAddress} onChange={(e) => setBusinessAddress(e.target.value)} placeholder="123 Main St, City"
