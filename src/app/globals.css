@@ -1769,6 +1769,33 @@
   border-color: var(--color-danger);
 }
 
+/* ============================================ */
+/* ONBOARDING CHECKLIST */
+/* ============================================ */
+
+.onboarding-checklist {
+  @apply rounded-xl overflow-hidden;
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 0 0 1px rgba(249, 115, 22, 0.05);
+  animation: fadeSlideIn 0.3s ease-out;
+}
+
+.checklist-item {
+  @apply w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-all;
+}
+
+.checklist-item.completed {
+  @apply opacity-50 cursor-default;
+}
+
+.checklist-item.actionable {
+  @apply cursor-pointer;
+}
+.checklist-item.actionable:hover {
+  background: var(--color-bg-subtle);
+}
+
 /* Pro Badge */
 .pro-badge {
   @apply inline-flex items-center gap-1 px-2.5 py-1 text-white text-xs font-bold rounded-full;

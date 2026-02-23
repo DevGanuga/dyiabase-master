@@ -10,7 +10,25 @@ import { AIInsights } from './AIInsights'
 import { MiniCalendar } from './MiniCalendar'
 import type { LaunchpadItem } from './Launchpad'
 
-// Getting Started checklist — promoted to a dashboard card
+// Dynamic message from Dyia based on which step is next
+function getDyiaMessage(items: LaunchpadItem[]): string {
+  const completedCount = items.filter(i => i.completed).length
+  if (completedCount === 0) {
+    return "Welcome! I'm Dyia, your AI business partner. Let's get you set up so I can start helping you make more money. It only takes a minute."
+  }
+  const next = items.find(i => !i.completed)
+  if (!next) return "You're all set! Your dashboard is ready to go."
+  const msgs: Record<string, string> = {
+    'onboarding': "Great start! Next, let's finish setting up your business profile so I can personalize everything for you.",
+    'business-info': "Now let's add your business info — this is what shows on your quotes and helps you look professional.",
+    'first-job': "Nice progress! Log your first job so I can start tracking your revenue and profits.",
+    'first-customer': "Let's build your customer database. This helps me track repeat business and suggest follow-ups.",
+    'first-quote': "Try creating a quote — you can send professional estimates to customers in seconds.",
+    'first-template': "Almost done! Save a price template to speed up future quotes. You'll thank yourself later.",
+  }
+  return msgs[next.id] || "Keep going — you're almost there!"
+}
+
 function GettingStartedCard({ items }: { items: LaunchpadItem[] }) {
   const completedCount = items.filter(i => i.completed).length
   const totalCount = items.length
@@ -18,64 +36,63 @@ function GettingStartedCard({ items }: { items: LaunchpadItem[] }) {
 
   if (completedCount === totalCount) return null
 
+  const dyiaMessage = getDyiaMessage(items)
+
   return (
-    <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl overflow-hidden">
-      <div className="px-5 py-4 border-b border-[var(--color-border-light)] flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-gradient-to-br from-orange-500 to-amber-500 rounded-lg flex items-center justify-center shadow-sm">
-            <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-            </svg>
+    <div className="onboarding-checklist">
+      {/* Dyia guide header */}
+      <div className="flex items-start gap-3 px-5 pt-5 pb-3">
+        <div className="relative flex-shrink-0">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-500/10 to-amber-500/10 dark:from-orange-500/20 dark:to-amber-500/20 p-1.5">
+            <img src="/dyia-agent.png" alt="Dyia" className="w-full h-full object-contain rounded-lg" />
           </div>
-          <div>
-            <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">Getting Started</h3>
-            <p className="text-xs text-[var(--color-text-muted)]">{completedCount} of {totalCount} complete</p>
-          </div>
+          <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 rounded-full border-2 border-[var(--color-bg-card)]" />
         </div>
-        <span className="text-sm font-bold text-orange-500">{progress}%</span>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-sm font-semibold text-[var(--color-text-primary)]">Dyia</span>
+            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-orange-500/10 text-orange-600 dark:text-orange-400 font-medium">AI Guide</span>
+          </div>
+          <p className="text-sm text-[var(--color-text-secondary)] leading-relaxed">{dyiaMessage}</p>
+        </div>
       </div>
 
-      {/* Progress bar */}
-      <div className="h-1 bg-slate-100 dark:bg-slate-700">
-        <div 
-          className="h-full bg-gradient-to-r from-orange-500 to-amber-500 transition-all duration-500"
-          style={{ width: `${progress}%` }}
-        />
+      {/* Progress section */}
+      <div className="px-5 py-3 flex items-center gap-3">
+        <div className="flex-1 h-2 rounded-full bg-slate-100 dark:bg-slate-700 overflow-hidden">
+          <div
+            className="h-full rounded-full bg-gradient-to-r from-orange-500 to-amber-500 transition-all duration-700 ease-out"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+        <span className="text-xs font-semibold text-[var(--color-text-muted)] whitespace-nowrap">{completedCount}/{totalCount}</span>
       </div>
 
-      {/* Checklist items */}
-      <div className="divide-y divide-[var(--color-border-light)]">
+      {/* Checklist */}
+      <div className="px-3 pb-3 space-y-0.5">
         {items.map((item) => (
           <button
             key={item.id}
             onClick={item.action}
             disabled={item.completed || !item.action}
-            className={`w-full flex items-center gap-3 px-5 py-3 text-left transition-all group ${
-              item.completed 
-                ? 'opacity-60 cursor-default' 
-                : item.action
-                  ? 'hover:bg-[var(--color-bg-subtle)] cursor-pointer'
-                  : 'cursor-default'
-            }`}
+            className={`checklist-item group ${item.completed ? 'completed' : item.action ? 'actionable' : ''}`}
           >
             <span className="flex-shrink-0">
               {item.completed ? (
-                <div className="w-5 h-5 bg-green-100 dark:bg-green-900/40 rounded-full flex items-center justify-center">
-                  <svg className="w-3 h-3 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="w-5 h-5 bg-emerald-100 dark:bg-emerald-900/40 rounded-full flex items-center justify-center">
+                  <svg className="w-3 h-3 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                   </svg>
                 </div>
               ) : (
-                <div className={`w-5 h-5 rounded-full border-2 transition-colors ${
-                  item.action ? 'border-slate-300 dark:border-slate-600 group-hover:border-orange-400' : 'border-slate-200 dark:border-slate-700'
-                }`} />
+                <div className="w-5 h-5 rounded-full border-2 border-slate-300 dark:border-slate-600 group-hover:border-orange-400 transition-colors" />
               )}
             </span>
             <div className="flex-1 min-w-0">
               <p className={`text-sm font-medium ${item.completed ? 'text-[var(--color-text-muted)] line-through' : 'text-[var(--color-text-primary)]'}`}>
                 {item.label}
               </p>
-              {item.description && (
+              {item.description && !item.completed && (
                 <p className="text-xs text-[var(--color-text-muted)] truncate">{item.description}</p>
               )}
             </div>
@@ -434,6 +451,11 @@ export function Dashboard({
           </button>
         </div>
       </div>
+
+      {/* ===== GETTING STARTED CHECKLIST (top priority for new users) ===== */}
+      {showLaunchpad && launchpadItems.length > 0 && (
+        <GettingStartedCard items={launchpadItems} />
+      )}
 
       {/* ===== AI INSIGHTS (Dyia Pro) ===== */}
       {isPro && (
@@ -840,11 +862,6 @@ export function Dashboard({
             </div>
           )}
         </div>
-      )}
-
-      {/* ===== GETTING STARTED CHECKLIST ===== */}
-      {showLaunchpad && launchpadItems.length > 0 && (
-        <GettingStartedCard items={launchpadItems} />
       )}
 
       {/* ===== WELCOMING EMPTY STATE ===== */}
