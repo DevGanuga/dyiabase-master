@@ -874,11 +874,11 @@ export function Assistant({ userId, showSuccess }: AssistantProps) {
         {/* Content */}
         <div
           ref={scrollContainerRef}
-          className="flex-1 overflow-y-auto relative"
+          className="flex-1 overflow-y-auto relative flex flex-col"
           onScroll={handleScroll}
         >
           {isLoading ? (
-            <div className="min-h-full flex items-center justify-center">
+            <div className="flex-1 flex items-center justify-center">
               <div className="text-center">
                 <div className="loading-spinner mx-auto mb-4" />
                 <p className="text-sm text-[var(--color-text-muted)]">Loading conversation...</p>
@@ -886,7 +886,7 @@ export function Assistant({ userId, showSuccess }: AssistantProps) {
             </div>
           ) : messages.length <= 1 && !isSending ? (
             /* Welcome Screen */
-            <div className="min-h-full flex flex-col items-center justify-center px-4 pb-4">
+            <div className="flex-1 flex flex-col items-center justify-center px-4 pb-4">
               <div className="flex flex-col items-center max-w-lg w-full">
                 <div className="relative mb-5">
                   <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-br from-orange-500/10 to-amber-500/10 dark:from-orange-500/20 dark:to-amber-500/20 p-2 shadow-lg shadow-orange-500/5">

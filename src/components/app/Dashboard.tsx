@@ -457,8 +457,8 @@ export function Dashboard({
         <GettingStartedCard items={launchpadItems} />
       )}
 
-      {/* ===== AI INSIGHTS (Dyia Pro) ===== */}
-      {isPro && (
+      {/* ===== AI INSIGHTS (Dyia Pro) — only after checklist is done ===== */}
+      {isPro && !showLaunchpad && (
         <AIInsights type="dashboard" compact autoRefresh />
       )}
 
