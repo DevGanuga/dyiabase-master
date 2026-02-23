@@ -5,6 +5,7 @@ import { useUser, useAuth, UserButton } from '@clerk/nextjs'
 import { useRouter } from 'next/navigation'
 import { createClient, initSupabaseAuth } from '@/lib/supabase/client'
 import { useTheme } from '@/hooks/useTheme'
+import { compressImage } from '@/lib/utils'
 
 type Step = 'welcome' | 'you' | 'business' | 'strategy' | 'operations' | 'financials' | 'pricing'
 
@@ -120,7 +121,6 @@ export default function OnboardingPage() {
   const [businessAddress, setBusinessAddress] = useState('')
   const [serviceArea, setServiceArea] = useState('')
   const [yearsInBusiness, setYearsInBusiness] = useState('')
-  const [logoFile, setLogoFile] = useState<File | null>(null)
   const [logoPreview, setLogoPreview] = useState<string | null>(null)
   
   // Strategy & AI context
@@ -234,9 +234,17 @@ export default function OnboardingPage() {
         setError('Logo must be under 2MB')
         return
       }
-      setLogoFile(file)
       const reader = new FileReader()
-      reader.onloadend = () => setLogoPreview(reader.result as string)
+      reader.onload = async (event) => {
+        try {
+          const dataUrl = event.target?.result as string
+          const compressed = await compressImage(dataUrl, 400, 0.8)
+          setLogoPreview(compressed)
+        } catch {
+          setError('Error processing logo image')
+        }
+      }
+      reader.onerror = () => setError('Error reading logo file')
       reader.readAsDataURL(file)
       setError(null)
     }
@@ -317,18 +325,7 @@ export default function OnboardingPage() {
         .update({ first_name: firstName || null, last_name: lastName || null })
         .eq('id', userId)
 
-      let logoUrl = logoPreview
-      if (logoFile) {
-        const fileExt = logoFile.name.split('.').pop()
-        const fileName = `${userId}-logo-${Date.now()}.${fileExt}`
-        const { error: uploadError } = await supabase.storage
-          .from('logos')
-          .upload(fileName, logoFile, { upsert: true })
-        if (!uploadError) {
-          const { data: { publicUrl } } = supabase.storage.from('logos').getPublicUrl(fileName)
-          logoUrl = publicUrl
-        }
-      }
+      const logoUrl = logoPreview || null
 
       const fullUpdate = await supabase
         .from('dyia_settings')
@@ -404,7 +401,7 @@ export default function OnboardingPage() {
         isDark ? 'bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900' : 'bg-gradient-to-br from-orange-50 via-white to-amber-50'
       }`}>
         <div className="text-center">
-          <img src="/dyia-logo-full.png" alt="dyia" className="h-10 object-contain mx-auto mb-6" />
+          <img src="/dyia-logo-full.png" alt="dyia" className={`h-10 object-contain mx-auto mb-6 ${isDark ? 'brightness-0 invert' : ''}`} />
           <div style={{ width: 24, height: 24, border: '2px solid #f97316', borderTopColor: 'transparent', borderRadius: '50%', margin: '0 auto' }} className="animate-spin" />
         </div>
       </div>
@@ -449,7 +446,7 @@ export default function OnboardingPage() {
       <div className={`min-h-screen transition-colors duration-300 ${c.bg} ${c.text}`}>
         {/* Header */}
         <header className="absolute top-0 left-0 right-0 px-6 py-4 flex items-center justify-between z-50">
-          <img src="/dyia-logo-full.png" alt="dyia" className="h-9 object-contain" />
+          <img src="/dyia-logo-full.png" alt="dyia" className={`h-9 object-contain ${isDark ? 'brightness-0 invert' : ''}`} />
           <div className="flex items-center gap-3">
             <button
               onClick={() => setTheme(isDark ? 'light' : 'dark')}
@@ -568,7 +565,7 @@ export default function OnboardingPage() {
                     <p className={`mb-6 ${c.textMuted}`}>This info powers your quotes and AI insights</p>
                     
                     <div className="flex gap-4 mb-5">
-                      <label className={`w-[72px] h-[72px] rounded-xl border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-all shrink-0 ${
+                      <label className={`w-[72px] h-[72px] rounded-xl border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-all shrink-0 overflow-hidden ${
                         isDark ? 'border-slate-600 bg-slate-700/50 hover:border-slate-500' : 'border-slate-300 bg-slate-100 hover:border-orange-400'
                       }`}>
                         <input type="file" accept="image/*" onChange={handleLogoChange} className="hidden" />

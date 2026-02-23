@@ -5,7 +5,6 @@ import Link from 'next/link'
 
 interface DyiaInsightProps {
   context: 'jobs' | 'quotes' | 'followUps' | 'reports' | 'customers'
-  contextData?: Record<string, unknown>
   className?: string
   isPro?: boolean
 }
@@ -22,10 +21,22 @@ export function DyiaInsight({ context, className = '', isPro = true }: DyiaInsig
 
     const fetchInsight = async () => {
       try {
-        const response = await fetch(`/api/ai/insights?type=${context}&compact=true`)
+        const apiType = context === 'reports' ? 'reports' : 'dashboard'
+        const response = await fetch('/api/ai/insights', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: apiType }),
+        })
         if (response.ok) {
           const data = await response.json()
-          if (data.insight) setInsight(data.insight)
+          const result = data.insight
+          if (result?.tip) {
+            setInsight(result.tip)
+          } else if (result?.recommendation) {
+            setInsight(result.recommendation)
+          } else if (result?.summary) {
+            setInsight(result.summary)
+          }
         }
       } catch (err) {
         console.error('Failed to fetch insight:', err)
@@ -34,20 +45,22 @@ export function DyiaInsight({ context, className = '', isPro = true }: DyiaInsig
       }
     }
 
-    const timer = setTimeout(fetchInsight, 500)
-    return () => clearTimeout(timer)
+    fetchInsight()
   }, [context, isPro])
 
   if (dismissed) return null
 
-  // Non-pro: show teaser
   if (!isPro) {
     return (
       <Link
         href="/app?view=settings"
         className={`flex items-center gap-3 px-4 py-3 bg-slate-50/80 dark:bg-slate-800/30 border border-dashed border-slate-200 dark:border-slate-700 rounded-xl hover:border-orange-300 dark:hover:border-orange-700 transition-all group ${className}`}
       >
-        <img src="/dyia-agent.png" alt="" className="w-5 h-5 object-contain shrink-0 opacity-50 group-hover:opacity-100 transition-opacity" />
+        <div className="w-6 h-6 bg-gradient-to-br from-orange-500/20 to-amber-500/20 rounded-md flex items-center justify-center shrink-0">
+          <svg className="w-3.5 h-3.5 text-orange-500 opacity-50 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+          </svg>
+        </div>
         <p className="flex-1 text-sm text-slate-400 dark:text-slate-500 group-hover:text-[var(--color-text-secondary)] transition-colors">
           Unlock AI insights with <span className="font-semibold text-orange-500">Dyia Pro</span>
         </p>
@@ -59,26 +72,33 @@ export function DyiaInsight({ context, className = '', isPro = true }: DyiaInsig
   if (!loading && !insight) return null
 
   return (
-    <div className={`flex items-start gap-3 px-4 py-3 bg-gradient-to-r from-orange-50/80 to-amber-50/50 dark:from-orange-950/20 dark:to-amber-950/10 border border-orange-200/50 dark:border-orange-800/30 rounded-xl ${className}`}>
-      <img src="/dyia-agent.png" alt="" className="w-5 h-5 object-contain mt-0.5 shrink-0" />
+    <div className={`flex items-start gap-3 px-4 py-3 bg-gradient-to-r from-orange-50/80 to-amber-50/50 dark:from-orange-950/20 dark:to-amber-950/10 border border-orange-200/50 dark:border-orange-800/30 rounded-xl transition-all ${loading ? '' : 'animate-fade-in'} ${className}`}>
+      <div className="w-6 h-6 bg-gradient-to-br from-orange-500 to-amber-500 rounded-md flex items-center justify-center shrink-0 mt-0.5 shadow-sm">
+        <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+        </svg>
+      </div>
       
       {loading ? (
-        <div className="flex-1 flex items-center gap-2">
-          <div className="h-3.5 w-3/4 bg-orange-200/50 dark:bg-orange-800/30 rounded animate-pulse" />
+        <div className="flex-1 flex items-center gap-2 py-0.5">
+          <p className="text-sm text-[var(--color-text-muted)]">Generating insight...</p>
+          <div className="w-3 h-3 border-[1.5px] border-orange-500 border-t-transparent rounded-full animate-spin shrink-0" />
         </div>
       ) : (
         <p className="flex-1 text-sm text-[var(--color-text-secondary)] leading-relaxed">{insight}</p>
       )}
 
-      <button
-        onClick={() => setDismissed(true)}
-        className="p-0.5 text-[var(--color-text-faint)] hover:text-[var(--color-text-muted)] rounded transition-colors shrink-0"
-        aria-label="Dismiss insight"
-      >
-        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-        </svg>
-      </button>
+      {!loading && (
+        <button
+          onClick={() => setDismissed(true)}
+          className="p-0.5 text-[var(--color-text-faint)] hover:text-[var(--color-text-muted)] rounded transition-colors shrink-0 mt-0.5"
+          aria-label="Dismiss insight"
+        >
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      )}
     </div>
   )
 }

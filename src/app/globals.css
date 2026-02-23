@@ -1449,6 +1449,22 @@
 /* ASSISTANT / CHAT STYLES */
 /* ============================================ */
 
+/* Chat Header */
+.chat-header {
+  @apply px-4 py-3 flex items-center gap-3;
+  background: var(--color-bg-card);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.chat-header-btn {
+  @apply p-2 rounded-xl transition-all duration-150;
+  color: var(--color-text-muted);
+}
+.chat-header-btn:hover {
+  background: var(--color-bg-hover);
+  color: var(--color-text-secondary);
+}
+
 /* Sidebar panel - width collapse/expand */
 .assistant-sidebar-panel {
   @apply h-full flex flex-col overflow-hidden flex-shrink-0;
@@ -1468,12 +1484,41 @@
   border-right-width: 0;
 }
 
+/* Sidebar Header */
+.sidebar-header {
+  @apply p-3 flex items-center justify-between whitespace-nowrap;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.sidebar-new-chat-btn {
+  @apply flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-xl;
+  color: var(--color-text-secondary);
+  transition: all 150ms ease;
+}
+.sidebar-new-chat-btn:hover {
+  background: var(--color-bg-hover);
+  color: var(--color-brand);
+}
+
+/* Welcome Screen - Quick Action Cards */
+.quick-action-card {
+  @apply flex flex-col items-center justify-center gap-1 px-3 py-4 rounded-2xl cursor-pointer;
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  transition: all 200ms ease;
+}
+.quick-action-card:hover {
+  border-color: var(--color-brand);
+  background: var(--color-brand-light);
+  box-shadow: 0 4px 16px rgba(249, 115, 22, 0.08);
+  transform: translateY(-1px);
+}
+
 /* Message Bubbles */
 .message-bubble {
   @apply rounded-2xl px-4 py-3 text-sm leading-relaxed;
 }
 
-/* Only animate the LATEST message, not all of them on re-render */
 .message-bubble-enter {
   animation: messagePop 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
@@ -1493,21 +1538,19 @@
   @apply ml-auto text-white;
   background: linear-gradient(135deg, #f97316 0%, #f59e0b 100%);
   transform-origin: bottom right;
-  box-shadow: 0 2px 12px rgba(249, 115, 22, 0.2);
+  box-shadow: 0 2px 12px rgba(249, 115, 22, 0.15);
   border-radius: 1.25rem 1.25rem 0.375rem 1.25rem;
 }
 
 .message-bubble.assistant {
   @apply mr-auto;
-  background: var(--color-bg-card);
+  background: var(--color-bg-subtle, var(--color-bg-card));
   border: 1px solid var(--color-border);
   color: var(--color-text-secondary);
   transform-origin: bottom left;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
   border-radius: 1.25rem 1.25rem 1.25rem 0.375rem;
 }
 
-/* Stronger text for key elements inside assistant bubbles */
 .message-bubble.assistant strong {
   color: var(--color-text-primary);
 }
@@ -1539,7 +1582,7 @@
 
 /* Thread List */
 .thread-item {
-  @apply flex items-center gap-3 px-4 py-3 rounded-xl cursor-pointer;
+  @apply flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer;
   transition: var(--transition-fast);
 }
 
@@ -1567,13 +1610,45 @@
   color: var(--color-text-faint);
 }
 
-/* Chat Input */
-.chat-input-wrapper {
-  @apply relative flex items-end gap-3 rounded-2xl p-2;
+.thread-delete-btn {
+  @apply items-center justify-center p-1.5 rounded-lg;
+  color: var(--color-text-faint);
+  transition: all 150ms ease;
+}
+.thread-delete-btn:hover {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+}
+
+/* Scroll to Bottom Button */
+.scroll-to-bottom-btn {
+  @apply absolute bottom-4 right-4 p-2.5 rounded-full z-10;
   background: var(--color-bg-card);
   border: 1px solid var(--color-border);
-  box-shadow: var(--shadow-sm);
-  transition: var(--transition-fast);
+  color: var(--color-text-muted);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: all 150ms ease;
+  animation: fadeSlideIn 0.2s ease-out;
+}
+.scroll-to-bottom-btn:hover {
+  color: var(--color-brand);
+  border-color: var(--color-brand);
+  box-shadow: 0 4px 12px rgba(249, 115, 22, 0.15);
+  transform: translateY(-1px);
+}
+
+/* Chat Input Area */
+.chat-input-area {
+  @apply p-3 sm:p-4;
+  background: var(--color-bg-card);
+  border-top: 1px solid var(--color-border);
+}
+
+.chat-input-wrapper {
+  @apply relative flex items-end gap-1.5 rounded-2xl p-1.5 sm:p-2;
+  background: var(--color-bg-subtle, var(--color-bg-card));
+  border: 1px solid var(--color-border);
+  transition: all 200ms ease;
 }
 
 .chat-input-wrapper:focus-within {
@@ -1581,8 +1656,12 @@
   box-shadow: 0 0 0 3px var(--color-input-focus-ring);
 }
 
+.chat-input-wrapper:has(.chat-input:disabled) {
+  opacity: 0.7;
+}
+
 .chat-input {
-  @apply flex-1 bg-transparent border-none resize-none focus:outline-none px-2 py-1.5 max-h-32 text-sm;
+  @apply flex-1 bg-transparent border-none resize-none focus:outline-none px-2 py-2 max-h-32 text-sm;
   color: var(--color-text-primary);
 }
 
@@ -1590,33 +1669,85 @@
   color: var(--color-text-faint);
 }
 
+.chat-action-btn {
+  @apply p-2 rounded-xl flex-shrink-0;
+  color: var(--color-text-faint);
+  transition: all 150ms ease;
+}
+.chat-action-btn:hover:not(:disabled) {
+  color: var(--color-brand);
+  background: var(--color-brand-light);
+}
+
 .chat-send-btn {
-  @apply p-2.5 rounded-xl text-white disabled:opacity-50 disabled:cursor-not-allowed;
+  @apply p-2.5 rounded-xl text-white disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0;
   background: linear-gradient(135deg, #f97316 0%, #f59e0b 100%);
-  box-shadow: var(--shadow-brand);
-  transition: var(--transition-fast);
+  box-shadow: 0 2px 8px rgba(249, 115, 22, 0.25);
+  transition: all 150ms ease;
 }
 
 .chat-send-btn:hover:not(:disabled) {
-  box-shadow: var(--shadow-brand-lg);
-  transform: scale(1.02);
+  box-shadow: 0 4px 16px rgba(249, 115, 22, 0.35);
+  transform: scale(1.05);
 }
 
 .chat-send-btn:active:not(:disabled) {
-  transform: scale(0.98);
+  transform: scale(0.95);
 }
 
-.chat-send-btn:not(:disabled):hover svg {
-  animation: sendBounce 0.4s ease-out;
+/* Mic Button */
+.chat-mic-btn {
+  @apply p-2.5 rounded-xl flex-shrink-0;
+  color: var(--color-text-muted);
+  transition: all 150ms ease;
+}
+.chat-mic-btn:hover:not(:disabled) {
+  color: var(--color-brand);
+  background: var(--color-brand-light);
+}
+.chat-mic-btn.recording {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+  animation: micPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes micPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.3); }
+  50% { box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
+}
+
+/* Recording Indicator Bar */
+.recording-bar {
+  @apply flex items-center gap-3 mb-2 px-4 py-2.5 rounded-xl;
+  background: rgba(239, 68, 68, 0.05);
+  border: 1px solid rgba(239, 68, 68, 0.15);
+  animation: fadeSlideIn 0.2s ease-out;
+}
+
+.recording-dot-pulse {
+  @apply w-2.5 h-2.5 rounded-full flex-shrink-0;
+  background: #ef4444;
+  animation: recordPulse 1s ease-in-out infinite;
+}
+
+@keyframes recordPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.8); }
+}
+
+@keyframes fadeSlideIn {
+  0% { opacity: 0; transform: translateY(4px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+/* Animate-in utility */
+.animate-in {
+  animation: fadeSlideIn 0.2s ease-out;
 }
 
 @keyframes sendBounce {
-  0%, 100% {
-    transform: translateX(0);
-  }
-  50% {
-    transform: translateX(2px);
-  }
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(2px); }
 }
 
 /* Tool Result Cards */

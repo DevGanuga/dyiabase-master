@@ -17,13 +17,14 @@ import { Marketing } from '@/components/app/Marketing'
 import { Customers } from '@/components/app/Customers'
 import { MassEmail } from '@/components/app/MassEmail'
 import { Assistant } from '@/components/app/Assistant'
+import { Calendar } from '@/components/app/Calendar'
 import { TrialBanner } from '@/components/app/TrialBanner'
 import { TopBar } from '@/components/app/TopBar'
 import { ConfirmProvider } from '@/components/providers/ConfirmProvider'
 import { AdminPanel } from '@/components/app/AdminPanel'
 import type { LaunchpadItem } from '@/components/app/Launchpad'
 
-type View = 'dashboard' | 'jobs' | 'quotes' | 'quoteBuilder' | 'followUps' | 'reports' | 'marketing' | 'customers' | 'massEmail' | 'assistant' | 'settings' | 'admin'
+type View = 'dashboard' | 'jobs' | 'quotes' | 'quoteBuilder' | 'followUps' | 'calendar' | 'reports' | 'marketing' | 'customers' | 'massEmail' | 'assistant' | 'settings' | 'admin'
 
 // Demo data for showcase
 const DEMO_JOBS: AppJob[] = [
@@ -43,7 +44,7 @@ const DEMO_SETTINGS: AppSettings = {
   onboardingCompletedAt: null
 }
 
-const VALID_VIEWS: View[] = ['dashboard', 'jobs', 'quotes', 'quoteBuilder', 'followUps', 'reports', 'marketing', 'customers', 'massEmail', 'assistant', 'settings', 'admin']
+const VALID_VIEWS: View[] = ['dashboard', 'jobs', 'quotes', 'quoteBuilder', 'followUps', 'calendar', 'reports', 'marketing', 'customers', 'massEmail', 'assistant', 'settings', 'admin']
 
 export default function AppPage() {
   return (
@@ -730,6 +731,13 @@ function AppPageContent() {
             userId={userProfile?.id || ''}
             businessName={settings.businessInfo.name || 'dyia'}
             showSuccess={showSuccess}
+          />
+        )
+      case 'calendar':
+        return (
+          <Calendar
+            jobs={jobs}
+            onNavigate={(view) => setCurrentView(view as View)}
           />
         )
       case 'reports':

@@ -5,6 +5,7 @@ import type { AppJob, AppQuote, AppCustomer } from '@/types/database'
 import { formatCurrency } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { useConfirm } from '@/components/providers/ConfirmProvider'
+import { DyiaInsight } from './DyiaInsight'
 
 interface CustomersProps {
   jobs: AppJob[]
@@ -772,6 +773,8 @@ export function Customers({ jobs, quotes = [], isPro = false, onCreateQuote, sho
           Add Customer
         </button>
       </div>
+
+      {customers.length > 2 && <DyiaInsight context="customers" isPro={isPro} />}
 
       {/* Summary badges */}
       {customers.length > 0 && (

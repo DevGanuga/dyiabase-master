@@ -8,6 +8,7 @@ import { getReviewRequestMessage } from '@/lib/reviews'
 import { downloadQuotePdf } from '@/lib/quote-pdf'
 import { useConfirm } from '@/components/providers/ConfirmProvider'
 import { DyiaActionButton, DYIA_PROMPTS } from './DyiaActionButton'
+import { DyiaInsight } from './DyiaInsight'
 
 interface QuotesProps {
   quotes: AppQuote[]
@@ -281,6 +282,8 @@ export function Quotes({ quotes, setQuotes, jobs, userId, settings, onCreateQuot
           </button>
         </div>
       </div>
+
+      {quotes.length > 2 && <DyiaInsight context="quotes" isPro={isPro} />}
 
       {/* Filters Row */}
       <div className="filter-toolbar">

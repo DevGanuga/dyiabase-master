@@ -1,11 +1,13 @@
 'use client'
 
-import { useMemo, useState, useEffect, useRef } from 'react'
+import { useMemo } from 'react'
 import Link from 'next/link'
 import type { AppJob, AppQuote, AppSettings } from '@/types/database'
 import { formatCurrency } from '@/lib/utils'
 import { PendingActionsCard } from './PendingActionsCard'
 import { DyiaActionButton, DYIA_PROMPTS } from './DyiaActionButton'
+import { AIInsights } from './AIInsights'
+import { MiniCalendar } from './MiniCalendar'
 import type { LaunchpadItem } from './Launchpad'
 
 // Getting Started checklist — promoted to a dashboard card
@@ -186,52 +188,6 @@ function RevenueForecastCard({ jobs, onOpenDyiaWithPrompt }: { jobs: AppJob[]; o
           Ask Dyia for detailed forecast &rarr;
         </button>
       )}
-    </div>
-  )
-}
-
-// AI Briefing card — fetches from /api/ai/briefing once per session
-function DyiaBriefingCard() {
-  const [briefing, setBriefing] = useState<{ briefing: string; tip: string | null } | null>(null)
-  const [dismissed, setDismissed] = useState(false)
-  const fetchedRef = useRef(false)
-
-  useEffect(() => {
-    if (fetchedRef.current) return
-    fetchedRef.current = true
-    const sessionKey = `dyia_briefing_${new Date().toDateString()}`
-    const cached = sessionStorage.getItem(sessionKey)
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- hydration guard: must read sessionStorage after mount
-    if (cached) { setBriefing(JSON.parse(cached)); return }
-
-    fetch('/api/ai/briefing')
-      .then(r => r.ok ? r.json() : null)
-      .then(data => {
-        if (data?.briefing) {
-          const b = { briefing: data.briefing, tip: data.tip }
-          setBriefing(b)
-          sessionStorage.setItem(sessionKey, JSON.stringify(b))
-        }
-      })
-      .catch(() => {})
-  }, [])
-
-  if (!briefing || dismissed) return null
-
-  return (
-    <div className="animate-fade-in bg-[var(--color-bg-card)] border border-orange-200/50 dark:border-orange-800/30 rounded-xl p-4 flex items-start gap-3">
-      <div className="w-8 h-8 bg-gradient-to-br from-orange-500 to-amber-500 rounded-lg flex items-center justify-center shrink-0 shadow-sm">
-        <img src="/dyia-agent.png" alt="" className="w-5 h-5 object-contain" />
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-sm text-[var(--color-text-secondary)] leading-relaxed">{briefing.briefing}</p>
-        {briefing.tip && (
-          <p className="text-xs text-orange-600 dark:text-orange-400 mt-1.5 font-medium">{briefing.tip}</p>
-        )}
-      </div>
-      <button onClick={() => setDismissed(true)} className="p-0.5 text-[var(--color-text-faint)] hover:text-[var(--color-text-muted)] rounded shrink-0">
-        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-      </button>
     </div>
   )
 }
@@ -479,8 +435,135 @@ export function Dashboard({
         </div>
       </div>
 
-      {/* ===== AI BRIEFING (Dyia Pro) ===== */}
-      {isPro && <DyiaBriefingCard />}
+      {/* ===== AI INSIGHTS (Dyia Pro) ===== */}
+      {isPro && (
+        <AIInsights type="dashboard" compact autoRefresh />
+      )}
+
+      {/* ===== YOUR DAY + MINI CALENDAR ===== */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Your Day Card */}
+        <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl overflow-hidden">
+          <div className="px-4 py-3 border-b border-[var(--color-border-light)] flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 bg-gradient-to-br from-orange-500 to-amber-500 rounded-lg flex items-center justify-center">
+                <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">Your Day</h3>
+                <p className="text-[10px] text-[var(--color-text-muted)]">{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}</p>
+              </div>
+            </div>
+            {stats.todayJobsCount > 0 && (
+              <button
+                onClick={() => onNavigate('calendar')}
+                className="text-xs text-orange-600 dark:text-orange-400 hover:underline font-medium"
+              >
+                View in calendar
+              </button>
+            )}
+          </div>
+
+          <div className="p-4 space-y-3">
+            {/* Revenue + Profit summary */}
+            {stats.todayJobsCount > 0 ? (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-green-50 dark:bg-green-900/20 rounded-lg px-3 py-2">
+                  <p className="text-[10px] text-green-600 dark:text-green-400 font-medium">Revenue</p>
+                  <p className="text-lg font-bold text-green-600 dark:text-green-400">{formatCurrency(stats.todayRevenue)}</p>
+                </div>
+                <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg px-3 py-2">
+                  <p className="text-[10px] text-purple-600 dark:text-purple-400 font-medium">Profit</p>
+                  <p className={`text-lg font-bold ${
+                    (() => {
+                      const todayProfit = stats.todayJobs.reduce((sum, j) =>
+                        sum + j.revenue - (j.labor || 0) - (j.gas || 0) - (j.dumpFee || 0) - (j.dumpsterRental || 0) - (j.additionalExpense || 0), 0)
+                      return todayProfit >= 0 ? 'text-purple-600 dark:text-purple-400' : 'text-red-500'
+                    })()
+                  }`}>
+                    {formatCurrency(stats.todayJobs.reduce((sum, j) =>
+                      sum + j.revenue - (j.labor || 0) - (j.gas || 0) - (j.dumpFee || 0) - (j.dumpsterRental || 0) - (j.additionalExpense || 0), 0))}
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-[var(--color-text-muted)]">Expected Revenue</span>
+                <span className="text-lg font-bold text-[var(--color-text-faint)]">{formatCurrency(0)}</span>
+              </div>
+            )}
+
+            {/* Today's Jobs List */}
+            {stats.todayJobs.length > 0 ? (
+              <div className="space-y-1.5">
+                <p className="text-xs font-medium text-[var(--color-text-muted)]">
+                  {stats.todayJobsCount} job{stats.todayJobsCount !== 1 ? 's' : ''} today
+                </p>
+                {stats.todayJobs.slice(0, 4).map((job) => (
+                  <button
+                    key={job.id}
+                    onClick={() => onNavigate('calendar')}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg bg-[var(--color-bg-subtle)] hover:bg-orange-50 dark:hover:bg-orange-900/15 transition-colors text-left group"
+                  >
+                    <div className="w-6 h-6 bg-green-100 dark:bg-green-900/30 rounded-md flex items-center justify-center shrink-0">
+                      <svg className="w-3 h-3 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                      </svg>
+                    </div>
+                    <span className="text-xs font-medium text-[var(--color-text-primary)] truncate flex-1">{job.customerName}</span>
+                    <span className="text-xs font-semibold text-green-600 dark:text-green-400 shrink-0">{formatCurrency(job.revenue)}</span>
+                  </button>
+                ))}
+                {stats.todayJobs.length > 4 && (
+                  <button onClick={() => onNavigate('calendar')} className="text-[10px] text-[var(--color-text-faint)] hover:text-orange-500 text-center w-full transition-colors">
+                    +{stats.todayJobs.length - 4} more
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="text-center py-3">
+                <div className="w-10 h-10 bg-slate-100 dark:bg-slate-800 rounded-xl flex items-center justify-center mx-auto mb-2">
+                  <svg className="w-5 h-5 text-[var(--color-text-faint)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                </div>
+                <p className="text-xs text-[var(--color-text-muted)] mb-1">No jobs scheduled today</p>
+                <button onClick={() => onNavigate('jobs')} className="text-xs text-orange-600 dark:text-orange-400 hover:underline font-medium">
+                  Log a job &rarr;
+                </button>
+              </div>
+            )}
+
+            {/* Motivational Stat */}
+            {jobs.length > 0 && (
+              <div className="pt-2 border-t border-[var(--color-border-light)]">
+                <div className="flex items-start gap-2 px-2 py-1.5 bg-amber-50 dark:bg-amber-900/15 rounded-lg">
+                  <svg className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                  <p className="text-[11px] text-amber-700 dark:text-amber-300 leading-relaxed font-medium">
+                    {stats.jobsAwayFromBest > 0
+                      ? `You're ${stats.jobsAwayFromBest} job${stats.jobsAwayFromBest !== 1 ? 's' : ''} away from your best week ever!`
+                      : stats.jobsThisWeek > 0
+                        ? `${stats.jobsThisWeek} job${stats.jobsThisWeek !== 1 ? 's' : ''} this week — you're on a roll!`
+                        : `${stats.jobsThisMonth} job${stats.jobsThisMonth !== 1 ? 's' : ''} this month. Keep pushing!`
+                    }
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Mini Calendar */}
+        <MiniCalendar
+          jobs={jobs}
+          onDayClick={() => onNavigate('calendar')}
+          onViewFullCalendar={() => onNavigate('calendar')}
+        />
+      </div>
 
       {/* ===== STAT CARDS ===== */}
       <div className="stat-grid">

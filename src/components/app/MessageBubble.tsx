@@ -18,7 +18,7 @@ export function MessageBubble({ message, isLatest }: MessageBubbleProps) {
 
   return (
     <div className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
-      <div className={`flex gap-2.5 ${isUser ? 'flex-row-reverse' : ''} max-w-[88%]`}>
+      <div className={`flex gap-2 ${isUser ? 'flex-row-reverse' : ''} max-w-[85%] sm:max-w-[80%]`}>
         {/* Avatar */}
         {isUser ? (
           <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 bg-gradient-to-br from-orange-500 to-amber-500 text-white shadow-sm mt-0.5">
@@ -27,8 +27,8 @@ export function MessageBubble({ message, isLatest }: MessageBubbleProps) {
             </svg>
           </div>
         ) : (
-          <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 bg-gradient-to-br from-orange-500/10 to-amber-500/10 dark:from-orange-500/20 dark:to-amber-500/20 mt-0.5">
-            <img src="/dyia-agent.png" alt="" className="w-5 h-5 object-contain" />
+          <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden mt-0.5">
+            <img src="/dyia-agent.png" alt="" className="w-7 h-7 object-cover rounded-full" />
           </div>
         )}
 
@@ -160,7 +160,7 @@ export function MessageBubble({ message, isLatest }: MessageBubbleProps) {
           )}
           
           {/* Timestamp */}
-          <div className={`mt-2 text-[10px] ${isUser ? 'text-orange-100' : 'text-slate-400'}`}>
+          <div className={`mt-1.5 text-[10px] opacity-60 ${isUser ? 'text-orange-100 text-right' : 'text-[var(--color-text-faint)]'}`}>
             {formattedTime}
           </div>
         </div>
