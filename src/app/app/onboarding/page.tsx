@@ -1155,7 +1155,7 @@ export default function OnboardingPage() {
               <p className={`text-center text-xs mt-2 ${colors.textSubtle}`}>
                 Complete the items above for a full profile, or click Get Started to finish later in Settings.
               </p>
-            </div>
+            )}
           </div>
         </main>
       </div>
