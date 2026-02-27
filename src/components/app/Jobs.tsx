@@ -57,6 +57,14 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
   const [reviewPlatform, setReviewPlatform] = useState<string>(REVIEW_PLATFORMS[0])
   const [reviewCopied, setReviewCopied] = useState(false)
   const [showExpenseDetails, setShowExpenseDetails] = useState(false)
+  const [closeDayDate, setCloseDayDate] = useState<string | null>(null)
+  const [closeDayExpenses, setCloseDayExpenses] = useState({ labor: 0, gas: 0, dumpFee: 0, dumpsterRental: 0, additional: 0 })
+  const [closeDaySaving, setCloseDaySaving] = useState(false)
+  const [closeDayResult, setCloseDayResult] = useState<{ revenue: number; expenses: number; profit: number; jobCount: number; avgRevenue: number; avgProfit: number } | null>(null)
+  const [tempReceiptUrl, setTempReceiptUrl] = useState<string | null>(null)
+  const [uploadingReceipt, setUploadingReceipt] = useState(false)
+  const [nudgeDismissedDays, setNudgeDismissedDays] = useState<Record<string, boolean>>({})
+  const [nudgeDismissedReceipts, setNudgeDismissedReceipts] = useState(false)
 
   const supabase = createClient()
   const { confirm, alert } = useConfirm()
@@ -111,6 +119,132 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
     })
   }, [monthJobs, searchQuery, sourceFilter])
 
+  // Days in current month that have jobs but no expenses logged (for nudge)
+  const daysWithoutExpenses = useMemo(() => {
+    const byDate = new Map<string, { revenue: number; expenses: number }>()
+    monthJobs.forEach(j => {
+      const rev = (j.revenue || 0)
+      const exp = (j.labor || 0) + (j.gas || 0) + (j.dumpFee || 0) + (j.dumpsterRental || 0) + (j.additionalExpense || 0)
+      const cur = byDate.get(j.date) || { revenue: 0, expenses: 0 }
+      byDate.set(j.date, { revenue: cur.revenue + rev, expenses: cur.expenses + exp })
+    })
+    return Array.from(byDate.entries())
+      .filter(([, v]) => v.revenue > 0 && v.expenses === 0)
+      .map(([date]) => date)
+  }, [monthJobs])
+
+  const jobsWithoutReceiptCount = useMemo(() => monthJobs.filter(j => !j.receiptUrl?.trim()).length, [monthJobs])
+
+  // Group filtered jobs by date for day-based workflow (newest first)
+  const jobsByDay = useMemo(() => {
+    const map = new Map<string, AppJob[]>()
+    filteredJobs.forEach(job => {
+      const list = map.get(job.date) || []
+      list.push(job)
+      map.set(job.date, list)
+    })
+    return Array.from(map.entries()).sort(([a], [b]) => b.localeCompare(a))
+  }, [filteredJobs])
+
+  const openCloseDayModal = (date: string) => {
+    setCloseDayDate(date)
+    setCloseDayResult(null)
+    const dayJobs = filteredJobs.filter(j => j.date === date)
+    const existingLabor = dayJobs.reduce((s, j) => s + (j.labor || 0), 0)
+    const existingGas = dayJobs.reduce((s, j) => s + (j.gas || 0), 0)
+    const existingDump = dayJobs.reduce((s, j) => s + (j.dumpFee || 0), 0)
+    const existingDumpster = dayJobs.reduce((s, j) => s + (j.dumpsterRental || 0), 0)
+    const existingOther = dayJobs.reduce((s, j) => s + (j.additionalExpense || 0), 0)
+    setCloseDayExpenses({
+      labor: existingLabor,
+      gas: existingGas,
+      dumpFee: existingDump,
+      dumpsterRental: existingDumpster,
+      additional: existingOther,
+    })
+  }
+
+  const applyDailyExpenses = async () => {
+    if (!closeDayDate) return
+    const dayJobs = jobs.filter(j => j.date === closeDayDate)
+    if (dayJobs.length === 0) return
+
+    const totalLabor = Math.max(0, closeDayExpenses.labor)
+    const totalGas = Math.max(0, closeDayExpenses.gas)
+    const totalDumpFee = Math.max(0, closeDayExpenses.dumpFee)
+    const totalDumpster = Math.max(0, closeDayExpenses.dumpsterRental)
+    const totalAdditional = Math.max(0, closeDayExpenses.additional)
+    const totalExpenses = totalLabor + totalGas + totalDumpFee + totalDumpster + totalAdditional
+    const dayRevenue = dayJobs.reduce((s, j) => s + (j.revenue || 0), 0)
+
+    setCloseDaySaving(true)
+    try {
+      if (dayRevenue <= 0) {
+        await alert({ title: 'No revenue', message: 'Allocate expenses proportionally by revenue. Add revenue to jobs first or split evenly.', variant: 'warning' })
+        setCloseDaySaving(false)
+        return
+      }
+
+      const updates = dayJobs.map(job => {
+        const share = (job.revenue || 0) / dayRevenue
+        return {
+          id: job.id,
+          labor: Math.round(totalLabor * share * 100) / 100,
+          gas: Math.round(totalGas * share * 100) / 100,
+          dump_fee: Math.round(totalDumpFee * share * 100) / 100,
+          dumpster_rental: Math.round(totalDumpster * share * 100) / 100,
+          additional_expense: Math.round(totalAdditional * share * 100) / 100,
+        }
+      })
+
+      for (const u of updates) {
+        const { error } = await supabase
+          .from('dyia_jobs')
+          .update({
+            labor: u.labor,
+            gas: u.gas,
+            dump_fee: u.dump_fee,
+            dumpster_rental: u.dumpster_rental,
+            additional_expense: u.additional_expense,
+          })
+          .eq('id', u.id)
+          .eq('user_id', userId)
+        if (error) throw error
+      }
+
+      setJobs(jobs.map(j => {
+        const u = updates.find(x => x.id === j.id)
+        if (!u) return j
+        return {
+          ...j,
+          labor: u.labor,
+          gas: u.gas,
+          dumpFee: u.dump_fee,
+          dumpsterRental: u.dumpster_rental,
+          additionalExpense: u.additional_expense,
+        }
+      }))
+
+      const profit = dayRevenue - totalExpenses
+      const avgRevenue = dayJobs.length > 0 ? dayRevenue / dayJobs.length : 0
+      const avgProfit = dayJobs.length > 0 ? profit / dayJobs.length : 0
+      setCloseDayResult({
+        revenue: dayRevenue,
+        expenses: totalExpenses,
+        profit,
+        jobCount: dayJobs.length,
+        avgRevenue,
+        avgProfit,
+      })
+      showSuccess(`Daily expenses applied — ${formatCurrency(profit)} profit (${dayJobs.length} jobs)`)
+    } catch (err) {
+      console.error('Apply daily expenses error:', err)
+      await alert({ title: 'Error', message: 'Failed to apply daily expenses.', variant: 'error' })
+    } finally {
+      setCloseDaySaving(false)
+    }
+  }
+
   // Calculate stats
   const stats = useMemo(() => {
     const totalRevenue = monthJobs.reduce((sum, j) => sum + (j.revenue || 0), 0)
@@ -140,6 +274,7 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
     setTempDate(new Date().toISOString().split('T')[0])
     setTempNotes('')
     setTempAddress('')
+    setTempReceiptUrl(null)
     setShowExpenseDetails(false)
   }
 
@@ -156,6 +291,7 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
     setTempDate(job.date)
     setTempNotes(job.notes || '')
     setTempAddress(job.address || '')
+    setTempReceiptUrl(job.receiptUrl ?? null)
     const hasExpenses = (job.labor || 0) + (job.gas || 0) + (job.dumpFee || 0) + (job.dumpsterRental || 0) + (job.additionalExpense || 0) > 0
     setShowExpenseDetails(hasExpenses)
   }
@@ -163,6 +299,30 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
   const cancelForm = () => {
     setEditingJob(null)
     setTempCustomers([])
+  }
+
+  const handleReceiptUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (file.size > 10 * 1024 * 1024) {
+      await alert({ title: 'File too large', message: 'Receipt must be under 10MB.', variant: 'warning' })
+      return
+    }
+    setUploadingReceipt(true)
+    try {
+      const form = new FormData()
+      form.append('file', file)
+      const res = await fetch('/api/ai/upload', { method: 'POST', body: form })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Upload failed')
+      setTempReceiptUrl(data.url)
+      showSuccess('Receipt uploaded')
+    } catch (err) {
+      await alert({ title: 'Upload failed', message: err instanceof Error ? err.message : 'Could not upload receipt.', variant: 'error' })
+    } finally {
+      setUploadingReceipt(false)
+      e.target.value = ''
+    }
   }
 
   const addCustomerRow = () => {
@@ -207,6 +367,7 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
           additional_expense: Math.max(0, tempExpenses.additional),
           notes: tempNotes.trim() || null,
           address: tempAddress.trim() || null,
+          receipt_url: tempReceiptUrl?.trim() || null,
         }
 
         const { error } = await supabase
@@ -230,6 +391,8 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
           dumpsterRental: tempExpenses.dumpsterRental,
           additionalExpense: tempExpenses.additional,
           notes: tempNotes.trim(),
+          address: tempAddress.trim() || undefined,
+          receiptUrl: tempReceiptUrl?.trim() || undefined,
         } : j))
         showSuccess(`Job updated — ${formatCurrency(jobProfit)} profit`)
       } else {
@@ -274,6 +437,8 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
             numWorkers: 1,
             costPerWorker: 0,
             notes: tempNotes.trim(),
+            address: tempAddress.trim() || undefined,
+            receiptUrl: undefined,
           })
         }
 
@@ -563,6 +728,37 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
           </div>
         </div>
 
+        {/* === RECEIPT === */}
+        <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl p-4 sm:p-5 space-y-2">
+          <label className="block text-sm font-semibold text-[var(--color-text-primary)]">Receipt <span className="text-[var(--color-text-faint)] font-normal">(optional)</span></label>
+          <p className="text-xs text-[var(--color-text-muted)] mb-2">Upload a photo or PDF of the receipt for this job to keep records in one place.</p>
+          {tempReceiptUrl ? (
+            <div className="flex items-center gap-3 flex-wrap">
+              <a href={tempReceiptUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-orange-600 dark:text-orange-400 hover:underline truncate max-w-[200px]">
+                View receipt
+              </a>
+              <button type="button" onClick={() => setTempReceiptUrl(null)} className="text-xs text-[var(--color-text-muted)] hover:text-red-500">Remove</button>
+            </div>
+          ) : (
+            <label className="inline-flex items-center gap-2 px-3 py-2 border border-[var(--color-border)] rounded-lg hover:bg-[var(--color-bg-subtle)] cursor-pointer text-sm">
+              <input type="file" accept="image/*,.pdf" className="sr-only" onChange={handleReceiptUpload} disabled={uploadingReceipt} />
+              {uploadingReceipt ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-orange-500/30 border-t-orange-500 rounded-full animate-spin" />
+                  Uploading...
+                </>
+              ) : (
+                <>
+                  <svg className="w-4 h-4 text-[var(--color-text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                  </svg>
+                  Upload receipt (image or PDF, max 10MB)
+                </>
+              )}
+            </label>
+          )}
+        </div>
+
         {/* === ACTIONS === */}
         <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3">
           <button onClick={cancelForm} className="w-full sm:w-auto px-5 py-2.5 border border-[var(--color-border)] rounded-xl hover:bg-[var(--color-bg-subtle)] font-medium text-sm">
@@ -643,6 +839,69 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
         </div>
       </div>
 
+      {/* Daily expense confirmation nudge */}
+      {daysWithoutExpenses.length > 0 && !nudgeDismissedDays[monthValue] && (
+        <div className="flex items-start gap-3 p-4 rounded-xl border border-amber-200 dark:border-amber-800/60 bg-amber-50/80 dark:bg-amber-900/20">
+          <span className="text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" aria-hidden>
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </span>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-amber-900 dark:text-amber-200">
+              {daysWithoutExpenses.length} {daysWithoutExpenses.length === 1 ? 'day has' : 'days have'} jobs without expenses logged
+            </p>
+            <p className="text-xs text-amber-800 dark:text-amber-300/90 mt-0.5">
+              Log daily expenses to see accurate profit and keep records tidy.
+            </p>
+            <div className="flex flex-wrap gap-2 mt-3">
+              <button
+                type="button"
+                onClick={() => {
+                  openCloseDayModal(daysWithoutExpenses[0])
+                }}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium"
+              >
+                Log daily expenses
+              </button>
+              <button
+                type="button"
+                onClick={() => setNudgeDismissedDays(prev => ({ ...prev, [monthValue]: true }))}
+                className="text-xs text-amber-700 dark:text-amber-400 hover:underline"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Receipt upload nudge */}
+      {jobsWithoutReceiptCount > 0 && !nudgeDismissedReceipts && monthJobs.length > 0 && (
+        <div className="flex items-start gap-3 p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-800/40">
+          <span className="text-slate-500 dark:text-slate-400 shrink-0 mt-0.5" aria-hidden>
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+          </span>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-slate-800 dark:text-slate-200">
+              {jobsWithoutReceiptCount} {jobsWithoutReceiptCount === 1 ? 'job has' : 'jobs have'} no receipt
+            </p>
+            <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
+              Add receipts when editing a job to keep everything in one place for taxes and records.
+            </p>
+            <button
+              type="button"
+              onClick={() => setNudgeDismissedReceipts(true)}
+              className="text-xs text-slate-600 dark:text-slate-400 hover:underline mt-2"
+            >
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Filters */}
       <div className="flex flex-col gap-3">
         {/* Month Navigation */}
@@ -709,7 +968,7 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
         </div>
       </div>
 
-      {/* Jobs List */}
+      {/* Jobs List — grouped by day with "Log daily expenses" per day */}
       <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl overflow-hidden">
         {filteredJobs.length === 0 ? (
           <div className="text-center py-10 px-6">
@@ -747,75 +1006,230 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
           </div>
         ) : (
           <div className="divide-y divide-slate-100 dark:divide-slate-700/50">
-            {filteredJobs.map((job) => {
-              const jobExpenses = (job.labor || 0) + (job.gas || 0) + (job.dumpFee || 0) +
-                                   (job.dumpsterRental || 0) + (job.additionalExpense || 0)
-              const profit = (job.revenue || 0) - jobExpenses
-              const margin = job.revenue > 0 ? Math.round((profit / job.revenue) * 100) : 0
+            {jobsByDay.map(([date, dayJobs]) => {
+              const dayRevenue = dayJobs.reduce((s, j) => s + (j.revenue || 0), 0)
+              const dayExpenses = dayJobs.reduce((s, j) => s + (j.labor || 0) + (j.gas || 0) + (j.dumpFee || 0) + (j.dumpsterRental || 0) + (j.additionalExpense || 0), 0)
+              const dayProfit = dayRevenue - dayExpenses
+              const dayLabel = new Date(date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
 
               return (
-                <div 
-                  key={job.id} 
-                  className="flex items-center justify-between p-3 sm:p-4 hover:bg-[var(--color-bg-subtle)] transition-colors"
-                >
-                  <div className="flex items-center gap-3 min-w-0 flex-1">
-                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${profit >= 0 ? 'bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400' : 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400'}`}>
-                      <span className="text-xs font-bold">{margin}%</span>
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm font-medium text-[var(--color-text-primary)] truncate">{job.customerName}</p>
-                        {job.source && (
-                          <span className="hidden sm:inline text-[10px] px-1.5 py-0.5 bg-orange-500/10 text-orange-600 dark:text-orange-400 rounded-full shrink-0">{job.source}</span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2 text-xs text-[var(--color-text-muted)]">
-                        <span>{new Date(job.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
-                        {job.notes && <span className="truncate max-w-[150px] hidden sm:inline">· {job.notes}</span>}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 shrink-0">
-                    <div className="text-right">
-                      <p className="text-sm font-semibold text-green-600 dark:text-green-400">{formatCurrency(job.revenue)}</p>
-                      <p className="text-[10px] text-[var(--color-text-faint)] hidden sm:block">{formatCurrency(profit)} profit</p>
-                    </div>
-                    <div className="flex gap-0.5">
-                      {settings && (
-                        <button
-                          onClick={() => { setReviewModalJob(job); setReviewPlatform(REVIEW_PLATFORMS[0]); setReviewCopied(false) }}
-                          className="p-1.5 text-[var(--color-text-faint)] hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/30 rounded-lg transition-colors"
-                          title="Request review"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
-                          </svg>
-                        </button>
+                <div key={date}>
+                  {/* Day header with "Log daily expenses" */}
+                  <div className="flex flex-wrap items-center justify-between gap-2 px-3 sm:px-4 py-2.5 bg-[var(--color-bg-subtle)] border-b border-[var(--color-border)]">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-semibold text-[var(--color-text-primary)]">{dayLabel}</span>
+                      <span className="text-xs text-[var(--color-text-muted)]">{dayJobs.length} job{dayJobs.length !== 1 ? 's' : ''}</span>
+                      <span className="text-xs text-green-600 dark:text-green-400 font-medium">{formatCurrency(dayRevenue)} rev</span>
+                      {dayExpenses > 0 && (
+                        <span className="text-xs text-[var(--color-text-muted)]">{formatCurrency(dayProfit)} profit</span>
                       )}
-                      <button 
-                        onClick={() => startEditJob(job)} 
-                        className="p-1.5 text-[var(--color-text-faint)] hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                        </svg>
-                      </button>
-                      <button 
-                        onClick={() => deleteJob(job.id)} 
-                        className="p-1.5 text-[var(--color-text-faint)] hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                      </button>
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => openCloseDayModal(date)}
+                      className="text-xs font-medium text-orange-600 dark:text-orange-400 hover:text-orange-700 dark:hover:text-orange-300 hover:underline"
+                    >
+                      {dayExpenses > 0 ? 'Edit daily expenses' : 'Log daily expenses'}
+                    </button>
                   </div>
+                  {dayJobs.map((job) => {
+                    const jobExpenses = (job.labor || 0) + (job.gas || 0) + (job.dumpFee || 0) +
+                                         (job.dumpsterRental || 0) + (job.additionalExpense || 0)
+                    const profit = (job.revenue || 0) - jobExpenses
+                    const margin = job.revenue > 0 ? Math.round((profit / job.revenue) * 100) : 0
+
+                    return (
+                      <div 
+                        key={job.id} 
+                        className="flex items-center justify-between p-3 sm:p-4 hover:bg-[var(--color-bg-subtle)] transition-colors"
+                      >
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                          <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${profit >= 0 ? 'bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400' : 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400'}`}>
+                            <span className="text-xs font-bold">{margin}%</span>
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="text-sm font-medium text-[var(--color-text-primary)] truncate">{job.customerName}</p>
+                              {job.source && (
+                                <span className="hidden sm:inline text-[10px] px-1.5 py-0.5 bg-orange-500/10 text-orange-600 dark:text-orange-400 rounded-full shrink-0">{job.source}</span>
+                              )}
+                              {job.receiptUrl ? (
+                                <a href={job.receiptUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[10px] text-slate-500 dark:text-slate-400 hover:text-orange-600 dark:hover:text-orange-400" title="View receipt">
+                                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                  </svg>
+                                  Receipt
+                                </a>
+                              ) : (
+                                <button type="button" onClick={() => startEditJob(job)} className="inline-flex items-center gap-1 text-[10px] text-slate-400 dark:text-slate-500 hover:text-orange-600 dark:hover:text-orange-400" title="Add receipt">
+                                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                                  </svg>
+                                  Add receipt
+                                </button>
+                              )}
+                            </div>
+                            {job.notes && (
+                              <div className="text-xs text-[var(--color-text-muted)] truncate max-w-[200px]">{job.notes}</div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3 shrink-0">
+                          <div className="text-right">
+                            <p className="text-sm font-semibold text-green-600 dark:text-green-400">{formatCurrency(job.revenue)}</p>
+                            <p className="text-[10px] text-[var(--color-text-faint)] hidden sm:block">{formatCurrency(profit)} profit</p>
+                          </div>
+                          <div className="flex gap-0.5">
+                            {settings && (
+                              <button
+                                onClick={() => { setReviewModalJob(job); setReviewPlatform(REVIEW_PLATFORMS[0]); setReviewCopied(false) }}
+                                className="p-1.5 text-[var(--color-text-faint)] hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/30 rounded-lg transition-colors"
+                                title="Request review"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                                </svg>
+                              </button>
+                            )}
+                            <button 
+                              onClick={() => startEditJob(job)} 
+                              className="p-1.5 text-[var(--color-text-faint)] hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                              </svg>
+                            </button>
+                            <button 
+                              onClick={() => deleteJob(job.id)} 
+                              className="p-1.5 text-[var(--color-text-faint)] hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
                 </div>
               )
             })}
           </div>
         )}
       </div>
+
+      {/* Close day / Log daily expenses modal */}
+      {closeDayDate && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={() => !closeDaySaving && setCloseDayDate(null)}>
+          <div
+            className="bg-[var(--color-bg)] border border-[var(--color-border)] rounded-xl shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-[var(--color-text-primary)]">
+                {closeDayResult ? 'Day summary' : 'Log daily expenses'}
+              </h3>
+              {!closeDaySaving && (
+                <button type="button" onClick={() => setCloseDayDate(null)} className="p-1.5 text-[var(--color-text-faint)] hover:bg-[var(--color-bg-subtle)] rounded-lg">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+              )}
+            </div>
+            <p className="text-sm text-[var(--color-text-muted)] mb-4">
+              {new Date(closeDayDate + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
+            </p>
+
+            {closeDayResult ? (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-[var(--color-bg-subtle)] rounded-xl p-3">
+                    <p className="text-xs text-[var(--color-text-muted)]">Total revenue</p>
+                    <p className="text-lg font-bold text-green-600 dark:text-green-400">{formatCurrency(closeDayResult.revenue)}</p>
+                  </div>
+                  <div className="bg-[var(--color-bg-subtle)] rounded-xl p-3">
+                    <p className="text-xs text-[var(--color-text-muted)]">Total expenses</p>
+                    <p className="text-lg font-bold text-red-500 dark:text-red-400">{formatCurrency(closeDayResult.expenses)}</p>
+                  </div>
+                  <div className="bg-[var(--color-bg-subtle)] rounded-xl p-3">
+                    <p className="text-xs text-[var(--color-text-muted)]">Daily profit</p>
+                    <p className={`text-lg font-bold ${closeDayResult.profit >= 0 ? 'text-purple-600 dark:text-purple-400' : 'text-red-600 dark:text-red-400'}`}>
+                      {formatCurrency(closeDayResult.profit)}
+                    </p>
+                  </div>
+                  <div className="bg-[var(--color-bg-subtle)] rounded-xl p-3">
+                    <p className="text-xs text-[var(--color-text-muted)]">Per-job average</p>
+                    <p className="text-sm font-semibold text-[var(--color-text-primary)]">{formatCurrency(closeDayResult.avgRevenue)} rev</p>
+                    <p className="text-xs text-[var(--color-text-muted)]">{formatCurrency(closeDayResult.avgProfit)} profit</p>
+                  </div>
+                </div>
+                <p className="text-xs text-[var(--color-text-muted)]">
+                  Expenses were allocated across {closeDayResult.jobCount} job{closeDayResult.jobCount !== 1 ? 's' : ''} proportionally by revenue.
+                </p>
+                <button type="button" onClick={() => setCloseDayDate(null)} className="w-full app-btn-primary py-2.5">Done</button>
+              </div>
+            ) : (
+              <>
+                {(() => {
+                  const dayJobsList = jobs.filter(j => j.date === closeDayDate)
+                  return (
+                    <>
+                      <div className="mb-4">
+                        <p className="text-xs font-medium text-[var(--color-text-muted)] mb-2">Jobs this day ({dayJobsList.length})</p>
+                        <ul className="space-y-1 max-h-24 overflow-y-auto">
+                          {dayJobsList.map(j => (
+                            <li key={j.id} className="flex justify-between text-sm">
+                              <span className="truncate">{j.customerName}</span>
+                              <span className="text-green-600 dark:text-green-400 shrink-0 ml-2">{formatCurrency(j.revenue)}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                      <p className="text-xs text-[var(--color-text-muted)] mb-3">Enter total expenses for the day. They will be split across jobs by revenue share.</p>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
+                        {[
+                          { key: 'labor' as const, label: 'Labor' },
+                          { key: 'gas' as const, label: 'Gas' },
+                          { key: 'dumpFee' as const, label: 'Dump fee' },
+                          { key: 'dumpsterRental' as const, label: 'Dumpster' },
+                          { key: 'additional' as const, label: 'Other' },
+                        ].map(({ key, label }) => (
+                          <div key={key}>
+                            <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1">{label}</label>
+                            <div className="relative">
+                              <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)] text-sm">$</span>
+                              <input
+                                type="number"
+                                min={0}
+                                value={closeDayExpenses[key] || ''}
+                                onChange={(e) => setCloseDayExpenses(prev => ({ ...prev, [key]: Math.max(0, parseFloat(e.target.value) || 0) }))}
+                                className="w-full pl-7 pr-2 py-2 bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-lg text-sm"
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="flex gap-2">
+                        <button type="button" onClick={() => setCloseDayDate(null)} disabled={closeDaySaving} className="app-btn-secondary flex-1 py-2.5">Cancel</button>
+                        <button type="button" onClick={applyDailyExpenses} disabled={closeDaySaving} className="app-btn-primary flex-1 py-2.5 disabled:opacity-50 flex items-center justify-center gap-2">
+                          {closeDaySaving ? (
+                            <>
+                              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                              Applying…
+                            </>
+                          ) : (
+                            'Apply & calculate'
+                          )}
+                        </button>
+                      </div>
+                    </>
+                  )
+                })()}
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Request Review modal */}
       {reviewModalJob && settings && (

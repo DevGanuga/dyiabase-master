@@ -72,27 +72,36 @@ function AppPageContent() {
   // before any Supabase queries run in subsequent effects.
   initSupabaseAuth(() => getToken({ template: 'supabase' }))
 
-  // URL params for checkout flow and view routing
-  const viewParam = searchParams.get('view') as View | null
+  // URL params for checkout flow and view routing.
+  // Default to dashboard (Home) whenever view is missing or invalid so /app always opens to Home.
+  const viewParamRaw = searchParams.get('view')
+  const viewParam = (viewParamRaw && VALID_VIEWS.includes(viewParamRaw as View)) ? (viewParamRaw as View) : null
   const planParam = searchParams.get('plan') as 'monthly' | 'annual' | null
   const sessionIdParam = searchParams.get('session_id')
-  const [currentView, setCurrentViewState] = useState<View>(
-    viewParam && VALID_VIEWS.includes(viewParam) ? viewParam : 'dashboard'
-  )
-  
-  // Keep currentView in sync when URL changes (e.g., browser back/forward)
-  // Only respond to viewParam changes — NOT currentView changes.
-  // Including currentView would revert navigation because router.push is async:
-  // local state updates instantly but viewParam lags behind, causing the effect to snap back.
+  const [currentView, setCurrentViewState] = useState<View>(viewParam ?? 'dashboard')
+
+  // Keep currentView in sync when URL changes (e.g., browser back/forward).
+  // Any missing or invalid view param resets to dashboard so /app and /app?view= always show Home when view is not a valid panel.
   useEffect(() => {
-    if (viewParam && VALID_VIEWS.includes(viewParam)) {
+    if (viewParam) {
       setCurrentViewState(viewParam)
-    } else if (viewParam === null) {
+    } else {
       setCurrentViewState('dashboard')
+      // Normalize URL when we're showing dashboard but URL has a stray or empty view param
+      if (typeof window !== 'undefined' && window.location.pathname === '/app') {
+        const params = new URLSearchParams(window.location.search)
+        const hasView = params.has('view')
+        if (hasView) {
+          params.delete('view')
+          const next = params.toString() ? `/app?${params.toString()}` : '/app'
+          router.replace(next, { scroll: false })
+        }
+      }
     }
-  }, [viewParam])
+  }, [viewParam, router])
   
   const setCurrentView = useCallback((view: View) => {
+    if (view !== 'settings') setSettingsInitialTab(null)
     setCurrentViewState(view)
     const url = view === 'dashboard' ? '/app' : `/app?view=${view}`
     router.push(url, { scroll: false })
@@ -113,9 +122,12 @@ function AppPageContent() {
   const [fixedMonthlyExpenses, setFixedMonthlyExpenses] = useState(0)
   const [pendingFollowUpsCount, setPendingFollowUpsCount] = useState(0)
   const [selectedJobForQuote, setSelectedJobForQuote] = useState<AppJob | null>(null)
+  const [assistantInitialPrompt, setAssistantInitialPrompt] = useState<string | null>(null)
   const [priceTemplatesCount, setPriceTemplatesCount] = useState(0)
+  const isPro = ['active', 'trialing'].includes(userProfile?.subscription_status || '')
   const [hasViewedAssistant, setHasViewedAssistant] = useState(false)
   const [checkoutLoading, setCheckoutLoading] = useState(false)
+  const [settingsInitialTab, setSettingsInitialTab] = useState<'business' | 'templates' | null>(null)
   const checkoutTriggeredRef = useRef(false)
   const contentScrollRef = useRef<HTMLDivElement>(null)
   const initAttemptedRef = useRef(false)
@@ -199,7 +211,10 @@ function AppPageContent() {
           additionalExpense: parseFloat(j.additional_expense) || 0,
           numWorkers: j.num_workers || 1,
           costPerWorker: parseFloat(j.cost_per_worker) || 0,
-          notes: j.notes || undefined
+          notes: j.notes || undefined,
+          address: (j as { address?: string }).address || undefined,
+          status: (j as { status?: string }).status as AppJob['status'] | undefined,
+          receiptUrl: (j as { receipt_url?: string | null }).receipt_url ?? undefined
         })))
       }
 
@@ -527,8 +542,8 @@ function AppPageContent() {
       id: 'business-info',
       label: 'Add business info',
       description: 'Name, phone & email for quotes',
-      completed: !!(settings.businessInfo.name && settings.businessInfo.phone),
-      action: (settings.businessInfo.name && settings.businessInfo.phone) ? undefined : () => setCurrentView('settings'),
+      completed: !!(settings.businessInfo.name?.trim() && settings.businessInfo.phone?.trim() && settings.businessInfo.email?.trim()),
+      action: (settings.businessInfo.name?.trim() && settings.businessInfo.phone?.trim() && settings.businessInfo.email?.trim()) ? undefined : () => { setSettingsInitialTab('business'); setCurrentView('settings') },
     },
     {
       id: 'first-job',
@@ -556,7 +571,7 @@ function AppPageContent() {
       label: 'Save a price template',
       description: 'Speed up future quotes',
       completed: priceTemplatesCount > 0,
-      action: priceTemplatesCount > 0 ? undefined : () => setCurrentView('settings'),
+      action: priceTemplatesCount > 0 ? undefined : () => { setSettingsInitialTab('templates'); setCurrentView('settings') },
     },
   ]
   const showLaunchpadOnDashboard = !isDemoMode && launchpadItems.some(item => !item.completed)
@@ -619,6 +634,11 @@ function AppPageContent() {
               setCurrentView('quotes')
             }}
             showSuccess={showSuccess}
+            isPro={isPro}
+            onOpenDyiaWithPrompt={(prompt) => {
+              setCurrentView('assistant')
+              setAssistantInitialPrompt(prompt)
+            }}
           />
         )
       case 'settings':
@@ -633,6 +653,7 @@ function AppPageContent() {
             userImageUrl={isDemoMode ? undefined : user?.imageUrl}
             userName={isDemoMode ? 'Demo User' : (userProfile?.first_name || user?.firstName || '')}
             isDemoMode={isDemoMode}
+            initialTab={settingsInitialTab ?? undefined}
           />
         )
       case 'followUps':
@@ -733,6 +754,8 @@ function AppPageContent() {
             <Assistant
               userId={userProfile?.id || ''}
               showSuccess={showSuccess}
+              initialPrompt={assistantInitialPrompt}
+              onPromptConsumed={() => setAssistantInitialPrompt(null)}
             />
           </div>
         )}

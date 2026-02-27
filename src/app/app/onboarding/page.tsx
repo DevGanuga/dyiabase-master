@@ -1,22 +1,24 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useUser, useAuth, UserButton } from '@clerk/nextjs'
 import { useRouter } from 'next/navigation'
 import { createClient, initSupabaseAuth } from '@/lib/supabase/client'
 import { useTheme } from '@/hooks/useTheme'
+import { AnimatedDropdown } from '@/components/ui/AnimatedDropdown'
+import { compressImage } from '@/lib/utils'
 
 type Step = 'welcome' | 'profile' | 'business' | 'goals' | 'financials' | 'template'
 
 const STEPS: Step[] = ['welcome', 'profile', 'business', 'goals', 'financials', 'template']
 
 const BUSINESS_TYPES = [
-  { id: 'junk_removal', label: 'Junk Removal', icon: '🚛' },
-  { id: 'lawn_care', label: 'Lawn Care', icon: '🌿' },
-  { id: 'cleaning', label: 'Cleaning', icon: '🧹' },
-  { id: 'moving', label: 'Moving', icon: '📦' },
-  { id: 'handyman', label: 'Handyman', icon: '🔧' },
-  { id: 'other', label: 'Other', icon: '💼' },
+  { id: 'junk_removal', label: 'Junk Removal', icon: '🚛', available: true },
+  { id: 'lawn_care', label: 'Lawn Care', icon: '🌿', available: false },
+  { id: 'cleaning', label: 'Cleaning', icon: '🧹', available: false },
+  { id: 'moving', label: 'Moving', icon: '📦', available: false },
+  { id: 'handyman', label: 'Handyman', icon: '🔧', available: true },
+  { id: 'other', label: 'Other', icon: '💼', available: true },
 ]
 
 const TEAM_SIZES = [
@@ -101,6 +103,7 @@ export default function OnboardingPage() {
   const [logoPreview, setLogoPreview] = useState<string | null>(null)
   const [businessAddress, setBusinessAddress] = useState('')
   const [serviceArea, setServiceArea] = useState('')
+  const [servicesOffered, setServicesOffered] = useState('')
   const [yearsInBusiness, setYearsInBusiness] = useState('')
   
   // Goals & Strategy state
@@ -111,21 +114,42 @@ export default function OnboardingPage() {
   // Financial state
   const [taxPercentage, setTaxPercentage] = useState(30)
   const [monthlyGoal, setMonthlyGoal] = useState(0)
+  const [averageJobRevenue, setAverageJobRevenue] = useState<number | 'not_sure' | ''>('')
   
-  // Price template state
+  // Price template state: customizable list of { id, label, amount }
+  const defaultPriceRows = [
+    { id: '1', label: 'Minimum', amount: 75 },
+    { id: '2', label: '1/4 Load', amount: 150 },
+    { id: '3', label: '1/2 Load', amount: 250 },
+    { id: '4', label: '3/4 Load', amount: 350 },
+    { id: '5', label: 'Full Load', amount: 450 },
+  ]
   const [createTemplate, setCreateTemplate] = useState(true)
   const [templateName, setTemplateName] = useState('Standard Pricing')
-  const [prices, setPrices] = useState({
-    minimumFee: 75,
-    quarterLoad: 150,
-    halfLoad: 250,
-    threeQuarterLoad: 350,
-    fullLoad: 450,
-  })
+  const [priceRows, setPriceRows] = useState<{ id: string; label: string; amount: number }[]>(defaultPriceRows)
 
   const currentStepIndex = STEPS.indexOf(currentStep)
   const progress = ((currentStepIndex + 1) / STEPS.length) * 100
   const isLastStep = currentStep === 'template'
+
+  // Required setup checklist — resolves when user completes each item (for guidance only; we still allow Finish)
+  const setupChecklist = useMemo(() => {
+    const businessNameDone = !!businessName?.trim()
+    const phoneDone = !!businessPhone?.trim()
+    const emailDone = !!businessEmail?.trim()
+    const templateDone = !createTemplate || (
+      !!templateName?.trim() &&
+      priceRows.some(r => (r.label?.trim() || '').length > 0 && (Number(r.amount) || 0) > 0)
+    )
+    return [
+      { id: 'business-name', label: 'Business name', done: businessNameDone },
+      { id: 'phone', label: 'Phone number', done: phoneDone },
+      { id: 'email', label: 'Email', done: emailDone },
+      { id: 'template', label: 'Price template (or skip)', done: templateDone },
+    ]
+  }, [businessName, businessPhone, businessEmail, createTemplate, templateName, priceRows])
+  const setupChecklistComplete = setupChecklist.every((c) => c.done)
+  const showChecklist = currentStep === 'business' || currentStep === 'template' || currentStep === 'financials'
 
   useEffect(() => {
     const checkOnboardingStatus = async () => {
@@ -193,17 +217,21 @@ export default function OnboardingPage() {
 
   const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    if (file) {
-      if (file.size > 2 * 1024 * 1024) {
-        setError('Logo must be under 2MB')
-        return
-      }
-      setLogoFile(file)
-      const reader = new FileReader()
-      reader.onloadend = () => setLogoPreview(reader.result as string)
-      reader.readAsDataURL(file)
-      setError(null)
+    if (!file) return
+    if (!file.type.startsWith('image/')) {
+      setError('Please choose an image file (e.g. JPG, PNG, WebP)')
+      return
     }
+    if (file.size > 2 * 1024 * 1024) {
+      setError('Logo must be under 2MB')
+      return
+    }
+    setError(null)
+    setLogoFile(file)
+    const reader = new FileReader()
+    reader.onloadend = () => setLogoPreview(reader.result as string)
+    reader.onerror = () => setError('Could not read image. Try a different file.')
+    reader.readAsDataURL(file)
   }
 
   const animateToStep = useCallback((newStep: Step, dir: 'forward' | 'backward') => {
@@ -290,24 +318,22 @@ export default function OnboardingPage() {
         console.error('User update error:', userError)
       }
 
-      // Handle logo upload
-      let logoUrl = logoPreview
+      // Handle logo: compress and save to DB (same as Settings — works without storage bucket)
+      let logoUrl: string | null = logoPreview
       if (logoFile) {
-        const fileExt = logoFile.name.split('.').pop()
-        const fileName = `${userId}-logo-${Date.now()}.${fileExt}`
-        
-        const { error: uploadError } = await supabase.storage
-          .from('logos')
-          .upload(fileName, logoFile, { upsert: true })
-
-        if (uploadError) {
-          console.error('Logo upload error:', uploadError)
-          // Continue without logo - not a critical failure
-        } else {
-          const { data: { publicUrl } } = supabase.storage
-            .from('logos')
-            .getPublicUrl(fileName)
-          logoUrl = publicUrl
+        try {
+          const dataUrl = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader()
+            reader.onload = () => resolve(reader.result as string)
+            reader.onerror = () => reject(reader.error)
+            reader.readAsDataURL(logoFile)
+          })
+          logoUrl = await compressImage(dataUrl, 400, 0.8)
+        } catch (err) {
+          console.error('Error processing logo:', err)
+          setError('Could not process logo image. You can continue without it and add one later in Settings.')
+          setSaving(false)
+          return
         }
       }
 
@@ -330,6 +356,8 @@ export default function OnboardingPage() {
             team_size: teamSize,
             referral_source: referralSource,
             service_area: serviceArea || undefined,
+            services_offered: servicesOffered || undefined,
+            average_job_revenue: averageJobRevenue === 'not_sure' ? 'not_sure' : (typeof averageJobRevenue === 'number' ? averageJobRevenue : undefined),
             years_in_business: yearsInBusiness || undefined,
             business_stage: businessStage || undefined,
             biggest_challenge: biggestChallenge || undefined,
@@ -361,20 +389,49 @@ export default function OnboardingPage() {
         throw new Error(`Settings update failed: ${settingsError.message}`)
       }
 
-      // Create price template if requested
+      // Create price template if requested (custom items + legacy keys for QuoteBuilder)
       if (createTemplate && templateName) {
-        const { error: templateError } = await supabase
+        const items = priceRows.filter(r => r.label.trim()).map(r => ({ label: r.label.trim(), amount: Number(r.amount) || 0 }))
+        const pricesPayload: Record<string, unknown> = {
+          items,
+          minimumFee: items[0]?.amount ?? 0,
+          quarterLoad: items[1]?.amount ?? 0,
+          halfLoad: items[2]?.amount ?? 0,
+          threeQuarterLoad: items[3]?.amount ?? 0,
+          fullLoad: items[4]?.amount ?? 0,
+        }
+        let { error: templateError } = await supabase
           .from('dyia_price_templates')
           .insert({
             user_id: userId,
-            name: templateName,
-            prices: prices,
+            name: templateName.trim(),
+            prices: pricesPayload,
             is_default: true,
           })
-        
+
+        // Fallback: try without items (legacy-only) in case of schema/RLS issues
         if (templateError) {
-          console.error('Template creation error:', templateError)
-          // Continue - not critical
+          const err = templateError as { message?: string; code?: string }
+          const errMsg = err?.message ?? err?.code ?? String(templateError)
+          console.warn('Template creation error:', errMsg)
+          const legacyOnlyPrices = {
+            minimumFee: pricesPayload.minimumFee,
+            quarterLoad: pricesPayload.quarterLoad,
+            halfLoad: pricesPayload.halfLoad,
+            threeQuarterLoad: pricesPayload.threeQuarterLoad,
+            fullLoad: pricesPayload.fullLoad,
+          }
+          const fallback = await supabase
+            .from('dyia_price_templates')
+            .insert({
+              user_id: userId,
+              name: templateName.trim(),
+              prices: legacyOnlyPrices,
+              is_default: true,
+            })
+          if (fallback.error) {
+            console.warn('Template fallback also failed:', (fallback.error as Error).message ?? fallback.error)
+          }
         }
       }
 
@@ -497,6 +554,37 @@ export default function OnboardingPage() {
         {/* Main */}
         <main className="flex items-center justify-center min-h-screen px-4 py-20 pt-24">
           <div className="w-full max-w-[520px]">
+            {/* Required setup checklist — visible from business step onward */}
+            {showChecklist && (
+              <div className={`mb-6 rounded-xl border p-4 transition-colors ${
+                setupChecklistComplete 
+                  ? (isDark ? 'bg-green-900/20 border-green-700/50' : 'bg-green-50 border-green-200')
+                  : (isDark ? 'bg-slate-800/50 border-slate-600' : 'bg-slate-50 border-slate-200')
+              }`}>
+                <p className={`text-xs font-semibold mb-2.5 ${setupChecklistComplete ? (isDark ? 'text-green-400' : 'text-green-700') : colors.textMuted}`}>
+                  {setupChecklistComplete ? '✓ Required info complete' : 'Complete these for your profile'}
+                </p>
+                <div className="flex flex-wrap gap-x-4 gap-y-1.5">
+                  {setupChecklist.map((item) => (
+                    <div key={item.id} className="flex items-center gap-2">
+                      <span className={`flex-shrink-0 w-4 h-4 rounded-full flex items-center justify-center text-[10px] ${
+                        item.done ? 'bg-green-500 text-white' : (isDark ? 'bg-slate-600' : 'bg-slate-300')
+                      }`}>
+                        {item.done ? (
+                          <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                          </svg>
+                        ) : null}
+                      </span>
+                      <span className={`text-sm ${item.done ? (isDark ? 'text-green-300' : 'text-green-700') : colors.textMuted}`}>
+                        {item.label}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Steps */}
             <div className="mb-8">
               <div className="flex items-center justify-between mb-4">
@@ -631,7 +719,12 @@ export default function OnboardingPage() {
                       <label className={`w-[72px] h-[72px] rounded-xl border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-all shrink-0 ${
                         isDark ? 'border-slate-600 bg-slate-700/50 hover:border-slate-500' : 'border-slate-300 bg-slate-100 hover:border-orange-400'
                       }`}>
-                        <input type="file" accept="image/*" onChange={handleLogoChange} className="hidden" />
+                        <input
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp,image/gif"
+                          onChange={handleLogoChange}
+                          className="hidden"
+                        />
                         {logoPreview ? (
                           <img src={logoPreview} alt="Logo" className="w-full h-full object-contain rounded-lg" />
                         ) : (
@@ -652,44 +745,51 @@ export default function OnboardingPage() {
                           placeholder="Johnson's Junk Removal"
                           className={`w-full px-4 py-3 rounded-xl border text-base outline-none transition-all ${colors.input}`}
                         />
+                        <p className={`text-[10px] mt-1 ${colors.textSubtle}`}>Logo: JPG, PNG or WebP, max 2MB</p>
                       </div>
                     </div>
 
                     <div className="mb-5">
-                      <label className={`block text-sm mb-2 ${colors.textMuted}`}>Type of business</label>
+                      <div className="flex items-center gap-2 mb-2">
+                        <label className={`block text-sm ${colors.textMuted}`}>Type of business</label>
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${isDark ? 'bg-orange-500/20 text-orange-400' : 'bg-orange-100 text-orange-600'}`}>
+                          Lawn care, cleaning &amp; moving coming soon
+                        </span>
+                      </div>
                       <div className="grid grid-cols-3 gap-2">
                         {BUSINESS_TYPES.map((type) => (
                           <button
                             key={type.id}
                             type="button"
-                            onClick={() => setBusinessType(type.id)}
-                            className={`px-3 py-2 rounded-lg border text-xs font-medium transition-all flex items-center justify-center gap-1.5 ${
-                              businessType === type.id ? colors.chipActive : colors.chip
+                            onClick={() => type.available && setBusinessType(type.id)}
+                            disabled={!type.available}
+                            className={`relative px-3 py-2 rounded-lg border text-xs font-medium transition-all flex items-center justify-center gap-1.5 ${
+                              !type.available
+                                ? isDark ? 'bg-slate-800/60 border-slate-600 text-slate-500 cursor-not-allowed opacity-75' : 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed opacity-75'
+                                : businessType === type.id ? colors.chipActive : colors.chip
                             }`}
                           >
                             <span>{type.icon}</span>
                             <span>{type.label}</span>
+                            {!type.available && (
+                              <span className="absolute -top-1 -right-1 px-1.5 py-0.5 rounded-md text-[9px] font-medium bg-slate-500/90 text-white shadow-sm">
+                                Coming soon
+                              </span>
+                            )}
                           </button>
                         ))}
                       </div>
                     </div>
 
                     <div className="mb-5">
-                      <label className={`block text-sm mb-2 ${colors.textMuted}`}>Team size</label>
-                      <div className="flex gap-1.5">
-                        {TEAM_SIZES.map((size) => (
-                          <button
-                            key={size.id}
-                            type="button"
-                            onClick={() => setTeamSize(size.id)}
-                            className={`flex-1 px-2 py-2.5 rounded-lg border text-xs font-medium transition-all text-center leading-tight ${
-                              teamSize === size.id ? colors.chipActive : colors.chip
-                            }`}
-                          >
-                            {size.label}
-                          </button>
-                        ))}
-                      </div>
+                      <AnimatedDropdown
+                        label="Team size"
+                        options={TEAM_SIZES}
+                        value={teamSize}
+                        onChange={setTeamSize}
+                        placeholder="Select team size"
+                        isDark={isDark}
+                      />
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5">
@@ -738,22 +838,29 @@ export default function OnboardingPage() {
                       />
                     </div>
 
+                    <div className="mb-5">
+                      <label className={`block text-sm mb-1.5 ${colors.textMuted}`}>Services you offer</label>
+                      <p className={`text-xs mb-2 ${colors.textSubtle}`}>
+                        List your main services — e.g. comma-separated (Junk removal, Haul away, Demolition) or a short description.
+                      </p>
+                      <input
+                        type="text"
+                        value={servicesOffered}
+                        onChange={(e) => setServicesOffered(e.target.value)}
+                        placeholder="e.g. Junk removal, haul away, demolition"
+                        className={`w-full px-4 py-3 rounded-xl border text-sm outline-none transition-all ${colors.input}`}
+                      />
+                    </div>
+
                     <div>
-                      <label className={`block text-sm mb-2 ${colors.textMuted}`}>Years in Business</label>
-                      <div className="flex gap-2">
-                        {YEARS_OPTIONS.map((opt) => (
-                          <button
-                            key={opt.id}
-                            type="button"
-                            onClick={() => setYearsInBusiness(opt.id)}
-                            className={`flex-1 px-2 py-2.5 rounded-lg border text-xs font-medium transition-all ${
-                              yearsInBusiness === opt.id ? colors.chipActive : colors.chip
-                            }`}
-                          >
-                            {opt.label}
-                          </button>
-                        ))}
-                      </div>
+                      <AnimatedDropdown
+                        label="Years in business"
+                        options={YEARS_OPTIONS}
+                        value={yearsInBusiness}
+                        onChange={setYearsInBusiness}
+                        placeholder="Select years in business"
+                        isDark={isDark}
+                      />
                     </div>
                   </div>
                 )}
@@ -849,7 +956,7 @@ export default function OnboardingPage() {
 
                     <div className={`rounded-2xl p-5 border ${isDark ? 'bg-slate-700/50 border-slate-600' : 'bg-slate-50 border-slate-200'}`}>
                       <div className="text-base font-semibold mb-0.5">Monthly Revenue Goal</div>
-                      <div className={`text-xs mb-3 ${colors.textSubtle}`}>We&apos;ll track your progress</div>
+                      <div className={`text-xs mb-3 ${colors.textSubtle}`}>We&apos;ll track your progress. This can be updated monthly.</div>
                       <div className="relative">
                         <span className={`absolute left-4 top-1/2 -translate-y-1/2 text-lg ${colors.textSubtle}`}>$</span>
                         <input
@@ -873,6 +980,34 @@ export default function OnboardingPage() {
                             ${(amount / 1000)}k
                           </button>
                         ))}
+                      </div>
+                    </div>
+
+                    <div className={`rounded-2xl p-5 mt-5 border ${isDark ? 'bg-slate-700/50 border-slate-600' : 'bg-slate-50 border-slate-200'}`}>
+                      <div className="text-base font-semibold mb-0.5">Average job revenue</div>
+                      <div className={`text-xs mb-3 ${colors.textSubtle}`}>Typical revenue per job (optional)</div>
+                      <div className="flex flex-wrap gap-2">
+                        {[200, 500, 800, 1500].map((amount) => (
+                          <button
+                            key={amount}
+                            type="button"
+                            onClick={() => setAverageJobRevenue(amount)}
+                            className={`px-4 py-2 rounded-lg border text-sm font-medium transition-all ${
+                              averageJobRevenue === amount ? colors.chipActive : colors.chip
+                            }`}
+                          >
+                            ${amount}
+                          </button>
+                        ))}
+                        <button
+                          type="button"
+                          onClick={() => setAverageJobRevenue('not_sure')}
+                          className={`px-4 py-2 rounded-lg border text-sm font-medium transition-all ${
+                            averageJobRevenue === 'not_sure' ? colors.chipActive : colors.chip
+                          }`}
+                        >
+                          Not sure
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -907,41 +1042,50 @@ export default function OnboardingPage() {
                           placeholder="Template Name"
                           className={`w-full px-4 py-3 rounded-xl border text-base outline-none transition-all mb-4 ${colors.input}`}
                         />
-                        <div className="grid grid-cols-2 gap-3">
-                          {[
-                            { key: 'minimumFee', label: 'Minimum', val: '75' },
-                            { key: 'quarterLoad', label: '1/4 Load', val: '150' },
-                            { key: 'halfLoad', label: '1/2 Load', val: '250' },
-                            { key: 'threeQuarterLoad', label: '3/4 Load', val: '350' },
-                          ].map(({ key, label, val }) => (
-                            <div key={key}>
-                              <label className={`block text-xs mb-1 ${colors.textMuted}`}>{label}</label>
-                              <div className="relative">
+                        <p className={`text-xs mb-3 ${colors.textSubtle}`}>Add your own price tiers — edit the label and amount, or add more rows.</p>
+                        <div className="space-y-3">
+                          {priceRows.map((row) => (
+                            <div key={row.id} className="flex gap-2 items-center">
+                              <input
+                                type="text"
+                                value={row.label}
+                                onChange={(e) => setPriceRows(prev => prev.map(r => r.id === row.id ? { ...r, label: e.target.value } : r))}
+                                placeholder="Label"
+                                className={`flex-1 min-w-0 px-3 py-2.5 rounded-xl border text-sm outline-none transition-all ${colors.input}`}
+                              />
+                              <div className="relative w-28 shrink-0">
                                 <span className={`absolute left-3 top-1/2 -translate-y-1/2 text-sm ${colors.textSubtle}`}>$</span>
                                 <input
                                   type="number"
-                                  value={prices[key as keyof typeof prices] || ''}
-                                  onChange={(e) => setPrices({ ...prices, [key]: Number(e.target.value) || 0 })}
+                                  min={0}
+                                  value={row.amount || ''}
+                                  onChange={(e) => setPriceRows(prev => prev.map(r => r.id === row.id ? { ...r, amount: Number(e.target.value) || 0 } : r))}
                                   className={`w-full pl-7 pr-3 py-2.5 rounded-xl border text-sm outline-none transition-all ${colors.input}`}
-                                  placeholder={val}
+                                  placeholder="0"
                                 />
                               </div>
+                              <button
+                                type="button"
+                                onClick={() => setPriceRows(prev => prev.filter(r => r.id !== row.id))}
+                                disabled={priceRows.length <= 1}
+                                className={`p-2.5 rounded-xl border shrink-0 transition-all ${colors.chip} disabled:opacity-50 disabled:cursor-not-allowed`}
+                                title="Remove row"
+                                aria-label="Remove row"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                              </button>
                             </div>
                           ))}
                         </div>
-                        <div className="mt-3">
-                          <label className={`block text-xs mb-1 ${colors.textMuted}`}>Full Load</label>
-                          <div className="relative">
-                            <span className={`absolute left-3 top-1/2 -translate-y-1/2 text-sm ${colors.textSubtle}`}>$</span>
-                            <input
-                              type="number"
-                              value={prices.fullLoad || ''}
-                              onChange={(e) => setPrices({ ...prices, fullLoad: Number(e.target.value) || 0 })}
-                              className={`w-full pl-7 pr-3 py-2.5 rounded-xl border text-sm outline-none transition-all ${colors.input}`}
-                              placeholder="450"
-                            />
-                          </div>
-                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setPriceRows(prev => [...prev, { id: String(Date.now()), label: '', amount: 0 }])}
+                          className={`mt-3 w-full py-2.5 rounded-xl border text-sm font-medium transition-all ${colors.chip}`}
+                        >
+                          + Add price tier
+                        </button>
                       </div>
                     )}
                     
@@ -1006,6 +1150,11 @@ export default function OnboardingPage() {
                   </>
                 )}
               </button>
+            </div>
+            {isLastStep && showChecklist && !setupChecklistComplete && (
+              <p className={`text-center text-xs mt-2 ${colors.textSubtle}`}>
+                Complete the items above for a full profile, or click Get Started to finish later in Settings.
+              </p>
             </div>
           </div>
         </main>

@@ -1,9 +1,16 @@
+import type { Metadata } from 'next'
 import { cookies } from 'next/headers'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { validateEnv } from '@/lib/env'
 
 // Validate environment variables on first server-side render
 validateEnv()
+
+export const metadata: Metadata = {
+  title: 'Dashboard',
+  description: 'Your dyia dashboard – jobs, quotes, and business at a glance.',
+  robots: { index: false, follow: false },
+}
 
 export default async function AppLayout({
   children,

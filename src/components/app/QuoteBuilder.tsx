@@ -114,17 +114,24 @@ export function QuoteBuilder({ quotes, setQuotes, userId, selectedJob, customerN
   const [photos, setPhotos] = useState<(string | null)[]>([null, null, null])
   const [total, setTotal] = useState(0)
   const [saving, setSaving] = useState(false)
+  const [templates, setTemplates] = useState<AppPriceTemplate[]>([])
   const [defaultTemplate, setDefaultTemplate] = useState<AppPriceTemplate | null>(null)
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null)
   const [templateLoaded, setTemplateLoaded] = useState(false)
   const [showSummary, setShowSummary] = useState(false)
   const [quoteSource, setQuoteSource] = useState('')
+  const [aiSuggesting, setAiSuggesting] = useState(false)
+  const [aiSuggestion, setAiSuggestion] = useState<{ low: number; high: number; method?: string } | null>(null)
+  const [saveTemplateModal, setSaveTemplateModal] = useState(false)
+  const [newTemplateName, setNewTemplateName] = useState('')
+  const [savingTemplate, setSavingTemplate] = useState(false)
 
   const supabase = useMemo(() => createClient(), [])
-  const { alert } = useConfirm()
+  const { alert, confirm } = useConfirm()
 
-  // Load default price template on mount
+  // Load all templates and default on mount; apply default template initially
   useEffect(() => {
-    const loadDefaultTemplate = async () => {
+    const loadTemplates = async () => {
       if (!userId || templateLoaded) return
 
       try {
@@ -132,40 +139,146 @@ export function QuoteBuilder({ quotes, setQuotes, userId, selectedJob, customerN
           .from('dyia_price_templates')
           .select('*')
           .eq('user_id', userId)
-          .eq('is_default', true)
-          .single()
+          .order('is_default', { ascending: false })
+          .order('created_at', { ascending: false })
 
-        if (error && error.code !== 'PGRST116') throw error
+        if (error) throw error
 
-        if (data) {
-          const template: AppPriceTemplate = {
-            id: data.id,
-            name: data.name,
-            isDefault: data.is_default,
-            prices: data.prices
-          }
-          setDefaultTemplate(template)
-          
+        const list: AppPriceTemplate[] = (data || []).map((row: Record<string, unknown>) => ({
+          id: row.id as string,
+          name: row.name as string,
+          isDefault: Boolean(row.is_default),
+          prices: (row.prices as AppPriceTemplate['prices']) || {},
+        }))
+        setTemplates(list)
+
+        const defaultT = list.find((t) => t.isDefault) ?? list[0] ?? null
+        setDefaultTemplate(defaultT)
+
+        if (defaultT) {
+          setSelectedTemplateId(defaultT.id)
+          const p = defaultT.prices
           const templatePricing: Record<string, number> = {}
-          if (template.prices.minimumFee) templatePricing.minimumFee = template.prices.minimumFee
-          if (template.prices.quarterLoad) templatePricing.quarterLoad = template.prices.quarterLoad
-          if (template.prices.halfLoad) templatePricing.halfLoad = template.prices.halfLoad
-          if (template.prices.threeQuarterLoad) templatePricing.threeQuarterLoad = template.prices.threeQuarterLoad
-          if (template.prices.fullLoad) templatePricing.fullLoad = template.prices.fullLoad
-          if (template.prices.surcharges?.trampoline) templatePricing.trampoline = template.prices.surcharges.trampoline
-          if (template.prices.surcharges?.hotTub) templatePricing.hotTub = template.prices.surcharges.hotTub
-          
-          setPricing(templatePricing)
+          if (p.minimumFee != null) templatePricing.minimumFee = p.minimumFee
+          if (p.quarterLoad != null) templatePricing.quarterLoad = p.quarterLoad
+          if (p.halfLoad != null) templatePricing.halfLoad = p.halfLoad
+          if (p.threeQuarterLoad != null) templatePricing.threeQuarterLoad = p.threeQuarterLoad
+          if (p.fullLoad != null) templatePricing.fullLoad = p.fullLoad
+          if (p.surcharges?.trampoline != null) templatePricing.trampoline = p.surcharges.trampoline
+          if (p.surcharges?.hotTub != null) templatePricing.hotTub = p.surcharges.hotTub
+          if (p.surcharges?.piano != null) templatePricing.piano = p.surcharges.piano
+          setPricing((prev) => ({ ...prev, ...templatePricing }))
+        } else {
+          setSelectedTemplateId(null)
         }
       } catch (error) {
-        console.error('Error loading default template:', error)
+        console.error('Error loading templates:', error)
       } finally {
         setTemplateLoaded(true)
       }
     }
 
-    loadDefaultTemplate()
+    loadTemplates()
   }, [userId, supabase, templateLoaded])
+
+  const selectedTemplate = selectedTemplateId ? templates.find((t) => t.id === selectedTemplateId) ?? null : null
+
+  const applyTemplate = useCallback((template: AppPriceTemplate | null) => {
+    if (!template) {
+      setPricing({})
+      setNumLoads(0)
+      setPricePerLoad(0)
+      setSelectedTemplateId(null)
+      return
+    }
+    setSelectedTemplateId(template.id)
+    const p = template.prices
+    const next: Record<string, number> = {}
+    if (p.minimumFee != null) next.minimumFee = p.minimumFee
+    if (p.quarterLoad != null) next.quarterLoad = p.quarterLoad
+    if (p.halfLoad != null) next.halfLoad = p.halfLoad
+    if (p.threeQuarterLoad != null) next.threeQuarterLoad = p.threeQuarterLoad
+    if (p.fullLoad != null) next.fullLoad = p.fullLoad
+    if (p.surcharges?.trampoline != null) next.trampoline = p.surcharges.trampoline
+    if (p.surcharges?.hotTub != null) next.hotTub = p.surcharges.hotTub
+    if (p.surcharges?.piano != null) next.piano = p.surcharges.piano
+    setPricing(next)
+  }, [])
+
+  const fetchAiSuggestion = useCallback(async () => {
+    const desc = customer.jobDescription?.trim()
+    if (!desc || desc.length < 10) {
+      await alert({ title: 'Add job description', message: 'Enter a job description (at least 10 characters) to get an AI suggestion.', variant: 'warning' })
+      return
+    }
+    setAiSuggesting(true)
+    setAiSuggestion(null)
+    try {
+      const res = await fetch('/api/ai/suggest-quote-price', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ job_description: desc }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        if (data.needsPro) await alert({ title: 'Pro feature', message: data.error ?? 'Upgrade to Pro for AI pricing suggestions.', variant: 'warning' })
+        else await alert({ title: 'Error', message: data.error ?? 'Could not get suggestion.', variant: 'error' })
+        return
+      }
+      setAiSuggestion({ low: data.suggestedLow, high: data.suggestedHigh, method: data.pricingMethod })
+    } catch {
+      await alert({ title: 'Error', message: 'Failed to get AI suggestion.', variant: 'error' })
+    } finally {
+      setAiSuggesting(false)
+    }
+  }, [customer.jobDescription, alert])
+
+  const applyAiSuggestion = useCallback(() => {
+    if (!aiSuggestion) return
+    const mid = Math.round((aiSuggestion.low + aiSuggestion.high) / 2)
+    setPricing((prev) => ({ ...prev, fullLoad: mid }))
+    setAiSuggestion(null)
+  }, [aiSuggestion])
+
+  const saveAsTemplate = useCallback(async () => {
+    const name = newTemplateName.trim()
+    if (!name) {
+      await alert({ title: 'Name required', message: 'Enter a name for the template.', variant: 'warning' })
+      return
+    }
+    setSavingTemplate(true)
+    try {
+      const pricesPayload = {
+        minimumFee: pricing.minimumFee ?? 0,
+        quarterLoad: pricing.quarterLoad ?? 0,
+        halfLoad: pricing.halfLoad ?? 0,
+        threeQuarterLoad: pricing.threeQuarterLoad ?? 0,
+        fullLoad: pricing.fullLoad ?? 0,
+        surcharges: {
+          trampoline: pricing.trampoline ?? 0,
+          hotTub: pricing.hotTub ?? 0,
+          piano: pricing.piano ?? 0,
+        },
+      }
+      const { data, error } = await supabase
+        .from('dyia_price_templates')
+        .insert({ user_id: userId, name, prices: pricesPayload, is_default: templates.length === 0 })
+        .select()
+        .single()
+
+      if (error) throw error
+      const newT: AppPriceTemplate = { id: data.id, name: data.name, isDefault: data.is_default, prices: data.prices }
+      setTemplates((prev) => [newT, ...prev])
+      setSaveTemplateModal(false)
+      setNewTemplateName('')
+      showSuccess('Template saved! You can use it in Settings or pick it next time.')
+    } catch (err) {
+      console.error('Save template error:', err)
+      await alert({ title: 'Error', message: 'Could not save template.', variant: 'error' })
+    } finally {
+      setSavingTemplate(false)
+    }
+  }, [newTemplateName, pricing, userId, supabase, templates.length, showSuccess, alert])
 
   const calculateTotal = useCallback(() => {
     const multipleLoadsTotal = numLoads * pricePerLoad
@@ -205,16 +318,20 @@ export function QuoteBuilder({ quotes, setQuotes, userId, selectedJob, customerN
     setPhotos(newPhotos)
   }
 
-  // Build line items for summary
+  // Build line items for summary (use custom labels from template when present)
   const lineItems = useMemo(() => {
     const items: { label: string; amount: number }[] = []
-    
+    const volumeLabels = (selectedTemplate ?? defaultTemplate)?.prices?.items?.length
+      ? (selectedTemplate ?? defaultTemplate)!.prices!.items!.slice(0, VOLUME_FIELDS.length).map((item) => item.label)
+      : null
+
     // Volume
-    VOLUME_FIELDS.forEach(({ field, label }) => {
+    VOLUME_FIELDS.forEach(({ field, label }, i) => {
       const val = pricing[field] || 0
-      if (val > 0) items.push({ label, amount: val })
+      const displayLabel = volumeLabels?.[i] || label
+      if (val > 0) items.push({ label: displayLabel, amount: val })
     })
-    
+
     // Multiple loads
     if (numLoads > 0 && pricePerLoad > 0) {
       items.push({ label: `${numLoads} Full Loads × ${formatCurrency(pricePerLoad)}`, amount: numLoads * pricePerLoad })
@@ -233,7 +350,7 @@ export function QuoteBuilder({ quotes, setQuotes, userId, selectedJob, customerN
     })
     
     return items
-  }, [pricing, numLoads, pricePerLoad])
+  }, [pricing, numLoads, pricePerLoad, defaultTemplate?.prices?.items, selectedTemplate?.prices?.items])
 
   const saveQuote = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -536,16 +653,45 @@ export function QuoteBuilder({ quotes, setQuotes, userId, selectedJob, customerN
               rows={2}
               placeholder="Describe the work to be done..."
             />
-            {/* AI Pricing Suggestion */}
-            {customer.jobDescription && customer.jobDescription.length > 10 && onOpenDyiaWithPrompt && isPro && (
-              <button
-                type="button"
-                onClick={() => onOpenDyiaWithPrompt(`I need to price a job: "${customer.jobDescription}". Based on my job history, what should I charge? Give me a suggested price range.`)}
-                className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-orange-600 dark:text-orange-400 bg-orange-50/80 dark:bg-orange-950/30 border border-orange-200/50 dark:border-orange-800/30 rounded-lg hover:bg-orange-100 dark:hover:bg-orange-950/50 transition-all"
-              >
-                <img src="/dyia-agent.png" alt="" className="w-3.5 h-3.5 object-contain" />
-                Get AI pricing suggestion
-              </button>
+            {/* AI Pricing Suggestion — inline for Pro, or open Dyia */}
+            {customer.jobDescription && customer.jobDescription.length > 10 && isPro && (
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={fetchAiSuggestion}
+                  disabled={aiSuggesting}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-orange-600 dark:text-orange-400 bg-orange-50/80 dark:bg-orange-950/30 border border-orange-200/50 dark:border-orange-800/30 rounded-lg hover:bg-orange-100 dark:hover:bg-orange-950/50 transition-all disabled:opacity-60"
+                >
+                  {aiSuggesting ? (
+                    <span className="inline-block w-3 h-3 border-2 border-orange-400 border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <img src="/dyia-agent.png" alt="" className="w-3.5 h-3.5 object-contain" />
+                  )}
+                  {aiSuggesting ? 'Getting suggestion…' : 'Get AI pricing suggestion'}
+                </button>
+                {onOpenDyiaWithPrompt && (
+                  <button
+                    type="button"
+                    onClick={() => onOpenDyiaWithPrompt(`I need to price a job: "${customer.jobDescription}". Based on my job history, what should I charge? Give me a suggested price range.`)}
+                    className="text-xs text-[var(--color-text-muted)] hover:text-orange-500 underline"
+                  >
+                    Or ask in Dyia
+                  </button>
+                )}
+              </div>
+            )}
+            {aiSuggestion && (
+              <div className="mt-2 p-3 rounded-xl bg-orange-50 dark:bg-orange-950/30 border border-orange-200/50 dark:border-orange-800/30">
+                <p className="text-xs font-medium text-orange-800 dark:text-orange-200 mb-1">Suggested range: {formatCurrency(aiSuggestion.low)} – {formatCurrency(aiSuggestion.high)}</p>
+                <div className="flex gap-2">
+                  <button type="button" onClick={applyAiSuggestion} className="text-xs font-medium text-orange-600 dark:text-orange-400 hover:underline">
+                    Apply as full load price
+                  </button>
+                  <button type="button" onClick={() => setAiSuggestion(null)} className="text-xs text-[var(--color-text-muted)] hover:underline">
+                    Dismiss
+                  </button>
+                </div>
+              </div>
             )}
             {customer.jobDescription && customer.jobDescription.length > 10 && !isPro && (
               <div className="mt-2 flex items-center gap-1.5 text-xs text-slate-400">
@@ -569,12 +715,43 @@ export function QuoteBuilder({ quotes, setQuotes, userId, selectedJob, customerN
           </div>
         </div>
 
-        {/* Volume-Based Pricing — always open */}
-        <Section title="Volume-Based Pricing" icon="📦" badge={defaultTemplate ? `Using: ${defaultTemplate.name}` : undefined}>
+        {/* Template selector + Save as template */}
+        <div className="flex flex-wrap items-center gap-3 mb-4">
+          <label className="text-sm font-medium text-[var(--color-text-secondary)]">Pricing from</label>
+          <select
+            value={selectedTemplateId ?? '__scratch__'}
+            onChange={(e) => {
+              const v = e.target.value
+              if (v === '__scratch__') applyTemplate(null)
+              else {
+                const t = templates.find((x) => x.id === v)
+                if (t) applyTemplate(t)
+              }
+            }}
+            className="app-input py-2 text-sm min-w-[140px]"
+          >
+            <option value="__scratch__">From scratch</option>
+            {templates.map((t) => (
+              <option key={t.id} value={t.id}>{t.name}{t.isDefault ? ' (default)' : ''}</option>
+            ))}
+          </select>
+          <button
+            type="button"
+            onClick={() => setSaveTemplateModal(true)}
+            className="text-sm font-medium text-orange-600 dark:text-orange-400 hover:underline"
+          >
+            Save as template
+          </button>
+        </div>
+
+        {/* Volume-Based Pricing — always open; use custom labels from selected template when present */}
+        <Section title="Volume-Based Pricing" icon="📦" badge={selectedTemplate ? `Using: ${selectedTemplate.name}` : 'Custom'}>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-            {VOLUME_FIELDS.map(({ field, label }) => (
+            {VOLUME_FIELDS.map(({ field, label }, i) => {
+              const displayLabel = selectedTemplate?.prices?.items?.[i]?.label || defaultTemplate?.prices?.items?.[i]?.label || label
+              return (
               <div key={field}>
-                <label className="app-label text-sm">{label}</label>
+                <label className="app-label text-sm">{displayLabel}</label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)] text-sm">$</span>
                   <input
@@ -587,7 +764,8 @@ export function QuoteBuilder({ quotes, setQuotes, userId, selectedJob, customerN
                   />
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
 
           {/* Multiple Full Loads */}
@@ -751,6 +929,32 @@ export function QuoteBuilder({ quotes, setQuotes, userId, selectedJob, customerN
           </div>
         </div>
       </form>
+
+      {/* Save as template modal */}
+      {saveTemplateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={() => !savingTemplate && setSaveTemplateModal(false)}>
+          <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-2xl shadow-xl max-w-sm w-full p-5" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-[var(--color-text-primary)] mb-2">Save as template</h3>
+            <p className="text-sm text-[var(--color-text-muted)] mb-4">Save your current pricing so you can reuse it for future quotes.</p>
+            <input
+              type="text"
+              value={newTemplateName}
+              onChange={(e) => setNewTemplateName(e.target.value)}
+              placeholder="e.g. Standard rates"
+              className="app-input w-full mb-4"
+              autoFocus
+            />
+            <div className="flex gap-2 justify-end">
+              <button type="button" onClick={() => setSaveTemplateModal(false)} disabled={savingTemplate} className="app-btn-secondary text-sm py-2 px-4">
+                Cancel
+              </button>
+              <button type="button" onClick={saveAsTemplate} disabled={savingTemplate || !newTemplateName.trim()} className="app-btn-primary text-sm py-2 px-4 disabled:opacity-50">
+                {savingTemplate ? 'Saving…' : 'Save template'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

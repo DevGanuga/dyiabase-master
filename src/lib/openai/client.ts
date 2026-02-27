@@ -176,12 +176,15 @@ export function isOpenAIConfigured(): boolean {
 export const DYIA_MODEL = 'gpt-5.2'
 export const DYIA_MODEL_MINI = 'gpt-5-mini' // Faster, cost-efficient for simpler tasks
 
+// Token limits from guardrails (single source of truth for cost control)
+import { MAX_OUTPUT_TOKENS_CHAT } from './guardrails'
+
 // Response API configuration
 export const RESPONSE_CONFIG = {
   model: DYIA_MODEL,
   store: true, // Enable stateful conversations
   temperature: 0.7,
-  max_output_tokens: 1024,
+  max_output_tokens: MAX_OUTPUT_TOKENS_CHAT,
 }
 
 // Embedding model for semantic search

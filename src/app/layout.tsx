@@ -13,10 +13,27 @@ const spaceGrotesk = Space_Grotesk({
   variable: '--font-space-grotesk',
 })
 
+const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://dyia.io'
+
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://dyia.io'),
-  title: 'dyia – Your Day, Decoded | Simple Profit Tracking for Service Businesses',
+  metadataBase: new URL(appUrl),
+  title: {
+    default: 'dyia – Your Day, Decoded | Simple Profit Tracking for Service Businesses',
+    template: '%s | dyia',
+  },
   description: 'Track jobs, profits, expenses, and generate professional quotes. Built for junk removal, lawn care, and house cleaning businesses who want results without the complexity.',
+  applicationName: 'dyia',
+  keywords: ['profit tracking', 'job tracking', 'quotes', 'service business', 'junk removal', 'lawn care', 'house cleaning', 'small business'],
+  authors: [{ name: 'dyia', url: appUrl }],
+  creator: 'dyia',
+  icons: {
+    icon: [
+      { url: '/dyia-logo.png', type: 'image/png', sizes: 'any' },
+    ],
+    apple: [
+      { url: '/dyia-logo.png', type: 'image/png', sizes: '180x180' },
+    ],
+  },
   openGraph: {
     title: 'dyia – Your Day, Decoded',
     description: 'Simple profit tracking for service businesses. Track jobs, generate quotes, and know your real profit.',
@@ -42,6 +59,7 @@ export const metadata: Metadata = {
     index: true,
     follow: true,
   },
+  manifest: '/manifest.json',
 }
 
 const clerkAppearance = {

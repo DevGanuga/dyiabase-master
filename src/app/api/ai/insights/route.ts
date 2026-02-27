@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { createClient } from '@supabase/supabase-js'
 import { getOpenAI, DYIA_MODEL_MINI } from '@/lib/openai/client'
+import { checkDailyBudget, recordUsage, estimateCostUsd, MAX_OUTPUT_TOKENS_INSIGHT } from '@/lib/openai/guardrails'
 
 // Initialize Supabase client with service role for server-side operations
 const supabase = createClient(
@@ -87,11 +88,20 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Budget guardrail: reject if daily spend cap is exceeded
+    const budgetResult = await checkDailyBudget(supabase)
+    if (!budgetResult.allowed) {
+      return NextResponse.json(
+        { error: budgetResult.message ?? 'Daily AI budget exceeded. Try again tomorrow.' },
+        { status: 429 }
+      )
+    }
+
     // Fetch business data
     const businessData = await fetchBusinessData(userProfile.id)
 
     // Generate insight using OpenAI
-    const insight = await generateInsight(type, businessData, userProfile.first_name || 'there')
+    const insight = await generateInsight(supabase, type, businessData, userProfile.first_name || 'there')
 
     // Cache the result
     await supabase.from('dyia_insights_cache').insert({
@@ -215,6 +225,7 @@ async function fetchBusinessData(userId: string): Promise<BusinessData> {
 }
 
 async function generateInsight(
+  supabase: ReturnType<typeof createClient>,
   type: InsightType,
   data: BusinessData,
   firstName: string
@@ -318,8 +329,19 @@ Return a JSON object with:
         { role: 'system', content: systemPrompt },
         { role: 'user', content: prompts[type] },
       ],
-      max_completion_tokens: 500,
+      max_completion_tokens: MAX_OUTPUT_TOKENS_INSIGHT,
       response_format: { type: 'json_object' },
+    })
+
+    const usage = response.usage
+    const inputTokens = usage?.prompt_tokens ?? 0
+    const outputTokens = usage?.completion_tokens ?? 0
+    const costEstimateUsd = estimateCostUsd(inputTokens, outputTokens, 'mini')
+    await recordUsage(supabase, {
+      tokensInput: inputTokens,
+      tokensOutput: outputTokens,
+      costEstimateUsd,
+      source: 'insights',
     })
 
     const content = response.choices[0]?.message?.content || '{}'

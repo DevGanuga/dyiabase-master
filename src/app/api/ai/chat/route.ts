@@ -5,6 +5,13 @@ import { getOpenAI, DYIA_INSTRUCTIONS, DYIA_MODEL } from '@/lib/openai/client'
 import { DYIA_TOOLS, DyiaFunctionName } from '@/lib/openai/functions'
 import { handleFunctionCall, HandlerResult } from '@/lib/openai/handlers'
 import { rateLimiters } from '@/lib/rate-limit'
+import {
+  checkDailyBudget,
+  recordUsage,
+  estimateCostUsd,
+  MAX_OUTPUT_TOKENS_CHAT,
+  MAX_TOOL_ITERATIONS,
+} from '@/lib/openai/guardrails'
 
 // Initialize Supabase with service role for server operations
 const supabase = createClient(
@@ -76,6 +83,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Message is required' }, { status: 400 })
     }
 
+    // Budget guardrail: reject if daily spend cap is exceeded
+    const budgetResult = await checkDailyBudget(supabase)
+    if (!budgetResult.allowed) {
+      return NextResponse.json(
+        { error: budgetResult.message ?? 'Daily AI budget exceeded. Try again tomorrow.' },
+        { status: 429 }
+      )
+    }
+
     const effectiveMessage = fileUrl
       ? `${message}\n\n[User attached a file: ${fileName || 'file'} — ${fileUrl}]`
       : message
@@ -87,7 +103,7 @@ export async function POST(req: NextRequest) {
       input: effectiveMessage,
       tools: DYIA_TOOLS,
       temperature: 0.7,
-      max_output_tokens: 1024,
+      max_output_tokens: MAX_OUTPUT_TOKENS_CHAT,
       store: true,
       stream: false,
     }
@@ -151,7 +167,7 @@ export async function POST(req: NextRequest) {
         input: toolOutputs,
         tools: DYIA_TOOLS,
         temperature: 0.7,
-        max_output_tokens: 1024,
+        max_output_tokens: MAX_OUTPUT_TOKENS_CHAT,
         store: true,
         stream: false,
         previous_response_id: response.id,
@@ -179,8 +195,18 @@ export async function POST(req: NextRequest) {
     }
 
     // 8. Calculate and deduct AI credits for non-pro users
-    const usage = response.usage || { total_tokens: 0 }
+    const usage = response.usage || { total_tokens: 0, input_tokens: 0, output_tokens: 0 }
     const totalTokens = usage.total_tokens || 0
+    const inputTokens = usage.input_tokens ?? Math.floor(totalTokens / 2)
+    const outputTokens = usage.output_tokens ?? Math.floor(totalTokens / 2)
+    const costEstimateUsd = estimateCostUsd(inputTokens, outputTokens, 'chat')
+    await recordUsage(supabase, {
+      tokensInput: inputTokens,
+      tokensOutput: outputTokens,
+      costEstimateUsd,
+      source: 'chat',
+    })
+
     // Credit cost: 1 credit per 500 tokens (minimum 1 credit if tokens used)
     const creditCost = isPro ? 0 : (totalTokens > 0 ? Math.max(1, Math.ceil(totalTokens / 500)) : 0)
 

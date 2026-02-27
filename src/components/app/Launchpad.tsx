@@ -144,7 +144,7 @@ export function Launchpad({ items, onDismiss }: LaunchpadProps) {
                   key={item.id}
                   onClick={item.action}
                   disabled={item.completed || !item.action}
-                  className={`w-full flex items-center gap-2.5 px-2 py-2 rounded-md text-left text-sm transition-all group ${
+                  className={`w-full flex items-center gap-2.5 px-2 py-2.5 rounded-md text-left transition-all group ${
                     item.completed 
                       ? 'text-slate-500 cursor-default' 
                       : item.action
@@ -152,6 +152,7 @@ export function Launchpad({ items, onDismiss }: LaunchpadProps) {
                         : 'text-slate-400 cursor-default'
                   }`}
                   style={{ animationDelay: `${index * 50}ms` }}
+                  title={item.completed ? undefined : item.action ? `Open: ${item.label}` : undefined}
                 >
                   <span className="flex-shrink-0">
                     {item.completed ? (
@@ -166,13 +167,20 @@ export function Launchpad({ items, onDismiss }: LaunchpadProps) {
                       }`} />
                     )}
                   </span>
-                  <span className={`flex-1 truncate ${item.completed ? 'line-through decoration-slate-600' : ''}`}>
-                    {item.label}
+                  <span className="flex-1 min-w-0">
+                    <span className={`block text-sm truncate ${item.completed ? 'line-through decoration-slate-600' : ''}`}>
+                      {item.label}
+                    </span>
+                    {item.description && (
+                      <span className={`block text-xs mt-0.5 truncate ${item.completed ? 'text-slate-600' : 'text-slate-500'}`}>
+                        {item.description}
+                      </span>
+                    )}
                   </span>
                   {!item.completed && item.action && (
-                    <svg className="w-3.5 h-3.5 text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
+                    <span className="flex-shrink-0 text-xs font-medium text-orange-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                      Go →
+                    </span>
                   )}
                 </button>
               ))}

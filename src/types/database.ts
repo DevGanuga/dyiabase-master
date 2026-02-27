@@ -13,6 +13,7 @@ export interface Job {
   num_workers: number
   cost_per_worker: number
   notes?: string | null
+  receipt_url?: string | null
   created_at: string
   updated_at: string
 }
@@ -176,6 +177,7 @@ export interface AppJob {
   notes?: string
   status?: JobStatus
   address?: string
+  receiptUrl?: string | null
 }
 
 export interface AppQuote {
@@ -271,6 +273,8 @@ export interface PriceTemplate {
   user_id: string
   name: string
   prices: {
+    /** Custom line items (label + amount). When present, used for display; legacy keys still populated for compatibility. */
+    items?: { label: string; amount: number }[]
     minimumFee?: number
     quarterLoad?: number
     halfLoad?: number
@@ -347,6 +351,7 @@ export interface AppPriceTemplate {
   name: string
   isDefault: boolean
   prices: {
+    items?: { label: string; amount: number }[]
     minimumFee?: number
     quarterLoad?: number
     halfLoad?: number

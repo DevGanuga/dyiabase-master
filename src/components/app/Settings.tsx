@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { AppSettings, UserProfile } from '@/types/database'
 import { compressImage, formatCurrency } from '@/lib/utils'
@@ -9,6 +9,8 @@ import { PriceTemplates } from './PriceTemplates'
 import { useConfirm } from '@/components/providers/ConfirmProvider'
 import { useSubscription } from '@/hooks/useSubscription'
 import { useClerk } from '@clerk/nextjs'
+
+type SettingsTabId = 'business' | 'financial' | 'expenses' | 'templates' | 'account'
 
 interface SettingsProps {
   settings: AppSettings
@@ -20,9 +22,11 @@ interface SettingsProps {
   userImageUrl?: string
   userName?: string
   isDemoMode?: boolean
+  /** When set, open this tab (e.g. from launchpad "Add business info" or "Save a price template") */
+  initialTab?: SettingsTabId | null
 }
 
-export function Settings({ settings, setSettings, userId, showSuccess, userProfile, userEmail, userImageUrl, userName, isDemoMode = false }: SettingsProps) {
+export function Settings({ settings, setSettings, userId, showSuccess, userProfile, userEmail, userImageUrl, userName, isDemoMode = false, initialTab }: SettingsProps) {
   const hookSub = useSubscription()
   const clerk = useClerk()
 
@@ -226,7 +230,11 @@ export function Settings({ settings, setSettings, userId, showSuccess, userProfi
     showSuccess('🗑️ Logo removed!')
   }
 
-  const [activeTab, setActiveTab] = useState<'business' | 'financial' | 'expenses' | 'templates' | 'account'>('business')
+  const [activeTab, setActiveTab] = useState<SettingsTabId>('business')
+
+  useEffect(() => {
+    if (initialTab) setActiveTab(initialTab)
+  }, [initialTab])
 
   const tabs = [
     { id: 'business' as const, label: 'Business', icon: '🏢' },

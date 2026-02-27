@@ -10,6 +10,10 @@ import type { JobProposal, QuoteProposal, PendingAction } from '@/types/database
 interface AssistantProps {
   userId: string
   showSuccess: (message: string) => void
+  /** When set, the assistant will send this prompt automatically (e.g. when opened from Quote Builder). */
+  initialPrompt?: string | null
+  /** Called after the initial prompt has been sent so the parent can clear it. */
+  onPromptConsumed?: () => void
 }
 
 export interface ToolResult {
@@ -73,11 +77,12 @@ interface QuickAction {
   icon?: string
 }
 
-export function Assistant({ userId, showSuccess }: AssistantProps) {
+export function Assistant({ userId, showSuccess, initialPrompt, onPromptConsumed }: AssistantProps) {
   const [threads, setThreads] = useState<Thread[]>([])
   const [currentThreadId, setCurrentThreadId] = useState<string | null>(null)
   const [messages, setMessages] = useState<Message[]>([WELCOME_MESSAGE])
   const [inputValue, setInputValue] = useState('')
+  const initialPromptSentRef = useRef(false)
   const [isLoading, setIsLoading] = useState(false)
   const [isSending, setIsSending] = useState(false)
   const [showThreads, setShowThreads] = useState(false)
@@ -393,6 +398,20 @@ export function Assistant({ userId, showSuccess }: AssistantProps) {
   const handleQuickAction = (prompt: string) => {
     handleSend(prompt)
   }
+
+  // When parent opens assistant with a pre-filled prompt (e.g. from Quote Builder), send it once
+  useEffect(() => {
+    if (initialPrompt?.trim()) {
+      if (!initialPromptSentRef.current) {
+        initialPromptSentRef.current = true
+        handleSend(initialPrompt.trim())
+        onPromptConsumed?.()
+      }
+    } else {
+      initialPromptSentRef.current = false
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only run when prompt or consumed callback changes; handleSend is stable enough
+  }, [initialPrompt, onPromptConsumed])
 
   // Handle confirming a pending job
   const handleConfirmJob = async (jobData: JobProposal) => {
