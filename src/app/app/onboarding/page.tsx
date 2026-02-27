@@ -236,6 +236,7 @@ export default function OnboardingPage() {
 
   const animateToStep = useCallback((newStep: Step, dir: 'forward' | 'backward') => {
     if (isAnimating) return
+    setError(null)
     setIsAnimating(true)
     setDirection(dir)
     setTimeout(() => {
@@ -763,7 +764,7 @@ export default function OnboardingPage() {
                             type="button"
                             onClick={() => type.available && setBusinessType(type.id)}
                             disabled={!type.available}
-                            className={`relative px-3 py-2 rounded-lg border text-xs font-medium transition-all flex items-center justify-center gap-1.5 ${
+                            className={`px-3 py-2 rounded-lg border text-xs font-medium transition-all flex items-center justify-center gap-1.5 ${
                               !type.available
                                 ? isDark ? 'bg-slate-800/60 border-slate-600 text-slate-500 cursor-not-allowed opacity-75' : 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed opacity-75'
                                 : businessType === type.id ? colors.chipActive : colors.chip
@@ -771,11 +772,6 @@ export default function OnboardingPage() {
                           >
                             <span>{type.icon}</span>
                             <span>{type.label}</span>
-                            {!type.available && (
-                              <span className="absolute -top-1 -right-1 px-1.5 py-0.5 rounded-md text-[9px] font-medium bg-slate-500/90 text-white shadow-sm">
-                                Coming soon
-                              </span>
-                            )}
                           </button>
                         ))}
                       </div>
@@ -841,7 +837,7 @@ export default function OnboardingPage() {
                     <div className="mb-5">
                       <label className={`block text-sm mb-1.5 ${colors.textMuted}`}>Services you offer</label>
                       <p className={`text-xs mb-2 ${colors.textSubtle}`}>
-                        List your main services — e.g. comma-separated (Junk removal, Haul away, Demolition) or a short description.
+                        This is for context so the Dyia AI assistant can give you better, tailored advice. List your main services — e.g. comma-separated (Junk removal, Haul away, Demolition) or a short description.
                       </p>
                       <input
                         type="text"
