@@ -1,6 +1,7 @@
 export interface Job {
   id: string
   user_id: string
+  customer_id?: string | null
   date: string
   customer_name: string
   source?: string | null
@@ -23,7 +24,8 @@ export type QuoteStatus = 'draft' | 'sent' | 'accepted' | 'declined' | 'expired'
 export interface Quote {
   id: string
   user_id: string
-  job_id?: string | null  // Optional link to a job
+  customer_id?: string | null
+  job_id?: string | null
   customer_name: string
   customer_phone?: string | null
   customer_email?: string | null
@@ -163,6 +165,7 @@ export type JobStatus = 'scheduled' | 'in_progress' | 'completed' | 'cancelled'
 
 export interface AppJob {
   id: string
+  customerId?: string | null
   date: string
   customerName: string
   source?: string
@@ -182,7 +185,8 @@ export interface AppJob {
 
 export interface AppQuote {
   id: string
-  jobId?: string  // Optional link to a job
+  customerId?: string | null
+  jobId?: string
   createdAt: number
   customer: {
     name: string
@@ -250,6 +254,7 @@ export interface AppFixedExpense {
 export interface FollowUp {
   id: string
   user_id: string
+  customer_id?: string | null
   quote_id: string
   status: 'pending' | 'contacted' | 'converted' | 'lost' | 'snoozed'
   last_contacted_at: string | null
@@ -402,6 +407,7 @@ export type ConfidenceLevel = 'high' | 'medium' | 'inferred'
 // Job Proposal - Data extracted from conversation, awaiting confirmation
 export interface JobProposal {
   date: string
+  customerId?: string
   customerName: string
   source?: string
   revenue: number
@@ -419,6 +425,7 @@ export interface JobProposal {
 
 // Quote Proposal - Data extracted from conversation, awaiting confirmation
 export interface QuoteProposal {
+  customerId?: string
   customerName: string
   customerPhone?: string
   customerEmail?: string

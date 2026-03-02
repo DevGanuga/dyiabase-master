@@ -157,7 +157,7 @@ export default function PrivacyPage() {
               <li><strong>Access:</strong> Request a copy of your personal data.</li>
               <li><strong>Export:</strong> Download your data as CSV from Settings.</li>
               <li><strong>Correction:</strong> Update your information in Settings.</li>
-              <li><strong>Deletion:</strong> Request deletion of your account and data by contacting support@dyia.io.</li>
+              <li><strong>Deletion:</strong> Request deletion of your account and data by contacting dyia.io.app@gmail.com.</li>
               <li><strong>Portability:</strong> Export and take your data to another service.</li>
             </ul>
           </section>
@@ -191,7 +191,7 @@ export default function PrivacyPage() {
             <h2 className="text-xl font-semibold text-white mb-3">12. Contact Us</h2>
             <p>
               For privacy-related questions or to exercise your rights, contact us at:{' '}
-              <a href="mailto:support@dyia.io" className="text-orange-400 hover:text-orange-300">support@dyia.io</a>
+              <a href="mailto:dyia.io.app@gmail.com" className="text-orange-400 hover:text-orange-300">dyia.io.app@gmail.com</a>
             </p>
           </section>
         </div>

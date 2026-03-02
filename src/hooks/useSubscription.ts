@@ -14,6 +14,8 @@ interface SubscriptionState {
   plan: SubscriptionPlan
   daysRemaining: number
   isPro: boolean
+  isCanceled: boolean
+  trialExpired: boolean
   aiCredits: number
   canUseAI: boolean
   isLoading: boolean
@@ -31,6 +33,8 @@ export function useSubscription(): SubscriptionState {
     plan: null,
     daysRemaining: 0,
     isPro: false,
+    isCanceled: false,
+    trialExpired: false,
     aiCredits: 0,
     canUseAI: false,
     isLoading: true,
@@ -53,7 +57,7 @@ export function useSubscription(): SubscriptionState {
 
         if (error) throw error
 
-        let status = (data?.subscription_status || 'inactive') as SubscriptionStatus
+        const rawStatus = (data?.subscription_status || 'inactive') as SubscriptionStatus
         const plan = (data?.subscription_plan || null) as SubscriptionPlan
         const endsAt = data?.subscription_ends_at ? new Date(data.subscription_ends_at) : null
         const now = Date.now()
@@ -61,29 +65,44 @@ export function useSubscription(): SubscriptionState {
           ? Math.max(0, Math.ceil((endsAt.getTime() - now) / 86400000))
           : 0
 
-        // If trial has expired (past the end date) and no Stripe subscription is active,
-        // treat as inactive so they lose Pro access and see upgrade prompts.
+        const hasTimeLeft = endsAt !== null && endsAt.getTime() > now
+        const isCanceled = rawStatus === 'canceled'
+
+        // Determine effective status:
+        // 1. Canceled but still has time left = still has access (grace period)
+        // 2. Trialing but past end date = expired
+        // 3. Everything else = use raw status
+        let effectiveStatus = rawStatus
         const hasStripeSubscription = !!data?.subscription_plan
-        if (status === 'trialing' && endsAt && endsAt.getTime() < now && !hasStripeSubscription) {
-          status = 'inactive'
+
+        if (rawStatus === 'trialing' && endsAt && !hasTimeLeft && !hasStripeSubscription) {
+          effectiveStatus = 'inactive'
+        }
+        if (isCanceled && !hasTimeLeft) {
+          effectiveStatus = 'inactive'
         }
 
-        const tier: SubscriptionTier = TRIAL_STATUSES.includes(status)
-          ? 'trial'
-          : PRO_STATUSES.includes(status)
-            ? 'pro'
-            : 'basic'
+        // Canceled with time remaining still gets pro access
+        const hasAccess = PRO_STATUSES.includes(effectiveStatus) || (isCanceled && hasTimeLeft)
+        const trialExpired = !hasAccess && (rawStatus === 'inactive' || (isCanceled && !hasTimeLeft) || (rawStatus === 'trialing' && !hasTimeLeft))
+
+        const tier: SubscriptionTier =
+          (isCanceled && hasTimeLeft) ? 'trial'
+          : TRIAL_STATUSES.includes(effectiveStatus) ? 'trial'
+          : PRO_STATUSES.includes(effectiveStatus) ? 'pro'
+          : 'basic'
 
         const aiCredits = data?.ai_credits_balance || 0
-        const isPro = PRO_STATUSES.includes(status)
-        const canUseAI = isPro || aiCredits > 0
+        const canUseAI = hasAccess || aiCredits > 0
 
         setState({
           tier,
-          status,
+          status: effectiveStatus,
           plan,
           daysRemaining,
-          isPro,
+          isPro: hasAccess,
+          isCanceled,
+          trialExpired,
           aiCredits,
           canUseAI,
           isLoading: false,

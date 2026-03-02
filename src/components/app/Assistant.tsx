@@ -34,8 +34,10 @@ export interface Message {
   content: string
   timestamp: Date
   toolResults?: ToolResult[]
-  // Track if this message has a pending action that needs confirmation
   hasPendingAction?: boolean
+  attachmentUrl?: string
+  attachmentName?: string
+  attachmentFileType?: string
 }
 
 export interface Thread {
@@ -99,16 +101,58 @@ export function Assistant({ userId, showSuccess, initialPrompt, onPromptConsumed
   // File attachment for upload & extraction
   const [attachmentUrl, setAttachmentUrl] = useState<string | null>(null)
   const [attachmentName, setAttachmentName] = useState<string | null>(null)
+  const [attachmentFileType, setAttachmentFileType] = useState<string | null>(null)
+  const [attachmentContent, setAttachmentContent] = useState<string | null>(null)
   const [isUploading, setIsUploading] = useState(false)
+  const [isDragOver, setIsDragOver] = useState(false)
+  const [isListening, setIsListening] = useState(false)
+  const [supportsVoice, setSupportsVoice] = useState(false)
+  const [voiceError, setVoiceError] = useState<string | null>(null)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const recognitionRef = useRef<any>(null)
+  const dragCounterRef = useRef(0)
   const fileInputRef = useRef<HTMLInputElement>(null)
   
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
-  const skipThreadLoadRef = useRef(false) // Skip load when threadId comes from chat response (we already have messages)
+  const skipThreadLoadRef = useRef(false)
+  const [showScrollBtn, setShowScrollBtn] = useState(false)
+
+  // Detect voice support on client
+  useEffect(() => {
+    setSupportsVoice('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)
+  }, [])
+
+  // Auto-focus input on mount
+  useEffect(() => {
+    setTimeout(() => inputRef.current?.focus(), 300)
+  }, [])
+
+  // Auto-clear voice errors
+  useEffect(() => {
+    if (voiceError) {
+      const timer = setTimeout(() => setVoiceError(null), 4000)
+      return () => clearTimeout(timer)
+    }
+  }, [voiceError])
+
   // Auto-scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
+
+  // Track scroll position to show "scroll to bottom" button
+  const handleScroll = useCallback(() => {
+    const el = scrollContainerRef.current
+    if (!el) return
+    const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight
+    setShowScrollBtn(distFromBottom > 150)
+  }, [])
+
+  const scrollToBottom = useCallback(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [])
 
   // Load threads on mount
   useEffect(() => {
@@ -226,10 +270,31 @@ export function Assistant({ userId, showSuccess, initialPrompt, onPromptConsumed
     setShowThreads(false)
   }, [])
 
+  const handleDeleteThread = useCallback(async (threadId: string) => {
+    try {
+      const response = await fetch(`/api/threads/${threadId}`, { method: 'DELETE' })
+      if (response.ok) {
+        setThreads(prev => prev.filter(t => t.id !== threadId))
+        if (currentThreadId === threadId) {
+          setCurrentThreadId(null)
+          setMessages([WELCOME_MESSAGE])
+          setLastResponseId(null)
+        }
+      }
+    } catch (error) {
+      console.error('Error deleting thread:', error)
+    }
+  }, [currentThreadId])
+
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
     e.target.value = ''
+    processFile(file)
+  }
+
+  const processFile = async (file: File) => {
+    if (isUploading) return
     setIsUploading(true)
     try {
       const form = new FormData()
@@ -239,8 +304,9 @@ export function Assistant({ userId, showSuccess, initialPrompt, onPromptConsumed
       if (!res.ok) throw new Error(data.error || 'Upload failed')
       setAttachmentUrl(data.url)
       setAttachmentName(data.fileName || file.name)
+      setAttachmentFileType(data.fileType || null)
+      setAttachmentContent(data.extractedContent || null)
     } catch (err) {
-      // Show upload error as a system message in the chat
       const errorMsg = err instanceof Error ? err.message : 'Upload failed'
       setMessages(prev => [...prev, {
         id: `error-${Date.now()}`,
@@ -253,6 +319,96 @@ export function Assistant({ userId, showSuccess, initialPrompt, onPromptConsumed
     }
   }
 
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    dragCounterRef.current++
+    if (e.dataTransfer.types.includes('Files')) {
+      setIsDragOver(true)
+    }
+  }
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    dragCounterRef.current--
+    if (dragCounterRef.current === 0) {
+      setIsDragOver(false)
+    }
+  }
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    dragCounterRef.current = 0
+    setIsDragOver(false)
+    const file = e.dataTransfer.files?.[0]
+    if (file) processFile(file)
+  }
+
+  const toggleVoice = useCallback(() => {
+    if (isListening) {
+      recognitionRef.current?.stop()
+      setIsListening(false)
+      return
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const SpeechRecognitionCtor = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+    if (!SpeechRecognitionCtor) {
+      setVoiceError('Voice input is not supported in this browser. Try Chrome or Edge.')
+      return
+    }
+
+    try {
+      const recognition = new SpeechRecognitionCtor()
+      recognition.continuous = false
+      recognition.interimResults = true
+      recognition.lang = 'en-US'
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      recognition.onresult = (event: any) => {
+        const transcript = Array.from(event.results as ArrayLike<{ 0: { transcript: string } }>)
+          .map((r: { 0: { transcript: string } }) => r[0].transcript)
+          .join('')
+        setInputValue(transcript)
+        if (inputRef.current) {
+          inputRef.current.style.height = 'auto'
+          inputRef.current.style.height = `${Math.min(inputRef.current.scrollHeight, 120)}px`
+        }
+      }
+
+      recognition.onend = () => {
+        setIsListening(false)
+        setTimeout(() => inputRef.current?.focus(), 100)
+      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      recognition.onerror = (event: any) => {
+        setIsListening(false)
+        const errMap: Record<string, string> = {
+          'not-allowed': 'Microphone access denied. Please allow mic access in browser settings.',
+          'no-speech': "Didn't catch that. Tap the mic and try again.",
+          'network': 'Network error. Check your connection and try again.',
+        }
+        if (event.error !== 'aborted') {
+          setVoiceError(errMap[event.error] || 'Voice input error. Please try again.')
+        }
+      }
+
+      recognitionRef.current = recognition
+      recognition.start()
+      setIsListening(true)
+      setVoiceError(null)
+    } catch {
+      setVoiceError('Could not start voice input. Please check microphone permissions.')
+    }
+  }, [isListening])
+
   const handleSend = async (customMessage?: string) => {
     const content = (customMessage || inputValue).trim()
     if ((!content && !attachmentUrl) || isSending) return
@@ -263,6 +419,11 @@ export function Assistant({ userId, showSuccess, initialPrompt, onPromptConsumed
       role: 'user',
       content,
       timestamp: new Date(),
+      ...(attachmentUrl && {
+        attachmentUrl,
+        attachmentName: attachmentName || undefined,
+        attachmentFileType: attachmentFileType || undefined,
+      }),
     }
     setMessages(prev => [...prev, userMessage])
     setInputValue('')
@@ -275,9 +436,13 @@ export function Assistant({ userId, showSuccess, initialPrompt, onPromptConsumed
 
     const urlToSend = attachmentUrl
     const nameToSend = attachmentName
+    const fileTypeToSend = attachmentFileType
+    const contentToSend = attachmentContent
     if (attachmentUrl) {
       setAttachmentUrl(null)
       setAttachmentName(null)
+      setAttachmentFileType(null)
+      setAttachmentContent(null)
     }
 
     try {
@@ -288,7 +453,12 @@ export function Assistant({ userId, showSuccess, initialPrompt, onPromptConsumed
           message: content || '(see attached file)',
           conversationId: currentThreadId,
           previousResponseId: lastResponseId,
-          ...(urlToSend && { fileUrl: urlToSend, fileName: nameToSend || 'file' }),
+          ...(urlToSend && {
+            fileUrl: urlToSend,
+            fileName: nameToSend || 'file',
+            fileType: fileTypeToSend,
+            ...(contentToSend && { extractedContent: contentToSend }),
+          }),
         }),
       })
 
@@ -428,6 +598,7 @@ export function Assistant({ userId, showSuccess, initialPrompt, onPromptConsumed
           data: {
             date: jobData.date,
             customer_name: jobData.customerName,
+            customer_id: jobData.customerId || undefined,
             source: jobData.source || 'Unknown',
             revenue: jobData.revenue,
             labor: jobData.labor,
@@ -507,6 +678,7 @@ export function Assistant({ userId, showSuccess, initialPrompt, onPromptConsumed
           actionType: 'generate_quote',
           data: {
             customer_name: quoteData.customerName,
+            customer_id: quoteData.customerId || undefined,
             customer_phone: quoteData.customerPhone || '',
             customer_email: quoteData.customerEmail || '',
             customer_address: quoteData.customerAddress || '',
@@ -626,10 +798,10 @@ export function Assistant({ userId, showSuccess, initialPrompt, onPromptConsumed
           ${showThreads ? 'w-72 sm:w-72' : 'w-0'}
           transition-all duration-200
         `}>
-          <div className="p-3 border-b border-[var(--color-border)] whitespace-nowrap flex items-center justify-between">
+          <div className="sidebar-header">
             <button
               onClick={handleNewConversation}
-              className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-[var(--color-text-secondary)] hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
+              className="sidebar-new-chat-btn"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -638,7 +810,7 @@ export function Assistant({ userId, showSuccess, initialPrompt, onPromptConsumed
             </button>
             <button
               onClick={() => setShowThreads(false)}
-              className="sm:hidden p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg"
+              className="chat-header-btn sm:hidden"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -649,17 +821,40 @@ export function Assistant({ userId, showSuccess, initialPrompt, onPromptConsumed
             threads={threads}
             currentThreadId={currentThreadId}
             onSelect={(threadId) => { handleSelectThread(threadId); setShowThreads(false); }}
+            onDelete={handleDeleteThread}
           />
         </div>
       </div>
 
       {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col min-w-0 h-full">
+      <div
+        className="flex-1 flex flex-col min-w-0 h-full relative"
+        onDragEnter={handleDragEnter}
+        onDragLeave={handleDragLeave}
+        onDragOver={handleDragOver}
+        onDrop={handleDrop}
+      >
+        {/* Drop zone overlay */}
+        {isDragOver && (
+          <div className="absolute inset-0 z-50 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center pointer-events-none">
+            <div className="flex flex-col items-center gap-3 p-8 rounded-2xl border-2 border-dashed border-orange-400 bg-orange-500/10">
+              <div className="w-14 h-14 rounded-full bg-orange-500/20 flex items-center justify-center">
+                <svg className="w-7 h-7 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                </svg>
+              </div>
+              <div className="text-center">
+                <p className="text-white font-semibold text-base">Drop file here</p>
+                <p className="text-slate-400 text-sm mt-1">Images, PDFs, CSV, Excel, or text files</p>
+              </div>
+            </div>
+          </div>
+        )}
         {/* Header */}
-        <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-[var(--color-border)] flex items-center gap-2 sm:gap-3 bg-[var(--color-bg-card)]">
+        <div className="chat-header">
           <button
             onClick={() => setShowThreads(!showThreads)}
-            className="p-1.5 sm:p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]"
+            className="chat-header-btn"
             title={showThreads ? 'Hide conversations' : 'Show conversations'}
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -670,44 +865,107 @@ export function Assistant({ userId, showSuccess, initialPrompt, onPromptConsumed
               )}
             </svg>
           </button>
-          <div className="flex items-center gap-1.5 sm:gap-2 flex-1 min-w-0">
-            {/* Dyia Avatar */}
-            <img src="/dyia-agent.png" alt="Dyia AI" className="w-7 h-7 sm:w-8 sm:h-8 rounded-full shadow-md ring-2 ring-orange-400/30 object-cover" />
-            <span className="font-semibold text-[var(--color-text-primary)] text-sm sm:text-base">Dyia</span>
-            <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
-              isSending ? 'bg-orange-500 animate-pulse' : 'bg-green-500'
-            }`} />
-            {isSending && (
-              <span className="text-[10px] sm:text-xs text-[var(--color-text-faint)] truncate">thinking...</span>
-            )}
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            <div className="relative">
+              <img src="/dyia-agent.png" alt="Dyia AI" className="w-8 h-8 rounded-full shadow-sm object-cover" />
+              <span className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-[var(--color-bg-card)] ${
+                isSending ? 'bg-orange-500 animate-pulse' : 'bg-emerald-500'
+              }`} />
+            </div>
+            <div className="flex flex-col">
+              <span className="font-semibold text-[var(--color-text-primary)] text-sm leading-tight">Dyia</span>
+              <span className="text-[10px] text-[var(--color-text-faint)] leading-tight">
+                {isSending ? 'Thinking...' : 'Online'}
+              </span>
+            </div>
           </div>
+          <button
+            onClick={handleNewConversation}
+            className="chat-header-btn"
+            title="New conversation"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+          </button>
         </div>
 
-        {/* Messages */}
-        <div className="flex-1 overflow-y-auto px-3 sm:px-4 py-4 sm:py-6">
-          <div className="max-w-3xl mx-auto space-y-3 sm:space-y-4">
-            {isLoading ? (
-              <div className="flex items-center justify-center h-full">
-                <div className="text-center">
-                  <div className="loading-spinner mx-auto mb-4" />
-                  <p className="text-[var(--color-text-muted)]">Loading conversation...</p>
-                </div>
+        {/* Content */}
+        <div
+          ref={scrollContainerRef}
+          className="flex-1 overflow-y-auto relative flex flex-col"
+          onScroll={handleScroll}
+        >
+          {isLoading ? (
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-center">
+                <div className="loading-spinner mx-auto mb-4" />
+                <p className="text-sm text-[var(--color-text-muted)]">Loading conversation...</p>
               </div>
-            ) : (
-              <>
-                {messages.map((message, index) => (
+            </div>
+          ) : messages.length <= 1 && !isSending ? (
+            /* Welcome Screen */
+            <div className="flex-1 flex flex-col items-center justify-center px-4 pb-4">
+              <div className="flex flex-col items-center max-w-lg w-full">
+                <div className="relative mb-5">
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-br from-orange-500/10 to-amber-500/10 dark:from-orange-500/20 dark:to-amber-500/20 p-2 shadow-lg shadow-orange-500/5">
+                    <img src="/dyia-agent.png" alt="Dyia" className="w-full h-full object-contain rounded-xl" />
+                  </div>
+                  <span className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-[3px] border-[var(--color-bg)]" />
+                </div>
+                <h2 className="text-xl sm:text-2xl font-bold text-[var(--color-text-primary)] mb-1">Hey! I&apos;m Dyia</h2>
+                <p className="text-sm text-[var(--color-text-muted)] mb-8 text-center leading-relaxed max-w-xs">
+                  Your AI business partner. I log jobs, create quotes, track profits, and more.
+                </p>
+
+                <div className="grid grid-cols-2 gap-2.5 sm:gap-3 w-full max-w-sm">
+                  {quickActionsLoading ? (
+                    [1, 2, 3, 4].map((i) => (
+                      <div key={i} className="quick-action-card animate-pulse">
+                        <div className="w-8 h-8 rounded-lg bg-slate-200 dark:bg-slate-700 mb-2" />
+                        <div className="w-20 h-3 rounded bg-slate-200 dark:bg-slate-700" />
+                      </div>
+                    ))
+                  ) : (
+                    quickActions.slice(0, 4).map((action) => (
+                      <button
+                        key={action.id}
+                        onClick={() => handleQuickAction(action.prompt)}
+                        className="quick-action-card group"
+                      >
+                        <span className="text-2xl mb-1.5 group-hover:scale-110 transition-transform duration-200">
+                          {action.icon || '✨'}
+                        </span>
+                        <span className="text-xs sm:text-sm font-medium text-[var(--color-text-secondary)] group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors leading-tight text-center">
+                          {action.icon ? action.label.replace(action.icon, '').trim() : action.label}
+                        </span>
+                      </button>
+                    ))
+                  )}
+                </div>
+
+                <p className="text-[11px] text-[var(--color-text-faint)] mt-6 flex items-center gap-1.5">
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.414a4 4 0 00-5.656-5.656l-6.586 6.586a6 6 0 008.486 8.486l6.414-6.414" /></svg>
+                  Drop files or use voice to get started
+                </p>
+              </div>
+            </div>
+          ) : (
+            /* Messages */
+            <div className="px-3 sm:px-4 py-4 sm:py-6">
+              <div className="max-w-3xl mx-auto space-y-3 sm:space-y-4">
+                {messages.filter(m => m.id !== 'welcome').map((message, index, arr) => (
                   <MessageBubble
                     key={message.id}
                     message={message}
-                    isLatest={index === messages.length - 1}
+                    isLatest={index === arr.length - 1}
                   />
                 ))}
 
-                {/* Pending Action Cards */}
                 {pendingAction && pendingAction.status === 'pending' && (
                   <div className="flex justify-start">
                     <div className="flex gap-3 w-full max-w-md">
-                      <div className="w-8 h-8 bg-gradient-to-br from-orange-500 to-amber-500 rounded-full flex items-center justify-center shadow-md flex-shrink-0 ring-2 ring-orange-400/30">
+                      <div className="w-8 h-8 bg-gradient-to-br from-orange-500 to-amber-500 rounded-full flex items-center justify-center shadow-md flex-shrink-0">
                         <svg className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                           <circle cx="12" cy="12" r="3" fill="currentColor" stroke="none" />
                           <path d="M12 2v4m0 12v4M2 12h4m12 0h4" strokeLinecap="round" />
@@ -738,7 +996,7 @@ export function Assistant({ userId, showSuccess, initialPrompt, onPromptConsumed
                 {isSending && (
                   <div className="flex justify-start">
                     <div className="flex gap-3 items-center">
-                      <div className="w-8 h-8 bg-gradient-to-br from-orange-500 to-amber-500 rounded-full flex items-center justify-center shadow-md ring-2 ring-orange-400/30 animate-pulse">
+                      <div className="w-8 h-8 bg-gradient-to-br from-orange-500 to-amber-500 rounded-full flex items-center justify-center shadow-md animate-pulse">
                         <svg className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                           <circle cx="12" cy="12" r="3" fill="currentColor" stroke="none" />
                           <path d="M12 2v4m0 12v4M2 12h4m12 0h4" strokeLinecap="round" />
@@ -754,55 +1012,76 @@ export function Assistant({ userId, showSuccess, initialPrompt, onPromptConsumed
                 )}
 
                 <div ref={messagesEndRef} />
-              </>
-            )}
-          </div>
+              </div>
+            </div>
+          )}
+
+          {/* Scroll to bottom button */}
+          {showScrollBtn && messages.length > 2 && (
+            <button
+              onClick={scrollToBottom}
+              className="scroll-to-bottom-btn"
+              title="Scroll to latest"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+              </svg>
+            </button>
+          )}
         </div>
 
-        {/* Quick Actions */}
-        {messages.length <= 1 && !isSending && (
-          <div className="px-3 sm:px-4 pb-2">
-            <div className="max-w-3xl mx-auto flex flex-wrap gap-1.5 sm:gap-2 justify-center">
-              {quickActionsLoading ? (
-                // Loading skeleton for quick actions
-                <>
-                  {[1, 2, 3, 4].map((i) => (
-                    <div
-                      key={i}
-                      className="px-2.5 sm:px-3 py-1 sm:py-1.5 bg-slate-100 dark:bg-slate-700 rounded-full animate-pulse w-24 sm:w-32 h-6 sm:h-7"
-                    />
-                  ))}
-                </>
-              ) : (
-                quickActions.map((action) => (
-                  <button
-                    key={action.id}
-                    onClick={() => handleQuickAction(action.prompt)}
-                    className="px-2.5 sm:px-3 py-1 sm:py-1.5 bg-slate-100 dark:bg-slate-700 hover:bg-orange-50 dark:hover:bg-orange-900/30 hover:text-orange-700 dark:hover:text-orange-300 text-slate-600 dark:text-slate-300 text-xs sm:text-sm rounded-full transition-colors"
-                  >
-                    {action.label}
-                  </button>
-                ))
-              )}
-            </div>
-          </div>
-        )}
-
         {/* Input Area */}
-        <div className="p-3 sm:p-4 border-t border-[var(--color-border)] bg-[var(--color-bg-card)]">
+        <div className="chat-input-area">
           <div className="max-w-3xl mx-auto">
-            {attachmentUrl && (
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-xs text-[var(--color-text-muted)]">Attached: {attachmentName}</span>
+            {/* Voice error toast */}
+            {voiceError && (
+              <div className="mb-2 flex items-center gap-2 px-3 py-2 bg-red-500/10 border border-red-500/20 rounded-xl text-xs text-red-400 animate-in">
+                <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+                <span>{voiceError}</span>
+              </div>
+            )}
+
+            {/* Recording indicator */}
+            {isListening && (
+              <div className="recording-bar">
+                <div className="recording-dot-pulse" />
+                <span className="text-sm font-medium text-red-400">Listening...</span>
+                <span className="flex-1 text-xs text-[var(--color-text-faint)] truncate">
+                  {inputValue ? `"${inputValue}"` : 'Speak now'}
+                </span>
                 <button
-                  type="button"
-                  onClick={() => { setAttachmentUrl(null); setAttachmentName(null) }}
-                  className="text-[var(--color-text-faint)] hover:text-red-500 text-xs"
+                  onClick={toggleVoice}
+                  className="px-3 py-1 text-xs font-medium text-red-400 hover:text-red-300 bg-red-500/10 hover:bg-red-500/20 rounded-full transition-colors"
                 >
-                  Remove
+                  Stop
                 </button>
               </div>
             )}
+
+            {/* Attachment preview */}
+            {attachmentUrl && (
+              <div className="flex items-center gap-2 mb-2">
+                <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-orange-500/10 border border-orange-500/20 rounded-lg">
+                  <svg className="w-3.5 h-3.5 text-orange-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.414a4 4 0 00-5.656-5.656l-6.586 6.586a6 6 0 008.486 8.486l6.414-6.414" />
+                  </svg>
+                  <span className="text-xs text-orange-400 truncate max-w-[200px]">{attachmentName}</span>
+                  <button
+                    type="button"
+                    onClick={() => { setAttachmentUrl(null); setAttachmentName(null); setAttachmentFileType(null); setAttachmentContent(null) }}
+                    className="text-slate-400 hover:text-red-400 transition-colors ml-1"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Input */}
             <div className="chat-input-wrapper">
               <input
                 ref={fileInputRef}
@@ -816,14 +1095,14 @@ export function Assistant({ userId, showSuccess, initialPrompt, onPromptConsumed
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isSending || isUploading}
-                className="p-2 text-[var(--color-text-faint)] hover:text-orange-500 rounded-lg transition-colors flex-shrink-0"
-                title="Attach file (image, PDF, CSV)"
+                className="chat-action-btn"
+                title="Attach file"
               >
                 {isUploading ? (
                   <div className="w-5 h-5 border-2 border-orange-500/30 border-t-orange-500 rounded-full animate-spin" />
                 ) : (
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.414a2 2 0 00-2.828-2.828l-6.586 6.586a4 4 0 105.656 5.656l6.414-6.414a2 2 0 000-2.828l-2.828-2.828a2 2 0 00-2.828 0l-6.414 6.414a4 4 0 01-5.656-5.656l6.414-6.414" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.414a4 4 0 00-5.656-5.656l-6.586 6.586a6 6 0 008.486 8.486l6.414-6.414" />
                   </svg>
                 )}
               </button>
@@ -832,27 +1111,53 @@ export function Assistant({ userId, showSuccess, initialPrompt, onPromptConsumed
                 value={inputValue}
                 onChange={handleInputChange}
                 onKeyDown={handleKeyDown}
-                placeholder="Ask Dyia anything..."
-                className="chat-input text-sm sm:text-base"
+                placeholder={isListening ? 'Listening...' : 'Ask Dyia anything...'}
+                className="chat-input"
                 rows={1}
-                disabled={isSending}
+                disabled={isSending || isListening}
               />
-              <button
-                onClick={() => handleSend()}
-                disabled={(!inputValue.trim() && !attachmentUrl) || isSending}
-                className="chat-send-btn"
-                title="Send message"
-              >
-                {isSending ? (
-                  <div className="w-4 h-4 sm:w-5 sm:h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                ) : (
-                  <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+              {/* Mic/Send toggle: show send when there's content, mic when empty */}
+              {inputValue.trim() || attachmentUrl ? (
+                <button
+                  onClick={() => handleSend()}
+                  disabled={isSending}
+                  className="chat-send-btn"
+                  title="Send message"
+                >
+                  {isSending ? (
+                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  ) : (
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
+                    </svg>
+                  )}
+                </button>
+              ) : supportsVoice ? (
+                <button
+                  type="button"
+                  onClick={toggleVoice}
+                  disabled={isSending}
+                  className={`chat-mic-btn ${isListening ? 'recording' : ''}`}
+                  title={isListening ? 'Stop listening' : 'Voice input'}
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
                   </svg>
-                )}
-              </button>
+                </button>
+              ) : (
+                <button
+                  onClick={() => handleSend()}
+                  disabled={true}
+                  className="chat-send-btn"
+                  title="Type a message to send"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
+                  </svg>
+                </button>
+              )}
             </div>
-            <p className="text-[10px] sm:text-xs text-[var(--color-text-faint)] mt-1.5 sm:mt-2 text-center hidden sm:block">
+            <p className="text-[10px] text-[var(--color-text-faint)] mt-1.5 text-center hidden sm:block">
               Enter to send · Shift+Enter for new line
             </p>
           </div>

@@ -308,10 +308,10 @@ export function MassEmail({ jobs, quotes, isPro = false, showSuccess, showError 
   // Pro gate
   if (!isPro) {
     return (
-      <div className="space-y-8 animate-view-enter">
+      <div className="page-content">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-[var(--color-text-primary)]">Email Blast</h1>
-          <p className="text-sm text-[var(--color-text-muted)] mt-1">Send promotional emails to your customers</p>
+          <h1 className="page-title">Email Blast</h1>
+          <p className="page-subtitle">Send promotional emails to your customers</p>
         </div>
         <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl p-8 text-center">
           <div className="w-16 h-16 bg-gradient-to-br from-orange-500 to-amber-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
@@ -332,11 +332,11 @@ export function MassEmail({ jobs, quotes, isPro = false, showSuccess, showError 
   const activeConnection = connections.find(c => c.id === selectedConnectionId)
 
   return (
-    <div className="space-y-8 animate-view-enter">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div className="page-content">
+      <div className="page-header">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-[var(--color-text-primary)]">Email Blast</h1>
-          <p className="text-sm text-[var(--color-text-muted)] mt-1">
+          <h1 className="page-title">Email Blast</h1>
+          <p className="page-subtitle">
             Send promotional emails to your customers from your own email
           </p>
         </div>

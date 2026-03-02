@@ -1,11 +1,10 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
+import { getBaseUrl } from '@/lib/env'
 
 // Outlook/Microsoft OAuth configuration
 const OUTLOOK_CLIENT_ID = process.env.OUTLOOK_CLIENT_ID
-const OUTLOOK_REDIRECT_URI = process.env.NEXT_PUBLIC_APP_URL 
-  ? `${process.env.NEXT_PUBLIC_APP_URL}/api/email/connect/outlook/callback`
-  : 'http://localhost:3000/api/email/connect/outlook/callback'
+const OUTLOOK_REDIRECT_URI = `${getBaseUrl()}/api/email/connect/outlook/callback`
 
 // Scopes needed for sending email via Microsoft Graph
 const SCOPES = [

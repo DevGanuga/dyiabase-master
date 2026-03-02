@@ -8,7 +8,7 @@ import { getReviewRequestMessage } from '@/lib/reviews'
 import { useConfirm } from '@/components/providers/ConfirmProvider'
 import { useCustomerAutocomplete } from '@/hooks/useCustomerAutocomplete'
 import { DyiaInsight } from './DyiaInsight'
-import { upsertCustomer } from '@/lib/customers'
+import { ensureCustomer } from '@/lib/customers'
 import { DyiaActionButton, DYIA_PROMPTS } from './DyiaActionButton'
 
 const REVIEW_PLATFORMS = ['Google', 'Yelp', 'Facebook'] as const
@@ -52,6 +52,7 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
   const [saving, setSaving] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [sourceFilter, setSourceFilter] = useState<string>('all')
+  const [sortOrder, setSortOrder] = useState<string>('newest')
   const [hasCheckedMonth, setHasCheckedMonth] = useState(false)
   const [reviewModalJob, setReviewModalJob] = useState<AppJob | null>(null)
   const [reviewPlatform, setReviewPlatform] = useState<string>(REVIEW_PLATFORMS[0])
@@ -107,17 +108,28 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
     })
     return [...names].sort()
   }, [jobs])
-  const { nameList: customerNameSuggestions } = useCustomerAutocomplete(jobNamesFallback)
+  const { nameList: customerNameSuggestions, findByName } = useCustomerAutocomplete(jobNamesFallback)
 
   const filteredJobs = useMemo(() => {
-    return monthJobs.filter(job => {
+    const filtered = monthJobs.filter(job => {
       const matchesSearch = searchQuery === '' || 
         job.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (job.source && job.source.toLowerCase().includes(searchQuery.toLowerCase()))
       const matchesSource = sourceFilter === 'all' || job.source === sourceFilter
       return matchesSearch && matchesSource
     })
-  }, [monthJobs, searchQuery, sourceFilter])
+
+    switch (sortOrder) {
+      case 'oldest':
+        return [...filtered].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+      case 'rev-desc':
+        return [...filtered].sort((a, b) => (b.revenue || 0) - (a.revenue || 0))
+      case 'rev-asc':
+        return [...filtered].sort((a, b) => (a.revenue || 0) - (b.revenue || 0))
+      default:
+        return filtered
+    }
+  }, [monthJobs, searchQuery, sourceFilter, sortOrder])
 
   // Days in current month that have jobs but no expenses logged (for nudge)
   const daysWithoutExpenses = useMemo(() => {
@@ -355,9 +367,11 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
 
       if (isEditing) {
         const customer = validCustomers[0]
+        const customerId = await ensureCustomer(supabase, userId, customer.name.trim())
         const dbJob = {
           date: tempDate,
           customer_name: customer.name.trim(),
+          customer_id: customerId,
           source: customer.source || null,
           revenue: Math.max(0, customer.revenue),
           labor: Math.max(0, tempExpenses.labor),
@@ -382,6 +396,7 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
         setJobs(jobs.map(j => j.id === (editingJob as AppJob).id ? {
           ...j,
           date: tempDate,
+          customerId,
           customerName: customer.name.trim(),
           source: customer.source,
           revenue: customer.revenue,
@@ -399,10 +414,12 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
         const newJobs: AppJob[] = []
         for (const customer of validCustomers) {
           const expPerCustomer = validCustomers.length
+          const customerId = await ensureCustomer(supabase, userId, customer.name.trim())
           const dbJob = {
             user_id: userId,
             date: tempDate,
             customer_name: customer.name.trim(),
+            customer_id: customerId,
             source: customer.source || null,
             revenue: Math.max(0, customer.revenue),
             labor: Math.max(0, tempExpenses.labor / expPerCustomer),
@@ -426,6 +443,7 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
           newJobs.push({
             id: data.id,
             date: tempDate,
+            customerId,
             customerName: customer.name.trim(),
             source: customer.source,
             revenue: customer.revenue,
@@ -446,17 +464,13 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
         const totalRev = validCustomers.reduce((s, c) => s + c.revenue, 0)
         const totalProf = totalRev - totalExpenses
         showSuccess(`${validCustomers.length === 1 ? 'Job' : `${validCustomers.length} jobs`} saved — ${formatCurrency(totalProf)} profit`)
-
-        // Auto-sync customers (fire and forget)
-        for (const customer of validCustomers) {
-          upsertCustomer(supabase, userId, customer.name.trim()).catch(() => {})
-        }
       }
 
       cancelForm()
     } catch (error) {
       console.error('Error saving jobs:', error)
-      await alert({ title: 'Error', message: 'Error saving jobs.', variant: 'error' })
+      const msg = error instanceof Error ? error.message : (error as { message?: string })?.message || 'Unknown error'
+      await alert({ title: 'Error Saving Job', message: `Something went wrong: ${msg}. Please try again.`, variant: 'error' })
     } finally {
       setSaving(false)
     }
@@ -498,70 +512,82 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
     const isEditing = editingJob !== 'new'
 
     return (
-      <div className="space-y-4 sm:space-y-5">
+      <div className="space-y-4 sm:space-y-5 pb-24">
+        {/* Header */}
         <div className="flex items-start sm:items-center justify-between gap-3">
-          <div className="min-w-0">
-            <h1 className="text-xl sm:text-2xl font-bold text-[var(--color-text-primary)]">{isEditing ? 'Edit Job' : 'Log Job'}</h1>
-            <p className="text-sm text-[var(--color-text-muted)]">{isEditing ? 'Update job details' : 'Log one or multiple customers from the same trip'}</p>
+          <div className="flex items-center gap-3 min-w-0">
+            <button onClick={cancelForm} className="p-1.5 rounded-lg hover:bg-[var(--color-bg-subtle)] transition-colors shrink-0">
+              <svg className="w-5 h-5 text-[var(--color-text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              </svg>
+            </button>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl sm:text-2xl font-bold text-[var(--color-text-primary)]">{isEditing ? 'Edit Job' : 'Log Job'}</h1>
+                {isEditing && (
+                  <span className="px-2 py-0.5 bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-full text-[10px] font-bold uppercase">Editing</span>
+                )}
+              </div>
+              <p className="text-sm text-[var(--color-text-muted)]">{isEditing ? 'Update job details' : 'Log one or multiple customers from the same trip'}</p>
+            </div>
           </div>
-          <button onClick={cancelForm} className="px-3 py-1.5 text-sm text-slate-600 dark:text-slate-400 hover:text-[var(--color-text-primary)] shrink-0">
-            Cancel
-          </button>
         </div>
 
         {/* === LIVE PROFIT PREVIEW === */}
-        {totalRevenue > 0 && (
-          <div className={`rounded-xl p-4 border-2 transition-colors ${liveProfit >= 0 ? 'bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800/50' : 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800/50'}`}>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
-              <div>
-                <p className="text-xs text-[var(--color-text-muted)] mb-0.5">Revenue</p>
-                <p className="text-lg font-bold text-green-600 dark:text-green-400">{formatCurrency(totalRevenue)}</p>
-              </div>
-              <div>
-                <p className="text-xs text-[var(--color-text-muted)] mb-0.5">Expenses</p>
-                <p className="text-lg font-bold text-red-500 dark:text-red-400">{totalExpenses > 0 ? `-${formatCurrency(totalExpenses)}` : '$0'}</p>
-              </div>
-              <div>
-                <p className="text-xs text-[var(--color-text-muted)] mb-0.5">Profit</p>
-                <p className={`text-lg font-bold ${liveProfit >= 0 ? 'text-green-700 dark:text-green-300' : 'text-red-600 dark:text-red-400'}`}>
-                  {formatCurrency(liveProfit)}
-                  {liveProfitMargin > 0 && <span className="text-xs font-normal ml-1 opacity-70">{liveProfitMargin}%</span>}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs text-[var(--color-text-muted)] mb-0.5">Take Home</p>
-                <p className="text-lg font-bold text-purple-600 dark:text-purple-400">
-                  {formatCurrency(liveTakeHome)}
-                  <span className="text-xs font-normal ml-1 opacity-70">-{taxRate}% tax</span>
-                </p>
-              </div>
+        <div className={`rounded-xl p-4 border-2 transition-colors ${totalRevenue > 0 ? (liveProfit >= 0 ? 'bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800/50' : 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800/50') : 'bg-[var(--color-bg-subtle)] border-[var(--color-border)]'}`}>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+            <div>
+              <p className="text-xs text-[var(--color-text-muted)] mb-0.5">Revenue</p>
+              <p className={`text-lg font-bold ${totalRevenue > 0 ? 'text-green-600 dark:text-green-400' : 'text-[var(--color-text-faint)]'}`}>{formatCurrency(totalRevenue)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-[var(--color-text-muted)] mb-0.5">Expenses</p>
+              <p className={`text-lg font-bold ${totalExpenses > 0 ? 'text-red-500 dark:text-red-400' : 'text-[var(--color-text-faint)]'}`}>{totalExpenses > 0 ? `-${formatCurrency(totalExpenses)}` : '$0'}</p>
+            </div>
+            <div>
+              <p className="text-xs text-[var(--color-text-muted)] mb-0.5">Profit</p>
+              <p className={`text-lg font-bold ${totalRevenue > 0 ? (liveProfit >= 0 ? 'text-green-700 dark:text-green-300' : 'text-red-600 dark:text-red-400') : 'text-[var(--color-text-faint)]'}`}>
+                {formatCurrency(liveProfit)}
+                {liveProfitMargin > 0 && <span className="text-xs font-normal ml-1 opacity-70">{liveProfitMargin}%</span>}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-[var(--color-text-muted)] mb-0.5">Take Home</p>
+              <p className={`text-lg font-bold ${totalRevenue > 0 ? 'text-purple-600 dark:text-purple-400' : 'text-[var(--color-text-faint)]'}`}>
+                {formatCurrency(liveTakeHome)}
+                {totalRevenue > 0 && <span className="text-xs font-normal ml-1 opacity-70">-{taxRate}% tax</span>}
+              </p>
             </div>
           </div>
-        )}
+        </div>
 
         {/* === CUSTOMER + DATE === */}
-        <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl p-4 sm:p-5">
+        <div className="app-card p-4 sm:p-5">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">
               {isEditing ? 'Job Details' : `Customer${tempCustomers.length > 1 ? 's' : ''}`}
               {!isEditing && tempCustomers.length > 1 && <span className="text-[var(--color-text-faint)] font-normal ml-1">({tempCustomers.length})</span>}
             </h3>
-            <div className="flex items-center gap-3">
-              <input
-                type="date"
-                value={tempDate}
-                onChange={(e) => setTempDate(e.target.value)}
-                className="px-3 py-1.5 bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 text-sm"
-              />
-              {!isEditing && (
-                <button 
-                  onClick={addCustomerRow} 
-                  className="text-xs text-orange-600 dark:text-orange-400 hover:text-orange-700 dark:hover:text-orange-300 font-medium whitespace-nowrap"
-                >
-                  + Add Another
-                </button>
-              )}
-            </div>
+            {!isEditing && (
+              <button 
+                onClick={addCustomerRow} 
+                className="text-xs text-orange-600 dark:text-orange-400 hover:text-orange-700 dark:hover:text-orange-300 font-medium whitespace-nowrap flex items-center gap-1"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                Add Customer
+              </button>
+            )}
+          </div>
+
+          {/* Date field */}
+          <div className="mb-4">
+            <label className="app-label">Date</label>
+            <input
+              type="date"
+              value={tempDate}
+              onChange={(e) => setTempDate(e.target.value)}
+              className="app-input max-w-xs"
+            />
           </div>
 
           <div className="space-y-3">
@@ -571,23 +597,37 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
                 className={`relative ${tempCustomers.length > 1 ? 'bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-xl p-4' : ''}`}
               >
                 {!isEditing && tempCustomers.length > 1 && (
-                  <button
-                    onClick={() => removeCustomerRow(index)}
-                    className="absolute top-2 right-2 w-6 h-6 bg-red-100 dark:bg-red-900/40 hover:bg-red-200 dark:hover:bg-red-900/60 text-red-600 dark:text-red-400 rounded-lg text-xs flex items-center justify-center"
-                  >
-                    ×
-                  </button>
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-xs font-medium text-[var(--color-text-muted)]">Customer {index + 1} of {tempCustomers.length}</span>
+                    <button
+                      onClick={() => removeCustomerRow(index)}
+                      className="w-6 h-6 bg-red-100 dark:bg-red-900/40 hover:bg-red-200 dark:hover:bg-red-900/60 text-red-600 dark:text-red-400 rounded-lg text-xs flex items-center justify-center"
+                    >
+                      ×
+                    </button>
+                  </div>
                 )}
                 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
-                    <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Customer Name *</label>
+                    <label className="app-label">Customer Name *</label>
                     <input
                       list={`customer-names-${index}`}
                       type="text"
                       value={customer.name}
-                      onChange={(e) => updateCustomer(index, 'name', e.target.value)}
-                      className="w-full px-3 py-2.5 bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 text-sm"
+                      onChange={(e) => {
+                        const name = e.target.value
+                        updateCustomer(index, 'name', name)
+                        const match = findByName(name)
+                        if (match) {
+                          if (match.address) setTempAddress(match.address)
+                          const lastJob = [...jobs]
+                            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                            .find(j => j.customerName.toLowerCase() === name.trim().toLowerCase())
+                          if (lastJob?.source) updateCustomer(index, 'source', lastJob.source)
+                        }
+                      }}
+                      className="app-input"
                       placeholder="John Smith"
                       autoFocus={index === 0}
                     />
@@ -596,25 +636,25 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
                     </datalist>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Revenue *</label>
+                    <label className="app-label">Revenue *</label>
                     <div className="relative">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)] text-sm">$</span>
                       <input
                         type="number"
                         value={customer.revenue || ''}
                         onChange={(e) => updateCustomer(index, 'revenue', Math.max(0, parseFloat(e.target.value) || 0))}
-                        className="w-full px-3 py-2.5 pl-7 bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 text-sm"
+                        className="app-input pl-7"
                         placeholder="500"
                         min="0"
                       />
                     </div>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Lead Source</label>
+                    <label className="app-label">Lead Source</label>
                     <select
                       value={customer.source}
                       onChange={(e) => updateCustomer(index, 'source', e.target.value)}
-                      className="w-full px-3 py-2.5 bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 text-sm"
+                      className="app-select"
                     >
                       <option value="">Select source</option>
                       {MARKETING_SOURCES.map(s => (
@@ -628,28 +668,34 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
           </div>
         </div>
 
-        {/* === EXPENSES (collapsible quick-entry) === */}
-        <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl p-4 sm:p-5">
-          <div className="flex justify-between items-center">
+        {/* === EXPENSES === */}
+        <div className="app-card p-4 sm:p-5">
+          <div className="flex justify-between items-center mb-3">
             <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">
-              {isEditing ? 'Expenses' : 'Expenses'}
+              Expenses
               {totalExpenses > 0 && <span className="text-red-500 font-normal ml-2 text-xs">{formatCurrency(totalExpenses)}</span>}
             </h3>
-            <button 
-              type="button"
-              onClick={() => setShowExpenseDetails(!showExpenseDetails)}
-              className="text-xs text-orange-600 dark:text-orange-400 hover:text-orange-700 font-medium flex items-center gap-1"
-            >
-              {showExpenseDetails ? 'Collapse' : 'Itemize'}
-              <svg className={`w-3.5 h-3.5 transition-transform ${showExpenseDetails ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
+            {/* Tab-style toggle */}
+            <div className="bg-[var(--color-bg-subtle)] rounded-lg p-0.5 inline-flex text-xs">
+              <button
+                type="button"
+                onClick={() => setShowExpenseDetails(false)}
+                className={`px-3 py-1.5 rounded-md font-medium transition-all ${!showExpenseDetails ? 'bg-[var(--color-bg-card)] shadow-sm text-[var(--color-text-primary)]' : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'}`}
+              >
+                Quick
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowExpenseDetails(true)}
+                className={`px-3 py-1.5 rounded-md font-medium transition-all ${showExpenseDetails ? 'bg-[var(--color-bg-card)] shadow-sm text-[var(--color-text-primary)]' : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'}`}
+              >
+                Itemize
+              </button>
+            </div>
           </div>
 
           {!showExpenseDetails ? (
-            /* Quick total entry */
-            <div className="mt-3">
+            <div>
               <div className="relative max-w-xs">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)] text-sm">$</span>
                 <input
@@ -659,17 +705,16 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
                     const val = Math.max(0, parseFloat(e.target.value) || 0)
                     setTempExpenses({ labor: 0, gas: 0, dumpFee: 0, dumpsterRental: 0, additional: val })
                   }}
-                  className="w-full px-3 py-2.5 pl-7 bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 text-sm"
+                  className="app-input pl-7"
                   placeholder="Total expenses for this job"
                   min="0"
                 />
               </div>
-              <p className="text-xs text-[var(--color-text-faint)] mt-1.5">Quick entry — or click &quot;Itemize&quot; to break down by category</p>
+              <p className="text-xs text-[var(--color-text-faint)] mt-1.5">Enter a lump sum, or switch to &quot;Itemize&quot; for a breakdown</p>
             </div>
           ) : (
-            /* Detailed breakdown */
-            <div className="mt-3">
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+            <div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-5 gap-3">
                 {[
                   { key: 'labor', label: 'Labor' },
                   { key: 'gas', label: 'Gas' },
@@ -678,14 +723,14 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
                   { key: 'additional', label: 'Other' },
                 ].map(({ key, label }) => (
                   <div key={key}>
-                    <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">{label}</label>
+                    <label className="app-label">{label}</label>
                     <div className="relative">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)] text-sm">$</span>
                       <input
                         type="number"
                         value={tempExpenses[key as keyof TempExpenses] || ''}
                         onChange={(e) => setTempExpenses({ ...tempExpenses, [key]: Math.max(0, parseFloat(e.target.value) || 0) })}
-                        className="w-full px-3 py-2.5 pl-7 bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 text-sm"
+                        className="app-input pl-7"
                         min="0"
                       />
                     </div>
@@ -705,23 +750,23 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
         </div>
 
         {/* === ADDRESS & NOTES === */}
-        <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl p-4 sm:p-5 space-y-3">
+        <div className="app-card p-4 sm:p-5 space-y-3">
           <div>
-            <label className="block text-sm font-semibold text-[var(--color-text-primary)] mb-2">Job Address <span className="text-[var(--color-text-faint)] font-normal">(optional)</span></label>
+            <label className="app-label">Job Address <span className="text-[var(--color-text-faint)] font-normal text-xs">(optional)</span></label>
             <input
               type="text"
               value={tempAddress}
               onChange={(e) => setTempAddress(e.target.value)}
-              className="w-full px-3 py-2.5 bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 text-sm"
+              className="app-input"
               placeholder="123 Main St, Anytown, ST 12345"
             />
           </div>
           <div>
-            <label className="block text-sm font-semibold text-[var(--color-text-primary)] mb-2">Notes <span className="text-[var(--color-text-faint)] font-normal">(optional)</span></label>
+            <label className="app-label">Notes <span className="text-[var(--color-text-faint)] font-normal text-xs">(optional)</span></label>
             <textarea
               value={tempNotes}
               onChange={(e) => setTempNotes(e.target.value)}
-              className="w-full px-3 py-2.5 bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 text-sm resize-none"
+              className="app-input resize-none"
               rows={2}
               placeholder="Basement cleanout, 2nd floor, had to disconnect appliances..."
             />
@@ -759,25 +804,43 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
           )}
         </div>
 
-        {/* === ACTIONS === */}
-        <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3">
-          <button onClick={cancelForm} className="w-full sm:w-auto px-5 py-2.5 border border-[var(--color-border)] rounded-xl hover:bg-[var(--color-bg-subtle)] font-medium text-sm">
-            Cancel
-          </button>
-          <button 
-            onClick={saveJobs} 
-            disabled={saving} 
-            className="w-full sm:w-auto px-5 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-medium text-sm disabled:opacity-50 flex items-center justify-center gap-2"
-          >
-            {saving ? (
-              <>
-                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                Saving...
-              </>
-            ) : (
-              <>Save {tempCustomers.length > 1 ? `${tempCustomers.length} Jobs` : 'Job'}</>
-            )}
-          </button>
+        {/* === STICKY SAVE BAR === */}
+        <div className="fixed bottom-0 left-0 right-0 z-40 bg-[var(--color-bg-page)]/95 backdrop-blur-lg border-t border-[var(--color-border)] px-4 py-3 sm:px-6">
+          <div className="max-w-3xl mx-auto flex items-center justify-between gap-3">
+            {/* Profit preview in sticky bar */}
+            <div className="hidden sm:flex items-center gap-4 text-sm">
+              {totalRevenue > 0 ? (
+                <>
+                  <span className="text-[var(--color-text-muted)]">Profit:</span>
+                  <span className={`font-bold ${liveProfit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500'}`}>{formatCurrency(liveProfit)}</span>
+                  <span className="text-[var(--color-text-faint)]">|</span>
+                  <span className="text-[var(--color-text-muted)]">Take Home:</span>
+                  <span className="font-bold text-purple-600 dark:text-purple-400">{formatCurrency(liveTakeHome)}</span>
+                </>
+              ) : (
+                <span className="text-[var(--color-text-faint)]">Enter revenue to see profit</span>
+              )}
+            </div>
+            <div className="flex gap-2 sm:gap-3 w-full sm:w-auto">
+              <button onClick={cancelForm} className="app-btn-secondary flex-1 sm:flex-none text-sm py-2.5 px-4">
+                Cancel
+              </button>
+              <button 
+                onClick={saveJobs} 
+                disabled={saving} 
+                className="app-btn-primary flex-1 sm:flex-none text-sm py-2.5 px-5"
+              >
+                {saving ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>Save {tempCustomers.length > 1 ? `${tempCustomers.length} Jobs` : 'Job'}</>
+                )}
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     )
@@ -785,17 +848,17 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
 
   // ===================== LIST VIEW =====================
   return (
-    <div className="space-y-4 sm:space-y-6 animate-view-enter">
+    <div className="page-content">
       {/* AI Insight Strip */}
       {jobs.length > 2 && <DyiaInsight context="jobs" isPro={isPro} />}
 
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <div className="page-header">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-[var(--color-text-primary)]">Jobs</h1>
-          <p className="text-sm text-[var(--color-text-muted)]">{monthName}</p>
+          <h1 className="page-title">Jobs</h1>
+          <p className="page-subtitle">{monthName}</p>
         </div>
-        <div className="flex items-center gap-2 w-full sm:w-auto">
+        <div className="flex items-center gap-2">
           {onOpenDyiaWithPrompt && (
             <DyiaActionButton
               variant="compact"
@@ -805,10 +868,7 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
               isPro={isPro}
             />
           )}
-          <button 
-            onClick={startAddJob} 
-            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium rounded-xl transition-all flex-1 sm:flex-initial"
-          >
+          <button onClick={startAddJob} className="app-btn-primary text-sm py-2.5 px-4">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
@@ -818,22 +878,22 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
       </div>
 
       {/* Stats Summary */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
-        <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl p-3 sm:p-4">
-          <p className="text-xs text-[var(--color-text-muted)]">Jobs</p>
-          <p className="text-xl sm:text-2xl font-bold text-[var(--color-text-primary)]">{monthJobs.length}</p>
+      <div className="stat-grid">
+        <div className="stat-card">
+          <p className="stat-card-label">Jobs</p>
+          <p className="stat-card-value">{monthJobs.length}</p>
         </div>
-        <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl p-3 sm:p-4">
-          <p className="text-xs text-[var(--color-text-muted)]">Revenue</p>
-          <p className="text-xl sm:text-2xl font-bold text-green-600 dark:text-green-400">{formatCurrency(stats.totalRevenue)}</p>
+        <div className="stat-card">
+          <p className="stat-card-label">Revenue</p>
+          <p className="stat-card-value text-green-600 dark:text-green-400">{formatCurrency(stats.totalRevenue)}</p>
         </div>
-        <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl p-3 sm:p-4">
-          <p className="text-xs text-[var(--color-text-muted)]">Expenses</p>
-          <p className="text-xl sm:text-2xl font-bold text-red-500 dark:text-red-400">{formatCurrency(stats.totalExpenses)}</p>
+        <div className="stat-card">
+          <p className="stat-card-label">Expenses</p>
+          <p className="stat-card-value text-red-500 dark:text-red-400">{formatCurrency(stats.totalExpenses)}</p>
         </div>
-        <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl p-3 sm:p-4">
-          <p className="text-xs text-[var(--color-text-muted)]">Profit</p>
-          <p className={`text-xl sm:text-2xl font-bold ${stats.profit >= 0 ? 'text-purple-600 dark:text-purple-400' : 'text-red-600 dark:text-red-400'}`}>
+        <div className="stat-card">
+          <p className="stat-card-label">Profit</p>
+          <p className={`stat-card-value ${stats.profit >= 0 ? 'text-purple-600 dark:text-purple-400' : 'text-red-600 dark:text-red-400'}`}>
             {formatCurrency(stats.profit)}
           </p>
         </div>
@@ -908,7 +968,7 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
         <div className="flex items-center gap-2 overflow-x-auto pb-1">
           <button 
             onClick={() => navigateMonth(-1)} 
-            className="p-2 bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-lg hover:bg-[var(--color-bg-subtle)] shrink-0"
+            className="p-2 bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl hover:bg-[var(--color-bg-subtle)] shrink-0 transition-colors"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -921,11 +981,11 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
               const [year, month] = e.target.value.split('-')
               setSelectedMonth(new Date(parseInt(year), parseInt(month) -1, 1))
             }}
-            className="px-3 py-2 bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-lg font-medium text-sm min-w-0"
+            className="filter-search-input !w-auto !pl-3"
           />
           <button 
             onClick={() => navigateMonth(1)} 
-            className="p-2 bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-lg hover:bg-[var(--color-bg-subtle)] shrink-0"
+            className="p-2 bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl hover:bg-[var(--color-bg-subtle)] shrink-0 transition-colors"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -933,31 +993,31 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
           </button>
           <button 
             onClick={() => setSelectedMonth(new Date())} 
-            className="px-3 py-2 bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-lg hover:bg-[var(--color-bg-subtle)] font-medium text-xs shrink-0"
+            className="px-3 py-2.5 bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl hover:bg-[var(--color-bg-subtle)] font-medium text-xs shrink-0 transition-colors"
           >
             Today
           </button>
         </div>
 
         {/* Search & Filter */}
-        <div className="flex gap-2">
-          <div className="relative flex-1 min-w-0">
-            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-text-faint)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="filter-toolbar">
+          <div className="filter-search">
+            <svg className="filter-search-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search..."
-              className="w-full pl-9 pr-3 py-2 bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 text-sm"
+              placeholder="Search jobs..."
+              className="filter-search-input"
             />
           </div>
           {stats.sources.length > 0 && (
             <select
               value={sourceFilter}
               onChange={(e) => setSourceFilter(e.target.value)}
-              className="px-3 py-2 bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-lg text-sm min-w-0 max-w-[130px]"
+              className="app-select !py-2.5 max-w-[150px]"
             >
               <option value="all">All sources</option>
               {stats.sources.map(s => (
@@ -965,6 +1025,16 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
               ))}
             </select>
           )}
+          <select
+            value={sortOrder}
+            onChange={(e) => setSortOrder(e.target.value)}
+            className="app-select !py-2.5 max-w-[170px]"
+          >
+            <option value="newest">Newest First</option>
+            <option value="oldest">Oldest First</option>
+            <option value="rev-desc">Revenue: High→Low</option>
+            <option value="rev-asc">Revenue: Low→High</option>
+          </select>
         </div>
       </div>
 
@@ -987,7 +1057,7 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
             </p>
             {!searchQuery && sourceFilter === 'all' && (
               <div className="flex flex-wrap justify-center gap-2">
-                <button onClick={startAddJob} className="inline-flex items-center gap-2 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium rounded-xl transition-all">
+                <button onClick={startAddJob} className="app-btn-primary text-sm">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                   </svg>
@@ -1233,13 +1303,13 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
 
       {/* Request Review modal */}
       {reviewModalJob && settings && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={() => setReviewModalJob(null)}>
+        <div className="modal-overlay" onClick={() => setReviewModalJob(null)}>
           <div
-            className="bg-[var(--color-bg)] border border-[var(--color-border)] rounded-xl shadow-xl max-w-md w-full p-6"
+            className="modal-panel"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-lg font-semibold text-[var(--color-text-primary)] mb-2">Request review</h3>
-            <p className="text-sm text-[var(--color-text-muted)] mb-4">Copy the message and send it to {reviewModalJob.customerName} (e.g. by text or email).</p>
+            <h3 className="modal-title">Request review</h3>
+            <p className="modal-description">Copy the message and send it to {reviewModalJob.customerName} (e.g. by text or email).</p>
             <div className="mb-4">
               <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1">Platform</label>
               <select
@@ -1259,7 +1329,7 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
                 className="app-input w-full resize-none text-sm"
               />
             </div>
-            <div className="flex gap-2">
+            <div className="modal-actions">
               <button
                 type="button"
                 onClick={async () => {

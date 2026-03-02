@@ -59,7 +59,8 @@ export async function GET(req: NextRequest) {
           u.email,
           `Your Pro trial ends in ${DAYS_UNTIL_TRIAL_END} days`,
           trialEndingEmail(u.first_name || 'there', DAYS_UNTIL_TRIAL_END),
-          'trial_ending'
+          'trial_ending',
+          u.id
         )
         if (result.success) sent++
       } catch (err) {

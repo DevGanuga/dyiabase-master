@@ -63,7 +63,7 @@ export default function TermsPage() {
               <li>Subscriptions are billed monthly or annually, as selected at checkout.</li>
               <li>All payments are processed securely through Stripe. We do not store your credit card information.</li>
               <li>Prices are subject to change with 30 days&apos; notice.</li>
-              <li>Refunds are handled on a case-by-case basis. Contact support@dyia.io for refund requests.</li>
+              <li>Refunds are handled on a case-by-case basis. Contact dyia.io.app@gmail.com for refund requests.</li>
             </ul>
           </section>
 
@@ -138,7 +138,7 @@ export default function TermsPage() {
             <h2 className="text-xl font-semibold text-white mb-3">12. Contact</h2>
             <p>
               Questions about these Terms? Contact us at{' '}
-              <a href="mailto:support@dyia.io" className="text-orange-400 hover:text-orange-300">support@dyia.io</a>.
+              <a href="mailto:dyia.io.app@gmail.com" className="text-orange-400 hover:text-orange-300">dyia.io.app@gmail.com</a>.
             </p>
           </section>
         </div>

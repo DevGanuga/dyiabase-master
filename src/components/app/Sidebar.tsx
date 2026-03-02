@@ -4,23 +4,19 @@ import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useTheme } from '@/hooks/useTheme'
-import { Launchpad, type LaunchpadItem } from '@/components/app/Launchpad'
 
-type View = 'dashboard' | 'jobs' | 'quotes' | 'quoteBuilder' | 'followUps' | 'reports' | 'marketing' | 'customers' | 'massEmail' | 'assistant' | 'settings' | 'admin'
+type View = 'dashboard' | 'jobs' | 'quotes' | 'quoteBuilder' | 'followUps' | 'calendar' | 'reports' | 'marketing' | 'customers' | 'massEmail' | 'assistant' | 'settings' | 'admin'
 
 type SubscriptionTier = 'basic' | 'trial' | 'pro'
 
 interface SidebarProps {
   currentView: View
   setCurrentView: (view: View) => void
-  userEmail: string
-  userName?: string
-  userImageUrl?: string
   onLogout: () => void
   isPro?: boolean
   subscriptionTier?: SubscriptionTier
   trialDaysRemaining?: number
-  launchpadItems?: LaunchpadItem[]
+  subscriptionPlan?: 'monthly' | 'annual' | null
   isDemoMode?: boolean
   isAdmin?: boolean
 }
@@ -53,7 +49,7 @@ const Icons = {
     </svg>
   ),
   dyia: (
-    <img src="/dyia-agent.png" alt="Dyia AI" className="w-5 h-5 rounded-full object-cover" />
+    <img src="/dyia-agent.png" alt="Dyia AI" className="w-5 h-5 object-contain" />
   ),
   cog: (
     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -101,14 +97,14 @@ const Icons = {
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
     </svg>
   ),
+  calendar: (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+    </svg>
+  ),
   shield: (
     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-    </svg>
-  ),
-  help: (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
     </svg>
   ),
 }
@@ -127,6 +123,7 @@ const NAV_SECTIONS: NavSection[] = [
       { id: 'jobs', icon: 'briefcase', label: 'Jobs' },
       { id: 'quotes', icon: 'document', label: 'Quotes' },
       { id: 'followUps', icon: 'bell', label: 'Follow-ups' },
+      { id: 'calendar', icon: 'calendar', label: 'Calendar' },
     ],
   },
   {
@@ -177,7 +174,7 @@ function NavButton({
   )
 }
 
-export function Sidebar({ currentView, setCurrentView, userEmail, userName, userImageUrl, onLogout, isPro = false, subscriptionTier = 'basic', trialDaysRemaining = 0, launchpadItems, isDemoMode = false, isAdmin = false }: SidebarProps) {
+export function Sidebar({ currentView, setCurrentView, onLogout, isPro = false, subscriptionTier = 'basic', trialDaysRemaining = 0, subscriptionPlan, isDemoMode = false, isAdmin = false }: SidebarProps) {
   const { resolvedTheme, setTheme } = useTheme()
   const [createOpen, setCreateOpen] = useState(false)
   const [mobileMoreOpen, setMobileMoreOpen] = useState(false)
@@ -195,8 +192,6 @@ export function Sidebar({ currentView, setCurrentView, userEmail, userName, user
       return () => document.removeEventListener('mousedown', handleClickOutside)
     }
   }, [createOpen])
-
-  const showLaunchpad = launchpadItems && launchpadItems.length > 0
 
   // Flat list of all nav items for convenience
   const allNavItems = NAV_SECTIONS.flatMap(s => s.items)
@@ -346,27 +341,34 @@ export function Sidebar({ currentView, setCurrentView, userEmail, userName, user
           </div>
         </nav>
 
-        {/* Launchpad - Getting Started Checklist (Desktop) */}
-        {showLaunchpad && (
-          <div className="hidden sm:block sidebar-launchpad">
-            <Launchpad items={launchpadItems} />
-          </div>
-        )}
-
         {/* Footer - hidden on mobile */}
         <div className="p-3 border-t border-slate-800 hidden sm:block space-y-1">
-          {/* Trial upgrade nudge */}
+          {/* Subscription info */}
           {subscriptionTier === 'trial' && (
             <button
               onClick={() => setCurrentView('settings')}
-              className="w-full flex items-center gap-2 px-3 py-2 mb-1 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 hover:bg-amber-500/15 transition-colors"
+              className={`w-full px-3 py-2.5 mb-1 rounded-lg border hover:opacity-90 transition-colors ${
+                subscriptionPlan === null && trialDaysRemaining <= 3
+                  ? 'bg-amber-500/10 border-amber-500/20'
+                  : 'bg-emerald-500/10 border-emerald-500/20 hover:bg-emerald-500/15'
+              }`}
             >
-              <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <span className="sidebar-text text-xs font-medium truncate">
-                {trialDaysRemaining} day{trialDaysRemaining !== 1 ? 's' : ''} left in trial
-              </span>
+              <div className="flex items-center gap-2 mb-1.5">
+                <svg className={`w-4 h-4 shrink-0 ${trialDaysRemaining <= 3 ? 'text-amber-400' : 'text-emerald-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                <span className={`sidebar-text text-xs font-medium truncate ${trialDaysRemaining <= 3 ? 'text-amber-400' : 'text-emerald-400'}`}>
+                  Pro — {trialDaysRemaining} day{trialDaysRemaining !== 1 ? 's' : ''} left
+                </span>
+              </div>
+              <div className="sidebar-text">
+                <div className="h-1 bg-slate-700 rounded-full overflow-hidden mb-1">
+                  <div
+                    className={`h-full rounded-full transition-all ${trialDaysRemaining <= 3 ? 'bg-amber-500' : 'bg-emerald-500'}`}
+                    style={{ width: `${Math.max(5, (trialDaysRemaining / 14) * 100)}%` }}
+                  />
+                </div>
+              </div>
             </button>
           )}
           {subscriptionTier === 'basic' && (
@@ -380,18 +382,6 @@ export function Sidebar({ currentView, setCurrentView, userEmail, userName, user
               <span className="sidebar-text text-xs font-medium truncate">Upgrade to Pro</span>
             </button>
           )}
-
-          {/* Help & Support */}
-          <a
-            href="/support"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:bg-slate-800/50 hover:text-slate-200 transition-all"
-            title="Help & Support"
-          >
-            <span className="shrink-0">{Icons.help}</span>
-            <span className="sidebar-text text-sm">Help & Support</span>
-          </a>
 
           {/* Settings */}
           <button
@@ -409,66 +399,6 @@ export function Sidebar({ currentView, setCurrentView, userEmail, userName, user
             <span className="sidebar-text text-sm">Settings</span>
           </button>
 
-          {/* Theme toggle */}
-          <button
-            onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
-            className="w-full flex items-center gap-3 px-3 py-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 rounded-lg transition-all"
-            title={resolvedTheme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-          >
-            {resolvedTheme === 'dark' ? (
-              <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-              </svg>
-            ) : (
-              <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-              </svg>
-            )}
-            <span className="sidebar-text text-sm">{resolvedTheme === 'dark' ? 'Light' : 'Dark'}</span>
-          </button>
-
-          {/* User card */}
-          <div className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-800/50 transition-colors cursor-pointer group"
-               onClick={() => setCurrentView('settings')}
-               title="Account settings"
-          >
-            {userImageUrl ? (
-              <img src={userImageUrl} alt="" className="w-8 h-8 rounded-full object-cover shrink-0 ring-2 ring-slate-700 group-hover:ring-slate-600" />
-            ) : (
-              <div className="w-8 h-8 bg-gradient-to-br from-orange-500 to-amber-500 rounded-full flex items-center justify-center shrink-0 ring-2 ring-slate-700 group-hover:ring-slate-600">
-                <span className="text-sm text-white font-semibold">
-                  {(userName || userEmail || 'U').charAt(0).toUpperCase()}
-                </span>
-              </div>
-            )}
-            <div className="sidebar-text flex-1 min-w-0">
-              {userName && (
-                <p className="text-sm font-medium text-slate-200 truncate leading-tight">{userName}</p>
-              )}
-              <p className={`${userName ? 'text-[11px]' : 'text-sm'} text-slate-400 truncate leading-tight`}>{userEmail}</p>
-            </div>
-            <span className={`sidebar-text shrink-0 px-1.5 py-0.5 rounded text-[9px] font-bold ${
-              subscriptionTier === 'pro'
-                ? 'bg-orange-500/20 text-orange-400'
-                : subscriptionTier === 'trial'
-                  ? 'bg-amber-500/20 text-amber-400'
-                  : 'bg-slate-700 text-slate-400'
-            }`}>
-              {subscriptionTier === 'pro' ? 'PRO' : subscriptionTier === 'trial' ? 'TRIAL' : 'FREE'}
-            </span>
-          </div>
-
-          {/* Sign Out */}
-          <button
-            onClick={onLogout}
-            className="w-full flex items-center gap-3 px-3 py-2 text-slate-500 hover:text-red-400 hover:bg-slate-800/50 rounded-lg transition-all"
-            title="Sign Out"
-          >
-            <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-            </svg>
-            <span className="sidebar-text text-sm">Sign Out</span>
-          </button>
         </div>
       </aside>
 

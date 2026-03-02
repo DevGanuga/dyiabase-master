@@ -1,6 +1,8 @@
 // Email templates for Dyia notifications
 // These generate HTML strings for Resend
 
+import { getBaseUrl } from '@/lib/env'
+
 const baseStyles = `
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #1e293b; }
   .container { max-width: 600px; margin: 0 auto; padding: 40px 20px; }
@@ -19,6 +21,7 @@ const baseStyles = `
 `
 
 function wrap(content: string): string {
+  const appUrl = getBaseUrl()
   return `
 <!DOCTYPE html>
 <html>
@@ -29,7 +32,7 @@ function wrap(content: string): string {
 </head>
 <body>
   <div class="container">
-    <img src="https://dyia.io/dyia-logo-full.png" alt="Dyia" class="logo" />
+    <img src="${appUrl}/dyia-logo-full.png" alt="Dyia" class="logo" />
     ${content}
     <div class="footer">
       <p>Dyia - Your Day, Decoded</p>
@@ -58,7 +61,7 @@ export function welcomeEmail(firstName: string): string {
       </ol>
     </div>
     <p style="text-align: center; margin-top: 24px;">
-      <a href="https://dyia.io/app" class="btn">Open Dyia</a>
+      <a href="${getBaseUrl()}/app" class="btn">Open Dyia</a>
     </p>
   `)
 }
@@ -83,7 +86,7 @@ export function trialEndingEmail(firstName: string, daysLeft: number): string {
       Upgrade now to keep these powerful features and continue growing your business.
     </p>
     <p style="text-align: center; margin-top: 24px;">
-      <a href="https://dyia.io/app?upgrade=true" class="btn">Upgrade to Pro</a>
+      <a href="${getBaseUrl()}/app?upgrade=true" class="btn">Upgrade to Pro</a>
     </p>
   `)
 }
@@ -148,7 +151,7 @@ export function weeklyInsightsEmail(firstName: string, data: WeeklyInsightsData)
     ` : ''}
     
     <p style="text-align: center; margin-top: 24px;">
-      <a href="https://dyia.io/app" class="btn">View Full Dashboard</a>
+      <a href="${getBaseUrl()}/app" class="btn">View Full Dashboard</a>
     </p>
   `)
 }
@@ -181,7 +184,7 @@ export function followUpReminderEmail(firstName: string, followUps: FollowUpData
     </p>
     
     <p style="text-align: center; margin-top: 24px;">
-      <a href="https://dyia.io/app?view=followUps" class="btn">View Follow-ups</a>
+      <a href="${getBaseUrl()}/app?view=followUps" class="btn">View Follow-ups</a>
     </p>
   `)
 }
@@ -213,7 +216,7 @@ export function subscriptionConfirmedEmail(firstName: string, plan: 'monthly' | 
     </p>
     
     <p style="text-align: center; margin-top: 24px;">
-      <a href="https://dyia.io/app" class="btn">Go to Dashboard</a>
+      <a href="${getBaseUrl()}/app" class="btn">Go to Dashboard</a>
     </p>
   `)
 }
@@ -279,7 +282,7 @@ export function monthlyReportEmail(firstName: string, data: MonthlyReportData): 
     </div>
     
     <p style="text-align: center; margin-top: 24px;">
-      <a href="https://dyia.io/app?view=reports" class="btn">View Full Report</a>
+      <a href="${getBaseUrl()}/app?view=reports" class="btn">View Full Report</a>
     </p>
   `)
 }
@@ -327,7 +330,7 @@ export function quizReportEmail(data: QuizReportData): string {
   `)
 }
 
-// Support ticket email (sent to support@dyia.io)
+// Support ticket email (sent to support inbox)
 export function supportTicketEmail(name: string, email: string, subject: string, message: string): string {
   return wrap(`
     <h1 class="header">New Support Request</h1>
@@ -352,8 +355,8 @@ export function supportConfirmationEmail(name: string, subject: string): string 
     <div class="card">
       <p class="text-small">In the meantime, check out our help resources:</p>
       <ul style="color: #475569; font-size: 14px; padding-left: 20px;">
-        <li style="margin-bottom: 8px;">Visit our <a href="https://dyia.io/support" style="color: #f97316;">Support page</a> for FAQs</li>
-        <li style="margin-bottom: 8px;">Email us anytime at <a href="mailto:support@dyia.io" style="color: #f97316;">support@dyia.io</a></li>
+        <li style="margin-bottom: 8px;">Visit our <a href="${getBaseUrl()}/support" style="color: #f97316;">Support page</a> for FAQs</li>
+        <li style="margin-bottom: 8px;">Email us anytime at <a href="mailto:dyia.io.app@gmail.com" style="color: #f97316;">dyia.io.app@gmail.com</a></li>
       </ul>
     </div>
     <p class="text-small">— The Dyia Team</p>

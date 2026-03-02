@@ -137,7 +137,8 @@ export async function GET(req: NextRequest) {
           u.email,
           'Your Weekly Business Insights',
           weeklyInsightsEmail(u.first_name || 'there', data),
-          'weekly_insights'
+          'weekly_insights',
+          u.id
         )
         if (result.success) sent++
       } catch (err) {

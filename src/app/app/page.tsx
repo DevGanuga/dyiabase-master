@@ -17,13 +17,14 @@ import { Marketing } from '@/components/app/Marketing'
 import { Customers } from '@/components/app/Customers'
 import { MassEmail } from '@/components/app/MassEmail'
 import { Assistant } from '@/components/app/Assistant'
+import { Calendar } from '@/components/app/Calendar'
 import { TrialBanner } from '@/components/app/TrialBanner'
-import { BetaBanner } from '@/components/app/BetaBanner'
+import { TopBar } from '@/components/app/TopBar'
 import { ConfirmProvider } from '@/components/providers/ConfirmProvider'
 import { AdminPanel } from '@/components/app/AdminPanel'
 import type { LaunchpadItem } from '@/components/app/Launchpad'
 
-type View = 'dashboard' | 'jobs' | 'quotes' | 'quoteBuilder' | 'followUps' | 'reports' | 'marketing' | 'customers' | 'massEmail' | 'assistant' | 'settings' | 'admin'
+type View = 'dashboard' | 'jobs' | 'quotes' | 'quoteBuilder' | 'followUps' | 'calendar' | 'reports' | 'marketing' | 'customers' | 'massEmail' | 'assistant' | 'settings' | 'admin'
 
 // Demo data for showcase
 const DEMO_JOBS: AppJob[] = [
@@ -43,7 +44,7 @@ const DEMO_SETTINGS: AppSettings = {
   onboardingCompletedAt: null
 }
 
-const VALID_VIEWS: View[] = ['dashboard', 'jobs', 'quotes', 'quoteBuilder', 'followUps', 'reports', 'marketing', 'customers', 'massEmail', 'assistant', 'settings', 'admin']
+const VALID_VIEWS: View[] = ['dashboard', 'jobs', 'quotes', 'quoteBuilder', 'followUps', 'calendar', 'reports', 'marketing', 'customers', 'massEmail', 'assistant', 'settings', 'admin']
 
 export default function AppPage() {
   return (
@@ -128,7 +129,9 @@ function AppPageContent() {
   const [hasViewedAssistant, setHasViewedAssistant] = useState(false)
   const [checkoutLoading, setCheckoutLoading] = useState(false)
   const [settingsInitialTab, setSettingsInitialTab] = useState<'business' | 'templates' | null>(null)
+  const [verifyingCheckout, setVerifyingCheckout] = useState(false)
   const checkoutTriggeredRef = useRef(false)
+  const verifyAttemptedRef = useRef(false)
   const contentScrollRef = useRef<HTMLDivElement>(null)
   const initAttemptedRef = useRef(false)
 
@@ -202,6 +205,7 @@ function AppPageContent() {
           id: j.id,
           date: j.date,
           customerName: j.customer_name,
+          customerId: j.customer_id || null,
           source: j.source || undefined,
           revenue: parseFloat(j.revenue) || 0,
           labor: parseFloat(j.labor) || 0,
@@ -229,6 +233,7 @@ function AppPageContent() {
         setQuotes(quotesData.map(q => ({
           id: q.id,
           jobId: q.job_id || undefined,
+          customerId: q.customer_id || null,
           createdAt: new Date(q.created_at).getTime(),
           customer: {
             name: q.customer_name,
@@ -344,30 +349,24 @@ function AppPageContent() {
 
     const initUserProfile = async () => {
       try {
-        // Check if user profile exists
-        let { data: profile } = await supabase
-          .from('dyia_users')
-          .select('*')
-          .eq('clerk_user_id', user.id)
-          .single()
+        // Always load profile through server API (uses service role key, bypasses RLS).
+        // This ensures admin fields (is_admin, role) are always returned correctly
+        // regardless of RLS policies on the browser client.
+        const response = await fetch('/api/user/init', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            email: user.primaryEmailAddress?.emailAddress || '' 
+          }),
+        })
 
-        // If no profile, create one via API (uses service role key)
-        if (!profile) {
-          const response = await fetch('/api/user/init', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-              email: user.primaryEmailAddress?.emailAddress || '' 
-            }),
-          })
-
-          if (response.ok) {
-            const data = await response.json()
-            profile = data.profile
-          } else {
-            const error = await response.json()
-            console.error('Error creating user profile:', error)
-          }
+        let profile = null
+        if (response.ok) {
+          const data = await response.json()
+          profile = data.profile
+        } else {
+          const error = await response.json()
+          console.error('Error loading user profile:', error)
         }
 
         if (profile) {
@@ -443,23 +442,46 @@ function AppPageContent() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [planParam, userProfile, loading, isDemoMode])
 
-  // Handle successful return from Stripe checkout — persist flag through potential onboarding redirect
+  // Handle successful return from Stripe checkout — verify session server-side to
+  // synchronously activate subscription before the subscription gate evaluates.
+  // This eliminates the race condition where the webhook hasn't fired yet.
   useEffect(() => {
-    if (sessionIdParam && !loading) {
-      sessionStorage.setItem('dyia_checkout_success', '1')
-      const url = new URL(window.location.href)
-      url.searchParams.delete('session_id')
-      router.replace(url.pathname + (url.search || ''), { scroll: false })
+    if (!sessionIdParam || loading || !userProfile || verifyAttemptedRef.current) return
+    verifyAttemptedRef.current = true
+    setVerifyingCheckout(true)
+
+    const verifySession = async () => {
+      try {
+        const res = await fetch('/api/stripe/verify-session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId: sessionIdParam }),
+        })
+        const data = await res.json()
+        if (res.ok && data.profile) {
+          setUserProfile(data.profile)
+        }
+      } catch (err) {
+        console.error('Failed to verify checkout session:', err)
+      } finally {
+        sessionStorage.setItem('dyia_checkout_success', '1')
+        const url = new URL(window.location.href)
+        url.searchParams.delete('session_id')
+        router.replace(url.pathname + (url.search || ''), { scroll: false })
+        setVerifyingCheckout(false)
+      }
     }
-  }, [sessionIdParam, loading, router])
+
+    verifySession()
+  }, [sessionIdParam, loading, userProfile, router])
 
   // Show checkout success toast (works after direct return AND after onboarding redirect)
   useEffect(() => {
-    if (!loading && userProfile && sessionStorage.getItem('dyia_checkout_success')) {
+    if (!loading && !verifyingCheckout && userProfile && sessionStorage.getItem('dyia_checkout_success')) {
       sessionStorage.removeItem('dyia_checkout_success')
       showSuccess('Your Pro trial is active! Welcome to Dyia Pro.')
     }
-  }, [loading, userProfile, showSuccess])
+  }, [loading, verifyingCheckout, userProfile, showSuccess])
 
   const handleLogout = async () => {
     if (isDemoMode) {
@@ -472,25 +494,42 @@ function AppPageContent() {
     await signOut()
   }
 
+  // Subscription gate
+  const isAdmin = !!userProfile?.is_admin || ['admin', 'super_admin'].includes(userProfile?.role || '')
+  const subStatus = userProfile?.subscription_status || ''
+  const subEndsAt = userProfile?.subscription_ends_at ? new Date(userProfile.subscription_ends_at) : null
+  const canceledWithTimeLeft = subStatus === 'canceled' && subEndsAt !== null && subEndsAt.getTime() > Date.now()
+  const isPro = isAdmin || ['active', 'trialing'].includes(subStatus) || canceledWithTimeLeft
+  const hasActiveSubscription = !!userProfile && (isAdmin || ['active', 'trialing', 'past_due'].includes(subStatus) || canceledWithTimeLeft)
+  const trialFullyExpired = !loading && !isDemoMode && !!userProfile && !hasActiveSubscription && (subStatus === 'canceled' || subStatus === 'inactive' || (subStatus === 'trialing' && subEndsAt !== null && subEndsAt.getTime() <= Date.now()))
+  const neverSubscribed = !loading && !isDemoMode && !!userProfile && !hasActiveSubscription && !trialFullyExpired
+  const needsSubscription = neverSubscribed
+
+  // Redirect only users who never started a trial to pricing
+  useEffect(() => {
+    if (needsSubscription && !planParam && !checkoutLoading && !checkoutTriggeredRef.current && !sessionIdParam && !verifyingCheckout) {
+      window.location.href = '/#pricing'
+    }
+  }, [needsSubscription, planParam, checkoutLoading, sessionIdParam, verifyingCheckout])
+
   // Only redirect to onboarding if user hasn't completed it AND has no data yet
   // Users who've already been using the app (have jobs/quotes) don't need onboarding
   const hasExistingData = jobs.length > 0 || quotes.length > 0
   const needsOnboarding = !loading && !isDemoMode && !!userProfile && !settings.onboardingCompleted && !settings.onboardingSkipped && !hasExistingData
 
   // Redirect to onboarding for new users (after loading completes)
-  // Skip if checkout is in progress — checkout takes priority, onboarding happens after
+  // Skip if checkout is in progress, session is being verified, or user hasn't subscribed yet
   useEffect(() => {
-    if (needsOnboarding && !checkoutLoading) {
-      // Preserve the intended view through the onboarding redirect
+    if (needsOnboarding && !checkoutLoading && !checkoutTriggeredRef.current && !needsSubscription && !verifyingCheckout && !sessionIdParam) {
       const returnUrl = viewParam && viewParam !== 'dashboard' 
         ? `/app?view=${viewParam}` 
         : '/app'
       router.push(`/app/onboarding?returnUrl=${encodeURIComponent(returnUrl)}`)
     }
-  }, [needsOnboarding, router, viewParam, checkoutLoading])
+  }, [needsOnboarding, router, viewParam, checkoutLoading, needsSubscription, verifyingCheckout, sessionIdParam])
 
   const handleReopenOnboarding = () => {
-    router.push('/app/onboarding')
+    router.push('/app/onboarding?redo=true')
   }
 
   const loadingOrRedirecting = (
@@ -503,7 +542,7 @@ function AppPageContent() {
         />
         <div className="w-8 h-8 border-2 border-orange-500/30 border-t-orange-500 rounded-full animate-spin mx-auto mb-4" />
         <p className="text-sm text-slate-500 font-medium">
-          {checkoutLoading ? 'Redirecting to checkout...' : needsOnboarding ? 'Setting up your account...' : 'Loading...'}
+          {verifyingCheckout ? 'Activating your subscription...' : checkoutLoading ? 'Redirecting to checkout...' : needsSubscription ? 'Redirecting to plans...' : needsOnboarding ? 'Setting up your account...' : 'Loading...'}
         </p>
       </div>
     </div>
@@ -514,9 +553,62 @@ function AppPageContent() {
     return loadingOrRedirecting
   }
 
+  // Show loading while verifying Stripe checkout session
+  if (verifyingCheckout) {
+    return loadingOrRedirecting
+  }
+
   // Show loading while redirecting to Stripe checkout
   if (checkoutLoading) {
     return loadingOrRedirecting
+  }
+
+  // Show loading while redirecting unsubscribed users to pricing
+  if (needsSubscription && !planParam) {
+    return loadingOrRedirecting
+  }
+
+  // Expired trial / canceled — show in-app upgrade gate
+  if (trialFullyExpired) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4" style={{ background: 'linear-gradient(135deg, rgba(255,247,237,0.4), #fafafa 50%, rgba(255,251,235,0.3))' }}>
+        <div className="max-w-md w-full text-center">
+          <img src="/dyia-logo-full.png" alt="dyia" className="h-8 mb-8 mx-auto opacity-80" />
+          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 p-8">
+            <div className="w-16 h-16 bg-orange-100 dark:bg-orange-900/30 rounded-2xl flex items-center justify-center mx-auto mb-5">
+              <svg className="w-8 h-8 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <h1 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Your free trial has ended</h1>
+            <p className="text-slate-500 dark:text-slate-400 text-sm mb-6 leading-relaxed">
+              Upgrade to Pro to keep using the AI assistant, advanced reports, marketing tools, and everything else that helps you grow your business.
+            </p>
+            <div className="space-y-3">
+              <button
+                onClick={() => {
+                  const checkoutUrl = `/api/stripe/checkout?plan=annual&clerk_user_id=${user?.id}`
+                  window.location.href = checkoutUrl
+                }}
+                className="w-full px-6 py-3 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-semibold rounded-xl transition-all shadow-lg shadow-orange-500/25"
+              >
+                Upgrade to Pro — $24.99/mo
+              </button>
+              <button
+                onClick={() => {
+                  const checkoutUrl = `/api/stripe/checkout?plan=monthly&clerk_user_id=${user?.id}`
+                  window.location.href = checkoutUrl
+                }}
+                className="w-full px-6 py-2.5 text-sm text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors"
+              >
+                Or $29.99/mo monthly
+              </button>
+            </div>
+            <p className="text-xs text-slate-400 mt-4">Cancel anytime. Your data is safe and waiting for you.</p>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   // Don't flash dashboard: show loading-style screen until redirect to onboarding
@@ -537,6 +629,7 @@ function AppPageContent() {
       description: 'Set up your business profile',
       completed: settings.onboardingCompleted,
       action: settings.onboardingCompleted ? undefined : handleReopenOnboarding,
+      // Note: onboardingSkipped users can still re-enter via ?redo=true
     },
     {
       id: 'business-info',
@@ -588,7 +681,7 @@ function AppPageContent() {
             onNavigate={(view) => setCurrentView(view as View)}
             pendingFollowUps={pendingFollowUpsCount}
             fixedMonthlyExpenses={fixedMonthlyExpenses}
-            isPro={['active', 'trialing'].includes(userProfile?.subscription_status || '')}
+            isPro={isPro}
             taxPercentage={settings.taxPercentage}
             launchpadItems={launchpadItems}
             showLaunchpad={showLaunchpadOnDashboard}
@@ -664,23 +757,30 @@ function AppPageContent() {
             showSuccess={showSuccess}
           />
         )
+      case 'calendar':
+        return (
+          <Calendar
+            jobs={jobs}
+            onNavigate={(view) => setCurrentView(view as View)}
+          />
+        )
       case 'reports':
         return (
           <Reports
             jobs={jobs}
             quotes={quotes}
             fixedMonthlyExpenses={fixedMonthlyExpenses}
-            isPro={['active', 'trialing'].includes(userProfile?.subscription_status || '')}
+            isPro={isPro}
           />
         )
       case 'marketing':
-        return <Marketing showSuccess={showSuccess} isPro={['active', 'trialing'].includes(userProfile?.subscription_status || '')} />
+        return <Marketing showSuccess={showSuccess} isPro={isPro} />
       case 'customers':
         return (
           <Customers
             jobs={jobs}
             quotes={quotes}
-            isPro={['active', 'trialing'].includes(userProfile?.subscription_status || '')}
+            isPro={isPro}
             onNavigate={(view) => setCurrentView(view as View)}
             onCreateQuote={(job) => { setSelectedJobForQuote(job ?? null); setCurrentView('quoteBuilder') }}
             showSuccess={showSuccess}
@@ -692,7 +792,7 @@ function AppPageContent() {
           <MassEmail
             jobs={jobs}
             quotes={quotes}
-            isPro={['active', 'trialing'].includes(userProfile?.subscription_status || '')}
+            isPro={isPro}
             showSuccess={showSuccess}
             showError={showError}
           />
@@ -723,29 +823,41 @@ function AppPageContent() {
       <Sidebar
         currentView={currentView}
         setCurrentView={setCurrentView}
-        userEmail={isDemoMode ? 'demo@dyia.co' : (user?.primaryEmailAddress?.emailAddress || '')}
-        userName={isDemoMode ? 'Demo User' : (userProfile?.first_name || user?.firstName || '')}
-        userImageUrl={isDemoMode ? undefined : user?.imageUrl}
         onLogout={handleLogout}
-        isPro={['active', 'trialing'].includes(userProfile?.subscription_status || '')}
+        isPro={isPro}
         subscriptionTier={
-          userProfile?.subscription_status === 'trialing' ? 'trial'
-            : ['active', 'trialing'].includes(userProfile?.subscription_status || '') ? 'pro'
-              : 'basic'
+          isAdmin ? 'pro'
+            : userProfile?.subscription_status === 'trialing' ? 'trial'
+              : canceledWithTimeLeft ? 'trial'
+                : isPro ? 'pro'
+                  : 'basic'
         }
         trialDaysRemaining={
           userProfile?.subscription_ends_at
             ? Math.max(0, Math.ceil((new Date(userProfile.subscription_ends_at).getTime() - Date.now()) / 86400000))
             : 0
         }
-        launchpadItems={showLaunchpadOnDashboard ? launchpadItems : undefined}
+        subscriptionPlan={(userProfile?.subscription_plan || null) as 'monthly' | 'annual' | null}
         isDemoMode={isDemoMode}
-        isAdmin={userProfile?.is_admin || false}
+        isAdmin={isAdmin}
       />
       
       <main className={`flex-1 flex flex-col overflow-hidden ${isDemoMode ? 'pt-16' : ''}`} style={{ animation: 'contentReveal 0.6s cubic-bezier(0.16, 1, 0.3, 1) both' }}>
-        {!isDemoMode && <TrialBanner />}
-        {!isDemoMode && <BetaBanner />}
+        {!isDemoMode && !isAdmin && <TrialBanner />}
+        <TopBar
+          userName={isDemoMode ? 'Demo User' : (userProfile?.first_name || user?.firstName || '')}
+          userEmail={isDemoMode ? 'demo@dyia.co' : (user?.primaryEmailAddress?.emailAddress || '')}
+          userImageUrl={isDemoMode ? undefined : user?.imageUrl}
+          onLogout={handleLogout}
+          subscriptionTier={
+            isAdmin ? 'pro'
+              : userProfile?.subscription_status === 'trialing' ? 'trial'
+                : canceledWithTimeLeft ? 'trial'
+                  : isPro ? 'pro'
+                    : 'basic'
+          }
+          isDemoMode={isDemoMode}
+        />
         {/* Assistant: render when open; keep mounted after first visit so conversation persists when switching views */}
         {(currentView === 'assistant' || hasViewedAssistant) && (
           <div
@@ -766,7 +878,7 @@ function AppPageContent() {
           >
             <div
               key={currentView}
-              className="max-w-6xl mx-auto animate-view-enter"
+              className="max-w-5xl mx-auto animate-view-enter"
             >
               {renderContent()}
             </div>

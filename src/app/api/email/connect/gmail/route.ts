@@ -1,11 +1,10 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
+import { getBaseUrl } from '@/lib/env'
 
 // Gmail OAuth configuration
 const GMAIL_CLIENT_ID = process.env.GMAIL_CLIENT_ID
-const GMAIL_REDIRECT_URI = process.env.NEXT_PUBLIC_APP_URL 
-  ? `${process.env.NEXT_PUBLIC_APP_URL}/api/email/connect/gmail/callback`
-  : 'http://localhost:3000/api/email/connect/gmail/callback'
+const GMAIL_REDIRECT_URI = `${getBaseUrl()}/api/email/connect/gmail/callback`
 
 // Scopes needed for sending email
 const SCOPES = [

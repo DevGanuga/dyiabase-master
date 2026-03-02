@@ -8,11 +8,15 @@ import { formatCurrency } from '@/lib/utils'
 type FollowUpStatus = 'pending' | 'contacted' | 'converted' | 'lost' | 'snoozed'
 type FollowUpPriority = 'hot' | 'warm' | 'cold'
 
+export type RiskLevel = 'critical' | 'high' | 'medium' | 'low'
+
 export interface KanbanFollowUp {
   id: string
   quoteId: string
+  customerId?: string | null
   customerName: string
   phone?: string
+  email?: string
   jobDescription?: string
   estimateLow: number
   estimateHigh: number
@@ -22,6 +26,9 @@ export interface KanbanFollowUp {
   contactCount: number
   notes?: string | null
   nextFollowUpAt?: string | null
+  riskLevel?: RiskLevel
+  customerJobCount?: number
+  customerLifetimeValue?: number
 }
 
 export interface KanbanColumn {
@@ -41,6 +48,13 @@ const PRIORITY_STYLES: Record<FollowUpPriority, { label: string; className: stri
   hot: { label: 'Hot 🔥', className: 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300 border-red-200 dark:border-red-800' },
   warm: { label: 'Warm 🌡️', className: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 border-amber-200 dark:border-amber-800' },
   cold: { label: 'Cold ❄️', className: 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300 border-blue-200 dark:border-blue-800' },
+}
+
+const RISK_STYLES: Record<RiskLevel, { label: string; className: string }> = {
+  critical: { label: 'At Risk', className: 'bg-red-500 text-white dark:bg-red-600 border-red-600' },
+  high: { label: 'Fading', className: 'bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300 border-orange-200 dark:border-orange-800' },
+  medium: { label: 'Monitor', className: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800' },
+  low: { label: '', className: '' },
 }
 
 export default function KanbanBoard({ columns, onStatusChange, onCopyMessage }: KanbanBoardProps) {
@@ -118,11 +132,28 @@ export default function KanbanBoard({ columns, onStatusChange, onCopyMessage }: 
                           <Badge className={`text-[10px] sm:text-xs ${priorityStyle.className}`}>
                             {priorityStyle.label}
                           </Badge>
+                          {item.riskLevel && item.riskLevel !== 'low' && RISK_STYLES[item.riskLevel] && (
+                            <Badge className={`text-[10px] sm:text-xs ${RISK_STYLES[item.riskLevel].className}`}>
+                              {RISK_STYLES[item.riskLevel].label}
+                            </Badge>
+                          )}
                         </div>
 
                         <div className="text-xs sm:text-sm font-semibold text-orange-600 dark:text-orange-400">
                           {formatCurrency(item.estimateLow)} - {formatCurrency(item.estimateHigh)}
                         </div>
+
+                        {(item.customerJobCount !== undefined && item.customerJobCount > 0) && (
+                          <div className="text-[10px] sm:text-xs text-[var(--color-text-muted)] flex items-center gap-2">
+                            <span>{item.customerJobCount} past job{item.customerJobCount !== 1 ? 's' : ''}</span>
+                            {item.customerLifetimeValue !== undefined && item.customerLifetimeValue > 0 && (
+                              <>
+                                <span className="text-[var(--color-text-faint)]">·</span>
+                                <span>{formatCurrency(item.customerLifetimeValue)} lifetime</span>
+                              </>
+                            )}
+                          </div>
+                        )}
 
                         <div className="flex items-center justify-between pt-2 border-t border-[var(--color-border)]">
                           <div className="flex items-center gap-3 text-[var(--color-text-faint)]">
@@ -138,13 +169,25 @@ export default function KanbanBoard({ columns, onStatusChange, onCopyMessage }: 
                             )}
                           </div>
 
-                          <button
-                            onClick={(e) => { e.stopPropagation(); onCopyMessage(item) }}
-                            className="p-1 rounded hover:bg-[var(--color-bg-hover)] transition-colors"
-                            title="Copy follow-up message"
-                          >
-                            <ClipboardCopy className="w-3.5 h-3.5 text-[var(--color-text-faint)]" />
-                          </button>
+                          <div className="flex items-center gap-1">
+                            {item.phone && (
+                              <a
+                                href={`tel:${item.phone}`}
+                                onClick={(e) => e.stopPropagation()}
+                                className="p-1 rounded hover:bg-[var(--color-bg-hover)] transition-colors"
+                                title={`Call ${item.phone}`}
+                              >
+                                <Phone className="w-3.5 h-3.5 text-green-500" />
+                              </a>
+                            )}
+                            <button
+                              onClick={(e) => { e.stopPropagation(); onCopyMessage(item) }}
+                              className="p-1 rounded hover:bg-[var(--color-bg-hover)] transition-colors"
+                              title="Copy follow-up message"
+                            >
+                              <ClipboardCopy className="w-3.5 h-3.5 text-[var(--color-text-faint)]" />
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </CardContent>

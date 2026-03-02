@@ -28,28 +28,48 @@ function timingSafeEqual(a: string, b: string): boolean {
   return result === 0
 }
 
-export default clerkMiddleware(async (auth, req) => {
-  // Demo mode bypass: verify the httpOnly cookie contains the expected token.
-  // The token is SHA256(DEMO_PASSWORD), set by /api/demo/activate.
-  const demoPassword = process.env.DEMO_PASSWORD
-  if (demoPassword) {
-    const demoToken = req.cookies.get('dyia_demo_access')?.value
-    if (demoToken) {
-      const expected = await sha256Hex(demoPassword)
-      if (timingSafeEqual(demoToken, expected)) {
-        return NextResponse.next()
+export default clerkMiddleware(
+  async (auth, req) => {
+    // Demo mode bypass: verify the httpOnly cookie contains the expected token.
+    // The token is SHA256(DEMO_PASSWORD), set by /api/demo/activate.
+    const demoPassword = process.env.DEMO_PASSWORD
+    if (demoPassword) {
+      const demoToken = req.cookies.get('dyia_demo_access')?.value
+      if (demoToken) {
+        const expected = await sha256Hex(demoPassword)
+        if (timingSafeEqual(demoToken, expected)) {
+          return NextResponse.next()
+        }
       }
     }
-  }
 
-  // Protect /app routes — auth.protect() handles session establishment properly
-  // (unlike manual auth() + redirect which races with post-signup session creation)
-  if (isProtectedRoute(req)) {
-    await auth.protect()
+    // Protect /app routes — auth.protect() handles session establishment properly
+    // (unlike manual auth() + redirect which races with post-signup session creation)
+    if (isProtectedRoute(req)) {
+      await auth.protect()
+    }
+    
+    return NextResponse.next()
+  },
+  {
+    contentSecurityPolicy: {
+      directives: {
+        'connect-src': [
+          // Supabase
+          process.env.NEXT_PUBLIC_SUPABASE_URL ?? '',
+          // Sentry tunnel
+          'https://*.ingest.sentry.io',
+          // OpenAI (for any client-side streaming)
+          'https://api.openai.com',
+        ].filter(Boolean),
+        'img-src': [
+          // Supabase storage (user-uploaded photos)
+          process.env.NEXT_PUBLIC_SUPABASE_URL ?? '',
+        ].filter(Boolean),
+      },
+    },
   }
-  
-  return NextResponse.next()
-})
+)
 
 export const config = {
   matcher: [

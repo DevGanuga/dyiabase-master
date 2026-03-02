@@ -30,24 +30,25 @@ export function DyiaOrb({
       <button
         onClick={onToggle}
         className={`
-          group relative w-14 h-14 rounded-full flex items-center justify-center
-          text-white shadow-lg
-          transition-all duration-200 ease-out
-          hover:scale-105 hover:shadow-xl
-          active:scale-95
+          group relative w-14 h-14 rounded-2xl flex items-center justify-center
+          shadow-lg transition-all duration-200 ease-out
+          hover:scale-105 hover:shadow-xl active:scale-95
+          overflow-hidden border-2
           ${isPro
-            ? 'bg-gradient-to-br from-orange-500 to-amber-500 hover:shadow-orange-500/25'
-            : 'bg-gradient-to-br from-slate-400 to-slate-500 hover:from-orange-500 hover:to-amber-500 hover:shadow-orange-500/25'
+            ? 'border-orange-400/30 shadow-orange-500/15 hover:shadow-orange-500/25'
+            : 'border-slate-400/30 hover:border-orange-400/30 hover:shadow-orange-500/25'
           }
-          ${notificationCount > 0 ? 'shadow-orange-500/30 shadow-xl' : 'shadow-orange-500/15'}
+          ${notificationCount > 0 ? 'shadow-orange-500/30 shadow-xl' : ''}
         `}
         title={isPro ? 'Talk to Dyia' : 'Upgrade to Dyia Pro'}
         aria-label={isPro ? 'Open Dyia assistant' : 'Upgrade to Dyia Pro'}
       >
-        {/* Agent image */}
-        <span className="relative z-10">
-          <img src="/dyia-agent.png" alt="Dyia" className={`w-8 h-8 object-contain ${!isPro ? 'opacity-70 group-hover:opacity-100 transition-opacity' : ''}`} />
-        </span>
+        {/* Agent image as the full button face */}
+        <img
+          src="/dyia-agent.png"
+          alt="Dyia"
+          className={`w-full h-full object-cover ${!isPro ? 'opacity-70 group-hover:opacity-100 transition-opacity' : ''}`}
+        />
 
         {/* Lock icon overlay for basic users */}
         {!isPro && (

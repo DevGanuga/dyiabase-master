@@ -18,7 +18,7 @@ export function MessageBubble({ message, isLatest }: MessageBubbleProps) {
 
   return (
     <div className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
-      <div className={`flex gap-2.5 ${isUser ? 'flex-row-reverse' : ''} max-w-[88%]`}>
+      <div className={`flex gap-2 ${isUser ? 'flex-row-reverse' : ''} max-w-[85%] sm:max-w-[80%]`}>
         {/* Avatar */}
         {isUser ? (
           <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 bg-gradient-to-br from-orange-500 to-amber-500 text-white shadow-sm mt-0.5">
@@ -27,15 +27,35 @@ export function MessageBubble({ message, isLatest }: MessageBubbleProps) {
             </svg>
           </div>
         ) : (
-          <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 bg-gradient-to-br from-orange-500/10 to-amber-500/10 dark:from-orange-500/20 dark:to-amber-500/20 mt-0.5">
-            <img src="/dyia-agent.png" alt="" className="w-5 h-5 object-contain" />
+          <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden mt-0.5">
+            <img src="/dyia-agent.png" alt="" className="w-7 h-7 object-cover rounded-full" />
           </div>
         )}
 
         {/* Content */}
         <div className={`message-bubble ${isUser ? 'user' : 'assistant'} ${isLatest ? 'message-bubble-enter' : ''}`}>
+          {/* Attachment preview */}
+          {message.attachmentUrl && message.attachmentFileType === 'image' && (
+            <div className="mb-2 -mx-1">
+              <img
+                src={message.attachmentUrl}
+                alt={message.attachmentName || 'Attached image'}
+                className="rounded-lg max-h-48 max-w-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                onClick={() => window.open(message.attachmentUrl, '_blank')}
+              />
+            </div>
+          )}
+          {message.attachmentUrl && message.attachmentFileType && message.attachmentFileType !== 'image' && (
+            <div className="mb-2 flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5 px-2 py-1 bg-white/10 rounded text-[11px]">
+                <svg className="w-3 h-3 shrink-0 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <span className="truncate max-w-[180px] opacity-80">{message.attachmentName}</span>
+              </div>
+            </div>
+          )}
           {isUser ? (
-            // User messages: plain text, no markdown needed
             <div className="whitespace-pre-wrap">{message.content}</div>
           ) : (
             // Assistant messages: render markdown properly
@@ -140,7 +160,7 @@ export function MessageBubble({ message, isLatest }: MessageBubbleProps) {
           )}
           
           {/* Timestamp */}
-          <div className={`mt-2 text-[10px] ${isUser ? 'text-orange-100' : 'text-slate-400'}`}>
+          <div className={`mt-1.5 text-[10px] opacity-60 ${isUser ? 'text-orange-100 text-right' : 'text-[var(--color-text-faint)]'}`}>
             {formattedTime}
           </div>
         </div>

@@ -41,15 +41,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ profile: existingUser })
     }
 
-    // Create user profile with 14-day Pro trial (no card required)
-    const trialEndsAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
+    // Create user profile — subscription stays inactive until Stripe checkout completes
     const { data: newProfile, error: createError } = await supabase
       .from('dyia_users')
       .insert({
         clerk_user_id: userId,
         email: email,
-        subscription_status: 'trialing',
-        subscription_ends_at: trialEndsAt,
+        subscription_status: 'inactive',
       })
       .select()
       .single()
@@ -84,7 +82,8 @@ export async function POST(req: Request) {
             newProfile.email,
             'Welcome to Dyia! 🎉',
             welcomeEmail(newProfile.first_name || 'there'),
-            'welcome'
+            'welcome',
+            newProfile.id
           )
         } catch (emailErr) {
           console.error('Welcome email failed:', emailErr)

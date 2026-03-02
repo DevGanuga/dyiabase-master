@@ -42,7 +42,7 @@ interface ResponseData {
 
 export async function POST(req: NextRequest) {
   // Rate limit: 30 requests per minute per IP
-  const rateLimited = rateLimiters.aiChat.check(req)
+  const rateLimited = await rateLimiters.aiChat.checkAsync(req)
   if (rateLimited) return rateLimited
 
   try {
@@ -77,7 +77,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 4. Parse request
-    const { message, conversationId, previousResponseId, fileUrl, fileName } = await req.json()
+    const { message, conversationId, previousResponseId, fileUrl, fileName, fileType, extractedContent } = await req.json()
 
     if (!message || typeof message !== 'string') {
       return NextResponse.json({ error: 'Message is required' }, { status: 400 })
@@ -92,15 +92,35 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const effectiveMessage = fileUrl
-      ? `${message}\n\n[User attached a file: ${fileName || 'file'} — ${fileUrl}]`
-      : message
+    // Build input based on file type
+    let input: unknown = message
 
-    // 5. Build request params - use Record type to allow dynamic properties
-    const requestParams: Record<string, unknown> = {
+    if (fileUrl && fileType === 'image') {
+      // For images, use the Responses API multi-part input with vision
+      input = [
+        { type: 'input_text', text: message },
+        { type: 'input_image', image_url: fileUrl },
+      ]
+    } else if (fileUrl && extractedContent) {
+      // For text/CSV files where we extracted content server-side
+      input = `${message}\n\n--- File: ${fileName || 'file'} ---\n${extractedContent}`
+    } else if (fileUrl) {
+      // Fallback for PDFs/spreadsheets where we can't extract content yet
+      input = `${message}\n\n[User attached a file: ${fileName || 'file'} (${fileType || 'unknown type'}) — ${fileUrl}]`
+    }
+
+    // 5. Non-streaming request helper for tool-calling loop
+    const callAPI = async (params: Record<string, unknown>): Promise<ResponseData> => {
+      const openai = getOpenAI()
+      return await openai.responses.create(
+        params as Parameters<typeof openai.responses.create>[0]
+      ) as unknown as ResponseData
+    }
+
+    const baseParams: Record<string, unknown> = {
       model: DYIA_MODEL,
       instructions: DYIA_INSTRUCTIONS,
-      input: effectiveMessage,
+      input,
       tools: DYIA_TOOLS,
       temperature: 0.7,
       max_output_tokens: MAX_OUTPUT_TOKENS_CHAT,
@@ -108,51 +128,37 @@ export async function POST(req: NextRequest) {
       stream: false,
     }
 
-    // If continuing a conversation, pass the previous response ID
     if (previousResponseId) {
-      requestParams.previous_response_id = previousResponseId
+      baseParams.previous_response_id = previousResponseId
     }
 
-    // Cast and call API
-    const openai = getOpenAI()
-    let response = await openai.responses.create(
-      requestParams as Parameters<typeof openai.responses.create>[0]
-    ) as unknown as ResponseData
+    let response = await callAPI(baseParams)
 
     // 6. Handle tool calls in an agentic loop
     const toolResults: HandlerResult[] = []
     let iterations = 0
-    const maxIterations = 5
+    const maxIterations = 10
 
-    // Check if the response requires action (has function_call items)
-    const hasFunctionCalls = (output: OutputItem[]) => {
-      return output.some(item => item.type === 'function_call')
-    }
+    const hasFunctionCalls = (output: OutputItem[]) =>
+      output.some(item => item.type === 'function_call')
 
     while (hasFunctionCalls(response.output) && iterations < maxIterations) {
       iterations++
 
-      // Get the tool calls from the response
       const toolCalls = response.output.filter(item => item.type === 'function_call')
-
-      // Process each tool call
       const toolOutputs: Array<{ type: 'function_call_output'; call_id: string; output: string }> = []
 
       for (const toolCall of toolCalls) {
         if (toolCall.type !== 'function_call' || !toolCall.name || !toolCall.arguments || !toolCall.call_id) {
           continue
         }
-        
+
         const functionName = toolCall.name as DyiaFunctionName
         const functionArgs = JSON.parse(toolCall.arguments)
 
-        console.log(`[AI] Calling function: ${functionName}`, functionArgs)
-
-        // Execute the function handler
         const result = await handleFunctionCall(functionName, functionArgs, clerkUserId)
         toolResults.push(result)
 
-        // Add tool output
         toolOutputs.push({
           type: 'function_call_output',
           call_id: toolCall.call_id,
@@ -160,8 +166,7 @@ export async function POST(req: NextRequest) {
         })
       }
 
-      // Continue the conversation with tool outputs
-      const continueParams: Record<string, unknown> = {
+      response = await callAPI({
         model: DYIA_MODEL,
         instructions: DYIA_INSTRUCTIONS,
         input: toolOutputs,
@@ -171,11 +176,7 @@ export async function POST(req: NextRequest) {
         store: true,
         stream: false,
         previous_response_id: response.id,
-      }
-
-      response = await openai.responses.create(
-        continueParams as Parameters<typeof openai.responses.create>[0]
-      ) as unknown as ResponseData
+      })
     }
 
     // 7. Extract the assistant's text response
@@ -251,6 +252,13 @@ export async function POST(req: NextRequest) {
             const proposal = action.proposal as Record<string, unknown>
             return `Quote: ${proposal.customerName || 'New Quote'}`
           }
+        }
+        // Check for batch operations
+        if (result.data?.stored !== undefined || result.data?.customerNames) {
+          return `Import: ${result.data.total || result.data.stored} Customers`
+        }
+        if (result.data?.created !== undefined && result.data?.quotes) {
+          return `Batch: ${result.data.created} Quotes`
         }
         // Check for stats requests
         if (result.data?.period) {

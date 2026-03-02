@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
       }
 
       default:
-        console.log(`Unhandled event type: ${event.type}`)
+        console.warn(`Unhandled event type: ${event.type}`)
     }
 
     // Log successful webhook event
@@ -189,15 +189,14 @@ async function handleCheckoutComplete(stripe: Stripe, supabase: any, session: St
           u.email,
           'Welcome to Dyia Pro! 🚀',
           subscriptionConfirmedEmail(u.first_name || 'there', plan),
-          'subscription_confirmed'
+          'subscription_confirmed',
+          dyiaUserId
         )
       }
     } catch (emailErr) {
       console.error('Subscription confirmed email failed:', emailErr)
     }
   }
-
-  console.log(`Subscription ${ourStatus} for dyia user ${dyiaUserId} (plan: ${plan})`)
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -232,8 +231,6 @@ async function handleSubscriptionUpdate(supabase: any, subscription: Stripe.Subs
     console.error('Error updating subscription:', error)
     throw error
   }
-
-  console.log(`Subscription updated for customer ${customerId}: ${ourStatus}`)
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -254,8 +251,6 @@ async function handleSubscriptionCanceled(supabase: any, subscription: Stripe.Su
     console.error('Error canceling subscription:', error)
     throw error
   }
-
-  console.log(`Subscription canceled for customer ${customerId}`)
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -271,8 +266,6 @@ async function handlePaymentFailed(supabase: any, invoice: Stripe.Invoice) {
     console.error('Error updating payment failed status:', error)
     throw error
   }
-
-  console.log(`Payment failed for customer ${customerId}`)
 }
 
 // One-time credit purchase: add credits to user and log transaction.
@@ -333,6 +326,4 @@ async function handleCreditPurchase(supabase: any, session: Stripe.Checkout.Sess
     message_id: null,
     metadata: {},
   })
-
-  console.log(`Credits added for user ${dyiaUserId}: +${creditsAmount}, balance ${newBalance}`)
 }
