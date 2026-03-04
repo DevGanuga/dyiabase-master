@@ -525,8 +525,8 @@ function AppPageContent() {
   const canceledWithTimeLeft = subStatus === 'canceled' && subEndsAt !== null && subEndsAt.getTime() > Date.now()
   const isPro = isAdmin || ['active', 'trialing'].includes(subStatus) || canceledWithTimeLeft
   const hasActiveSubscription = !!userProfile && (isAdmin || ['active', 'trialing', 'past_due'].includes(subStatus) || canceledWithTimeLeft)
-  const trialFullyExpired = !loading && !isDemoMode && !!userProfile && !hasActiveSubscription && (subStatus === 'canceled' || subStatus === 'inactive' || (subStatus === 'trialing' && subEndsAt !== null && subEndsAt.getTime() <= Date.now()))
-  const neverSubscribed = !loading && !isDemoMode && !!userProfile && !hasActiveSubscription && !trialFullyExpired
+  const hasHadSubscription = !!userProfile?.stripe_customer_id || !!userProfile?.stripe_subscription_id
+  const neverSubscribed = !loading && !isDemoMode && !!userProfile && !hasActiveSubscription && !hasHadSubscription
   const needsSubscription = neverSubscribed
 
   // Redirect only users who never started a trial to pricing
@@ -592,70 +592,9 @@ function AppPageContent() {
     return loadingOrRedirecting
   }
 
-  // Expired trial / canceled — show in-app upgrade gate
-  if (trialFullyExpired) {
-    return (
-      <div className="min-h-screen flex items-center justify-center px-4" style={{ background: 'linear-gradient(135deg, rgba(255,247,237,0.4), #fafafa 50%, rgba(255,251,235,0.3))' }}>
-        <div className="max-w-md w-full text-center">
-          <img src="/dyia-logo-full.png" alt="dyia" className="h-8 mb-8 mx-auto opacity-80" />
-          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 p-8">
-            <div className="w-16 h-16 bg-orange-100 dark:bg-orange-900/30 rounded-2xl flex items-center justify-center mx-auto mb-5">
-              <svg className="w-8 h-8 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-            <h1 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Your free trial has ended</h1>
-            <p className="text-slate-500 dark:text-slate-400 text-sm mb-6 leading-relaxed">
-              Upgrade to Pro to keep using the AI assistant, advanced reports, marketing tools, and everything else that helps you grow your business.
-            </p>
-            <div className="space-y-3">
-              <button
-                onClick={async () => {
-                  try {
-                    const res = await fetch('/api/stripe/checkout', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({
-                        priceId: process.env.NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID,
-                        clerkUserId: user?.id,
-                        userEmail: user?.primaryEmailAddress?.emailAddress,
-                      }),
-                    })
-                    const data = await res.json()
-                    if (data.url) window.location.href = data.url
-                  } catch (e) { console.error('Checkout error:', e) }
-                }}
-                className="w-full px-6 py-3 bg-linear-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-semibold rounded-xl transition-all shadow-lg shadow-orange-500/25"
-              >
-                Upgrade to Pro — $24.99/mo
-              </button>
-              <button
-                onClick={async () => {
-                  try {
-                    const res = await fetch('/api/stripe/checkout', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({
-                        priceId: process.env.NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID,
-                        clerkUserId: user?.id,
-                        userEmail: user?.primaryEmailAddress?.emailAddress,
-                      }),
-                    })
-                    const data = await res.json()
-                    if (data.url) window.location.href = data.url
-                  } catch (e) { console.error('Checkout error:', e) }
-                }}
-                className="w-full px-6 py-2.5 text-sm text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors"
-              >
-                Or $29.99/mo monthly
-              </button>
-            </div>
-            <p className="text-xs text-slate-400 mt-4">Cancel anytime. Your data is safe and waiting for you.</p>
-          </div>
-        </div>
-      </div>
-    )
-  }
+  // Expired trial / canceled — user continues with basic tier access.
+  // The TrialBanner component handles showing the upgrade prompt inline,
+  // and ProFeature gates pro-only features. No full-page blocker needed.
 
   // Don't flash dashboard: show loading-style screen until redirect to onboarding
   if (needsOnboarding) {
