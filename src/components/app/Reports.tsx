@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import type { AppJob, AppQuote } from '@/types/database'
-import { formatCurrency } from '@/lib/utils'
+import { formatCurrency, parseLocalDate } from '@/lib/utils'
 import { AIInsights } from './AIInsights'
 
 interface ReportsProps {
@@ -38,7 +38,7 @@ export function Reports({ jobs, quotes, fixedMonthlyExpenses, isPro = false }: R
         return jobs
     }
 
-    return jobs.filter(j => new Date(j.date) >= cutoffDate)
+    return jobs.filter(j => parseLocalDate(j.date) >= cutoffDate)
   }, [jobs, timeRange])
 
   const stats = useMemo(() => {
@@ -52,7 +52,7 @@ export function Reports({ jobs, quotes, fixedMonthlyExpenses, isPro = false }: R
     let months: number
     if (timeRange === 'all' && filteredJobs.length > 0) {
       // For "All" range, calculate actual months from earliest job to now
-      const earliest = new Date(filteredJobs[filteredJobs.length - 1].date)
+      const earliest = parseLocalDate(filteredJobs[filteredJobs.length - 1].date)
       const now = new Date()
       months = Math.max(1, (now.getFullYear() - earliest.getFullYear()) * 12 + (now.getMonth() - earliest.getMonth()) + 1)
     } else {
@@ -79,14 +79,14 @@ export function Reports({ jobs, quotes, fixedMonthlyExpenses, isPro = false }: R
     // Daily/Weekly breakdown
     const dayMap: Record<string, number> = {}
     filteredJobs.forEach(j => {
-      const day = new Date(j.date).toLocaleDateString('en-US', { weekday: 'short' })
+      const day = parseLocalDate(j.date).toLocaleDateString('en-US', { weekday: 'short' })
       dayMap[day] = (dayMap[day] || 0) + 1
     })
 
     // Monthly trend
     const monthMap: Record<string, { revenue: number; profit: number; jobs: number }> = {}
     filteredJobs.forEach(j => {
-      const month = new Date(j.date).toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
+      const month = parseLocalDate(j.date).toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
       if (!monthMap[month]) monthMap[month] = { revenue: 0, profit: 0, jobs: 0 }
       const jobExpenses = (j.labor || 0) + (j.gas || 0) + (j.dumpFee || 0) + (j.dumpsterRental || 0) + (j.additionalExpense || 0)
       monthMap[month].revenue += j.revenue || 0

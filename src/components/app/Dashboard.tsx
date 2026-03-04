@@ -3,7 +3,7 @@
 import { useMemo } from 'react'
 import Link from 'next/link'
 import type { AppJob, AppQuote, AppSettings } from '@/types/database'
-import { formatCurrency } from '@/lib/utils'
+import { formatCurrency, parseLocalDate } from '@/lib/utils'
 import { PendingActionsCard } from './PendingActionsCard'
 import { DyiaActionButton, DYIA_PROMPTS } from './DyiaActionButton'
 import { AIInsights } from './AIInsights'
@@ -113,7 +113,7 @@ function RevenueForecastCard({ jobs, onOpenDyiaWithPrompt }: { jobs: AppJob[]; o
   const forecast = useMemo(() => {
     const now = new Date()
     const threeMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 3, 1)
-    const recentJobs = jobs.filter(j => new Date(j.date) >= threeMonthsAgo)
+    const recentJobs = jobs.filter(j => parseLocalDate(j.date) >= threeMonthsAgo)
 
     if (recentJobs.length < 5) return null
 
@@ -124,21 +124,21 @@ function RevenueForecastCard({ jobs, onOpenDyiaWithPrompt }: { jobs: AppJob[]; o
     const daysRemaining = daysInMonth - dayOfMonth
 
     const thisMonthRevenue = recentJobs
-      .filter(j => new Date(j.date) >= thisMonthStart)
+      .filter(j => parseLocalDate(j.date) >= thisMonthStart)
       .reduce((sum, j) => sum + (j.revenue || 0), 0)
 
     // Last month
     const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1)
     const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0)
     const lastMonthRevenue = recentJobs
-      .filter(j => { const d = new Date(j.date); return d >= lastMonthStart && d <= lastMonthEnd })
+      .filter(j => { const d = parseLocalDate(j.date); return d >= lastMonthStart && d <= lastMonthEnd })
       .reduce((sum, j) => sum + (j.revenue || 0), 0)
 
     // Two months ago
     const twoMonthsAgoStart = new Date(now.getFullYear(), now.getMonth() - 2, 1)
     const twoMonthsAgoEnd = new Date(now.getFullYear(), now.getMonth() - 1, 0)
     const twoMonthsAgoRevenue = recentJobs
-      .filter(j => { const d = new Date(j.date); return d >= twoMonthsAgoStart && d <= twoMonthsAgoEnd })
+      .filter(j => { const d = parseLocalDate(j.date); return d >= twoMonthsAgoStart && d <= twoMonthsAgoEnd })
       .reduce((sum, j) => sum + (j.revenue || 0), 0)
 
     const monthlyAverage = (lastMonthRevenue + twoMonthsAgoRevenue) / 2
@@ -260,17 +260,17 @@ export function Dashboard({
   const stats = useMemo(() => {
     const now = new Date()
     const thisMonth = jobs.filter(j => {
-      const d = new Date(j.date)
+      const d = parseLocalDate(j.date)
       return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
     })
     
     const thisWeek = jobs.filter(j => {
-      const d = new Date(j.date)
+      const d = parseLocalDate(j.date)
       const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
       return d >= weekAgo
     })
 
-    const todayStr = now.toISOString().split('T')[0]
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
     const todayJobs = jobs.filter(j => j.date === todayStr)
     const todayRevenue = todayJobs.reduce((sum, j) => sum + (j.revenue || 0), 0)
 
@@ -282,7 +282,7 @@ export function Dashboard({
       const weekEnd = new Date(weekStart)
       weekEnd.setDate(weekEnd.getDate() + 7)
       const count = jobs.filter(j => {
-        const d = new Date(j.date)
+        const d = parseLocalDate(j.date)
         return d >= weekStart && d < weekEnd
       }).length
       weekCounts.push(count)
@@ -589,24 +589,24 @@ export function Dashboard({
 
       {/* ===== STAT CARDS ===== */}
       <div className="stat-grid">
-        <button onClick={() => onNavigate('quotes')} className="stat-card text-left hover:border-blue-300 dark:hover:border-blue-700 transition-colors">
+        <button onClick={() => onNavigate('quotes')} className="stat-card text-left hover:border-[var(--color-border-hover)] transition-colors">
           <p className="stat-card-label">Quotes</p>
-          <p className="stat-card-value text-blue-600 dark:text-blue-400">{stats.pendingQuotes}</p>
+          <p className="stat-card-value" style={{ color: 'var(--color-info)' }}>{stats.pendingQuotes}</p>
           <p className="text-xs text-[var(--color-text-faint)] mt-0.5">{formatCurrency(stats.quoteValue)}</p>
         </button>
-        <button onClick={() => onNavigate('followUps')} className="stat-card text-left hover:border-amber-300 dark:hover:border-amber-700 transition-colors">
+        <button onClick={() => onNavigate('followUps')} className="stat-card text-left hover:border-[var(--color-border-hover)] transition-colors">
           <p className="stat-card-label">Follow-ups</p>
-          <p className="stat-card-value text-amber-600 dark:text-amber-400">{pendingFollowUps}</p>
+          <p className="stat-card-value" style={{ color: 'var(--color-warning)' }}>{pendingFollowUps}</p>
           <p className="text-xs text-[var(--color-text-faint)] mt-0.5">Pending</p>
         </button>
-        <button onClick={() => onNavigate('jobs')} className="stat-card text-left hover:border-green-300 dark:hover:border-green-700 transition-colors">
+        <button onClick={() => onNavigate('jobs')} className="stat-card text-left hover:border-[var(--color-border-hover)] transition-colors">
           <p className="stat-card-label">Jobs This Month</p>
-          <p className="stat-card-value text-green-600 dark:text-green-400">{stats.jobsThisMonth}</p>
+          <p className="stat-card-value" style={{ color: 'var(--color-success)' }}>{stats.jobsThisMonth}</p>
           <p className="text-xs text-[var(--color-text-faint)] mt-0.5">{formatCurrency(stats.revenueThisMonth)}</p>
         </button>
         <div className="stat-card">
           <p className="stat-card-label">Take Home</p>
-          <p className={`stat-card-value ${stats.takeHome >= 0 ? 'text-purple-600 dark:text-purple-400' : 'text-red-600 dark:text-red-400'}`}>{formatCurrency(stats.takeHome)}</p>
+          <p className="stat-card-value" style={{ color: stats.takeHome >= 0 ? 'var(--color-brand)' : 'var(--color-danger)' }}>{formatCurrency(stats.takeHome)}</p>
           <p className="text-xs text-[var(--color-text-faint)] mt-0.5">After {taxPercentage}% tax</p>
         </div>
       </div>
@@ -803,7 +803,7 @@ export function Dashboard({
                 </button>
               </div>
               <div className="content-list">
-                {jobs.slice(0, 4).map((job) => (
+                {[...jobs].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 4).map((job) => (
                   <div key={job.id} className="content-list-item cursor-pointer" onClick={() => onNavigate('jobs')}>
                     <div className="flex items-center gap-3 min-w-0 flex-1">
                       <div className="w-7 h-7 bg-green-50 dark:bg-green-900/30 rounded-lg flex items-center justify-center shrink-0">
@@ -814,7 +814,7 @@ export function Dashboard({
                       <div className="min-w-0">
                         <p className="text-sm font-medium text-[var(--color-text-primary)] truncate">{job.customerName}</p>
                         <p className="text-xs text-[var(--color-text-muted)]">
-                          {new Date(job.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                          {parseLocalDate(job.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                         </p>
                       </div>
                     </div>

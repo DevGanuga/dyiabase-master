@@ -28,10 +28,10 @@ export const metadata: Metadata = {
   creator: 'dyia',
   icons: {
     icon: [
-      { url: '/dyia-logo.png', type: 'image/png', sizes: 'any' },
+      { url: '/dyia-logo.png', type: 'image/png', sizes: '256x256' },
     ],
     apple: [
-      { url: '/dyia-logo.png', type: 'image/png', sizes: '180x180' },
+      { url: '/apple-touch-icon.png', type: 'image/png', sizes: '180x180' },
     ],
   },
   openGraph: {

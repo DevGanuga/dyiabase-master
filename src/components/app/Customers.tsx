@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useEffect, useCallback, useRef } from 'react'
 import type { AppJob, AppQuote, AppCustomer } from '@/types/database'
-import { formatCurrency } from '@/lib/utils'
+import { formatCurrency, parseLocalDate } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { useConfirm } from '@/components/providers/ConfirmProvider'
 import { DyiaInsight } from './DyiaInsight'
@@ -11,6 +11,7 @@ interface CustomersProps {
   jobs: AppJob[]
   quotes?: AppQuote[]
   isPro?: boolean
+  userId: string
   onNavigate: (view: string) => void
   onCreateQuote: (job: AppJob | null) => void
   showSuccess: (message: string) => void
@@ -58,7 +59,7 @@ function buildMinimalJob(customerName: string): AppJob {
 
 function formatRelativeDate(dateStr: string | undefined): string {
   if (!dateStr) return 'Never'
-  const date = new Date(dateStr)
+  const date = parseLocalDate(dateStr)
   const now = new Date()
   const diffMs = now.getTime() - date.getTime()
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
@@ -72,7 +73,7 @@ function formatRelativeDate(dateStr: string | undefined): string {
 }
 
 function formatFriendlyDate(dateStr: string): string {
-  const date = new Date(dateStr)
+  const date = parseLocalDate(dateStr)
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
@@ -80,13 +81,13 @@ function formatFriendlyDate(dateStr: string): string {
 function needsAttention(customer: AppCustomer): boolean {
   if (!customer.lastJobDate) return false
   if ((customer.totalRevenue || 0) === 0) return false
-  const lastJob = new Date(customer.lastJobDate)
+  const lastJob = parseLocalDate(customer.lastJobDate)
   const daysSince = Math.floor((Date.now() - lastJob.getTime()) / (1000 * 60 * 60 * 24))
   return daysSince >= 30 && (customer.jobCount || 0) >= 2
 }
 
-export function Customers({ jobs, quotes = [], isPro = false, onCreateQuote, showSuccess, isDemoMode = false }: CustomersProps) {
-  const { confirm } = useConfirm()
+export function Customers({ jobs, quotes = [], isPro = false, userId, onCreateQuote, showSuccess, isDemoMode = false }: CustomersProps) {
+  const { confirm, alert } = useConfirm()
   const [customers, setCustomers] = useState<AppCustomer[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedCustomer, setSelectedCustomer] = useState<AppCustomer | null>(null)
@@ -250,6 +251,7 @@ export function Customers({ jobs, quotes = [], isPro = false, onCreateQuote, sho
         const { error } = await supabase
           .from('dyia_customers')
           .insert({
+            user_id: userId,
             name: formData.name.trim(),
             email: formData.email.trim() || null,
             phone: formData.phone.trim() || null,
@@ -268,6 +270,8 @@ export function Customers({ jobs, quotes = [], isPro = false, onCreateQuote, sho
       refetchCustomers()
     } catch (err) {
       console.error('Error saving customer:', err)
+      const msg = err instanceof Error ? err.message : 'Could not save customer. Please try again.'
+      await alert({ title: 'Error', message: msg, variant: 'error' })
     } finally {
       setSaving(false)
     }
@@ -284,6 +288,7 @@ export function Customers({ jobs, quotes = [], isPro = false, onCreateQuote, sho
       refetchCustomers()
     } catch (err) {
       console.error('Error deleting customer:', err)
+      await alert({ title: 'Error', message: 'Could not delete customer. Please try again.', variant: 'error' })
     }
   }
 
@@ -378,7 +383,7 @@ export function Customers({ jobs, quotes = [], isPro = false, onCreateQuote, sho
           <h1 className="page-title">Customers</h1>
         </div>
         <div className="flex items-center justify-center py-16">
-          <div className="w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+          <div className="loading-spinner" />
         </div>
       </div>
     )
@@ -402,14 +407,14 @@ export function Customers({ jobs, quotes = [], isPro = false, onCreateQuote, sho
           </h1>
         </div>
 
-        <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl p-5 sm:p-6 space-y-4 max-w-xl">
+        <div className="app-card p-5 sm:p-6 space-y-4 max-w-xl">
           <div>
-            <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">Name *</label>
+            <label className="app-label">Name *</label>
             <input
               type="text"
               value={formData.name}
               onChange={e => setFormData(prev => ({ ...prev, name: e.target.value }))}
-              className="app-input w-full"
+              className="app-input"
               placeholder="Customer name"
               autoFocus
             />
@@ -417,50 +422,50 @@ export function Customers({ jobs, quotes = [], isPro = false, onCreateQuote, sho
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">Phone</label>
+              <label className="app-label">Phone</label>
               <input
                 type="tel"
                 value={formData.phone}
                 onChange={e => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-                className="app-input w-full"
+                className="app-input"
                 placeholder="(555) 123-4567"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">Email</label>
+              <label className="app-label">Email</label>
               <input
                 type="email"
                 value={formData.email}
                 onChange={e => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                className="app-input w-full"
+                className="app-input"
                 placeholder="customer@email.com"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">Address</label>
+            <label className="app-label">Address</label>
             <input
               type="text"
               value={formData.address}
               onChange={e => setFormData(prev => ({ ...prev, address: e.target.value }))}
-              className="app-input w-full"
+              className="app-input"
               placeholder="123 Main St, City, State"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">Notes</label>
+            <label className="app-label">Notes</label>
             <textarea
               value={formData.notes}
               onChange={e => setFormData(prev => ({ ...prev, notes: e.target.value }))}
-              className="app-input w-full min-h-[80px] resize-y"
+              className="app-input min-h-[80px] resize-y"
               placeholder="Gate code, pet info, special instructions…"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">Tags</label>
+            <label className="app-label">Tags</label>
             <div className="flex flex-wrap gap-2 mb-2">
               {formData.tags.map(tag => (
                 <span key={tag} className="inline-flex items-center gap-1 px-2 py-1 bg-orange-500/10 text-orange-600 dark:text-orange-400 rounded-full text-xs">
@@ -488,7 +493,9 @@ export function Customers({ jobs, quotes = [], isPro = false, onCreateQuote, sho
               disabled={!formData.name.trim() || saving}
               className="app-btn-primary flex-1"
             >
-              {saving ? 'Saving…' : editingCustomer ? 'Save Changes' : 'Add Customer'}
+              {saving ? (
+                <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Saving…</>
+              ) : editingCustomer ? 'Save Changes' : 'Add Customer'}
             </button>
             <button
               onClick={() => { setShowForm(false); setEditingCustomer(null); setFormData(emptyForm) }}

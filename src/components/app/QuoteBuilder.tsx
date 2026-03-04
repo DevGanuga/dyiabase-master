@@ -595,8 +595,11 @@ export function QuoteBuilder({ quotes, setQuotes, userId, selectedJob, customerN
             {aiSuggestion && (
               <div className="mt-2 p-3 rounded-xl bg-orange-50 dark:bg-orange-950/30 border border-orange-200/50 dark:border-orange-800/30">
                 <p className="text-xs font-medium text-orange-800 dark:text-orange-200 mb-1">Suggested range: {formatCurrency(aiSuggestion.low)} – {formatCurrency(aiSuggestion.high)}</p>
-                <div className="flex gap-2">
-                  <button type="button" onClick={applyAiSuggestion} className="text-xs font-medium text-orange-600 dark:text-orange-400 hover:underline">
+                <div className="flex flex-wrap gap-2">
+                  <button type="button" onClick={() => { setEstimateLow(aiSuggestion.low); setEstimateHigh(aiSuggestion.high); setAiSuggestion(null) }} className="text-xs font-medium text-orange-600 dark:text-orange-400 hover:underline">
+                    Apply to estimate
+                  </button>
+                  <button type="button" onClick={applyAiSuggestion} className="text-xs font-medium text-[var(--color-text-muted)] hover:underline">
                     Apply as full load price
                   </button>
                   <button type="button" onClick={() => setAiSuggestion(null)} className="text-xs text-[var(--color-text-muted)] hover:underline">
@@ -609,35 +612,37 @@ export function QuoteBuilder({ quotes, setQuotes, userId, selectedJob, customerN
         </div>
 
         {/* Template selector + Save as template */}
-        {templates.length > 0 && (
-          <div className="flex flex-wrap items-center gap-3 mb-4">
-            <label className="text-sm font-medium text-[var(--color-text-secondary)]">Pricing from</label>
-            <select
-              value={selectedTemplateId ?? '__scratch__'}
-              onChange={(e) => {
-                const v = e.target.value
-                if (v === '__scratch__') applyTemplate(null)
-                else {
-                  const t = templates.find((x) => x.id === v)
-                  if (t) applyTemplate(t)
-                }
-              }}
-              className="app-input py-2 text-sm min-w-[140px]"
-            >
-              <option value="__scratch__">From scratch</option>
-              {templates.map((t) => (
-                <option key={t.id} value={t.id}>{t.name}{t.isDefault ? ' (default)' : ''}</option>
-              ))}
-            </select>
-            <button
-              type="button"
-              onClick={() => setSaveTemplateModal(true)}
-              className="text-sm font-medium text-orange-600 dark:text-orange-400 hover:underline"
-            >
-              Save as template
-            </button>
-          </div>
-        )}
+        <div className="flex flex-wrap items-center gap-3 mb-4">
+          {templates.length > 0 && (
+            <>
+              <label className="text-sm font-medium text-[var(--color-text-secondary)]">Pricing from</label>
+              <select
+                value={selectedTemplateId ?? '__scratch__'}
+                onChange={(e) => {
+                  const v = e.target.value
+                  if (v === '__scratch__') applyTemplate(null)
+                  else {
+                    const t = templates.find((x) => x.id === v)
+                    if (t) applyTemplate(t)
+                  }
+                }}
+                className="app-select py-2 text-sm min-w-[140px]"
+              >
+                <option value="__scratch__">From scratch</option>
+                {templates.map((t) => (
+                  <option key={t.id} value={t.id}>{t.name}{t.isDefault ? ' (default)' : ''}</option>
+                ))}
+              </select>
+            </>
+          )}
+          <button
+            type="button"
+            onClick={() => setSaveTemplateModal(true)}
+            className="text-sm font-medium text-orange-600 dark:text-orange-400 hover:underline"
+          >
+            Save as template
+          </button>
+        </div>
 
         {/* Estimate Range */}
         <div className="app-card p-4 sm:p-5">
@@ -841,7 +846,7 @@ export function QuoteBuilder({ quotes, setQuotes, userId, selectedJob, customerN
             <div className="px-4 sm:px-5 pb-4 sm:pb-5 space-y-3">
               <div>
                 <label className="app-label">Lead Source</label>
-                <select value={quoteSource} onChange={(e) => setQuoteSource(e.target.value)} className="app-input">
+                <select value={quoteSource} onChange={(e) => setQuoteSource(e.target.value)} className="app-select">
                   <option value="">Select source...</option>
                   {SOURCES.map(s => <option key={s} value={s}>{s}</option>)}
                 </select>

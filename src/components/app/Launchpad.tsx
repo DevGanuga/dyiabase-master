@@ -27,12 +27,16 @@ export function Launchpad({ items, onDismiss }: LaunchpadProps) {
 
   // Load collapsed state from localStorage
   useEffect(() => {
-    const saved = localStorage.getItem('dyia_launchpad_collapsed')
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- reads localStorage on mount
-    if (saved) setIsCollapsed(JSON.parse(saved))
+    try {
+      const saved = localStorage.getItem('dyia_launchpad_collapsed')
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- reads localStorage on mount
+      if (saved) setIsCollapsed(JSON.parse(saved))
 
-    const dismissedSaved = localStorage.getItem('dyia_launchpad_dismissed')
-    if (dismissedSaved) setDismissed(JSON.parse(dismissedSaved))
+      const dismissedSaved = localStorage.getItem('dyia_launchpad_dismissed')
+      if (dismissedSaved) setDismissed(JSON.parse(dismissedSaved))
+    } catch {
+      // Corrupted localStorage — ignore and use defaults
+    }
   }, [])
 
   // Save collapsed state

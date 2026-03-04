@@ -12,6 +12,7 @@
 
   :root {
     /* Background Colors */
+    --color-bg: #ffffff;
     --color-bg-page: #fafafa;
     --color-bg-page-from: rgba(255, 247, 237, 0.4);
     --color-bg-page-via: #fafafa;
@@ -107,6 +108,7 @@
   }
 
   .dark {
+    --color-bg: #0f0f0f;
     --color-bg-page: #0a0a0a;
     --color-bg-page-from: #111111;
     --color-bg-page-via: #0a0a0a;
@@ -136,6 +138,8 @@
     --color-input-bg: #171717;
     --color-input-border: #262626;
     --color-input-hover-border: #404040;
+    --color-input-focus-border: #f97316;
+    --color-input-focus-ring: rgba(249, 115, 22, 0.2);
 
     --color-scrollbar-track: #171717;
     --color-scrollbar-thumb: #404040;
@@ -394,6 +398,10 @@
 
 .app-btn-danger:active {
   transform: scale(0.97);
+}
+
+.app-btn-sm {
+  @apply text-sm py-2 px-4;
 }
 
 /* ============================================ */

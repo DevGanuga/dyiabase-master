@@ -6,6 +6,16 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+/**
+ * Parse a YYYY-MM-DD date string as local time instead of UTC.
+ * Prevents the day-shift bug in western timezones where
+ * `new Date("2026-03-02")` (UTC midnight) displays as March 1 in US zones.
+ */
+export function parseLocalDate(dateStr: string): Date {
+  if (dateStr.includes('T')) return new Date(dateStr)
+  return new Date(dateStr + 'T12:00:00')
+}
+
 export function formatCurrency(amount: number): string {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',

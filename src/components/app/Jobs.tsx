@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { AppJob, AppSettings } from '@/types/database'
-import { formatCurrency } from '@/lib/utils'
+import { formatCurrency, parseLocalDate } from '@/lib/utils'
 import { getReviewRequestMessage } from '@/lib/reviews'
 import { useConfirm } from '@/components/providers/ConfirmProvider'
 import { useCustomerAutocomplete } from '@/hooks/useCustomerAutocomplete'
@@ -30,6 +30,8 @@ interface TempCustomer {
   name: string
   source: string
   revenue: number
+  phone: string
+  email: string
 }
 
 interface TempExpenses {
@@ -62,10 +64,9 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
   const [closeDayExpenses, setCloseDayExpenses] = useState({ labor: 0, gas: 0, dumpFee: 0, dumpsterRental: 0, additional: 0 })
   const [closeDaySaving, setCloseDaySaving] = useState(false)
   const [closeDayResult, setCloseDayResult] = useState<{ revenue: number; expenses: number; profit: number; jobCount: number; avgRevenue: number; avgProfit: number } | null>(null)
-  const [tempReceiptUrl, setTempReceiptUrl] = useState<string | null>(null)
-  const [uploadingReceipt, setUploadingReceipt] = useState(false)
   const [nudgeDismissedDays, setNudgeDismissedDays] = useState<Record<string, boolean>>({})
-  const [nudgeDismissedReceipts, setNudgeDismissedReceipts] = useState(false)
+  const [activeAutocomplete, setActiveAutocomplete] = useState<number | null>(null)
+  const [showContactFields, setShowContactFields] = useState<Record<number, boolean>>({})
 
   const supabase = createClient()
   const { confirm, alert } = useConfirm()
@@ -75,15 +76,15 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
     if (hasCheckedMonth || jobs.length === 0) return
     
     const currentMonthJobs = jobs.filter(job => {
-      const jobDate = new Date(job.date)
+      const jobDate = parseLocalDate(job.date)
       return jobDate.getMonth() === selectedMonth.getMonth() &&
              jobDate.getFullYear() === selectedMonth.getFullYear()
     })
     
     if (currentMonthJobs.length === 0) {
-      const sortedJobs = [...jobs].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      const sortedJobs = [...jobs].sort((a, b) => parseLocalDate(b.date).getTime() - parseLocalDate(a.date).getTime())
       if (sortedJobs.length > 0) {
-        const mostRecentDate = new Date(sortedJobs[0].date)
+        const mostRecentDate = parseLocalDate(sortedJobs[0].date)
         setSelectedMonth(new Date(mostRecentDate.getFullYear(), mostRecentDate.getMonth(), 1))
       }
     }
@@ -93,10 +94,10 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
   // Filter jobs by month
   const monthJobs = useMemo(() => {
     return jobs.filter(job => {
-      const jobDate = new Date(job.date)
+      const jobDate = parseLocalDate(job.date)
       return jobDate.getMonth() === selectedMonth.getMonth() &&
              jobDate.getFullYear() === selectedMonth.getFullYear()
-    }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    }).sort((a, b) => parseLocalDate(b.date).getTime() - parseLocalDate(a.date).getTime())
   }, [jobs, selectedMonth])
 
   // Customer autocomplete from DB + job names fallback
@@ -108,7 +109,7 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
     })
     return [...names].sort()
   }, [jobs])
-  const { nameList: customerNameSuggestions, findByName } = useCustomerAutocomplete(jobNamesFallback)
+  const { suggestions: customerSuggestions, findByName } = useCustomerAutocomplete(jobNamesFallback)
 
   const filteredJobs = useMemo(() => {
     const filtered = monthJobs.filter(job => {
@@ -121,7 +122,7 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
 
     switch (sortOrder) {
       case 'oldest':
-        return [...filtered].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+        return [...filtered].sort((a, b) => parseLocalDate(a.date).getTime() - parseLocalDate(b.date).getTime())
       case 'rev-desc':
         return [...filtered].sort((a, b) => (b.revenue || 0) - (a.revenue || 0))
       case 'rev-asc':
@@ -145,8 +146,6 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
       .map(([date]) => date)
   }, [monthJobs])
 
-  const jobsWithoutReceiptCount = useMemo(() => monthJobs.filter(j => !j.receiptUrl?.trim()).length, [monthJobs])
-
   // Group filtered jobs by date for day-based workflow (newest first)
   const jobsByDay = useMemo(() => {
     const map = new Map<string, AppJob[]>()
@@ -161,7 +160,7 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
   const openCloseDayModal = (date: string) => {
     setCloseDayDate(date)
     setCloseDayResult(null)
-    const dayJobs = filteredJobs.filter(j => j.date === date)
+    const dayJobs = jobs.filter(j => j.date === date)
     const existingLabor = dayJobs.reduce((s, j) => s + (j.labor || 0), 0)
     const existingGas = dayJobs.reduce((s, j) => s + (j.gas || 0), 0)
     const existingDump = dayJobs.reduce((s, j) => s + (j.dumpFee || 0), 0)
@@ -281,18 +280,26 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
 
   const startAddJob = () => {
     setEditingJob('new')
-    setTempCustomers([{ id: Date.now(), name: '', source: '', revenue: 0 }])
+    setTempCustomers([{ id: Date.now(), name: '', source: '', revenue: 0, phone: '', email: '' }])
     setTempExpenses({ labor: 0, gas: 0, dumpFee: 0, dumpsterRental: 0, additional: 0 })
     setTempDate(new Date().toISOString().split('T')[0])
     setTempNotes('')
     setTempAddress('')
-    setTempReceiptUrl(null)
     setShowExpenseDetails(false)
+    setShowContactFields({})
   }
 
   const startEditJob = (job: AppJob) => {
     setEditingJob(job)
-    setTempCustomers([{ id: Date.now(), name: job.customerName, source: job.source || '', revenue: job.revenue }])
+    const existingCustomer = findByName(job.customerName)
+    setTempCustomers([{
+      id: Date.now(),
+      name: job.customerName,
+      source: job.source || '',
+      revenue: job.revenue,
+      phone: existingCustomer?.phone || '',
+      email: existingCustomer?.email || '',
+    }])
     setTempExpenses({
       labor: job.labor,
       gas: job.gas,
@@ -303,9 +310,9 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
     setTempDate(job.date)
     setTempNotes(job.notes || '')
     setTempAddress(job.address || '')
-    setTempReceiptUrl(job.receiptUrl ?? null)
     const hasExpenses = (job.labor || 0) + (job.gas || 0) + (job.dumpFee || 0) + (job.dumpsterRental || 0) + (job.additionalExpense || 0) > 0
     setShowExpenseDetails(hasExpenses)
+    setShowContactFields({})
   }
 
   const cancelForm = () => {
@@ -313,32 +320,8 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
     setTempCustomers([])
   }
 
-  const handleReceiptUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    if (file.size > 10 * 1024 * 1024) {
-      await alert({ title: 'File too large', message: 'Receipt must be under 10MB.', variant: 'warning' })
-      return
-    }
-    setUploadingReceipt(true)
-    try {
-      const form = new FormData()
-      form.append('file', file)
-      const res = await fetch('/api/ai/upload', { method: 'POST', body: form })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Upload failed')
-      setTempReceiptUrl(data.url)
-      showSuccess('Receipt uploaded')
-    } catch (err) {
-      await alert({ title: 'Upload failed', message: err instanceof Error ? err.message : 'Could not upload receipt.', variant: 'error' })
-    } finally {
-      setUploadingReceipt(false)
-      e.target.value = ''
-    }
-  }
-
   const addCustomerRow = () => {
-    setTempCustomers([...tempCustomers, { id: Date.now(), name: '', source: '', revenue: 0 }])
+    setTempCustomers([...tempCustomers, { id: Date.now(), name: '', source: '', revenue: 0, phone: '', email: '' }])
   }
 
   const removeCustomerRow = (index: number) => {
@@ -367,7 +350,12 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
 
       if (isEditing) {
         const customer = validCustomers[0]
-        const customerId = await ensureCustomer(supabase, userId, customer.name.trim())
+        const contactInfo = {
+          phone: customer.phone?.trim() || null,
+          email: customer.email?.trim() || null,
+          address: tempAddress.trim() || null,
+        }
+        const customerId = await ensureCustomer(supabase, userId, customer.name.trim(), contactInfo)
         const dbJob = {
           date: tempDate,
           customer_name: customer.name.trim(),
@@ -381,7 +369,6 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
           additional_expense: Math.max(0, tempExpenses.additional),
           notes: tempNotes.trim() || null,
           address: tempAddress.trim() || null,
-          receipt_url: tempReceiptUrl?.trim() || null,
         }
 
         const { error } = await supabase
@@ -407,14 +394,18 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
           additionalExpense: tempExpenses.additional,
           notes: tempNotes.trim(),
           address: tempAddress.trim() || undefined,
-          receiptUrl: tempReceiptUrl?.trim() || undefined,
         } : j))
         showSuccess(`Job updated — ${formatCurrency(jobProfit)} profit`)
       } else {
         const newJobs: AppJob[] = []
         for (const customer of validCustomers) {
           const expPerCustomer = validCustomers.length
-          const customerId = await ensureCustomer(supabase, userId, customer.name.trim())
+          const contactInfo = {
+            phone: customer.phone?.trim() || null,
+            email: customer.email?.trim() || null,
+            address: tempAddress.trim() || null,
+          }
+          const customerId = await ensureCustomer(supabase, userId, customer.name.trim(), contactInfo)
           const dbJob = {
             user_id: userId,
             date: tempDate,
@@ -456,7 +447,6 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
             costPerWorker: 0,
             notes: tempNotes.trim(),
             address: tempAddress.trim() || undefined,
-            receiptUrl: undefined,
           })
         }
 
@@ -601,7 +591,9 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
                     <span className="text-xs font-medium text-[var(--color-text-muted)]">Customer {index + 1} of {tempCustomers.length}</span>
                     <button
                       onClick={() => removeCustomerRow(index)}
-                      className="w-6 h-6 bg-red-100 dark:bg-red-900/40 hover:bg-red-200 dark:hover:bg-red-900/60 text-red-600 dark:text-red-400 rounded-lg text-xs flex items-center justify-center"
+                      aria-label={`Remove customer ${index + 1}`}
+                      className="w-6 h-6 rounded-lg text-xs flex items-center justify-center transition-colors"
+                      style={{ background: 'var(--color-danger-bg)', color: 'var(--color-danger)' }}
                     >
                       ×
                     </button>
@@ -609,31 +601,73 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
                 )}
                 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div>
-                    <label className="app-label">Customer Name *</label>
+                  <div className="relative">
+                    <label className="app-label" id={`customer-label-${index}`}>Customer Name *</label>
                     <input
-                      list={`customer-names-${index}`}
                       type="text"
+                      role="combobox"
+                      autoComplete="off"
+                      aria-labelledby={`customer-label-${index}`}
+                      aria-expanded={activeAutocomplete === index}
+                      aria-controls={`customer-suggestions-${index}`}
+                      aria-autocomplete="list"
                       value={customer.name}
                       onChange={(e) => {
                         const name = e.target.value
                         updateCustomer(index, 'name', name)
+                        setActiveAutocomplete(name.length >= 1 ? index : null)
                         const match = findByName(name)
                         if (match) {
                           if (match.address) setTempAddress(match.address)
+                          if (match.phone) updateCustomer(index, 'phone', match.phone)
+                          if (match.email) updateCustomer(index, 'email', match.email)
                           const lastJob = [...jobs]
-                            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                            .sort((a, b) => parseLocalDate(b.date).getTime() - parseLocalDate(a.date).getTime())
                             .find(j => j.customerName.toLowerCase() === name.trim().toLowerCase())
                           if (lastJob?.source) updateCustomer(index, 'source', lastJob.source)
+                          setActiveAutocomplete(null)
                         }
                       }}
+                      onFocus={() => { if (customer.name.length >= 1) setActiveAutocomplete(index) }}
+                      onBlur={() => setTimeout(() => setActiveAutocomplete(null), 200)}
                       className="app-input"
                       placeholder="John Smith"
                       autoFocus={index === 0}
                     />
-                    <datalist id={`customer-names-${index}`}>
-                      {customerNameSuggestions.map(n => <option key={n} value={n} />)}
-                    </datalist>
+                    {activeAutocomplete === index && (() => {
+                      const q = customer.name.trim().toLowerCase()
+                      const filtered = customerSuggestions.filter(c => c.name.toLowerCase().includes(q))
+                      if (filtered.length === 0 || (filtered.length === 1 && filtered[0].name.toLowerCase() === q)) return null
+                      return (
+                        <ul id={`customer-suggestions-${index}`} role="listbox" className="absolute z-20 left-0 right-0 top-full mt-1 max-h-44 overflow-y-auto rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-card)] shadow-lg py-1">
+                          {filtered.slice(0, 8).map(c => (
+                            <li key={c.id} role="option" aria-selected={false}>
+                              <button
+                                type="button"
+                                onMouseDown={(e) => {
+                                  e.preventDefault()
+                                  updateCustomer(index, 'name', c.name)
+                                  if (c.address) setTempAddress(c.address)
+                                  if (c.phone) updateCustomer(index, 'phone', c.phone)
+                                  if (c.email) updateCustomer(index, 'email', c.email)
+                                  const lastJob = [...jobs]
+                                    .sort((a, b) => parseLocalDate(b.date).getTime() - parseLocalDate(a.date).getTime())
+                                    .find(j => j.customerName.toLowerCase() === c.name.trim().toLowerCase())
+                                  if (lastJob?.source) updateCustomer(index, 'source', lastJob.source)
+                                  setActiveAutocomplete(null)
+                                }}
+                                className="w-full text-left px-3 py-2.5 text-sm hover:bg-[var(--color-bg-subtle)] transition-colors"
+                              >
+                                <span className="font-medium text-[var(--color-text-primary)]">{c.name}</span>
+                                {(c.phone || c.email) && (
+                                  <span className="text-[var(--color-text-faint)] text-xs ml-2">{c.phone || c.email}</span>
+                                )}
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      )
+                    })()}
                   </div>
                   <div>
                     <label className="app-label">Revenue *</label>
@@ -662,6 +696,44 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
                       ))}
                     </select>
                   </div>
+                </div>
+
+                {/* Contact info (optional) */}
+                <div className="mt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowContactFields(prev => ({ ...prev, [index]: !prev[index] }))}
+                    className="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] transition-colors"
+                  >
+                    {showContactFields[index] ? '− Hide' : '+ Add'} contact info
+                    {(customer.phone || customer.email) && <span className="text-green-500 ml-1">●</span>}
+                  </button>
+                  {showContactFields[index] && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
+                      <div>
+                        <label className="app-label">Phone</label>
+                        <input
+                          type="tel"
+                          value={customer.phone}
+                          onChange={(e) => updateCustomer(index, 'phone', e.target.value)}
+                          className="app-input"
+                          placeholder="(555) 123-4567"
+                          autoComplete="off"
+                        />
+                      </div>
+                      <div>
+                        <label className="app-label">Email</label>
+                        <input
+                          type="email"
+                          value={customer.email}
+                          onChange={(e) => updateCustomer(index, 'email', e.target.value)}
+                          className="app-input"
+                          placeholder="customer@email.com"
+                          autoComplete="off"
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
@@ -771,37 +843,6 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
               placeholder="Basement cleanout, 2nd floor, had to disconnect appliances..."
             />
           </div>
-        </div>
-
-        {/* === RECEIPT === */}
-        <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl p-4 sm:p-5 space-y-2">
-          <label className="block text-sm font-semibold text-[var(--color-text-primary)]">Receipt <span className="text-[var(--color-text-faint)] font-normal">(optional)</span></label>
-          <p className="text-xs text-[var(--color-text-muted)] mb-2">Upload a photo or PDF of the receipt for this job to keep records in one place.</p>
-          {tempReceiptUrl ? (
-            <div className="flex items-center gap-3 flex-wrap">
-              <a href={tempReceiptUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-orange-600 dark:text-orange-400 hover:underline truncate max-w-[200px]">
-                View receipt
-              </a>
-              <button type="button" onClick={() => setTempReceiptUrl(null)} className="text-xs text-[var(--color-text-muted)] hover:text-red-500">Remove</button>
-            </div>
-          ) : (
-            <label className="inline-flex items-center gap-2 px-3 py-2 border border-[var(--color-border)] rounded-lg hover:bg-[var(--color-bg-subtle)] cursor-pointer text-sm">
-              <input type="file" accept="image/*,.pdf" className="sr-only" onChange={handleReceiptUpload} disabled={uploadingReceipt} />
-              {uploadingReceipt ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-orange-500/30 border-t-orange-500 rounded-full animate-spin" />
-                  Uploading...
-                </>
-              ) : (
-                <>
-                  <svg className="w-4 h-4 text-[var(--color-text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                  </svg>
-                  Upload receipt (image or PDF, max 10MB)
-                </>
-              )}
-            </label>
-          )}
         </div>
 
         {/* === STICKY SAVE BAR === */}
@@ -936,32 +977,6 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
         </div>
       )}
 
-      {/* Receipt upload nudge */}
-      {jobsWithoutReceiptCount > 0 && !nudgeDismissedReceipts && monthJobs.length > 0 && (
-        <div className="flex items-start gap-3 p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-800/40">
-          <span className="text-slate-500 dark:text-slate-400 shrink-0 mt-0.5" aria-hidden>
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-          </span>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-slate-800 dark:text-slate-200">
-              {jobsWithoutReceiptCount} {jobsWithoutReceiptCount === 1 ? 'job has' : 'jobs have'} no receipt
-            </p>
-            <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
-              Add receipts when editing a job to keep everything in one place for taxes and records.
-            </p>
-            <button
-              type="button"
-              onClick={() => setNudgeDismissedReceipts(true)}
-              className="text-xs text-slate-600 dark:text-slate-400 hover:underline mt-2"
-            >
-              Dismiss
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* Filters */}
       <div className="flex flex-col gap-3">
         {/* Month Navigation */}
@@ -1080,7 +1095,7 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
               const dayRevenue = dayJobs.reduce((s, j) => s + (j.revenue || 0), 0)
               const dayExpenses = dayJobs.reduce((s, j) => s + (j.labor || 0) + (j.gas || 0) + (j.dumpFee || 0) + (j.dumpsterRental || 0) + (j.additionalExpense || 0), 0)
               const dayProfit = dayRevenue - dayExpenses
-              const dayLabel = new Date(date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+              const dayLabel = parseLocalDate(date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
 
               return (
                 <div key={date}>
@@ -1122,21 +1137,6 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
                               <p className="text-sm font-medium text-[var(--color-text-primary)] truncate">{job.customerName}</p>
                               {job.source && (
                                 <span className="hidden sm:inline text-[10px] px-1.5 py-0.5 bg-orange-500/10 text-orange-600 dark:text-orange-400 rounded-full shrink-0">{job.source}</span>
-                              )}
-                              {job.receiptUrl ? (
-                                <a href={job.receiptUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[10px] text-slate-500 dark:text-slate-400 hover:text-orange-600 dark:hover:text-orange-400" title="View receipt">
-                                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                  </svg>
-                                  Receipt
-                                </a>
-                              ) : (
-                                <button type="button" onClick={() => startEditJob(job)} className="inline-flex items-center gap-1 text-[10px] text-slate-400 dark:text-slate-500 hover:text-orange-600 dark:hover:text-orange-400" title="Add receipt">
-                                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                                  </svg>
-                                  Add receipt
-                                </button>
                               )}
                             </div>
                             {job.notes && (
@@ -1207,7 +1207,7 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
               )}
             </div>
             <p className="text-sm text-[var(--color-text-muted)] mb-4">
-              {new Date(closeDayDate + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
+              {parseLocalDate(closeDayDate).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
             </p>
 
             {closeDayResult ? (

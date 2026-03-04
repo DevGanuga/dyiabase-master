@@ -9,6 +9,7 @@ import { useConfirm } from '@/components/providers/ConfirmProvider'
 interface PriceTemplatesProps {
   userId: string
   showSuccess: (message: string) => void
+  onDataChanged?: () => void
 }
 
 const DEFAULT_PRICES: AppPriceTemplate['prices'] = {
@@ -37,7 +38,7 @@ const defaultFormData: TemplateFormData = {
   prices: { ...DEFAULT_PRICES }
 }
 
-export function PriceTemplates({ userId, showSuccess }: PriceTemplatesProps) {
+export function PriceTemplates({ userId, showSuccess, onDataChanged }: PriceTemplatesProps) {
   const [templates, setTemplates] = useState<AppPriceTemplate[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
@@ -157,6 +158,7 @@ export function PriceTemplates({ userId, showSuccess }: PriceTemplatesProps) {
             : t
         ))
         showSuccess('Template updated!')
+        onDataChanged?.()
       } else {
         // Create new template
         const isFirst = templates.length === 0
@@ -182,6 +184,7 @@ export function PriceTemplates({ userId, showSuccess }: PriceTemplatesProps) {
           }, ...templates])
         }
         showSuccess('Template created!')
+        onDataChanged?.()
       }
       resetForm()
     } catch (error) {
@@ -212,6 +215,7 @@ export function PriceTemplates({ userId, showSuccess }: PriceTemplatesProps) {
 
       setTemplates(templates.filter(t => t.id !== id))
       showSuccess('Template deleted!')
+      onDataChanged?.()
     } catch (error) {
       console.error('Error deleting template:', error)
       await alert({ title: 'Error', message: 'Error deleting template.', variant: 'error' })

@@ -423,7 +423,7 @@ async function suggestQuotePrice(args: Record<string, unknown>, dyiaUserId: stri
       
       // Build example list
       const examples = similarJobs.slice(0, 3).map(j => 
-        `• ${j.customer_name}: $${Number(j.revenue).toLocaleString()} - ${new Date(j.date).toLocaleDateString()}`
+        `• ${j.customer_name}: $${Number(j.revenue).toLocaleString()} - ${new Date(j.date + 'T12:00:00').toLocaleDateString()}`
       ).join('\n')
       
       return {
@@ -1278,7 +1278,7 @@ async function findSimilarJobs(args: Record<string, unknown>, dyiaUserId: string
     
     // Build a nice response message
     const jobList = similarJobs.slice(0, 3).map((j: { customer_name: string; revenue: number; profit_margin: number; date: string }) => 
-      `• ${j.customer_name}: $${Number(j.revenue).toLocaleString()} (${Number(j.profit_margin).toFixed(0)}% margin) - ${new Date(j.date).toLocaleDateString()}`
+      `• ${j.customer_name}: $${Number(j.revenue).toLocaleString()} (${Number(j.profit_margin).toFixed(0)}% margin) - ${new Date(j.date + 'T12:00:00').toLocaleDateString()}`
     ).join('\n')
     
     return {
@@ -1459,7 +1459,7 @@ async function getRevenueForecast(args: Record<string, unknown>, dyiaUserId: str
     const calcPeriodRevenue = (jobs: typeof historicalJobs, start: Date, end: Date) => {
       return jobs
         .filter(j => {
-          const d = new Date(j.date)
+          const d = new Date(j.date + 'T12:00:00')
           return d >= start && d <= end
         })
         .reduce((sum, j) => sum + Number(j.revenue), 0)
@@ -1468,7 +1468,7 @@ async function getRevenueForecast(args: Record<string, unknown>, dyiaUserId: str
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const _calcPeriodJobCount = (jobs: typeof historicalJobs, start: Date, end: Date) => {
       return jobs.filter(j => {
-        const d = new Date(j.date)
+        const d = new Date(j.date + 'T12:00:00')
         return d >= start && d <= end
       }).length
     }

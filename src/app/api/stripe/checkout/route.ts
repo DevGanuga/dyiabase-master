@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
+import { auth } from '@clerk/nextjs/server'
 import { rateLimiters } from '@/lib/rate-limit'
 import { getBaseUrl } from '@/lib/env'
 
@@ -27,6 +28,11 @@ export async function POST(request: NextRequest) {
   if (rateLimited) return rateLimited
 
   try {
+    const { userId: authedUserId } = await auth()
+    if (!authedUserId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const stripe = getStripe()
     const supabase = getSupabase()
     const { priceId, clerkUserId, userEmail, couponCode, useFoundersCoupon, mode = 'subscription', creditsAmount = 100 } = await request.json()
@@ -36,6 +42,19 @@ export async function POST(request: NextRequest) {
         { error: 'Missing required fields: priceId, clerkUserId, userEmail' },
         { status: 400 }
       )
+    }
+
+    if (clerkUserId !== authedUserId) {
+      return NextResponse.json({ error: 'User mismatch' }, { status: 403 })
+    }
+
+    const allowedPriceIds = [
+      process.env.NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID,
+      process.env.NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID,
+      process.env.STRIPE_CREDITS_PRICE_ID,
+    ].filter(Boolean)
+    if (allowedPriceIds.length > 0 && !allowedPriceIds.includes(priceId)) {
+      return NextResponse.json({ error: 'Invalid price' }, { status: 400 })
     }
 
     // Get the dyia user ID from clerk_user_id

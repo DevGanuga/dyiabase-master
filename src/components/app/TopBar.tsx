@@ -45,6 +45,7 @@ export function TopBar({ userName, userEmail, userImageUrl, onLogout, subscripti
         <button
           onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
           className="p-2 rounded-lg text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-hover)] transition-all"
+          aria-label={resolvedTheme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
           title={resolvedTheme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
         >
           {resolvedTheme === 'dark' ? (
@@ -64,6 +65,7 @@ export function TopBar({ userName, userEmail, userImageUrl, onLogout, subscripti
           target="_blank"
           rel="noopener noreferrer"
           className="hidden sm:flex p-2 rounded-lg text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-hover)] transition-all"
+          aria-label="Help & Support"
           title="Help & Support"
         >
           <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -78,6 +80,9 @@ export function TopBar({ userName, userEmail, userImageUrl, onLogout, subscripti
         <div className="relative" ref={menuRef}>
           <button
             onClick={() => setMenuOpen(!menuOpen)}
+            aria-label="User menu"
+            aria-expanded={menuOpen}
+            aria-haspopup="true"
             className="flex items-center gap-2 p-1 rounded-lg hover:bg-[var(--color-bg-hover)] transition-all"
           >
             {userImageUrl ? (
@@ -154,7 +159,10 @@ export function TopBar({ userName, userEmail, userImageUrl, onLogout, subscripti
               <div className="border-t py-1.5" style={{ borderColor: 'var(--color-border-light)' }}>
                 <button
                   onClick={() => { onLogout(); setMenuOpen(false) }}
-                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors"
+                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors"
+                  style={{ color: 'var(--color-danger)' }}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-danger-bg)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />

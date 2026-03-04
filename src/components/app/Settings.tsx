@@ -24,9 +24,10 @@ interface SettingsProps {
   isDemoMode?: boolean
   /** When set, open this tab (e.g. from launchpad "Add business info" or "Save a price template") */
   initialTab?: SettingsTabId | null
+  onDataChanged?: () => void
 }
 
-export function Settings({ settings, setSettings, userId, showSuccess, userProfile, userEmail, userImageUrl, userName, isDemoMode = false, initialTab }: SettingsProps) {
+export function Settings({ settings, setSettings, userId, showSuccess, userProfile, userEmail, userImageUrl, userName, isDemoMode = false, initialTab, onDataChanged }: SettingsProps) {
   const hookSub = useSubscription()
   const clerk = useClerk()
 
@@ -616,12 +617,12 @@ export function Settings({ settings, setSettings, userId, showSuccess, userProfi
 
       {/* Fixed Expenses */}
       {activeTab === 'expenses' && (
-        <FixedExpenses userId={userId} showSuccess={showSuccess} />
+        <FixedExpenses userId={userId} showSuccess={showSuccess} onDataChanged={onDataChanged} />
       )}
 
       {/* Pricing Templates */}
       {activeTab === 'templates' && (
-        <PriceTemplates userId={userId} showSuccess={showSuccess} />
+        <PriceTemplates userId={userId} showSuccess={showSuccess} onDataChanged={onDataChanged} />
       )}
 
       {/* Account Tab */}

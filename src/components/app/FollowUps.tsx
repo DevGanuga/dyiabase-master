@@ -45,6 +45,7 @@ interface FollowUpsProps {
   userId: string
   businessName?: string
   showSuccess?: (message: string) => void
+  onDataChanged?: () => void
 }
 
 const PRIORITY_OPTIONS: { value: FollowUpPriority | 'all'; label: string }[] = [
@@ -83,7 +84,7 @@ const KANBAN_COLUMN_CONFIG: { id: FollowUpStatus; title: string; color: string }
   { id: 'lost', title: 'Lost', color: '#ef4444' },
 ]
 
-export function FollowUps({ userId, businessName = 'dyia', showSuccess }: FollowUpsProps) {
+export function FollowUps({ userId, businessName = 'dyia', showSuccess, onDataChanged }: FollowUpsProps) {
   const supabase = useMemo(() => createClient(), [])
   const { alert } = useConfirm()
   const [rows, setRows] = useState<FollowUpRow[]>([])
@@ -222,6 +223,7 @@ export function FollowUps({ userId, businessName = 'dyia', showSuccess }: Follow
       setRows((prev) =>
         prev.map((r) => (r.quote.id === row.quote.id ? { ...r, followUp: updated } : r))
       )
+      onDataChanged?.()
     } catch (error) {
       console.error('Error updating follow-up:', error)
       await alert({ title: 'Error', message: 'Error updating follow-up.', variant: 'error' })

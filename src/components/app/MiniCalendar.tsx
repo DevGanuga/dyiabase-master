@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import type { AppJob } from '@/types/database'
-import { formatCurrency } from '@/lib/utils'
+import { formatCurrency, parseLocalDate } from '@/lib/utils'
 
 interface MiniCalendarProps {
   jobs: AppJob[]
@@ -73,7 +73,7 @@ export function MiniCalendar({ jobs, onDayClick, onViewFullCalendar }: MiniCalen
     const year = currentMonth.getFullYear()
     const month = currentMonth.getMonth()
     const monthJobs = jobs.filter(j => {
-      const d = new Date(j.date)
+      const d = parseLocalDate(j.date)
       return d.getFullYear() === year && d.getMonth() === month
     })
     const revenue = monthJobs.reduce((sum, j) => sum + (j.revenue || 0), 0)

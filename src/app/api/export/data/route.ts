@@ -84,7 +84,7 @@ export async function GET() {
     // Calculate months spanned by job data
     let monthsSpan = 1
     if (jobs.length > 1) {
-      const dates = jobs.map(j => new Date(j.date as string).getTime()).filter(d => !isNaN(d))
+      const dates = jobs.map(j => new Date((j.date as string) + 'T12:00:00').getTime()).filter(d => !isNaN(d))
       if (dates.length > 1) {
         const earliest = new Date(Math.min(...dates))
         const latest = new Date(Math.max(...dates))

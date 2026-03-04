@@ -220,6 +220,9 @@ export function Sidebar({ currentView, setCurrentView, onLogout, isPro = false, 
         <div className="px-4 mb-3 hidden sm:block relative" ref={createRef}>
           <button
             onClick={() => setCreateOpen(!createOpen)}
+            aria-label="Create new item"
+            aria-expanded={createOpen}
+            aria-haspopup="true"
             className="w-full flex items-center justify-between gap-2 px-4 py-2.5 bg-orange-500 hover:bg-orange-600 text-white font-medium rounded-lg transition-colors"
           >
             <span className="flex items-center gap-2">

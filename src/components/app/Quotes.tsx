@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { AppQuote, AppSettings, AppJob, QuoteStatus } from '@/types/database'
-import { formatCurrency } from '@/lib/utils'
+import { formatCurrency, parseLocalDate } from '@/lib/utils'
 import { getReviewRequestMessage } from '@/lib/reviews'
 import { downloadQuotePdf } from '@/lib/quote-pdf'
 import { useConfirm } from '@/components/providers/ConfirmProvider'
@@ -399,7 +399,7 @@ export function Quotes({ quotes, setQuotes, jobs, userId, settings, onCreateQuot
                         >
                           <span className="font-medium">{job.customerName}</span>
                           <span className="text-[var(--color-text-faint)] ml-1">
-                            {new Date(job.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                            {parseLocalDate(job.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                           </span>
                         </button>
                       ))

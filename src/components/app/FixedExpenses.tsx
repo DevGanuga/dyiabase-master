@@ -14,6 +14,7 @@ import {
 interface FixedExpensesProps {
   userId: string
   showSuccess: (message: string) => void
+  onDataChanged?: () => void
 }
 
 interface ExpenseFormData {
@@ -30,7 +31,7 @@ const defaultFormData: ExpenseFormData = {
   category: 'other'
 }
 
-export function FixedExpenses({ userId, showSuccess }: FixedExpensesProps) {
+export function FixedExpenses({ userId, showSuccess, onDataChanged }: FixedExpensesProps) {
   const [expenses, setExpenses] = useState<AppFixedExpense[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
@@ -132,6 +133,7 @@ export function FixedExpenses({ userId, showSuccess }: FixedExpensesProps) {
             : e
         ))
         showSuccess('Expense updated!')
+        onDataChanged?.()
       } else {
         // Create new expense
         const { data, error } = await supabase
@@ -160,6 +162,7 @@ export function FixedExpenses({ userId, showSuccess }: FixedExpensesProps) {
           }, ...expenses])
         }
         showSuccess('Expense added!')
+        onDataChanged?.()
       }
       resetForm()
     } catch (error) {
@@ -184,6 +187,7 @@ export function FixedExpenses({ userId, showSuccess }: FixedExpensesProps) {
 
       setExpenses(expenses.filter(e => e.id !== id))
       showSuccess('Expense deleted!')
+      onDataChanged?.()
     } catch (error) {
       console.error('Error deleting expense:', error)
       await alert({ title: 'Error', message: 'Error deleting expense.', variant: 'error' })
@@ -203,6 +207,7 @@ export function FixedExpenses({ userId, showSuccess }: FixedExpensesProps) {
         e.id === expense.id ? { ...e, isActive: !e.isActive } : e
       ))
       showSuccess(expense.isActive ? 'Expense paused' : 'Expense activated')
+      onDataChanged?.()
     } catch (error) {
       console.error('Error toggling expense:', error)
       await alert({ title: 'Error', message: 'Error updating expense.', variant: 'error' })

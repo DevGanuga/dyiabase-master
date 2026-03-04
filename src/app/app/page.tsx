@@ -1,6 +1,7 @@
 'use client'
 
 import { Suspense, useEffect, useState, useCallback, useRef, useMemo } from 'react'
+import dynamic from 'next/dynamic'
 import { useUser, useClerk, useAuth } from '@clerk/nextjs'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient, initSupabaseAuth } from '@/lib/supabase/client'
@@ -11,18 +12,19 @@ import { Jobs } from '@/components/app/Jobs'
 import { Quotes } from '@/components/app/Quotes'
 import { QuoteBuilder } from '@/components/app/QuoteBuilder'
 import { Settings } from '@/components/app/Settings'
-import { FollowUps } from '@/components/app/FollowUps'
-import { Reports } from '@/components/app/Reports'
-import { Marketing } from '@/components/app/Marketing'
-import { Customers } from '@/components/app/Customers'
-import { MassEmail } from '@/components/app/MassEmail'
-import { Assistant } from '@/components/app/Assistant'
-import { Calendar } from '@/components/app/Calendar'
 import { TrialBanner } from '@/components/app/TrialBanner'
 import { TopBar } from '@/components/app/TopBar'
 import { ConfirmProvider } from '@/components/providers/ConfirmProvider'
-import { AdminPanel } from '@/components/app/AdminPanel'
 import type { LaunchpadItem } from '@/components/app/Launchpad'
+
+const FollowUps = dynamic(() => import('@/components/app/FollowUps').then(m => ({ default: m.FollowUps })), { ssr: false })
+const Reports = dynamic(() => import('@/components/app/Reports').then(m => ({ default: m.Reports })), { ssr: false })
+const Marketing = dynamic(() => import('@/components/app/Marketing').then(m => ({ default: m.Marketing })), { ssr: false })
+const Customers = dynamic(() => import('@/components/app/Customers').then(m => ({ default: m.Customers })), { ssr: false })
+const MassEmail = dynamic(() => import('@/components/app/MassEmail').then(m => ({ default: m.MassEmail })), { ssr: false })
+const Assistant = dynamic(() => import('@/components/app/Assistant').then(m => ({ default: m.Assistant })), { ssr: false })
+const Calendar = dynamic(() => import('@/components/app/Calendar').then(m => ({ default: m.Calendar })), { ssr: false })
+const AdminPanel = dynamic(() => import('@/components/app/AdminPanel').then(m => ({ default: m.AdminPanel })), { ssr: false })
 
 type View = 'dashboard' | 'jobs' | 'quotes' | 'quoteBuilder' | 'followUps' | 'calendar' | 'reports' | 'marketing' | 'customers' | 'massEmail' | 'assistant' | 'settings' | 'admin'
 
@@ -331,6 +333,29 @@ function AppPageContent() {
     }
   }, [supabase])
 
+  const refreshCounts = useCallback(async () => {
+    const uid = userProfile?.id
+    if (!uid) return
+    try {
+      const [fixedRes, followRes, templatesRes] = await Promise.all([
+        supabase.from('dyia_fixed_expenses').select('amount, frequency, is_active').eq('user_id', uid),
+        supabase.from('dyia_follow_ups').select('*', { count: 'exact', head: true }).eq('user_id', uid).in('status', ['pending', 'contacted', 'snoozed']),
+        supabase.from('dyia_price_templates').select('*', { count: 'exact', head: true }).eq('user_id', uid),
+      ])
+      if (fixedRes.data) {
+        setFixedMonthlyExpenses(fixedRes.data.reduce((sum, e) => {
+          if (e.is_active === false) return sum
+          const amt = parseFloat(e.amount) || 0
+          return sum + (e.frequency === 'yearly' ? amt / 12 : amt)
+        }, 0))
+      }
+      setPendingFollowUpsCount(followRes.count || 0)
+      setPriceTemplatesCount(templatesRes.count || 0)
+    } catch (err) {
+      console.error('Error refreshing counts:', err)
+    }
+  }, [supabase, userProfile?.id])
+
   // Initialize user profile when Clerk user is loaded.
   // Guard with initAttemptedRef so this runs exactly once per mount
   // (prevents re-firing when dependency refs change).
@@ -585,18 +610,40 @@ function AppPageContent() {
             </p>
             <div className="space-y-3">
               <button
-                onClick={() => {
-                  const checkoutUrl = `/api/stripe/checkout?plan=annual&clerk_user_id=${user?.id}`
-                  window.location.href = checkoutUrl
+                onClick={async () => {
+                  try {
+                    const res = await fetch('/api/stripe/checkout', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        priceId: process.env.NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID,
+                        clerkUserId: user?.id,
+                        userEmail: user?.primaryEmailAddress?.emailAddress,
+                      }),
+                    })
+                    const data = await res.json()
+                    if (data.url) window.location.href = data.url
+                  } catch (e) { console.error('Checkout error:', e) }
                 }}
-                className="w-full px-6 py-3 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-semibold rounded-xl transition-all shadow-lg shadow-orange-500/25"
+                className="w-full px-6 py-3 bg-linear-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-semibold rounded-xl transition-all shadow-lg shadow-orange-500/25"
               >
                 Upgrade to Pro — $24.99/mo
               </button>
               <button
-                onClick={() => {
-                  const checkoutUrl = `/api/stripe/checkout?plan=monthly&clerk_user_id=${user?.id}`
-                  window.location.href = checkoutUrl
+                onClick={async () => {
+                  try {
+                    const res = await fetch('/api/stripe/checkout', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        priceId: process.env.NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID,
+                        clerkUserId: user?.id,
+                        userEmail: user?.primaryEmailAddress?.emailAddress,
+                      }),
+                    })
+                    const data = await res.json()
+                    if (data.url) window.location.href = data.url
+                  } catch (e) { console.error('Checkout error:', e) }
                 }}
                 className="w-full px-6 py-2.5 text-sm text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors"
               >
@@ -746,6 +793,7 @@ function AppPageContent() {
             userName={isDemoMode ? 'Demo User' : (userProfile?.first_name || user?.firstName || '')}
             isDemoMode={isDemoMode}
             initialTab={settingsInitialTab ?? undefined}
+            onDataChanged={refreshCounts}
           />
         )
       case 'followUps':
@@ -754,6 +802,7 @@ function AppPageContent() {
             userId={userProfile?.id || ''}
             businessName={settings.businessInfo.name || 'dyia'}
             showSuccess={showSuccess}
+            onDataChanged={refreshCounts}
           />
         )
       case 'calendar':
@@ -780,6 +829,7 @@ function AppPageContent() {
             jobs={jobs}
             quotes={quotes}
             isPro={isPro}
+            userId={userProfile?.id || ''}
             onNavigate={(view) => setCurrentView(view as View)}
             onCreateQuote={(job) => { setSelectedJobForQuote(job ?? null); setCurrentView('quoteBuilder') }}
             showSuccess={showSuccess}
