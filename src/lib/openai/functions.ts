@@ -594,9 +594,7 @@ export type DyiaFunctionName =
   | 'get_follow_up_risk_analysis'
   | 'batch_store_customers'
   | 'batch_create_quotes'
-  | 'save_memory'
-
-export type ProposalFunctionName = 'propose_job' | 'propose_quote'
+  | 'save_memory'export type ProposalFunctionName = 'propose_job' | 'propose_quote'
 export function isProposalFunction(name: string): name is ProposalFunctionName {
   return name === 'propose_job' || name === 'propose_quote'
 }
