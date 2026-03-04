@@ -597,8 +597,6 @@ export type DyiaFunctionName =
   | 'save_memory'
 
 export type ProposalFunctionName = 'propose_job' | 'propose_quote'
-
-
 export function isProposalFunction(name: string): name is ProposalFunctionName {
   return name === 'propose_job' || name === 'propose_quote'
 }
