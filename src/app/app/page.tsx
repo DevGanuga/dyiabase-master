@@ -410,9 +410,6 @@ function AppPageContent() {
   // Auto-trigger Stripe checkout when arriving with ?plan= and ?tier= params (e.g. from landing page pricing CTA)
   useEffect(() => {
     if (!planParam || !userProfile || checkoutTriggeredRef.current || loading || isDemoMode) return
-    // Don't force checkout before the user has finished setting up their account.
-    // By the time loading is false, loadData has already populated settings from the DB.
-    if (!settings.onboardingCompleted && !settings.onboardingSkipped) return
     const tier = searchParams.get('tier') as 'basic' | 'pro' | null
     if (!tier) return
     checkoutTriggeredRef.current = true
@@ -566,7 +563,7 @@ function AppPageContent() {
         />
         <div className="w-8 h-8 border-2 border-orange-500/30 border-t-orange-500 rounded-full animate-spin mx-auto mb-4" />
         <p className="text-sm text-slate-500 font-medium">
-          {verifyingCheckout ? 'Activating your subscription...' : checkoutLoading ? 'Redirecting to checkout...' : needsSubscription ? 'Redirecting to plans...' : needsOnboarding ? 'Setting up your account...' : 'Loading...'}
+          {verifyingCheckout ? 'Activating your subscription...' : checkoutLoading ? 'Redirecting to checkout...' : (needsSubscription && !planParam) ? 'Redirecting to plans...' : needsOnboarding ? 'Setting up your account...' : 'Loading...'}
         </p>
       </div>
     </div>
