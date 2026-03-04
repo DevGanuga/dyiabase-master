@@ -225,7 +225,7 @@ async function fetchBusinessData(userId: string): Promise<BusinessData> {
 }
 
 async function generateInsight(
-  supabase: ReturnType<typeof createClient>,
+  supabaseClient: typeof supabase,
   type: InsightType,
   data: BusinessData,
   firstName: string
@@ -337,7 +337,7 @@ Return a JSON object with:
     const inputTokens = usage?.prompt_tokens ?? 0
     const outputTokens = usage?.completion_tokens ?? 0
     const costEstimateUsd = estimateCostUsd(inputTokens, outputTokens, 'mini')
-    await recordUsage(supabase, {
+    await recordUsage(supabaseClient, {
       tokensInput: inputTokens,
       tokensOutput: outputTokens,
       costEstimateUsd,
@@ -348,7 +348,6 @@ Return a JSON object with:
     return JSON.parse(content) as InsightResult
   } catch (error) {
     console.error('OpenAI insight generation error:', error)
-    // Return fallback insight
     return {
       headline: 'Your Business at a Glance',
       summary: `You've generated $${data.revenueThisMonth.toLocaleString()} in revenue this month with ${data.jobCountThisMonth} jobs completed.`,

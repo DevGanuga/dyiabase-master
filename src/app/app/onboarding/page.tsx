@@ -171,7 +171,7 @@ export default function OnboardingPage() {
     ]
   }, [businessName, businessPhone, businessEmail, createTemplate, templateName, priceRows])
   const setupChecklistComplete = setupChecklist.every((c) => c.done)
-  const showChecklist = currentStep === 'business' || currentStep === 'template' || currentStep === 'financials'
+  const showChecklist = currentStep === 'business' || currentStep === 'operations' || currentStep === 'financials'
 
   useEffect(() => {
     const checkOnboardingStatus = async () => {

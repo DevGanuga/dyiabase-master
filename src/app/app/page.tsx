@@ -125,7 +125,6 @@ function AppPageContent() {
   const [selectedJobForQuote, setSelectedJobForQuote] = useState<AppJob | null>(null)
   const [assistantInitialPrompt, setAssistantInitialPrompt] = useState<string | null>(null)
   const [priceTemplatesCount, setPriceTemplatesCount] = useState(0)
-  const isPro = ['active', 'trialing'].includes(userProfile?.subscription_status || '')
   const [hasViewedAssistant, setHasViewedAssistant] = useState(false)
   const [checkoutLoading, setCheckoutLoading] = useState(false)
   const [settingsInitialTab, setSettingsInitialTab] = useState<'business' | 'templates' | null>(null)

@@ -4,6 +4,11 @@
  * enables optional budget threshold alerts via env (OPENAI_DAILY_BUDGET_USD, etc.).
  */
 
+import type { SupabaseClient } from '@supabase/supabase-js'
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AnySupabaseClient = SupabaseClient<any, any, any>
+
 /** Max output tokens per chat response (keeps responses concise and costs predictable) */
 export const MAX_OUTPUT_TOKENS_CHAT = 1024
 
@@ -70,7 +75,7 @@ export interface BudgetCheckResult {
  * Check if we're within daily budget. Uses dyia_openai_usage when OPENAI_DAILY_BUDGET_USD is set.
  * If table is missing or budget not configured, returns allowed.
  */
-export async function checkDailyBudget(supabase: { from: (t: string) => { select: (c: string) => { gte: (col: string, val: string) => Promise<{ data: Array<{ cost_estimate_usd?: number }> | null; error: unknown }> }; insert: (r: Record<string, unknown>) => Promise<{ error: unknown }> } }): Promise<BudgetCheckResult> {
+export async function checkDailyBudget(supabase: AnySupabaseClient): Promise<BudgetCheckResult> {
   const budget = getDailyBudgetUsd()
   if (budget == null) {
     return { allowed: true, dailyTotalUsd: 0 }
@@ -116,7 +121,7 @@ export async function checkDailyBudget(supabase: { from: (t: string) => { select
  * Record usage for budget tracking and alerting. Call after each OpenAI request.
  */
 export async function recordUsage(
-  supabase: { from: (t: string) => { insert: (r: Record<string, unknown>) => Promise<{ error: unknown }> } },
+  supabase: AnySupabaseClient,
   params: {
     tokensInput: number
     tokensOutput: number
