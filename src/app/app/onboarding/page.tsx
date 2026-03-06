@@ -110,6 +110,7 @@ export default function OnboardingPage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isAnimating, setIsAnimating] = useState(false)
+  const [userId, setUserId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   
   // Restore form data from sessionStorage on mount
@@ -227,6 +228,7 @@ export default function OnboardingPage() {
           return
         }
 
+        setUserId(profile.id)
         if (profile.first_name) setFirstName(profile.first_name)
         if (profile.last_name) setLastName(profile.last_name)
 
@@ -357,19 +359,18 @@ export default function OnboardingPage() {
   }, [currentStep, nextStep, isLastStep, saving])
 
   const handleSkip = async () => {
+    if (!userId) {
+      setError('Account not found. Please refresh the page or sign out and back in.')
+      return
+    }
     setSaving(true)
     setError(null)
     
     try {
-      const res = await fetch('/api/user/onboarding', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'skip' }),
-      })
-      if (!res.ok) {
-        const data = await res.json()
-        console.error('Skip error:', data.error)
-      }
+      await supabase
+        .from('dyia_settings')
+        .update({ onboarding_skipped: true })
+        .eq('user_id', userId)
     } catch (err) {
       console.error('Skip error:', err)
     } finally {
@@ -381,41 +382,34 @@ export default function OnboardingPage() {
   }
 
   const handleComplete = async () => {
+    if (!userId) {
+      setError('Account not found. Please refresh the page or sign out and back in.')
+      return
+    }
     setSaving(true)
     setError(null)
 
     try {
-      // Build template payload if requested
-      let template = undefined
-      if (createTemplate && templateName) {
-        const items = priceRows.filter(r => r.label.trim()).map(r => ({ label: r.label.trim(), amount: Number(r.amount) || 0 }))
-        template = {
-          name: templateName,
-          prices: {
-            items,
-            minimumFee: items[0]?.amount ?? 0,
-            quarterLoad: items[1]?.amount ?? 0,
-            halfLoad: items[2]?.amount ?? 0,
-            threeQuarterLoad: items[3]?.amount ?? 0,
-            fullLoad: items[4]?.amount ?? 0,
-          },
-        }
-      }
+      await supabase
+        .from('dyia_users')
+        .update({ first_name: firstName || null, last_name: lastName || null })
+        .eq('id', userId)
 
-      const res = await fetch('/api/user/onboarding', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'complete',
-          firstName: firstName || null,
-          lastName: lastName || null,
-          businessName: businessName || null,
-          businessPhone: businessPhone || null,
-          businessEmail: businessEmail || null,
-          businessAddress: businessAddress || null,
-          logoUrl: logoPreview,
-          taxPercentage,
-          monthlyGoal,
+      const logoUrl: string | null = logoPreview
+
+      const { error: settingsError } = await supabase
+        .from('dyia_settings')
+        .update({
+          business_name: businessName || null,
+          business_phone: businessPhone || null,
+          business_email: businessEmail || null,
+          business_address: businessAddress || null,
+          business_logo: logoUrl,
+          tax_percentage: taxPercentage,
+          monthly_goal: monthlyGoal,
+          onboarding_completed: true,
+          onboarding_skipped: false,
+          onboarding_completed_at: new Date().toISOString(),
           metadata: {
             business_type: businessType || undefined,
             team_size: teamSize || undefined,
@@ -430,14 +424,61 @@ export default function OnboardingPage() {
             weekly_job_capacity: weeklyJobCapacity || undefined,
             marketing_channels: marketingChannels.length > 0 ? marketingChannels : undefined,
             common_services: commonServices || undefined,
-          },
-          template,
-        }),
-      })
+          }
+        })
+        .eq('user_id', userId)
 
-      if (!res.ok) {
-        const data = await res.json()
-        throw new Error(data.error || 'Failed to save settings')
+      if (settingsError) {
+        console.warn('Full settings update failed, trying without metadata:', settingsError.message)
+        const { error: basicError } = await supabase
+          .from('dyia_settings')
+          .update({
+            business_name: businessName || null,
+            business_phone: businessPhone || null,
+            business_email: businessEmail || null,
+            business_logo: logoUrl,
+            tax_percentage: taxPercentage,
+            monthly_goal: monthlyGoal,
+            onboarding_completed: true,
+            onboarding_skipped: false,
+            onboarding_completed_at: new Date().toISOString(),
+          })
+          .eq('user_id', userId)
+        if (basicError) throw new Error(`Settings update failed: ${basicError.message}`)
+      }
+
+      // Verify the save actually persisted (catches silent RLS failures)
+      const { data: verify } = await supabase
+        .from('dyia_settings')
+        .select('onboarding_completed')
+        .eq('user_id', userId)
+        .single()
+
+      if (!verify?.onboarding_completed) {
+        throw new Error('Save did not persist. Your browser may not have permission to write data. Please try signing out and back in, or contact support.')
+      }
+
+      if (createTemplate && templateName) {
+        const items = priceRows.filter(r => r.label.trim()).map(r => ({ label: r.label.trim(), amount: Number(r.amount) || 0 }))
+        const pricesPayload: Record<string, unknown> = {
+          items,
+          minimumFee: items[0]?.amount ?? 0,
+          quarterLoad: items[1]?.amount ?? 0,
+          halfLoad: items[2]?.amount ?? 0,
+          threeQuarterLoad: items[3]?.amount ?? 0,
+          fullLoad: items[4]?.amount ?? 0,
+        }
+        const { error: templateError } = await supabase
+          .from('dyia_price_templates')
+          .insert({
+            user_id: userId,
+            name: templateName.trim(),
+            prices: pricesPayload,
+            is_default: true,
+          })
+        if (templateError) {
+          console.warn('Template creation failed:', templateError.message)
+        }
       }
 
       sessionStorage.removeItem('dyia_onboarding_step')
