@@ -96,47 +96,56 @@ export default function OnboardingPage() {
 
   initSupabaseAuth(() => getToken({ template: 'supabase' }))
 
-  const supabase = createClient()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const supabase = useMemo(() => createClient(), [])
   const { resolvedTheme, setTheme } = useTheme()
   
-  const [currentStep, setCurrentStep] = useState<Step>('welcome')
+  // Restore step from sessionStorage so refresh doesn't lose progress
+  const [currentStep, setCurrentStep] = useState<Step>(() => {
+    if (typeof window === 'undefined') return 'welcome'
+    const saved = sessionStorage.getItem('dyia_onboarding_step')
+    return (saved && STEPS.includes(saved as Step)) ? saved as Step : 'welcome'
+  })
   const [direction, setDirection] = useState<'forward' | 'backward'>('forward')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isAnimating, setIsAnimating] = useState(false)
-  const [userId, setUserId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   
+  // Restore form data from sessionStorage on mount
+  const savedData = typeof window !== 'undefined' ? (() => {
+    try { return JSON.parse(sessionStorage.getItem('dyia_onboarding_data') || '{}') } catch { return {} }
+  })() : {}
+
   // Profile
-  const [firstName, setFirstName] = useState('')
-  const [lastName, setLastName] = useState('')
-  const [referralSource, setReferralSource] = useState('')
+  const [firstName, setFirstName] = useState(savedData.firstName || '')
+  const [lastName, setLastName] = useState(savedData.lastName || '')
+  const [referralSource, setReferralSource] = useState(savedData.referralSource || '')
   
   // Business
-  const [businessName, setBusinessName] = useState('')
-  const [businessType, setBusinessType] = useState('')
-  const [teamSize, setTeamSize] = useState('')
-  const [businessPhone, setBusinessPhone] = useState('')
-  const [businessEmail, setBusinessEmail] = useState('')
-  const [businessAddress, setBusinessAddress] = useState('')
-  const [serviceArea, setServiceArea] = useState('')
-  const [servicesOffered, setServicesOffered] = useState('')
-  const [yearsInBusiness, setYearsInBusiness] = useState('')
-  const [logoPreview, setLogoPreview] = useState<string | null>(null)
+  const [businessName, setBusinessName] = useState(savedData.businessName || '')
+  const [businessType, setBusinessType] = useState(savedData.businessType || '')
+  const [teamSize, setTeamSize] = useState(savedData.teamSize || '')
+  const [businessPhone, setBusinessPhone] = useState(savedData.businessPhone || '')
+  const [businessEmail, setBusinessEmail] = useState(savedData.businessEmail || '')
+  const [businessAddress, setBusinessAddress] = useState(savedData.businessAddress || '')
+  const [serviceArea, setServiceArea] = useState(savedData.serviceArea || '')
+  const [servicesOffered, setServicesOffered] = useState(savedData.servicesOffered || '')
+  const [yearsInBusiness, setYearsInBusiness] = useState(savedData.yearsInBusiness || '')
+  const [logoPreview, setLogoPreview] = useState<string | null>(savedData.logoPreview || null)
   
   // Strategy & AI context
-  const [businessStage, setBusinessStage] = useState('')
-  const [biggestChallenge, setBiggestChallenge] = useState('')
-  const [pricingPhilosophy, setPricingPhilosophy] = useState('')
-  const [weeklyJobCapacity, setWeeklyJobCapacity] = useState('')
-  const [averageJobRevenue, setAverageJobRevenue] = useState<number | 'not_sure' | ''>('')
-  const [marketingChannels, setMarketingChannels] = useState<string[]>([])
-  const [commonServices, setCommonServices] = useState('')
+  const [businessStage, setBusinessStage] = useState(savedData.businessStage || '')
+  const [biggestChallenge, setBiggestChallenge] = useState(savedData.biggestChallenge || '')
+  const [pricingPhilosophy, setPricingPhilosophy] = useState(savedData.pricingPhilosophy || '')
+  const [weeklyJobCapacity, setWeeklyJobCapacity] = useState(savedData.weeklyJobCapacity || '')
+  const [averageJobRevenue, setAverageJobRevenue] = useState<number | 'not_sure' | ''>(savedData.averageJobRevenue ?? '')
+  const [marketingChannels, setMarketingChannels] = useState<string[]>(savedData.marketingChannels || [])
+  const [commonServices, setCommonServices] = useState(savedData.commonServices || '')
 
   // Financial
-  const [taxPercentage, setTaxPercentage] = useState(30)
-  const [monthlyGoal, setMonthlyGoal] = useState(0)
-  const [logoFile, setLogoFile] = useState<File | null>(null)
+  const [taxPercentage, setTaxPercentage] = useState(savedData.taxPercentage ?? 30)
+  const [monthlyGoal, setMonthlyGoal] = useState(savedData.monthlyGoal ?? 0)
 
   // Price template state: customizable list of { id, label, amount }
   const defaultPriceRows = [
@@ -151,8 +160,29 @@ export default function OnboardingPage() {
   const [priceRows, setPriceRows] = useState<{ id: string; label: string; amount: number }[]>(defaultPriceRows)
 
   const currentStepIndex = STEPS.indexOf(currentStep)
-  const progress = ((currentStepIndex + 1) / STEPS.length) * 100
   const isLastStep = currentStep === 'pricing'
+
+  // Persist onboarding progress to sessionStorage so page refresh doesn't lose work
+  useEffect(() => {
+    sessionStorage.setItem('dyia_onboarding_step', currentStep)
+  }, [currentStep])
+
+  useEffect(() => {
+    const data = {
+      firstName, lastName, referralSource, businessName, businessType, teamSize,
+      businessPhone, businessEmail, businessAddress, serviceArea, servicesOffered,
+      yearsInBusiness, logoPreview, businessStage, biggestChallenge, pricingPhilosophy,
+      weeklyJobCapacity, averageJobRevenue, marketingChannels, commonServices,
+      taxPercentage, monthlyGoal,
+    }
+    sessionStorage.setItem('dyia_onboarding_data', JSON.stringify(data))
+  }, [
+    firstName, lastName, referralSource, businessName, businessType, teamSize,
+    businessPhone, businessEmail, businessAddress, serviceArea, servicesOffered,
+    yearsInBusiness, logoPreview, businessStage, biggestChallenge, pricingPhilosophy,
+    weeklyJobCapacity, averageJobRevenue, marketingChannels, commonServices,
+    taxPercentage, monthlyGoal,
+  ])
 
   // Required setup checklist — resolves when user completes each item (for guidance only; we still allow Finish)
   const setupChecklist = useMemo(() => {
@@ -197,7 +227,6 @@ export default function OnboardingPage() {
           return
         }
 
-        setUserId(profile.id)
         if (profile.first_name) setFirstName(profile.first_name)
         if (profile.last_name) setLastName(profile.last_name)
 
@@ -266,7 +295,6 @@ export default function OnboardingPage() {
       return
     }
     setError(null)
-    setLogoFile(file)
     const reader = new FileReader()
     reader.onload = async (event) => {
       try {
@@ -329,67 +357,65 @@ export default function OnboardingPage() {
   }, [currentStep, nextStep, isLastStep, saving])
 
   const handleSkip = async () => {
-    if (!userId) return
     setSaving(true)
     setError(null)
     
     try {
-      await supabase
-        .from('dyia_settings')
-        .update({ onboarding_skipped: true })
-        .eq('user_id', userId)
-      
-      router.push(returnUrl)
+      const res = await fetch('/api/user/onboarding', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'skip' }),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        console.error('Skip error:', data.error)
+      }
     } catch (err) {
       console.error('Skip error:', err)
+    } finally {
+      sessionStorage.removeItem('dyia_onboarding_step')
+      sessionStorage.removeItem('dyia_onboarding_data')
+      setSaving(false)
       router.push(returnUrl)
     }
   }
 
   const handleComplete = async () => {
-    if (!userId) return
     setSaving(true)
     setError(null)
 
     try {
-      await supabase
-        .from('dyia_users')
-        .update({ first_name: firstName || null, last_name: lastName || null })
-        .eq('id', userId)
-
-      // Handle logo: compress and save to DB (same as Settings — works without storage bucket)
-      let logoUrl: string | null = logoPreview
-      if (logoFile) {
-        try {
-          const dataUrl = await new Promise<string>((resolve, reject) => {
-            const reader = new FileReader()
-            reader.onload = () => resolve(reader.result as string)
-            reader.onerror = () => reject(reader.error)
-            reader.readAsDataURL(logoFile)
-          })
-          logoUrl = await compressImage(dataUrl, 400, 0.8)
-        } catch (err) {
-          console.error('Error processing logo:', err)
-          setError('Could not process logo image. You can continue without it and add one later in Settings.')
-          setSaving(false)
-          return
+      // Build template payload if requested
+      let template = undefined
+      if (createTemplate && templateName) {
+        const items = priceRows.filter(r => r.label.trim()).map(r => ({ label: r.label.trim(), amount: Number(r.amount) || 0 }))
+        template = {
+          name: templateName,
+          prices: {
+            items,
+            minimumFee: items[0]?.amount ?? 0,
+            quarterLoad: items[1]?.amount ?? 0,
+            halfLoad: items[2]?.amount ?? 0,
+            threeQuarterLoad: items[3]?.amount ?? 0,
+            fullLoad: items[4]?.amount ?? 0,
+          },
         }
       }
 
-
-      const fullUpdate = await supabase
-        .from('dyia_settings')
-        .update({
-          business_name: businessName || null,
-          business_phone: businessPhone || null,
-          business_email: businessEmail || null,
-          business_address: businessAddress || null,
-          business_logo: logoUrl,
-          tax_percentage: taxPercentage,
-          monthly_goal: monthlyGoal,
-          onboarding_completed: true,
-          onboarding_skipped: false,
-          onboarding_completed_at: new Date().toISOString(),
+      const res = await fetch('/api/user/onboarding', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'complete',
+          firstName: firstName || null,
+          lastName: lastName || null,
+          businessName: businessName || null,
+          businessPhone: businessPhone || null,
+          businessEmail: businessEmail || null,
+          businessAddress: businessAddress || null,
+          logoUrl: logoPreview,
+          taxPercentage,
+          monthlyGoal,
           metadata: {
             business_type: businessType || undefined,
             team_size: teamSize || undefined,
@@ -404,79 +430,24 @@ export default function OnboardingPage() {
             weekly_job_capacity: weeklyJobCapacity || undefined,
             marketing_channels: marketingChannels.length > 0 ? marketingChannels : undefined,
             common_services: commonServices || undefined,
-          }
-        })
-        .eq('user_id', userId)
+          },
+          template,
+        }),
+      })
 
-      if (fullUpdate.error) {
-        const basicUpdate = await supabase
-          .from('dyia_settings')
-          .update({
-            business_name: businessName || null,
-            business_phone: businessPhone || null,
-            business_email: businessEmail || null,
-            business_logo: logoUrl,
-            tax_percentage: taxPercentage,
-            monthly_goal: monthlyGoal,
-          })
-          .eq('user_id', userId)
-        if (basicUpdate.error) throw new Error(`Settings update failed: ${basicUpdate.error.message}`)
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || 'Failed to save settings')
       }
 
-      // Create price template if requested (custom items + legacy keys for QuoteBuilder)
-      if (createTemplate && templateName) {
-        const items = priceRows.filter(r => r.label.trim()).map(r => ({ label: r.label.trim(), amount: Number(r.amount) || 0 }))
-        const pricesPayload: Record<string, unknown> = {
-          items,
-          minimumFee: items[0]?.amount ?? 0,
-          quarterLoad: items[1]?.amount ?? 0,
-          halfLoad: items[2]?.amount ?? 0,
-          threeQuarterLoad: items[3]?.amount ?? 0,
-          fullLoad: items[4]?.amount ?? 0,
-        }
-        let { error: templateError } = await supabase
-          .from('dyia_price_templates')
-          .insert({
-            user_id: userId,
-            name: templateName.trim(),
-            prices: pricesPayload,
-            is_default: true,
-          })
-
-        // Fallback: try without items (legacy-only) in case of schema/RLS issues
-        if (templateError) {
-          const err = templateError as { message?: string; code?: string }
-          const errMsg = err?.message ?? err?.code ?? String(templateError)
-          console.warn('Template creation error:', errMsg)
-          const legacyOnlyPrices = {
-            minimumFee: pricesPayload.minimumFee,
-            quarterLoad: pricesPayload.quarterLoad,
-            halfLoad: pricesPayload.halfLoad,
-            threeQuarterLoad: pricesPayload.threeQuarterLoad,
-            fullLoad: pricesPayload.fullLoad,
-          }
-          const fallback = await supabase
-            .from('dyia_price_templates')
-            .insert({
-              user_id: userId,
-              name: templateName.trim(),
-              prices: legacyOnlyPrices,
-              is_default: true,
-            })
-          if (fallback.error) {
-            console.warn('Template fallback also failed:', (fallback.error as Error).message ?? fallback.error)
-          }
-        }
-      }
-
+      sessionStorage.removeItem('dyia_onboarding_step')
+      sessionStorage.removeItem('dyia_onboarding_data')
       router.push(returnUrl)
     } catch (err) {
       console.error('Onboarding save error:', err)
       const message = err instanceof Error ? err.message : 'Failed to save settings'
-      setError(message.includes('column') 
-        ? 'Database migration needed. Please run the latest migration in Supabase.' 
-        : message
-      )
+      setError(message)
+    } finally {
       setSaving(false)
     }
   }
