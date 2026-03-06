@@ -14,6 +14,12 @@ function getSupabaseAdmin() {
   )
 }
 
+const ADMIN_EMAILS = [
+  'devganuga@initdev.co',
+  'ricardo.bezi@initdev.co',
+  'marco.aayala97@yahoo.com',
+]
+
 export async function POST(req: Request) {
   try {
     const { userId } = await auth()
@@ -38,6 +44,17 @@ export async function POST(req: Request) {
       .single()
 
     if (existingUser) {
+      // Auto-elevate known admin emails if their role was reset
+      const shouldBeAdmin = ADMIN_EMAILS.includes(existingUser.email?.toLowerCase())
+      if (shouldBeAdmin && (!existingUser.is_admin || existingUser.role !== 'super_admin')) {
+        const { data: elevated } = await supabase
+          .from('dyia_users')
+          .update({ is_admin: true, role: 'super_admin', subscription_status: 'active' })
+          .eq('id', existingUser.id)
+          .select('*')
+          .single()
+        if (elevated) return NextResponse.json({ profile: elevated })
+      }
       return NextResponse.json({ profile: existingUser })
     }
 
