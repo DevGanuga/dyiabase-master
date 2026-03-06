@@ -51,6 +51,8 @@ export async function POST(request: NextRequest) {
     const allowedPriceIds = [
       process.env.NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID,
       process.env.NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID,
+      process.env.NEXT_PUBLIC_STRIPE_BASIC_MONTHLY_PRICE_ID,
+      process.env.NEXT_PUBLIC_STRIPE_BASIC_ANNUAL_PRICE_ID,
       process.env.STRIPE_CREDITS_PRICE_ID,
     ].filter(Boolean)
     if (allowedPriceIds.length > 0 && !allowedPriceIds.includes(priceId)) {

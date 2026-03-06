@@ -484,25 +484,29 @@ function AppPageContent() {
         }
       } catch (err) {
         console.error('Failed to verify checkout session:', err)
-      } finally {
-        sessionStorage.setItem('dyia_checkout_success', '1')
-        const url = new URL(window.location.href)
-        url.searchParams.delete('session_id')
-        router.replace(url.pathname + (url.search || ''), { scroll: false })
+        // Keep session_id in URL so a refresh can retry verification
+        // instead of bouncing the user to pricing
         setVerifyingCheckout(false)
+        return
       }
+      sessionStorage.setItem('dyia_checkout_success', '1')
+      const url = new URL(window.location.href)
+      url.searchParams.delete('session_id')
+      router.replace(url.pathname + (url.search || ''), { scroll: false })
+      setVerifyingCheckout(false)
     }
 
     verifySession()
   }, [sessionIdParam, loading, userProfile, router])
 
-  // Show checkout success toast (works after direct return AND after onboarding redirect)
+  // Show checkout success toast after onboarding is complete (not during redirect to onboarding)
+  const needsOnboardingEarly = !settings.onboardingCompleted && !settings.onboardingSkipped
   useEffect(() => {
-    if (!loading && !verifyingCheckout && userProfile && sessionStorage.getItem('dyia_checkout_success')) {
+    if (!loading && !verifyingCheckout && userProfile && !needsOnboardingEarly && sessionStorage.getItem('dyia_checkout_success')) {
       sessionStorage.removeItem('dyia_checkout_success')
       showSuccess('Your Pro trial is active! Welcome to Dyia Pro.')
     }
-  }, [loading, verifyingCheckout, userProfile, showSuccess])
+  }, [loading, verifyingCheckout, userProfile, needsOnboardingEarly, showSuccess])
 
   const handleLogout = async () => {
     if (isDemoMode) {

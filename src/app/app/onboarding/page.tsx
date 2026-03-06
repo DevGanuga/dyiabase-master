@@ -215,15 +215,18 @@ export default function OnboardingPage() {
       if (user.lastName) setLastName(user.lastName)
 
       try {
-        const { data: profile } = await supabase
-          .from('dyia_users')
-          .select('id, first_name, last_name')
-          .eq('clerk_user_id', user.id)
-          .single()
+        // Load profile through server API (uses service role key, bypasses RLS)
+        const initRes = await fetch('/api/user/init', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: user.primaryEmailAddress?.emailAddress || '' }),
+        })
+        const initData = initRes.ok ? await initRes.json() : null
+        const profile = initData?.profile
 
         if (!profile) {
-          // No profile yet — still use Clerk email as the default suggestion
           setBusinessEmail(user.primaryEmailAddress?.emailAddress || '')
+          setError('Could not load your account. Please refresh or sign out and back in.')
           setLoading(false)
           return
         }
@@ -377,7 +380,7 @@ export default function OnboardingPage() {
       sessionStorage.removeItem('dyia_onboarding_step')
       sessionStorage.removeItem('dyia_onboarding_data')
       setSaving(false)
-      router.push(returnUrl)
+      window.location.href = returnUrl
     }
   }
 
@@ -483,7 +486,7 @@ export default function OnboardingPage() {
 
       sessionStorage.removeItem('dyia_onboarding_step')
       sessionStorage.removeItem('dyia_onboarding_data')
-      router.push(returnUrl)
+      window.location.href = returnUrl
     } catch (err) {
       console.error('Onboarding save error:', err)
       const message = err instanceof Error ? err.message : 'Failed to save settings'
