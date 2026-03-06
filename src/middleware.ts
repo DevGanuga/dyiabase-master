@@ -65,6 +65,9 @@ export default clerkMiddleware(
         'img-src': [
           // Supabase storage (user-uploaded photos)
           process.env.NEXT_PUBLIC_SUPABASE_URL ?? '',
+          // data: and blob: URIs for client-side image processing (logo upload, compression)
+          'data:',
+          'blob:',
         ].filter(Boolean),
       },
     },
