@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
     // Get the dyia user ID from clerk_user_id
     const { data: dyiaUser, error: userError } = await supabase
       .from('dyia_users')
-      .select('id')
+      .select('id, is_admin, role')
       .eq('clerk_user_id', clerkUserId)
       .single()
 
@@ -69,6 +69,16 @@ export async function POST(request: NextRequest) {
         { error: 'User not found. Please try signing out and back in.' },
         { status: 404 }
       )
+    }
+
+    // Admin accounts get free access — never create a Stripe subscription
+    if (dyiaUser.is_admin || ['admin', 'super_admin'].includes(dyiaUser.role)) {
+      // Ensure admin has active status in DB
+      await supabase
+        .from('dyia_users')
+        .update({ subscription_status: 'active', subscription_plan: 'annual' })
+        .eq('id', dyiaUser.id)
+      return NextResponse.json({ error: 'Admin accounts have free access. Your account has been activated.' }, { status: 400 })
     }
 
     const baseUrl = getBaseUrl()

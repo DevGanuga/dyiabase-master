@@ -139,6 +139,7 @@ export function AdminPanel() {
   const [userDetail, setUserDetail] = useState<UserDetail | null>(null)
   const [detailLoading, setDetailLoading] = useState(false)
   const [toggling, setToggling] = useState<string | null>(null)
+  const [canceling, setCanceling] = useState<string | null>(null)
 
   const loadStats = useCallback(async () => {
     try {
@@ -186,6 +187,25 @@ export function AdminPanel() {
       if (res.ok) await loadStats()
     } catch (err) { console.error('Toggle admin error:', err) }
     finally { setToggling(null) }
+  }
+
+  const handleCancelSubscription = async (userId: string, immediate: boolean) => {
+    setCanceling(userId)
+    try {
+      const res = await fetch('/api/admin/cancel-subscription', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targetUserId: userId, immediate }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        await loadStats()
+        if (expandedUser === userId) loadUserDetail(userId)
+      } else {
+        console.error('Cancel subscription error:', data.error)
+      }
+    } catch (err) { console.error('Cancel subscription error:', err) }
+    finally { setCanceling(null) }
   }
 
   const handleUpdateUser = async (userId: string, updates: Record<string, unknown>) => {
@@ -438,6 +458,15 @@ export function AdminPanel() {
                   <div className="flex items-center gap-3 text-center shrink-0">
                     <LifecycleBadge stage={user.lifecycleStage} />
                     <StatusBadge status={user.subscription_status} />
+                    {user.subscription_status === 'trialing' && user.subscription_ends_at && (
+                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                        Math.ceil((new Date(user.subscription_ends_at).getTime() - Date.now()) / 86400000) <= 3
+                          ? 'bg-red-500/15 text-red-500'
+                          : 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
+                      }`}>
+                        {Math.max(0, Math.ceil((new Date(user.subscription_ends_at).getTime() - Date.now()) / 86400000))}d left
+                      </span>
+                    )}
                     <StatPill label="jobs" value={user.jobCount} />
                     <StatPill label="quotes" value={user.quoteCount} />
                     <StatPill label="AI" value={user.threadCount} />
@@ -539,6 +568,18 @@ export function AdminPanel() {
                           >
                             Adjust Credits ({user.ai_credits_balance})
                           </button>
+                          {['active', 'trialing', 'past_due'].includes(user.subscription_status) && (
+                            <button
+                              onClick={() => {
+                                const mode = user.subscription_status === 'trialing' ? 'immediate' : confirm('Cancel immediately? OK = now, Cancel = end of period')
+                                if (mode !== null) handleCancelSubscription(user.id, mode === 'immediate' || mode === true)
+                              }}
+                              disabled={canceling === user.id}
+                              className="px-3 py-1.5 text-xs rounded-lg font-medium bg-red-500/10 text-red-500 hover:bg-red-500/20 transition disabled:opacity-50"
+                            >
+                              {canceling === user.id ? 'Canceling...' : 'Cancel Subscription'}
+                            </button>
+                          )}
                           {user.stripe_customer_id && (
                             <a
                               href={`https://dashboard.stripe.com/customers/${user.stripe_customer_id}`}
