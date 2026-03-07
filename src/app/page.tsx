@@ -117,6 +117,7 @@ export default function LandingPage() {
               <img src="/dyia-logo-full.png" alt="dyia" className="h-8 object-contain brightness-0 invert" />
             </Link>
             <div className="hidden md:flex items-center gap-8">
+              <Link href="/pricing-calculator" className="text-sm text-slate-400 hover:text-white transition">Pricing Calculator</Link>
               <Link href="/profit-calculator" className="text-sm text-slate-400 hover:text-white transition">Free quiz</Link>
               <a href="#features" className="text-sm text-slate-400 hover:text-white transition">Features</a>
               <a href="#ai" className="text-sm text-slate-400 hover:text-white transition">Dyia AI</a>

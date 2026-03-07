@@ -16,7 +16,8 @@ export default function ProfitCalculatorLayout({
               <img src="/dyia-logo-full.png" alt="dyia" className="h-8 object-contain brightness-0 invert" />
             </Link>
             <div className="flex items-center gap-3">
-              <Link href="/profit-calculator" className="text-sm text-slate-400 hover:text-white transition">Calculator</Link>
+              <Link href="/pricing-calculator" className="text-sm text-slate-400 hover:text-white transition">Pricing Calculator</Link>
+              <Link href="/profit-calculator" className="text-sm text-slate-400 hover:text-white transition">Quiz</Link>
               <Link href="/sign-in" className="text-sm text-slate-400 hover:text-white transition">Sign in</Link>
               <Link href="/sign-up?redirect_url=/app" className="px-5 py-2.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 text-white rounded-xl font-semibold text-sm shadow-lg shadow-orange-500/20 transition-all">
                 Start free
