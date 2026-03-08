@@ -27,8 +27,8 @@ export default function PricingCalculatorLayout({
               <Link href="/#features" className="text-sm text-slate-400 hover:text-white transition">Features</Link>
             </div>
             <div className="flex items-center gap-2 sm:gap-3">
-              <Link href="/sign-in" className="text-sm text-slate-400 hover:text-white transition hidden sm:block">Sign in</Link>
-              <Link href="/sign-up?redirect_url=/app" className="px-4 sm:px-5 py-2 sm:py-2.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 text-white rounded-xl font-semibold text-sm shadow-lg shadow-orange-500/20 transition-all">
+              <Link href="/sign-in?utm_source=pricing-calculator" className="text-sm text-slate-400 hover:text-white transition hidden sm:block">Sign in</Link>
+              <Link href="/sign-up?redirect_url=/app&utm_source=pricing-calculator" className="px-4 sm:px-5 py-2 sm:py-2.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 text-white rounded-xl font-semibold text-sm shadow-lg shadow-orange-500/20 transition-all">
                 Try free
               </Link>
             </div>

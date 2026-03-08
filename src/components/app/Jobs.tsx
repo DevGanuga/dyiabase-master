@@ -23,6 +23,8 @@ interface JobsProps {
   showSuccess: (message: string) => void
   onOpenDyiaWithPrompt?: (prompt: string) => void
   isPro?: boolean
+  initialCloseDayDate?: string | null
+  onCloseDayDateConsumed?: () => void
 }
 
 interface TempCustomer {
@@ -44,7 +46,7 @@ interface TempExpenses {
 
 const MARKETING_SOURCES = ['Google', 'Facebook', 'Referral', 'Repeat Customer', 'Yelp', 'Craigslist', 'Instagram', 'Nextdoor', 'Thumbtack', 'HomeAdvisor', 'Website', 'Other']
 
-export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, settings, showSuccess, onOpenDyiaWithPrompt, isPro = true }: JobsProps) {
+export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, settings, showSuccess, onOpenDyiaWithPrompt, isPro = true, initialCloseDayDate, onCloseDayDateConsumed }: JobsProps) {
   const [editingJob, setEditingJob] = useState<AppJob | 'new' | null>(null)
   const [tempCustomers, setTempCustomers] = useState<TempCustomer[]>([])
   const [tempExpenses, setTempExpenses] = useState<TempExpenses>({ labor: 0, gas: 0, dumpFee: 0, dumpsterRental: 0, additional: 0 })
@@ -90,6 +92,15 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
     }
     setHasCheckedMonth(true)
   }, [jobs, selectedMonth, hasCheckedMonth, setSelectedMonth])
+
+  useEffect(() => {
+    if (!initialCloseDayDate) return
+    const targetDate = parseLocalDate(initialCloseDayDate)
+    setSelectedMonth(new Date(targetDate.getFullYear(), targetDate.getMonth(), 1))
+    openCloseDayModal(initialCloseDayDate)
+    onCloseDayDateConsumed?.()
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- only run when initialCloseDayDate changes
+  }, [initialCloseDayDate])
 
   // Filter jobs by month
   const monthJobs = useMemo(() => {

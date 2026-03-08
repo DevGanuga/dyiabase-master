@@ -120,6 +120,7 @@ function AppPageContent() {
     onboardingCompletedAt: null
   })
   const [selectedMonth, setSelectedMonth] = useState(new Date())
+  const [closeDayDateFromDashboard, setCloseDayDateFromDashboard] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [fixedMonthlyExpenses, setFixedMonthlyExpenses] = useState(0)
@@ -671,6 +672,10 @@ function AppPageContent() {
             taxPercentage={settings.taxPercentage}
             launchpadItems={launchpadItems}
             showLaunchpad={showLaunchpadOnDashboard}
+            onLogDailyExpenses={(date) => {
+              setCloseDayDateFromDashboard(date)
+              setCurrentView('jobs' as View)
+            }}
           />
         )
       case 'jobs':
@@ -683,6 +688,8 @@ function AppPageContent() {
             setSelectedMonth={setSelectedMonth}
             settings={settings}
             showSuccess={showSuccess}
+            initialCloseDayDate={closeDayDateFromDashboard}
+            onCloseDayDateConsumed={() => setCloseDayDateFromDashboard(null)}
           />
         )
       case 'quotes':

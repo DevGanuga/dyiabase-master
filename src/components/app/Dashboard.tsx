@@ -224,6 +224,7 @@ interface DashboardProps {
   showLaunchpad?: boolean
   onOpenDyia?: () => void
   onOpenDyiaWithPrompt?: (prompt: string) => void
+  onLogDailyExpenses?: (date: string) => void
 }
 
 export function Dashboard({ 
@@ -241,6 +242,7 @@ export function Dashboard({
   showLaunchpad = false,
   onOpenDyia,
   onOpenDyiaWithPrompt,
+  onLogDailyExpenses,
 }: DashboardProps) {
   
   // Get greeting based on time of day
@@ -308,10 +310,30 @@ export function Dashboard({
     const taxSetAside = netProfit > 0 ? netProfit * (taxPercentage / 100) : 0
     const takeHome = netProfit - taxSetAside
 
+    const todayExpenses = todayJobs.reduce((sum, j) =>
+      sum + (j.labor || 0) + (j.gas || 0) + (j.dumpFee || 0) +
+      (j.dumpsterRental || 0) + (j.additionalExpense || 0), 0)
+    const todayHasExpenses = todayExpenses > 0
+    const todayProfit = todayRevenue - todayExpenses
+
+    const byDate = new Map<string, { revenue: number; expenses: number }>()
+    thisMonth.forEach(j => {
+      const rev = (j.revenue || 0)
+      const exp = (j.labor || 0) + (j.gas || 0) + (j.dumpFee || 0) + (j.dumpsterRental || 0) + (j.additionalExpense || 0)
+      const cur = byDate.get(j.date) || { revenue: 0, expenses: 0 }
+      byDate.set(j.date, { revenue: cur.revenue + rev, expenses: cur.expenses + exp })
+    })
+    const daysNeedingExpenses = Array.from(byDate.entries())
+      .filter(([, v]) => v.revenue > 0 && v.expenses === 0).length
+
     return {
       todayJobs,
       todayJobsCount: todayJobs.length,
       todayRevenue,
+      todayExpenses,
+      todayHasExpenses,
+      todayProfit,
+      daysNeedingExpenses,
       jobsThisWeek: thisWeek.length,
       jobsAwayFromBest,
       jobsThisMonth: thisMonth.length,
@@ -338,7 +360,7 @@ export function Dashboard({
 
   // Build action items for the action feed
   const actionItems = useMemo(() => {
-    const items: Array<{ id: string; type: 'followup' | 'job' | 'quote' | 'insight'; title: string; subtitle: string; action: () => void; urgency: 'hot' | 'warm' | 'info' }> = []
+    const items: Array<{ id: string; type: 'followup' | 'job' | 'quote' | 'insight' | 'expense'; title: string; subtitle: string; action: () => void; urgency: 'hot' | 'warm' | 'info' }> = []
 
     // Hot follow-ups
     if (pendingFollowUps > 0) {
@@ -349,6 +371,18 @@ export function Dashboard({
         subtitle: 'Following up within 48hrs has a 3x conversion rate',
         action: () => onNavigate('followUps'),
         urgency: 'hot',
+      })
+    }
+
+    // Days needing expenses
+    if (stats.daysNeedingExpenses > 0) {
+      items.push({
+        id: 'pending-expenses',
+        type: 'expense',
+        title: `${stats.daysNeedingExpenses} day${stats.daysNeedingExpenses !== 1 ? 's' : ''} without expenses logged`,
+        subtitle: 'Log expenses to see your real profit',
+        action: () => onNavigate('jobs'),
+        urgency: 'warm',
       })
     }
 
@@ -391,7 +425,12 @@ export function Dashboard({
     return items
   }, [pendingFollowUps, stats, settings.monthlyGoal, onNavigate])
 
-  const typeIcons = {
+  const typeIcons: Record<string, React.ReactNode> = {
+    expense: (
+      <svg className="w-4 h-4 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    ),
     followup: (
       <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
@@ -558,8 +597,63 @@ export function Dashboard({
               </div>
             )}
 
+            {/* Close Out Your Day */}
+            {stats.todayJobsCount > 0 && (
+              <div className="pt-2 border-t border-[var(--color-border-light)]">
+                {stats.todayHasExpenses ? (
+                  <div className="flex items-center gap-2 px-2.5 py-2 bg-emerald-50 dark:bg-emerald-900/15 rounded-lg">
+                    <div className="w-5 h-5 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center shrink-0">
+                      <svg className="w-3 h-3 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[11px] font-medium text-emerald-700 dark:text-emerald-300">Day closed out</p>
+                      <p className="text-[10px] text-emerald-600/70 dark:text-emerald-400/60">{formatCurrency(stats.todayRevenue)} rev &middot; {formatCurrency(stats.todayProfit)} profit</p>
+                    </div>
+                    {onLogDailyExpenses && (
+                      <button
+                        onClick={() => {
+                          const now = new Date()
+                          onLogDailyExpenses(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`)
+                        }}
+                        className="text-[10px] text-emerald-600 dark:text-emerald-400 hover:underline font-medium shrink-0"
+                      >
+                        Edit
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => {
+                      if (onLogDailyExpenses) {
+                        const now = new Date()
+                        onLogDailyExpenses(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`)
+                      } else {
+                        onNavigate('jobs')
+                      }
+                    }}
+                    className="w-full flex items-center gap-2.5 px-2.5 py-2.5 bg-orange-50 dark:bg-orange-900/15 border border-orange-200/50 dark:border-orange-800/30 rounded-lg hover:bg-orange-100/70 dark:hover:bg-orange-900/25 transition-colors group"
+                  >
+                    <div className="w-7 h-7 bg-orange-100 dark:bg-orange-900/30 rounded-lg flex items-center justify-center shrink-0">
+                      <svg className="w-3.5 h-3.5 text-orange-600 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                    <div className="flex-1 min-w-0 text-left">
+                      <p className="text-xs font-semibold text-orange-700 dark:text-orange-300">Close out your day</p>
+                      <p className="text-[10px] text-orange-600/70 dark:text-orange-400/60">Log expenses to see your real profit</p>
+                    </div>
+                    <svg className="w-4 h-4 text-orange-400 group-hover:translate-x-0.5 transition-transform shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+            )}
+
             {/* Motivational Stat */}
-            {jobs.length > 0 && (
+            {jobs.length > 0 && stats.todayJobsCount === 0 && (
               <div className="pt-2 border-t border-[var(--color-border-light)]">
                 <div className="flex items-start gap-2 px-2 py-1.5 bg-amber-50 dark:bg-amber-900/15 rounded-lg">
                   <svg className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
