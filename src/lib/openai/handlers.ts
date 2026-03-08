@@ -100,6 +100,29 @@ async function createJob(args: Record<string, unknown>, dyiaUserId: string): Pro
         })
     }
 
+    if (customerId) {
+      await supabase
+        .from('dyia_follow_ups')
+        .update({ status: 'converted' })
+        .eq('customer_id', customerId)
+        .eq('user_id', dyiaUserId)
+        .in('status', ['pending', 'contacted', 'snoozed'])
+
+      const { data: matchingQuotes } = await supabase
+        .from('dyia_quotes')
+        .select('id')
+        .eq('customer_id', customerId)
+        .eq('user_id', dyiaUserId)
+        .neq('status', 'accepted')
+        .limit(1)
+      if (matchingQuotes?.[0]) {
+        await supabase
+          .from('dyia_quotes')
+          .update({ job_id: data.id, status: 'accepted' })
+          .eq('id', matchingQuotes[0].id)
+      }
+    }
+
     return {
       success: true,
       data: { 

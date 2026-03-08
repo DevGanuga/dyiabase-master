@@ -7,6 +7,7 @@ import { formatCurrency, parseLocalDate } from '@/lib/utils'
 import { getReviewRequestMessage } from '@/lib/reviews'
 import { downloadQuotePdf } from '@/lib/quote-pdf'
 import { useConfirm } from '@/components/providers/ConfirmProvider'
+import { ensureCustomer } from '@/lib/customers'
 import { DyiaActionButton, DYIA_PROMPTS } from './DyiaActionButton'
 import { DyiaInsight } from './DyiaInsight'
 
@@ -115,9 +116,71 @@ export function Quotes({ quotes, setQuotes, jobs, userId, settings, onCreateQuot
         sentAt: newStatus === 'sent' ? Date.now() : q.sentAt
       } : q))
       showSuccess(`Quote marked as ${newStatus}`)
+
+      if (newStatus === 'accepted') {
+        const quote = quotes.find(q => q.id === quoteId)
+        if (quote) {
+          const shouldConvert = await confirm({
+            title: 'Convert to job?',
+            message: `${quote.customer.name} accepted the quote for ${formatCurrency(quote.total || Math.round((quote.estimateRange.low + quote.estimateRange.high) / 2))}. Log this as a completed job?`,
+            confirmLabel: 'Log job',
+          })
+          if (shouldConvert) {
+            await convertAcceptedQuoteToJob(quote)
+          }
+        }
+      }
     } catch (error) {
       console.error('Error updating quote status:', error)
       await alert({ title: 'Error', message: 'Failed to update quote status.', variant: 'error' })
+    }
+  }
+
+  const convertAcceptedQuoteToJob = async (quote: AppQuote) => {
+    try {
+      const revenue = quote.total || Math.round((quote.estimateRange.low + quote.estimateRange.high) / 2)
+      const customerId = quote.customerId || await ensureCustomer(supabase, userId, quote.customer.name)
+
+      const { data: job, error: jobError } = await supabase
+        .from('dyia_jobs')
+        .insert({
+          user_id: userId,
+          customer_id: customerId,
+          date: new Date().toISOString().split('T')[0],
+          customer_name: quote.customer.name,
+          source: 'Quote',
+          revenue,
+          labor: 0, gas: 0, dump_fee: 0, dumpster_rental: 0, additional_expense: 0,
+          num_workers: 1, cost_per_worker: 0,
+          notes: quote.customer.jobDescription || null,
+          address: quote.customer.address || null,
+          status: 'completed',
+        })
+        .select()
+        .single()
+
+      if (jobError) throw jobError
+
+      await supabase
+        .from('dyia_quotes')
+        .update({ job_id: job.id, status: 'accepted' })
+        .eq('id', quote.id)
+        .eq('user_id', userId)
+
+      if (customerId) {
+        await supabase
+          .from('dyia_follow_ups')
+          .update({ status: 'converted' })
+          .eq('customer_id', customerId)
+          .eq('user_id', userId)
+          .in('status', ['pending', 'contacted', 'snoozed'])
+      }
+
+      setQuotes(quotes.map(q => q.id === quote.id ? { ...q, jobId: job.id, status: 'accepted' as QuoteStatus } : q))
+      showSuccess(`Job logged for ${quote.customer.name} — ${formatCurrency(revenue)}`)
+    } catch (error) {
+      console.error('Error converting quote to job:', error)
+      await alert({ title: 'Error', message: 'Quote accepted but failed to create job. You can create it manually.', variant: 'error' })
     }
   }
 

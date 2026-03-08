@@ -676,6 +676,11 @@ function AppPageContent() {
               setCloseDayDateFromDashboard(date)
               setCurrentView('jobs' as View)
             }}
+            onOpenDyia={() => setCurrentView('assistant' as View)}
+            onOpenDyiaWithPrompt={(prompt) => {
+              setAssistantInitialPrompt(prompt)
+              setCurrentView('assistant' as View)
+            }}
           />
         )
       case 'jobs':
