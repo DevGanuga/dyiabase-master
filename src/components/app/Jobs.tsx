@@ -487,7 +487,14 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
         setJobs([...newJobs, ...jobs])
         const totalRev = validCustomers.reduce((s, c) => s + c.revenue, 0)
         const totalProf = totalRev - totalExpenses
-        showSuccess(`${validCustomers.length === 1 ? 'Job' : `${validCustomers.length} jobs`} saved — ${formatCurrency(totalProf)} profit`)
+        const jobLabel = validCustomers.length === 1 ? 'Job' : `${validCustomers.length} jobs`
+        if (isFutureJob) {
+          showSuccess(`${jobLabel} scheduled for ${parseLocalDate(tempDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}`)
+        } else if (totalExpenses === 0) {
+          showSuccess(`${jobLabel} saved — ${formatCurrency(totalRev)} revenue. Log expenses later to see profit.`)
+        } else {
+          showSuccess(`${jobLabel} saved — ${formatCurrency(totalProf)} profit`)
+        }
       }
 
       cancelForm()
@@ -531,6 +538,10 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
   const liveTakeHome = liveProfit - liveTaxSetAside
   const expensePerCustomer = tempCustomers.length > 0 ? totalExpenses / tempCustomers.length : 0
 
+  const todayStr = new Date().toISOString().split('T')[0]
+  const isFutureJob = tempDate > todayStr
+  const isTodayJob = tempDate === todayStr
+
   // ===================== FORM VIEW =====================
   if (editingJob) {
     const isEditing = editingJob !== 'new'
@@ -547,12 +558,21 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
             </button>
             <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <h1 className="text-xl sm:text-2xl font-bold text-[var(--color-text-primary)]">{isEditing ? 'Edit Job' : 'Log Job'}</h1>
+                <h1 className="text-xl sm:text-2xl font-bold text-[var(--color-text-primary)]">
+                  {isEditing ? 'Edit Job' : isFutureJob ? 'Schedule Job' : 'Log Job'}
+                </h1>
                 {isEditing && (
                   <span className="px-2 py-0.5 bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-full text-[10px] font-bold uppercase">Editing</span>
                 )}
+                {!isEditing && isFutureJob && (
+                  <span className="px-2 py-0.5 bg-orange-500/10 text-orange-600 dark:text-orange-400 rounded-full text-[10px] font-bold uppercase">Scheduled</span>
+                )}
               </div>
-              <p className="text-sm text-[var(--color-text-muted)]">{isEditing ? 'Update job details' : 'Log one or multiple customers from the same trip'}</p>
+              <p className="text-sm text-[var(--color-text-muted)]">
+                {isEditing ? 'Update job details'
+                  : isFutureJob ? 'Schedule a job for a future date — log expenses when the day is done'
+                  : 'Log one or multiple customers from the same trip'}
+              </p>
             </div>
           </div>
         </div>
@@ -777,10 +797,15 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
         {/* === EXPENSES === */}
         <div className="app-card p-4 sm:p-5">
           <div className="flex justify-between items-center mb-3">
-            <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">
-              Expenses
-              {totalExpenses > 0 && <span className="text-red-500 font-normal ml-2 text-xs">{formatCurrency(totalExpenses)}</span>}
-            </h3>
+            <div>
+              <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">
+                Expenses
+                {totalExpenses > 0 && <span className="text-red-500 font-normal ml-2 text-xs">{formatCurrency(totalExpenses)}</span>}
+              </h3>
+              {isFutureJob && !isEditing && (
+                <p className="text-[10px] text-[var(--color-text-faint)] mt-0.5">Optional now — you can log expenses when you close out the day</p>
+              )}
+            </div>
             {/* Tab-style toggle */}
             <div className="bg-[var(--color-bg-subtle)] rounded-lg p-0.5 inline-flex text-xs">
               <button
@@ -908,13 +933,27 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
                 {saving ? (
                   <>
                     <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    Saving...
+                    {isFutureJob ? 'Scheduling...' : 'Saving...'}
+                  </>
+                ) : isFutureJob ? (
+                  <>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                    Schedule {tempCustomers.length > 1 ? `${tempCustomers.length} Jobs` : 'Job'}
                   </>
                 ) : (
-                  <>Save {tempCustomers.length > 1 ? `${tempCustomers.length} Jobs` : 'Job'}</>
+                  <>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                    {tempCustomers.length > 1 ? `Save ${tempCustomers.length} Jobs` : 'Save Job'}
+                  </>
                 )}
               </button>
             </div>
+            {/* Expense reminder for today's jobs */}
+            {isTodayJob && totalExpenses === 0 && totalRevenue > 0 && !isEditing && (
+              <p className="text-[10px] text-[var(--color-text-faint)] text-right mt-1 sm:hidden">
+                You can log expenses later when you close out your day
+              </p>
+            )}
           </div>
         </div>
       </div>

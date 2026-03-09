@@ -356,6 +356,7 @@ export default function PricingCalculatorPage() {
   const [costTruckRental, setCostTruckRental] = useState(0)
   const [costFuel, setCostFuel] = useState(0)
   const [costLabor, setCostLabor] = useState(0)
+  const [taxRate, setTaxRate] = useState(0)
 
   const calc = useMemo(() => {
     let basePrice = 0
@@ -375,6 +376,8 @@ export default function PricingCalculatorPage() {
     const margin = totalQuotePrice > 0 ? (profit / totalQuotePrice) * 100 : 0
     const hourlyRate = estimatedHours > 0 ? profit / estimatedHours : 0
     const breakeven = totalCost
+    const taxAmount = taxRate > 0 && profit > 0 ? profit * (taxRate / 100) : 0
+    const takeHome = profit - taxAmount
 
     let recommendLow = 'Enter costs'; let recommendMed = 'Enter costs'; let recommendHigh = 'Enter costs'
     if (totalCost > 0) {
@@ -384,12 +387,12 @@ export default function PricingCalculatorPage() {
     }
     const multiLoadTotal = jobType === 'multipleLoads' ? numLoads * pricePerLoad - (numLoads * pricePerLoad * loadDiscount / 100) : 0
 
-    return { totalQuotePrice, totalCost, profit, margin, hourlyRate, breakeven, recommendLow, recommendMed, recommendHigh, multiLoadTotal }
+    return { totalQuotePrice, totalCost, profit, margin, hourlyRate, breakeven, taxAmount, takeHome, recommendLow, recommendMed, recommendHigh, multiLoadTotal }
   }, [jobType, loadPrice, numLoads, pricePerLoad, loadDiscount, specialtyPrice, mixedSpecialtyPrice, mixedLoadPrice,
     applyStairs, stairsCharge, applyDisassembly, disassemblyCharge, applyExtraLabor, extraLaborCharge, applyDemolition, demolitionCharge,
-    costLandfill, costDumpster, costDemoMachine, costTruckRental, costFuel, costLabor, estimatedHours])
+    costLandfill, costDumpster, costDemoMachine, costTruckRental, costFuel, costLabor, estimatedHours, taxRate])
 
-  const { margin, totalQuotePrice, totalCost, profit, hourlyRate, breakeven } = calc
+  const { margin, totalQuotePrice, totalCost, profit, hourlyRate, breakeven, taxAmount, takeHome } = calc
   const hasInput = totalQuotePrice > 0 || totalCost > 0
 
   const marginColor = margin >= 50 ? 'text-orange-400' : margin >= 30 ? 'text-amber-400' : 'text-red-400'
@@ -417,7 +420,7 @@ export default function PricingCalculatorPage() {
     setMixedLoadSize('quarter'); setMixedLoadPrice(0)
     setApplyStairs(false); setStairsCharge(0); setApplyDisassembly(false); setDisassemblyCharge(0)
     setApplyExtraLabor(false); setExtraLaborCharge(0); setApplyDemolition(false); setDemolitionCharge(0)
-    setCostLandfill(0); setCostDumpster(0); setCostDemoMachine(0); setCostTruckRental(0); setCostFuel(0); setCostLabor(0)
+    setCostLandfill(0); setCostDumpster(0); setCostDemoMachine(0); setCostTruckRental(0); setCostFuel(0); setCostLabor(0); setTaxRate(0)
   }, [])
 
   const saveQuoteLocally = useCallback((name: string, address: string) => {
@@ -579,6 +582,31 @@ export default function PricingCalculatorPage() {
 
             <CostBreakdown costs={costItems} />
 
+            {/* Tax rate */}
+            <div className="mt-4 pt-4 border-t border-white/[0.06]">
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-white/70">Tax set-aside %</p>
+                  <p className="text-[11px] text-white/30">Optional — see what you actually take home</p>
+                </div>
+                <div className="w-24">
+                  <div className="relative">
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      value={taxRate || ''}
+                      onChange={(e) => setTaxRate(Math.min(100, Math.max(0, Number(e.target.value) || 0)))}
+                      min={0}
+                      max={100}
+                      placeholder="30"
+                      className="w-full bg-white/[0.05] border border-white/10 rounded-xl text-white px-3 py-2.5 text-sm text-right pr-8 focus:outline-none focus:border-orange-500/60 focus:ring-1 focus:ring-orange-500/20 transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 text-sm">%</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <div className="flex gap-3 mt-5">
               <button onClick={clearAll} className="flex-1 py-2.5 rounded-xl border border-white/10 text-white/40 text-sm font-medium hover:border-white/20 hover:text-white/60 transition-all">Clear all</button>
               <button onClick={() => resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
@@ -639,6 +667,18 @@ export default function PricingCalculatorPage() {
                 <span className="text-white/50 font-medium">Profit</span>
                 <span className={`font-bold text-lg tabular-nums ${profit >= 0 ? 'text-orange-400' : 'text-red-400'}`}>${fmt(profit)}</span>
               </div>
+              {taxRate > 0 && profit > 0 && (
+                <>
+                  <div className="flex justify-between text-white/35">
+                    <span>Tax set-aside ({taxRate}%)</span>
+                    <span className="tabular-nums">-${fmt(taxAmount)}</span>
+                  </div>
+                  <div className="flex justify-between pt-2 border-t border-white/[0.06]">
+                    <span className="text-purple-400/80 font-medium">Take Home</span>
+                    <span className="font-bold text-lg tabular-nums text-purple-400">${fmt(takeHome)}</span>
+                  </div>
+                </>
+              )}
             </div>
 
             {/* Hourly rate + breakeven */}
@@ -740,7 +780,9 @@ export default function PricingCalculatorPage() {
                 <span className={`text-2xl font-bold font-space-grotesk tabular-nums ${marginColor}`}>{margin.toFixed(1)}%</span>
                 <div className="text-xs text-white/40 leading-tight">
                   <p>${totalQuotePrice.toFixed(0)} rev{estimatedHours > 0 && <span className="text-white/30"> · ${hourlyRate.toFixed(0)}/hr</span>}</p>
-                  <p className={profit >= 0 ? 'text-orange-400/70' : 'text-red-400/70'}>${profit.toFixed(0)} profit</p>
+                  <p className={profit >= 0 ? 'text-orange-400/70' : 'text-red-400/70'}>
+                    ${profit.toFixed(0)} profit{taxRate > 0 && profit > 0 && <span className="text-purple-400/60"> · ${takeHome.toFixed(0)} home</span>}
+                  </p>
                 </div>
               </div>
               <button onClick={() => setShowSaveModal(true)} className="px-4 py-2.5 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-xl font-semibold text-sm shadow-lg shadow-orange-500/25 whitespace-nowrap">Save quote →</button>
