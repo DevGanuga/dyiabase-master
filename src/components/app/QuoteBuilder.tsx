@@ -278,8 +278,6 @@ export function QuoteBuilder({ quotes, setQuotes, userId, selectedJob, editingQu
       setPricePerLoad(0)
       setSelectedTemplateId(null)
       setLineItems([])
-      setEstimateLow(0)
-      setEstimateHigh(0)
       return
     }
     setSelectedTemplateId(template.id)
