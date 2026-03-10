@@ -46,6 +46,15 @@ interface FollowUpsProps {
   businessName?: string
   showSuccess?: (message: string) => void
   onDataChanged?: () => void
+  isDemoMode?: boolean
+  demoQuotes?: Array<{
+    id: string
+    createdAt: number
+    customerId?: string | null
+    customer: { name: string; phone?: string; email?: string; address?: string; jobDescription?: string }
+    estimateRange: { low: number; high: number }
+    status: string
+  }>
 }
 
 const PRIORITY_OPTIONS: { value: FollowUpPriority | 'all'; label: string }[] = [
@@ -84,7 +93,7 @@ const KANBAN_COLUMN_CONFIG: { id: FollowUpStatus; title: string; color: string }
   { id: 'lost', title: 'Lost', color: '#ef4444' },
 ]
 
-export function FollowUps({ userId, businessName = 'dyia', showSuccess, onDataChanged }: FollowUpsProps) {
+export function FollowUps({ userId, businessName = 'dyia', showSuccess, onDataChanged, isDemoMode = false, demoQuotes }: FollowUpsProps) {
   const supabase = useMemo(() => createClient(), [])
   const { alert } = useConfirm()
   const [rows, setRows] = useState<FollowUpRow[]>([])
@@ -100,6 +109,53 @@ export function FollowUps({ userId, businessName = 'dyia', showSuccess, onDataCh
       setLoading(true)
 
       try {
+        if (isDemoMode && demoQuotes) {
+          const demoStatuses: Record<string, { status: FollowUpStatus; contactCount: number; lastContacted?: string }> = {
+            'demo-q1': { status: 'pending', contactCount: 0 },
+            'demo-q2': { status: 'contacted', contactCount: 2, lastContacted: new Date(Date.now() - 86400000 * 2).toISOString() },
+            'demo-q3': { status: 'pending', contactCount: 1, lastContacted: new Date(Date.now() - 86400000 * 7).toISOString() },
+            'demo-q4': { status: 'pending', contactCount: 0 },
+            'demo-q5': { status: 'converted', contactCount: 3, lastContacted: new Date(Date.now() - 86400000 * 5).toISOString() },
+          }
+
+          const nextRows: FollowUpRow[] = demoQuotes.map((q) => {
+            const daysSinceQuote = Math.max(0, Math.floor((Date.now() - q.createdAt) / 86400000))
+            const priority = getPriority(daysSinceQuote)
+            const demoStatus = demoStatuses[q.id] || { status: 'pending' as FollowUpStatus, contactCount: 0 }
+
+            const quote: QuoteSummary = {
+              id: q.id,
+              createdAt: q.createdAt,
+              customerId: q.customerId || undefined,
+              customerName: q.customer.name,
+              phone: q.customer.phone,
+              email: q.customer.email,
+              jobDescription: q.customer.jobDescription,
+              estimateLow: q.estimateRange.low,
+              estimateHigh: q.estimateRange.high,
+            }
+
+            return {
+              quote,
+              followUp: {
+                id: `demo-fu-${q.id}`,
+                quote_id: q.id,
+                status: demoStatus.status,
+                contact_count: demoStatus.contactCount,
+                last_contacted_at: demoStatus.lastContacted || null,
+                next_follow_up_at: null,
+                notes: null,
+              },
+              priority,
+              daysSinceQuote,
+            }
+          })
+
+          setRows(nextRows)
+          setLoading(false)
+          return
+        }
+
         const { data: quotesData, error: quotesError } = await supabase
           .from('dyia_quotes')
           .select('id, created_at, customer_id, customer_name, customer_phone, customer_email, job_description, estimate_low, estimate_high')
@@ -115,7 +171,6 @@ export function FollowUps({ userId, businessName = 'dyia', showSuccess, onDataCh
 
         if (followUpsError) throw followUpsError
 
-        // Load customer stats for pipeline context
         const { data: jobsData } = await supabase
           .from('dyia_jobs')
           .select('customer_id, revenue')
@@ -172,7 +227,7 @@ export function FollowUps({ userId, businessName = 'dyia', showSuccess, onDataCh
     }
 
     loadFollowUps()
-  }, [supabase, userId])
+  }, [supabase, userId, isDemoMode, demoQuotes])
 
   const persistFollowUp = async (
     row: FollowUpRow,

@@ -26,7 +26,7 @@ const Assistant = dynamic(() => import('@/components/app/Assistant').then(m => (
 const Calendar = dynamic(() => import('@/components/app/Calendar').then(m => ({ default: m.Calendar })), { ssr: false })
 const AdminPanel = dynamic(() => import('@/components/app/AdminPanel').then(m => ({ default: m.AdminPanel })), { ssr: false })
 
-type View = 'dashboard' | 'jobs' | 'quotes' | 'quoteBuilder' | 'followUps' | 'calendar' | 'reports' | 'marketing' | 'customers' | 'massEmail' | 'assistant' | 'settings' | 'admin' | 'pricingCalculator'
+type View = 'dashboard' | 'jobs' | 'quotes' | 'quoteBuilder' | 'followUps' | 'calendar' | 'reports' | 'marketing' | 'customers' | 'massEmail' | 'assistant' | 'settings' | 'admin'
 
 // Demo data for showcase
 const DEMO_JOBS: AppJob[] = [
@@ -35,6 +35,14 @@ const DEMO_JOBS: AppJob[] = [
   { id: 'demo-3', date: new Date(Date.now() - 172800000).toISOString().split('T')[0], customerName: 'Sarah Miller', source: 'Yelp', revenue: 275, labor: 60, gas: 20, dumpFee: 45, dumpsterRental: 0, additionalExpense: 0, numWorkers: 2, costPerWorker: 30, notes: 'Basement cleanout' },
   { id: 'demo-4', date: new Date(Date.now() - 259200000).toISOString().split('T')[0], customerName: 'Downtown Office Co', source: 'Website', revenue: 1200, labor: 200, gas: 50, dumpFee: 180, dumpsterRental: 200, additionalExpense: 50, numWorkers: 4, costPerWorker: 50, notes: 'Office furniture disposal' },
   { id: 'demo-5', date: new Date(Date.now() - 345600000).toISOString().split('T')[0], customerName: 'The Martinez Home', source: 'Google', revenue: 350, labor: 70, gas: 22, dumpFee: 55, dumpsterRental: 0, additionalExpense: 0, numWorkers: 2, costPerWorker: 35, notes: 'Attic cleanout' },
+]
+
+const DEMO_QUOTES: AppQuote[] = [
+  { id: 'demo-q1', customerId: 'demo-c1', createdAt: Date.now() - 86400000 * 1, customer: { name: 'Lisa Chen', phone: '(555) 234-5678', email: 'lisa.chen@email.com', address: '892 Oak Ave', jobDescription: 'Full yard debris removal after storm' }, pricing: {}, photos: [], estimateRange: { low: 350, high: 450 }, total: 400, status: 'sent' },
+  { id: 'demo-q2', customerId: 'demo-c2', createdAt: Date.now() - 86400000 * 4, customer: { name: 'Robert Hayes', phone: '(555) 345-6789', email: 'rob.hayes@email.com', address: '1420 Elm St', jobDescription: 'Hot tub removal and disposal' }, pricing: {}, photos: [], estimateRange: { low: 500, high: 700 }, total: 600, status: 'sent' },
+  { id: 'demo-q3', customerId: 'demo-c3', createdAt: Date.now() - 86400000 * 9, customer: { name: 'Amanda Torres', phone: '(555) 456-7890', address: '305 Pine Rd', jobDescription: 'Garage cleanout — 2 car garage, mostly furniture' }, pricing: {}, photos: [], estimateRange: { low: 275, high: 375 }, total: 325, status: 'sent' },
+  { id: 'demo-q4', customerId: 'demo-c4', createdAt: Date.now() - 86400000 * 2, customer: { name: 'Kevin Park', phone: '(555) 567-8901', email: 'kpark@email.com', address: '88 Birch Ln', jobDescription: 'Construction debris from bathroom remodel' }, pricing: {}, photos: [], estimateRange: { low: 600, high: 800 }, total: 700, status: 'draft' },
+  { id: 'demo-q5', customerId: 'demo-c5', jobId: 'demo-1', createdAt: Date.now() - 86400000 * 6, customer: { name: 'Johnson Family', phone: '(555) 678-9012', address: '1200 Maple Dr', jobDescription: 'Full garage cleanout' }, pricing: {}, photos: [], estimateRange: { low: 400, high: 500 }, total: 450, status: 'accepted' },
 ]
 
 const DEMO_SETTINGS: AppSettings = {
@@ -46,7 +54,7 @@ const DEMO_SETTINGS: AppSettings = {
   onboardingCompletedAt: null
 }
 
-const VALID_VIEWS: View[] = ['dashboard', 'jobs', 'quotes', 'quoteBuilder', 'followUps', 'calendar', 'reports', 'marketing', 'customers', 'massEmail', 'assistant', 'settings', 'admin', 'pricingCalculator']
+const VALID_VIEWS: View[] = ['dashboard', 'jobs', 'quotes', 'quoteBuilder', 'followUps', 'calendar', 'reports', 'marketing', 'customers', 'massEmail', 'assistant', 'settings', 'admin']
 
 export default function AppPage() {
   return (
@@ -164,7 +172,7 @@ function AppPageContent() {
         setIsDemoMode(true)
         setJobs(DEMO_JOBS)
         setSettings(DEMO_SETTINGS)
-        setQuotes([])
+        setQuotes(DEMO_QUOTES)
         setFixedMonthlyExpenses(0)
         setUserProfile({
           id: 'demo-user',
@@ -765,6 +773,8 @@ function AppPageContent() {
             businessName={settings.businessInfo.name || 'dyia'}
             showSuccess={showSuccess}
             onDataChanged={refreshCounts}
+            isDemoMode={isDemoMode}
+            demoQuotes={isDemoMode ? quotes : undefined}
           />
         )
       case 'calendar':
@@ -810,17 +820,6 @@ function AppPageContent() {
         )
       case 'admin':
         return <AdminPanel />
-      case 'pricingCalculator':
-        return (
-          <div className="-mx-4 sm:-mx-6 lg:-mx-8 -my-4 sm:-my-6 lg:-my-8">
-            <iframe
-              src="/pricing-calculator?app"
-              className="w-full border-0"
-              style={{ height: 'calc(100vh - 64px)', minHeight: '600px' }}
-              title="Pricing Calculator"
-            />
-          </div>
-        )
       case 'assistant':
         return null // Rendered separately in main - kept mounted for continuous chat experience
     }
