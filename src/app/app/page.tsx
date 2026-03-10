@@ -814,8 +814,8 @@ function AppPageContent() {
         return (
           <div className="-mx-4 sm:-mx-6 lg:-mx-8 -my-4 sm:-my-6 lg:-my-8">
             <iframe
-              src="/pricing-calculator"
-              className="w-full border-0 rounded-lg"
+              src="/pricing-calculator?app"
+              className="w-full border-0"
               style={{ height: 'calc(100vh - 64px)', minHeight: '600px' }}
               title="Pricing Calculator"
             />

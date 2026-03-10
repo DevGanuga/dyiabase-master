@@ -118,8 +118,14 @@ export function QuoteBuilder({ quotes, setQuotes, userId, selectedJob, editingQu
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null)
   const [templateLoaded, setTemplateLoaded] = useState(false)
   const [showSummary, setShowSummary] = useState(false)
-  const [quoteSource, setQuoteSource] = useState('')
-  const [notes, setNotes] = useState('')
+  const [quoteSource, setQuoteSource] = useState(() => {
+    if (editingQuote?.pricing?.source) return editingQuote.pricing.source as string
+    return ''
+  })
+  const [notes, setNotes] = useState(() => {
+    if (editingQuote?.pricing?.notes) return editingQuote.pricing.notes as string
+    return ''
+  })
   const [aiSuggesting, setAiSuggesting] = useState(false)
   const [aiSuggestion, setAiSuggestion] = useState<{ low: number; high: number; method?: string } | null>(null)
   const [saveTemplateModal, setSaveTemplateModal] = useState(false)
@@ -195,7 +201,7 @@ export function QuoteBuilder({ quotes, setQuotes, userId, selectedJob, editingQu
         const defaultT = list.find((t) => t.isDefault) ?? list[0] ?? null
         setDefaultTemplate(defaultT)
 
-        if (defaultT) {
+        if (defaultT && !isEditing) {
           setSelectedTemplateId(defaultT.id)
           const p = defaultT.prices
           const templatePricing: Record<string, number> = {}
@@ -208,7 +214,23 @@ export function QuoteBuilder({ quotes, setQuotes, userId, selectedJob, editingQu
           if (p.surcharges?.hotTub != null) templatePricing.hotTub = p.surcharges.hotTub
           if (p.surcharges?.piano != null) templatePricing.piano = p.surcharges.piano
           setPricing((prev) => ({ ...prev, ...templatePricing }))
-        } else {
+
+          const genItems: LineItem[] = []
+          let genTotal = 0
+          for (const { field, label } of VOLUME_FIELDS) {
+            const val = templatePricing[field] || 0
+            if (val > 0) { genItems.push({ id: `vol-${field}`, description: label, amount: val }); genTotal += val }
+          }
+          for (const { field, label } of SPECIALTY_FIELDS) {
+            const val = templatePricing[field] || 0
+            if (val > 0) { genItems.push({ id: `spec-${field}`, description: `${label} Removal`, amount: val }); genTotal += val }
+          }
+          if (genItems.length > 0) {
+            setLineItems(genItems)
+            setEstimateLow(Math.floor(genTotal * 0.9))
+            setEstimateHigh(Math.ceil(genTotal * 1.1))
+          }
+        } else if (!isEditing) {
           setSelectedTemplateId(null)
         }
       } catch (error) {
@@ -219,9 +241,35 @@ export function QuoteBuilder({ quotes, setQuotes, userId, selectedJob, editingQu
     }
 
     loadTemplates()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId, supabase, templateLoaded])
 
   const selectedTemplate = selectedTemplateId ? templates.find((t) => t.id === selectedTemplateId) ?? null : null
+
+  const generateFromPricing = useCallback((pricingValues: Record<string, number>, loads = 0, perLoad = 0) => {
+    const items: LineItem[] = []
+    let total = 0
+
+    for (const { field, label } of VOLUME_FIELDS) {
+      const val = pricingValues[field] || 0
+      if (val > 0) { items.push({ id: `vol-${field}`, description: label, amount: val }); total += val }
+    }
+    if (loads > 0 && perLoad > 0) {
+      const amt = loads * perLoad
+      items.push({ id: 'multi-loads', description: `${loads} Full Loads @ ${formatCurrency(perLoad)}`, amount: amt })
+      total += amt
+    }
+    for (const { field, label } of SPECIALTY_FIELDS) {
+      const val = pricingValues[field] || 0
+      if (val > 0) { items.push({ id: `spec-${field}`, description: `${label} Removal`, amount: val }); total += val }
+    }
+    for (const { field, label } of FEE_FIELDS) {
+      const val = pricingValues[field] || 0
+      if (val > 0) { items.push({ id: `fee-${field}`, description: `${label} Fee`, amount: val }); total += val }
+    }
+
+    return { items, total }
+  }, [])
 
   const applyTemplate = useCallback((template: AppPriceTemplate | null) => {
     if (!template) {
@@ -229,6 +277,9 @@ export function QuoteBuilder({ quotes, setQuotes, userId, selectedJob, editingQu
       setNumLoads(0)
       setPricePerLoad(0)
       setSelectedTemplateId(null)
+      setLineItems([])
+      setEstimateLow(0)
+      setEstimateHigh(0)
       return
     }
     setSelectedTemplateId(template.id)
@@ -243,7 +294,14 @@ export function QuoteBuilder({ quotes, setQuotes, userId, selectedJob, editingQu
     if (p.surcharges?.hotTub != null) next.hotTub = p.surcharges.hotTub
     if (p.surcharges?.piano != null) next.piano = p.surcharges.piano
     setPricing(next)
-  }, [])
+
+    const { items, total } = generateFromPricing(next)
+    if (items.length > 0) {
+      setLineItems(items)
+      setEstimateLow(Math.floor(total * 0.9))
+      setEstimateHigh(Math.ceil(total * 1.1))
+    }
+  }, [generateFromPricing])
 
   const fetchAiSuggestion = useCallback(async () => {
     const desc = customer.jobDescription?.trim()
@@ -322,26 +380,7 @@ export function QuoteBuilder({ quotes, setQuotes, userId, selectedJob, editingQu
 
   // When calculator values change, generate line items and update estimate range
   const applyCalculator = useCallback(() => {
-    const items: LineItem[] = []
-    let total = 0
-
-    for (const { field, label } of VOLUME_FIELDS) {
-      const val = pricing[field] || 0
-      if (val > 0) { items.push({ id: `vol-${field}`, description: label, amount: val }); total += val }
-    }
-    if (numLoads > 0 && pricePerLoad > 0) {
-      const amt = numLoads * pricePerLoad
-      items.push({ id: 'multi-loads', description: `${numLoads} Full Loads @ ${formatCurrency(pricePerLoad)}`, amount: amt })
-      total += amt
-    }
-    for (const { field, label } of SPECIALTY_FIELDS) {
-      const val = pricing[field] || 0
-      if (val > 0) { items.push({ id: `spec-${field}`, description: `${label} Removal`, amount: val }); total += val }
-    }
-    for (const { field, label } of FEE_FIELDS) {
-      const val = pricing[field] || 0
-      if (val > 0) { items.push({ id: `fee-${field}`, description: `${label} Fee`, amount: val }); total += val }
-    }
+    const { items, total } = generateFromPricing(pricing, numLoads, pricePerLoad)
 
     setLineItems(items)
     if (total > 0) {
@@ -349,7 +388,7 @@ export function QuoteBuilder({ quotes, setQuotes, userId, selectedJob, editingQu
       setEstimateHigh(Math.ceil(total * 1.1))
     }
     setShowCalculator(false)
-  }, [pricing, numLoads, pricePerLoad])
+  }, [pricing, numLoads, pricePerLoad, generateFromPricing])
 
   const addLineItem = () => {
     setLineItems(prev => [...prev, { id: `li-${Date.now()}`, description: '', amount: 0 }])
@@ -409,6 +448,8 @@ export function QuoteBuilder({ quotes, setQuotes, userId, selectedJob, editingQu
         ...pricing,
         lineItems: lineItems.filter(li => li.description && li.amount > 0).map(li => ({ description: li.description, amount: li.amount })),
         ...(numLoads > 0 && pricePerLoad > 0 ? { multipleLoads: { numLoads, pricePerLoad, total: numLoads * pricePerLoad } } : {}),
+        ...(notes ? { notes } : {}),
+        ...(quoteSource ? { source: quoteSource } : {}),
       }
 
       const quotePayload = {
@@ -669,54 +710,61 @@ export function QuoteBuilder({ quotes, setQuotes, userId, selectedJob, editingQu
           </div>
         </div>
 
-        {/* Quote Date */}
+        {/* Quote Date + Pricing Template */}
         <div className="app-card p-4 sm:p-5">
-          <h3 className="text-sm font-semibold text-[var(--color-text-primary)] mb-3 flex items-center gap-2">
-            <svg className="w-4 h-4 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-            Quote Date
-          </h3>
-          <input
-            type="date"
-            value={quoteDate}
-            onChange={(e) => setQuoteDate(e.target.value)}
-            className="app-input w-full sm:w-auto"
-          />
-          <p className="text-xs text-[var(--color-text-faint)] mt-1">Date shown on the PDF estimate</p>
-        </div>
+          <div className={`${templates.length > 0 ? 'grid grid-cols-1 sm:grid-cols-2 gap-4' : ''}`}>
+            <div>
+              <label className="app-label flex items-center gap-1.5">
+                <svg className="w-3.5 h-3.5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                Quote Date
+              </label>
+              <input
+                type="date"
+                value={quoteDate}
+                onChange={(e) => setQuoteDate(e.target.value)}
+                className="app-input w-full"
+              />
+            </div>
 
-        {/* Template selector + Save as template */}
-        <div className="flex flex-wrap items-center gap-3 mb-4">
-          {templates.length > 0 && (
-            <>
-              <label className="text-sm font-medium text-[var(--color-text-secondary)]">Pricing from</label>
-              <select
-                value={selectedTemplateId ?? '__scratch__'}
-                onChange={(e) => {
-                  const v = e.target.value
-                  if (v === '__scratch__') applyTemplate(null)
-                  else {
-                    const t = templates.find((x) => x.id === v)
-                    if (t) applyTemplate(t)
-                  }
-                }}
-                className="app-select py-2 text-sm min-w-[140px]"
-              >
-                <option value="__scratch__">From scratch</option>
-                {templates.map((t) => (
-                  <option key={t.id} value={t.id}>{t.name}{t.isDefault ? ' (default)' : ''}</option>
-                ))}
-              </select>
-            </>
-          )}
-          <button
-            type="button"
-            onClick={() => setSaveTemplateModal(true)}
-            className="text-sm font-medium text-orange-600 dark:text-orange-400 hover:underline"
-          >
-            Save as template
-          </button>
+            {templates.length > 0 && (
+              <div>
+                <label className="app-label flex items-center gap-1.5">
+                  <svg className="w-3.5 h-3.5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
+                  </svg>
+                  Pricing Template
+                </label>
+                <select
+                  value={selectedTemplateId ?? '__scratch__'}
+                  onChange={(e) => {
+                    const v = e.target.value
+                    if (v === '__scratch__') applyTemplate(null)
+                    else {
+                      const t = templates.find((x) => x.id === v)
+                      if (t) applyTemplate(t)
+                    }
+                  }}
+                  className="app-select w-full"
+                >
+                  <option value="__scratch__">From scratch</option>
+                  {templates.map((t) => (
+                    <option key={t.id} value={t.id}>{t.name}{t.isDefault ? ' (default)' : ''}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
+          <div className="flex items-center gap-3 mt-2">
+            <button
+              type="button"
+              onClick={() => setSaveTemplateModal(true)}
+              className="text-xs font-medium text-orange-600 dark:text-orange-400 hover:underline"
+            >
+              Save current pricing as template
+            </button>
+          </div>
         </div>
 
         {/* Estimate Range */}

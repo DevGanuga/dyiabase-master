@@ -311,16 +311,19 @@ export default function PricingCalculatorPage() {
   const [savedQuotes, setSavedQuotes] = useState<SavedQuote[]>([])
   const resultsRef = useRef<HTMLDivElement>(null)
 
+  const isAppMode = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('app')
+
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- hydration guard
     setMounted(true)
     // eslint-disable-next-line react-hooks/set-state-in-effect -- hydration guard
-    setLicensed(!!localStorage.getItem(LICENSE_STORAGE_KEY))
+    setLicensed(isAppMode || !!localStorage.getItem(LICENSE_STORAGE_KEY))
     try {
       const raw = localStorage.getItem(QUOTES_STORAGE_KEY)
       // eslint-disable-next-line react-hooks/set-state-in-effect -- hydration guard
       if (raw) setSavedQuotes(JSON.parse(raw))
     } catch { /* ignore */ }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const [jobType, setJobType] = useState<JobType>('volume')
@@ -449,6 +452,7 @@ export default function PricingCalculatorPage() {
       {showSaveModal && <SaveQuoteModal onClose={() => setShowSaveModal(false)} onSaveLocal={saveQuoteLocally} quotePrice={totalQuotePrice} profit={profit} margin={margin} />}
 
       {/* Header */}
+      {!isAppMode && (
       <div className={`text-center mb-8 sm:mb-10 transition-all duration-700 ${mounted ? 'translate-y-0 opacity-100' : 'translate-y-6 opacity-0'}`}>
         <div className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-orange-500/10 border border-orange-500/20 rounded-full text-orange-400 text-[13px] font-medium mb-5">
           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" /></svg>
@@ -461,6 +465,7 @@ export default function PricingCalculatorPage() {
           The calculator you know — rebuilt with live margins, hourly rates, and quote saving.
         </p>
       </div>
+      )}
 
       {/* Main grid */}
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_420px] gap-6 items-start">
@@ -741,7 +746,8 @@ export default function PricingCalculatorPage() {
             </div>
           </Card>
 
-          {/* Upgrade nudge */}
+          {/* Upgrade nudge — hidden when embedded in the app */}
+          {!isAppMode && (
           <div className="rounded-2xl border border-orange-500/15 bg-gradient-to-b from-orange-500/[0.06] to-transparent p-5 sm:p-6">
             <div className="flex items-start gap-3 mb-4">
               <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center shrink-0"><span className="text-white font-black text-sm">d</span></div>
@@ -757,10 +763,12 @@ export default function PricingCalculatorPage() {
               <svg className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>
             </Link>
           </div>
+          )}
         </div>
       </div>
 
-      {/* Footer */}
+      {/* Footer — hidden when embedded in the app */}
+      {!isAppMode && (
       <div className="text-center mt-12 sm:mt-16 py-6 border-t border-white/[0.04]">
         <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-white/25">
           <Link href="/" className="hover:text-white/50 transition">dyia.io</Link>
@@ -771,6 +779,7 @@ export default function PricingCalculatorPage() {
         </div>
         <p className="text-white/15 text-[11px] mt-3">Part of the dyia ecosystem — your day, decoded.</p>
       </div>
+      )}
 
       {/* Mobile floating bar */}
       {hasInput && (
