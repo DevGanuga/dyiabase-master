@@ -5,7 +5,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { useTheme } from '@/hooks/useTheme'
 
-type View = 'dashboard' | 'jobs' | 'quotes' | 'quoteBuilder' | 'followUps' | 'calendar' | 'reports' | 'marketing' | 'customers' | 'massEmail' | 'assistant' | 'settings' | 'admin'
+type View = 'dashboard' | 'jobs' | 'quotes' | 'quoteBuilder' | 'followUps' | 'calendar' | 'reports' | 'marketing' | 'customers' | 'massEmail' | 'assistant' | 'settings' | 'admin' | 'pricingCalculator'
 
 type SubscriptionTier = 'basic' | 'trial' | 'pro'
 
@@ -387,19 +387,22 @@ export function Sidebar({ currentView, setCurrentView, onLogout, isPro = false, 
           )}
 
           {/* Pricing Calculator */}
-          <Link
-            href="/pricing-calculator"
-            target="_blank"
-            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:bg-slate-800/50 hover:text-slate-200 transition-all"
+          <button
+            onClick={() => setCurrentView('pricingCalculator')}
+            className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all ${
+              currentView === 'pricingCalculator'
+                ? 'bg-slate-800 text-white'
+                : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'
+            }`}
             title="Pricing Calculator"
           >
-            <span className="shrink-0">
+            <span className={`shrink-0 ${currentView === 'pricingCalculator' ? 'text-orange-400' : ''}`}>
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 15.75V18m-7.5-6.75h.008v.008H8.25v-.008zm0 2.25h.008v.008H8.25v-.008zm0 2.25h.008v.008H8.25v-.008zm0 2.25h.008v.008H8.25v-.008zm2.498-6h.008v.008h-.008v-.008zm0 2.25h.008v.008h-.008v-.008zm0 2.25h.008v.008h-.008v-.008zm2.504-4.5h.008v.008h-.008v-.008zm0 2.25h.008v.008h-.008v-.008zM6 6.75A.75.75 0 016.75 6h10.5a.75.75 0 01.75.75v.75a.75.75 0 01-.75.75H6.75A.75.75 0 016 7.5v-.75z" />
               </svg>
             </span>
             <span className="sidebar-text text-sm">Pricing Calculator</span>
-          </Link>
+          </button>
 
           {/* Settings */}
           <button

@@ -26,7 +26,7 @@ const Assistant = dynamic(() => import('@/components/app/Assistant').then(m => (
 const Calendar = dynamic(() => import('@/components/app/Calendar').then(m => ({ default: m.Calendar })), { ssr: false })
 const AdminPanel = dynamic(() => import('@/components/app/AdminPanel').then(m => ({ default: m.AdminPanel })), { ssr: false })
 
-type View = 'dashboard' | 'jobs' | 'quotes' | 'quoteBuilder' | 'followUps' | 'calendar' | 'reports' | 'marketing' | 'customers' | 'massEmail' | 'assistant' | 'settings' | 'admin'
+type View = 'dashboard' | 'jobs' | 'quotes' | 'quoteBuilder' | 'followUps' | 'calendar' | 'reports' | 'marketing' | 'customers' | 'massEmail' | 'assistant' | 'settings' | 'admin' | 'pricingCalculator'
 
 // Demo data for showcase
 const DEMO_JOBS: AppJob[] = [
@@ -46,7 +46,7 @@ const DEMO_SETTINGS: AppSettings = {
   onboardingCompletedAt: null
 }
 
-const VALID_VIEWS: View[] = ['dashboard', 'jobs', 'quotes', 'quoteBuilder', 'followUps', 'calendar', 'reports', 'marketing', 'customers', 'massEmail', 'assistant', 'settings', 'admin']
+const VALID_VIEWS: View[] = ['dashboard', 'jobs', 'quotes', 'quoteBuilder', 'followUps', 'calendar', 'reports', 'marketing', 'customers', 'massEmail', 'assistant', 'settings', 'admin', 'pricingCalculator']
 
 export default function AppPage() {
   return (
@@ -126,6 +126,7 @@ function AppPageContent() {
   const [fixedMonthlyExpenses, setFixedMonthlyExpenses] = useState(0)
   const [pendingFollowUpsCount, setPendingFollowUpsCount] = useState(0)
   const [selectedJobForQuote, setSelectedJobForQuote] = useState<AppJob | null>(null)
+  const [editingQuote, setEditingQuote] = useState<AppQuote | null>(null)
   const [assistantInitialPrompt, setAssistantInitialPrompt] = useState<string | null>(null)
   const [priceTemplatesCount, setPriceTemplatesCount] = useState(0)
   const [hasViewedAssistant, setHasViewedAssistant] = useState(false)
@@ -707,6 +708,12 @@ function AppPageContent() {
             settings={settings}
             onCreateQuote={(job?: AppJob) => {
               setSelectedJobForQuote(job || null)
+              setEditingQuote(null)
+              setCurrentView('quoteBuilder')
+            }}
+            onEditQuote={(quote: AppQuote) => {
+              setEditingQuote(quote)
+              setSelectedJobForQuote(null)
               setCurrentView('quoteBuilder')
             }}
             showSuccess={showSuccess}
@@ -719,13 +726,16 @@ function AppPageContent() {
             setQuotes={setQuotes}
             userId={userProfile?.id || ''}
             selectedJob={selectedJobForQuote}
+            editingQuote={editingQuote}
             customerNames={[...new Set(jobs.map(j => j.customerName).filter(Boolean))]}
             onBack={() => {
               setSelectedJobForQuote(null)
+              setEditingQuote(null)
               setCurrentView('quotes')
             }}
             showSuccess={showSuccess}
             isPro={isPro}
+            settings={settings}
             onOpenDyiaWithPrompt={(prompt) => {
               setCurrentView('assistant')
               setAssistantInitialPrompt(prompt)
@@ -800,6 +810,17 @@ function AppPageContent() {
         )
       case 'admin':
         return <AdminPanel />
+      case 'pricingCalculator':
+        return (
+          <div className="-mx-4 sm:-mx-6 lg:-mx-8 -my-4 sm:-my-6 lg:-my-8">
+            <iframe
+              src="/pricing-calculator"
+              className="w-full border-0 rounded-lg"
+              style={{ height: 'calc(100vh - 64px)', minHeight: '600px' }}
+              title="Pricing Calculator"
+            />
+          </div>
+        )
       case 'assistant':
         return null // Rendered separately in main - kept mounted for continuous chat experience
     }

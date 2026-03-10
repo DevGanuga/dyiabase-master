@@ -14,6 +14,7 @@ interface QuoteBuilderProps {
   setQuotes: (quotes: AppQuote[]) => void
   userId: string
   selectedJob: AppJob | null
+  editingQuote?: AppQuote | null
   customerNames?: string[]
   onBack: () => void
   showSuccess: (message: string) => void
@@ -54,28 +55,45 @@ const FEE_FIELDS = [
 
 const SOURCES = ['Google', 'Facebook', 'Referral', 'Repeat Customer', 'Yelp', 'Craigslist', 'Instagram', 'Nextdoor', 'Thumbtack', 'HomeAdvisor', 'Website', 'Other']
 
-export function QuoteBuilder({ quotes, setQuotes, userId, selectedJob, customerNames = [], onBack, showSuccess, onOpenDyiaWithPrompt, isPro = true, settings }: QuoteBuilderProps) {
+export function QuoteBuilder({ quotes, setQuotes, userId, selectedJob, editingQuote, customerNames = [], onBack, showSuccess, onOpenDyiaWithPrompt, isPro = true, settings }: QuoteBuilderProps) {
   const { nameList, findByName } = useCustomerAutocomplete(customerNames)
   const supabase = useMemo(() => createClient(), [])
   const { alert } = useConfirm()
 
+  const isEditing = !!editingQuote
+
   // Customer state
   const [customer, setCustomer] = useState(() => ({
-    name: selectedJob?.customerName || '',
-    phone: '',
-    email: '',
-    address: '',
-    jobDescription: selectedJob?.notes || '',
+    name: editingQuote?.customer.name || selectedJob?.customerName || '',
+    phone: editingQuote?.customer.phone || '',
+    email: editingQuote?.customer.email || '',
+    address: editingQuote?.customer.address || '',
+    jobDescription: editingQuote?.customer.jobDescription || selectedJob?.notes || '',
   }))
-  const [customerFound, setCustomerFound] = useState(false)
-  const [editingCustomer, setEditingCustomer] = useState(!selectedJob)
+  const [customerFound, setCustomerFound] = useState(!!editingQuote)
+  const [editingCustomer, setEditingCustomer] = useState(!selectedJob && !editingQuote)
+
+  // Quote date
+  const [quoteDate, setQuoteDate] = useState(() => {
+    if (editingQuote?.createdAt) return new Date(editingQuote.createdAt).toISOString().split('T')[0]
+    return new Date().toISOString().split('T')[0]
+  })
 
   // Estimate range (direct inputs)
-  const [estimateLow, setEstimateLow] = useState(0)
-  const [estimateHigh, setEstimateHigh] = useState(0)
+  const [estimateLow, setEstimateLow] = useState(editingQuote?.estimateRange.low || 0)
+  const [estimateHigh, setEstimateHigh] = useState(editingQuote?.estimateRange.high || 0)
 
   // Line items
-  const [lineItems, setLineItems] = useState<LineItem[]>([])
+  const [lineItems, setLineItems] = useState<LineItem[]>(() => {
+    if (editingQuote?.pricing?.lineItems) {
+      return (editingQuote.pricing.lineItems as Array<{description: string; amount: number}>).map((li, i) => ({
+        id: `li-edit-${i}`,
+        description: li.description,
+        amount: li.amount,
+      }))
+    }
+    return []
+  })
 
   // Pricing calculator (hidden by default)
   const [showCalculator, setShowCalculator] = useState(false)
@@ -84,8 +102,15 @@ export function QuoteBuilder({ quotes, setQuotes, userId, selectedJob, customerN
   const [pricePerLoad, setPricePerLoad] = useState(0)
 
   // Details (collapsed)
-  const [showDetails, setShowDetails] = useState(false)
-  const [photos, setPhotos] = useState<(string | null)[]>([null, null, null])
+  const [showDetails, setShowDetails] = useState(!!editingQuote)
+  const [photos, setPhotos] = useState<(string | null)[]>(() => {
+    if (editingQuote?.photos && editingQuote.photos.length > 0) {
+      const p: (string | null)[] = [...editingQuote.photos]
+      while (p.length < 3) p.push(null)
+      return p.slice(0, 3)
+    }
+    return [null, null, null]
+  })
   const [total, setTotal] = useState(0)
   const [saving, setSaving] = useState(false)
   const [templates, setTemplates] = useState<AppPriceTemplate[]>([])
@@ -386,52 +411,83 @@ export function QuoteBuilder({ quotes, setQuotes, userId, selectedJob, customerN
         ...(numLoads > 0 && pricePerLoad > 0 ? { multipleLoads: { numLoads, pricePerLoad, total: numLoads * pricePerLoad } } : {}),
       }
 
-      const { data, error } = await supabase
-        .from('dyia_quotes')
-        .insert({
-          user_id: userId,
-          customer_id: customerId,
-          job_id: selectedJob?.id || null,
-          customer_name: customer.name.trim(),
-          customer_phone: customer.phone || null,
-          customer_email: customer.email || null,
-          customer_address: customer.address || null,
-          job_description: customer.jobDescription || null,
-          source: quoteSource || null,
-          pricing: pricingData,
-          estimate_low: low,
-          estimate_high: high,
-          total,
-          status: 'draft' as QuoteStatus,
-          photo_urls: photos.filter(Boolean) as string[],
-        })
-        .select()
-        .single()
-
-      if (error) throw error
-
-      await supabase.from('dyia_follow_ups').insert({
+      const quotePayload = {
         user_id: userId,
         customer_id: customerId,
-        quote_id: data.id,
-        status: 'pending',
-        contact_count: 0,
-      })
-
-      const newQuote: AppQuote = {
-        id: data.id,
-        customerId,
-        jobId: selectedJob?.id,
-        createdAt: new Date(data.created_at).getTime(),
-        customer: { name: customer.name, phone: customer.phone, email: customer.email, address: customer.address, jobDescription: customer.jobDescription },
+        job_id: selectedJob?.id || editingQuote?.jobId || null,
+        customer_name: customer.name.trim(),
+        customer_phone: customer.phone || null,
+        customer_email: customer.email || null,
+        customer_address: customer.address || null,
+        job_description: customer.jobDescription || null,
+        source: quoteSource || null,
         pricing: pricingData,
-        photos: photos.filter(Boolean) as string[],
-        estimateRange: { low, high },
+        estimate_low: low,
+        estimate_high: high,
         total,
-        status: 'draft',
+        photo_urls: photos.filter(Boolean) as string[],
+        created_at: new Date(quoteDate + 'T12:00:00').toISOString(),
       }
 
-      setQuotes([newQuote, ...quotes])
+      let savedId: string
+      let createdAtTimestamp: number
+
+      if (isEditing && editingQuote) {
+        const { error } = await supabase
+          .from('dyia_quotes')
+          .update(quotePayload)
+          .eq('id', editingQuote.id)
+          .eq('user_id', userId)
+
+        if (error) throw error
+        savedId = editingQuote.id
+        createdAtTimestamp = new Date(quoteDate + 'T12:00:00').getTime()
+
+        const updatedQuote: AppQuote = {
+          ...editingQuote,
+          customerId,
+          createdAt: createdAtTimestamp,
+          customer: { name: customer.name, phone: customer.phone, email: customer.email, address: customer.address, jobDescription: customer.jobDescription },
+          pricing: pricingData,
+          photos: photos.filter(Boolean) as string[],
+          estimateRange: { low, high },
+          total,
+        }
+        setQuotes(quotes.map(q => q.id === editingQuote.id ? updatedQuote : q))
+      } else {
+        const insertPayload = { ...quotePayload, status: 'draft' as QuoteStatus }
+        const { data, error } = await supabase
+          .from('dyia_quotes')
+          .insert(insertPayload)
+          .select()
+          .single()
+
+        if (error) throw error
+        savedId = data.id
+        createdAtTimestamp = new Date(data.created_at).getTime()
+
+        await supabase.from('dyia_follow_ups').insert({
+          user_id: userId,
+          customer_id: customerId,
+          quote_id: data.id,
+          status: 'pending',
+          contact_count: 0,
+        })
+
+        const newQuote: AppQuote = {
+          id: savedId,
+          customerId,
+          jobId: selectedJob?.id,
+          createdAt: createdAtTimestamp,
+          customer: { name: customer.name, phone: customer.phone, email: customer.email, address: customer.address, jobDescription: customer.jobDescription },
+          pricing: pricingData,
+          photos: photos.filter(Boolean) as string[],
+          estimateRange: { low, high },
+          total,
+          status: 'draft',
+        }
+        setQuotes([newQuote, ...quotes])
+      }
 
       if (downloadPdf) {
         const pdfLineItems = lineItems.filter(li => li.description && li.amount > 0).map(li => ({ description: li.description, amount: li.amount }))
@@ -446,7 +502,7 @@ export function QuoteBuilder({ quotes, setQuotes, userId, selectedJob, customerN
             estimateHigh: high,
             lineItems: pdfLineItems.length > 0 ? pdfLineItems : undefined,
             photos: photos.filter(Boolean) as string[],
-            createdAt: new Date(),
+            createdAt: new Date(quoteDate + 'T12:00:00'),
           },
           {
             name: settings?.businessInfo?.name,
@@ -456,9 +512,9 @@ export function QuoteBuilder({ quotes, setQuotes, userId, selectedJob, customerN
             logo: settings?.businessInfo?.logo,
           }
         )
-        showSuccess(`Quote saved & PDF downloaded for ${customer.name}`)
+        showSuccess(`Quote ${isEditing ? 'updated' : 'saved'} & PDF downloaded for ${customer.name}`)
       } else {
-        showSuccess(`Quote saved for ${customer.name} — ${formatCurrency(low)}–${formatCurrency(high)}`)
+        showSuccess(`Quote ${isEditing ? 'updated' : 'saved'} for ${customer.name} — ${formatCurrency(low)}–${formatCurrency(high)}`)
       }
 
       setTimeout(onBack, 400)
@@ -477,11 +533,13 @@ export function QuoteBuilder({ quotes, setQuotes, userId, selectedJob, customerN
       {/* Header */}
       <div className="page-header">
         <div>
-          <h1 className="page-title text-xl sm:text-2xl">New Estimate</h1>
+          <h1 className="page-title text-xl sm:text-2xl">{isEditing ? 'Edit Estimate' : 'New Estimate'}</h1>
           <p className="page-subtitle text-sm">
             {selectedJob
               ? <>For <span className="text-orange-600 dark:text-orange-400 font-medium">{selectedJob.customerName}</span></>
-              : 'Create a professional estimate'}
+              : isEditing
+                ? <>Editing quote for <span className="text-orange-600 dark:text-orange-400 font-medium">{editingQuote?.customer.name}</span></>
+                : 'Create a professional estimate'}
           </p>
         </div>
         <button onClick={onBack} className="app-btn-secondary text-sm px-4 py-2">
@@ -609,6 +667,23 @@ export function QuoteBuilder({ quotes, setQuotes, userId, selectedJob, customerN
               </div>
             )}
           </div>
+        </div>
+
+        {/* Quote Date */}
+        <div className="app-card p-4 sm:p-5">
+          <h3 className="text-sm font-semibold text-[var(--color-text-primary)] mb-3 flex items-center gap-2">
+            <svg className="w-4 h-4 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            Quote Date
+          </h3>
+          <input
+            type="date"
+            value={quoteDate}
+            onChange={(e) => setQuoteDate(e.target.value)}
+            className="app-input w-full sm:w-auto"
+          />
+          <p className="text-xs text-[var(--color-text-faint)] mt-1">Date shown on the PDF estimate</p>
         </div>
 
         {/* Template selector + Save as template */}
@@ -907,7 +982,7 @@ export function QuoteBuilder({ quotes, setQuotes, userId, selectedJob, customerN
             disabled={saving || (estimateLow <= 0 && estimateHigh <= 0)}
             className="app-btn-secondary flex-1 text-sm py-2.5 disabled:opacity-40"
           >
-            Save Draft
+            {isEditing ? 'Update' : 'Save Draft'}
           </button>
           <button
             type="button"
@@ -918,7 +993,7 @@ export function QuoteBuilder({ quotes, setQuotes, userId, selectedJob, customerN
             {saving ? (
               <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
             ) : (
-              'Save & Download PDF'
+              isEditing ? 'Update & Download PDF' : 'Save & Download PDF'
             )}
           </button>
         </div>

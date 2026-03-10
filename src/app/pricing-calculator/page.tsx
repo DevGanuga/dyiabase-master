@@ -365,19 +365,20 @@ export default function PricingCalculatorPage() {
     else if (jobType === 'specialty') basePrice = specialtyPrice
     else if (jobType === 'mixed') basePrice = mixedSpecialtyPrice + mixedLoadPrice
 
-    let totalQuotePrice = basePrice
-    if (applyStairs) totalQuotePrice += stairsCharge
-    if (applyDisassembly) totalQuotePrice += disassemblyCharge
-    if (applyExtraLabor) totalQuotePrice += extraLaborCharge
-    if (applyDemolition) totalQuotePrice += demolitionCharge
+    let subtotal = basePrice
+    if (applyStairs) subtotal += stairsCharge
+    if (applyDisassembly) subtotal += disassemblyCharge
+    if (applyExtraLabor) subtotal += extraLaborCharge
+    if (applyDemolition) subtotal += demolitionCharge
+
+    const taxAmount = taxRate > 0 ? subtotal * (taxRate / 100) : 0
+    const totalQuotePrice = subtotal + taxAmount
 
     const totalCost = costLandfill + costDumpster + costDemoMachine + costTruckRental + costFuel + costLabor
-    const profit = totalQuotePrice - totalCost
-    const margin = totalQuotePrice > 0 ? (profit / totalQuotePrice) * 100 : 0
+    const profit = subtotal - totalCost
+    const margin = subtotal > 0 ? (profit / subtotal) * 100 : 0
     const hourlyRate = estimatedHours > 0 ? profit / estimatedHours : 0
     const breakeven = totalCost
-    const taxAmount = taxRate > 0 && profit > 0 ? profit * (taxRate / 100) : 0
-    const takeHome = profit - taxAmount
 
     let recommendLow = 'Enter costs'; let recommendMed = 'Enter costs'; let recommendHigh = 'Enter costs'
     if (totalCost > 0) {
@@ -387,12 +388,12 @@ export default function PricingCalculatorPage() {
     }
     const multiLoadTotal = jobType === 'multipleLoads' ? numLoads * pricePerLoad - (numLoads * pricePerLoad * loadDiscount / 100) : 0
 
-    return { totalQuotePrice, totalCost, profit, margin, hourlyRate, breakeven, taxAmount, takeHome, recommendLow, recommendMed, recommendHigh, multiLoadTotal }
+    return { subtotal, totalQuotePrice, totalCost, profit, margin, hourlyRate, breakeven, taxAmount, recommendLow, recommendMed, recommendHigh, multiLoadTotal }
   }, [jobType, loadPrice, numLoads, pricePerLoad, loadDiscount, specialtyPrice, mixedSpecialtyPrice, mixedLoadPrice,
     applyStairs, stairsCharge, applyDisassembly, disassemblyCharge, applyExtraLabor, extraLaborCharge, applyDemolition, demolitionCharge,
     costLandfill, costDumpster, costDemoMachine, costTruckRental, costFuel, costLabor, estimatedHours, taxRate])
 
-  const { margin, totalQuotePrice, totalCost, profit, hourlyRate, breakeven, taxAmount, takeHome } = calc
+  const { margin, subtotal, totalQuotePrice, totalCost, profit, hourlyRate, breakeven, taxAmount } = calc
   const hasInput = totalQuotePrice > 0 || totalCost > 0
 
   const marginColor = margin >= 50 ? 'text-orange-400' : margin >= 30 ? 'text-amber-400' : 'text-red-400'
@@ -586,8 +587,8 @@ export default function PricingCalculatorPage() {
             <div className="mt-4 pt-4 border-t border-white/[0.06]">
               <div className="flex items-center justify-between gap-4">
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-white/70">Tax set-aside %</p>
-                  <p className="text-[11px] text-white/30">Optional — see what you actually take home</p>
+                  <p className="text-sm font-medium text-white/70">Add tax to quote</p>
+                  <p className="text-[11px] text-white/30">Optional — adds sales tax on top of your price</p>
                 </div>
                 <div className="w-24">
                   <div className="relative">
@@ -661,24 +662,24 @@ export default function PricingCalculatorPage() {
 
             {/* Breakdown */}
             <div className="border-t border-white/[0.06] px-6 py-4 space-y-2.5 text-sm">
-              <div className="flex justify-between"><span className="text-white/40">Revenue</span><span className="font-medium text-white/80 tabular-nums">${fmt(totalQuotePrice)}</span></div>
-              <div className="flex justify-between"><span className="text-white/40">Costs</span><span className="font-medium text-red-400/80 tabular-nums">${fmt(totalCost)}</span></div>
+              <div className="flex justify-between"><span className="text-white/40">Subtotal</span><span className="font-medium text-white/80 tabular-nums">${fmt(subtotal)}</span></div>
+              {taxRate > 0 && (
+                <div className="flex justify-between text-white/40">
+                  <span>Tax ({taxRate}%)</span>
+                  <span className="tabular-nums">+${fmt(taxAmount)}</span>
+                </div>
+              )}
+              {taxRate > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-white/50 font-medium">Customer pays</span>
+                  <span className="font-semibold text-white/90 tabular-nums">${fmt(totalQuotePrice)}</span>
+                </div>
+              )}
+              <div className="flex justify-between"><span className="text-white/40">Your costs</span><span className="font-medium text-red-400/80 tabular-nums">${fmt(totalCost)}</span></div>
               <div className="flex justify-between pt-2.5 border-t border-white/[0.06]">
-                <span className="text-white/50 font-medium">Profit</span>
+                <span className="text-white/50 font-medium">Your profit</span>
                 <span className={`font-bold text-lg tabular-nums ${profit >= 0 ? 'text-orange-400' : 'text-red-400'}`}>${fmt(profit)}</span>
               </div>
-              {taxRate > 0 && profit > 0 && (
-                <>
-                  <div className="flex justify-between text-white/35">
-                    <span>Tax set-aside ({taxRate}%)</span>
-                    <span className="tabular-nums">-${fmt(taxAmount)}</span>
-                  </div>
-                  <div className="flex justify-between pt-2 border-t border-white/[0.06]">
-                    <span className="text-purple-400/80 font-medium">Take Home</span>
-                    <span className="font-bold text-lg tabular-nums text-purple-400">${fmt(takeHome)}</span>
-                  </div>
-                </>
-              )}
             </div>
 
             {/* Hourly rate + breakeven */}
@@ -779,10 +780,8 @@ export default function PricingCalculatorPage() {
               <div className="flex-1 flex items-center gap-3">
                 <span className={`text-2xl font-bold font-space-grotesk tabular-nums ${marginColor}`}>{margin.toFixed(1)}%</span>
                 <div className="text-xs text-white/40 leading-tight">
-                  <p>${totalQuotePrice.toFixed(0)} rev{estimatedHours > 0 && <span className="text-white/30"> · ${hourlyRate.toFixed(0)}/hr</span>}</p>
-                  <p className={profit >= 0 ? 'text-orange-400/70' : 'text-red-400/70'}>
-                    ${profit.toFixed(0)} profit{taxRate > 0 && profit > 0 && <span className="text-purple-400/60"> · ${takeHome.toFixed(0)} home</span>}
-                  </p>
+                  <p>${subtotal.toFixed(0)}{taxRate > 0 ? ` + ${taxRate}% tax` : ' rev'}{estimatedHours > 0 && <span className="text-white/30"> · ${hourlyRate.toFixed(0)}/hr</span>}</p>
+                  <p className={profit >= 0 ? 'text-orange-400/70' : 'text-red-400/70'}>${profit.toFixed(0)} profit</p>
                 </div>
               </div>
               <button onClick={() => setShowSaveModal(true)} className="px-4 py-2.5 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-xl font-semibold text-sm shadow-lg shadow-orange-500/25 whitespace-nowrap">Save quote →</button>
