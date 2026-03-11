@@ -696,14 +696,21 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
                                 type="button"
                                 onMouseDown={(e) => {
                                   e.preventDefault()
-                                  updateCustomer(index, 'name', c.name)
-                                  if (c.address) setTempAddress(c.address)
-                                  if (c.phone) updateCustomer(index, 'phone', c.phone)
-                                  if (c.email) updateCustomer(index, 'email', c.email)
                                   const lastJob = [...jobs]
                                     .sort((a, b) => parseLocalDate(b.date).getTime() - parseLocalDate(a.date).getTime())
                                     .find(j => j.customerName.toLowerCase() === c.name.trim().toLowerCase())
-                                  if (lastJob?.source) updateCustomer(index, 'source', lastJob.source)
+                                  if (c.address) setTempAddress(c.address)
+                                  setTempCustomers(prev => {
+                                    const updated = [...prev]
+                                    updated[index] = {
+                                      ...updated[index],
+                                      name: c.name,
+                                      ...(c.phone ? { phone: c.phone } : {}),
+                                      ...(c.email ? { email: c.email } : {}),
+                                      ...(lastJob?.source ? { source: lastJob.source } : {}),
+                                    }
+                                    return updated
+                                  })
                                   setActiveAutocomplete(null)
                                 }}
                                 className="w-full text-left px-3 py-2.5 text-sm hover:bg-[var(--color-bg-subtle)] transition-colors"

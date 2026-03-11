@@ -212,7 +212,7 @@ export default function LandingPage() {
                   </div>
                   
                   {/* App Layout — Sidebar + Dashboard */}
-                  <div className="flex" style={{ height: '420px' }}>
+                  <div className="flex" style={{ height: '480px' }}>
                     {/* Mini Sidebar */}
                     <div className="w-11 bg-[#0f1117] border-r border-white/[0.06] flex flex-col items-center py-3 gap-1 shrink-0">
                       {/* Logo dot */}
@@ -239,72 +239,140 @@ export default function LandingPage() {
                     </div>
                     
                     {/* Main Dashboard Content */}
-                    <div className="flex-1 overflow-hidden bg-[#fafafa] p-3 space-y-2.5">
-                      {/* Greeting Banner */}
-                      <div className="bg-gradient-to-r from-orange-500 to-amber-500 rounded-lg p-3 text-white relative overflow-hidden">
-                        <div className="absolute -right-4 -top-4 w-16 h-16 rounded-full bg-white/10" />
-                        <div className="absolute -left-2 -bottom-2 w-10 h-10 rounded-full bg-white/5" />
-                        <div className="relative flex items-center justify-between">
-                          <div>
-                            <p className="text-[11px] font-bold leading-tight">Good morning, Marcus</p>
-                            <p className="text-[8px] text-white/80 mt-0.5">12 jobs this month, $8,640 revenue. 74% to goal.</p>
+                    <div className="flex-1 overflow-hidden bg-[#fafafa] p-3 space-y-2">
+                      {/* Page Header */}
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-[11px] font-bold text-slate-900 leading-tight">Good morning, Marcus</p>
+                          <p className="text-[7px] text-slate-400 mt-0.5">12 jobs this month, $8,640 revenue</p>
+                        </div>
+                        <div className="flex gap-1">
+                          <div className="px-1.5 py-0.5 bg-gradient-to-r from-orange-500 to-amber-500 rounded text-[7px] font-semibold text-white flex items-center gap-0.5">
+                            <svg className="w-2 h-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4v16m8-8H4" /></svg>
+                            Log Job
                           </div>
-                          <div className="flex gap-1">
-                            <div className="px-1.5 py-0.5 bg-white/20 rounded text-[7px] font-medium">+ Log Job</div>
-                            <div className="px-1.5 py-0.5 bg-white/20 rounded text-[7px] font-medium">New Quote</div>
+                          <div className="px-1.5 py-0.5 bg-white border border-slate-200/80 rounded text-[7px] font-medium text-slate-600">New Quote</div>
+                        </div>
+                      </div>
+
+                      {/* Your Day + Mini Calendar */}
+                      <div className="flex gap-1.5">
+                        {/* Your Day */}
+                        <div className="flex-1 bg-white border border-slate-200/80 rounded-lg overflow-hidden">
+                          <div className="px-2 py-1.5 border-b border-slate-100 flex items-center gap-1.5">
+                            <div className="w-4 h-4 bg-gradient-to-br from-orange-500 to-amber-500 rounded flex items-center justify-center">
+                              <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+                            </div>
+                            <div>
+                              <p className="text-[7px] font-semibold text-slate-800 leading-none">Your Day</p>
+                              <p className="text-[6px] text-slate-400">Wed, Mar 11</p>
+                            </div>
+                          </div>
+                          <div className="p-1.5 space-y-1">
+                            <div className="grid grid-cols-2 gap-1">
+                              <div className="bg-green-50 rounded px-1.5 py-1">
+                                <p className="text-[6px] text-green-600 font-medium">Revenue</p>
+                                <p className="text-[10px] font-bold text-green-600">$520</p>
+                              </div>
+                              <div className="bg-purple-50 rounded px-1.5 py-1">
+                                <p className="text-[6px] text-purple-600 font-medium">Profit</p>
+                                <p className="text-[10px] font-bold text-purple-600">$354</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-1.5 px-1.5 py-1 bg-slate-50 rounded">
+                              <div className="w-3.5 h-3.5 bg-green-100 rounded flex items-center justify-center shrink-0">
+                                <svg className="w-2 h-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                              </div>
+                              <span className="text-[7px] font-medium text-slate-700 truncate">Mike R.</span>
+                              <span className="text-[7px] font-semibold text-green-600 ml-auto">$520</span>
+                            </div>
+                          </div>
+                        </div>
+                        {/* Mini Calendar */}
+                        <div className="w-[90px] bg-white border border-slate-200/80 rounded-lg overflow-hidden shrink-0">
+                          <div className="px-1.5 py-1 border-b border-slate-100 flex items-center justify-between">
+                            <p className="text-[7px] font-semibold text-slate-700">March</p>
+                            <p className="text-[6px] text-slate-400">2026</p>
+                          </div>
+                          <div className="p-1">
+                            <div className="grid grid-cols-7 gap-px mb-0.5">
+                              {['S','M','T','W','T','F','S'].map((d,i) => (
+                                <div key={i} className="text-center text-[5px] font-medium text-slate-400">{d}</div>
+                              ))}
+                            </div>
+                            <div className="grid grid-cols-7 gap-px">
+                              {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
+                                <div key={day} className={`text-center text-[5px] leading-[12px] rounded-sm ${
+                                  day === 11 ? 'bg-orange-500 text-white font-bold' :
+                                  [3,5,7,10,14,18,22].includes(day) ? 'bg-green-100 text-green-700 font-medium' :
+                                  'text-slate-500'
+                                }`}>{day}</div>
+                              ))}
+                            </div>
                           </div>
                         </div>
                       </div>
 
-                      {/* Business Pipeline */}
-                      <div>
-                        <p className="text-[7px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Business Pipeline</p>
-                        <div className="flex items-stretch gap-0">
-                          {[
-                            { label: 'Quotes', value: '5', sub: '$3,200', color: 'text-blue-600', bg: 'bg-blue-50', dot: 'bg-blue-100' },
-                            { label: 'Follow-ups', value: '3', sub: 'Pending', color: 'text-amber-600', bg: 'bg-amber-50', dot: 'bg-amber-100' },
-                            { label: 'Jobs', value: '12', sub: '$8,640', color: 'text-green-600', bg: 'bg-green-50', dot: 'bg-green-100' },
-                            { label: 'Take Home', value: '$4,120', sub: 'After 30% tax', color: 'text-purple-600', bg: 'bg-purple-50', dot: 'bg-purple-100' },
-                          ].map((stage, i) => (
-                            <div key={i} className="flex items-stretch">
-                              <div className={`bg-white border border-slate-200/80 ${i === 0 ? 'rounded-l-lg' : ''} ${i === 3 ? 'rounded-r-lg' : ''} p-2 min-w-[70px]`}>
-                                <div className="flex items-center gap-1 mb-1">
-                                  <div className={`w-3 h-3 rounded-full ${stage.dot} flex items-center justify-center`}>
-                                    <div className={`w-1.5 h-1.5 rounded-full ${stage.bg}`} />
-                                  </div>
-                                  <span className={`text-[7px] font-semibold ${stage.color} uppercase`}>{stage.label}</span>
-                                </div>
-                                <p className="text-sm font-bold text-slate-900 leading-none">{stage.value}</p>
-                                <p className="text-[7px] text-slate-400 mt-0.5">{stage.sub}</p>
-                              </div>
-                              {i < 3 && (
-                                <div className="flex items-center -mx-0.5 z-10">
-                                  <svg className="w-2.5 h-2.5 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
-                                  </svg>
-                                </div>
-                              )}
-                            </div>
-                          ))}
-                        </div>
+                      {/* Stat Cards */}
+                      <div className="grid grid-cols-4 gap-1">
+                        {[
+                          { label: 'Quotes', value: '5', sub: '$3,200', color: 'text-blue-600' },
+                          { label: 'Follow-ups', value: '3', sub: 'Pending', color: 'text-amber-600' },
+                          { label: 'Jobs', value: '12', sub: '$8,640', color: 'text-green-600' },
+                          { label: 'Take Home', value: '$4,120', sub: 'After 30% tax', color: 'text-orange-600' },
+                        ].map((stat, i) => (
+                          <div key={i} className="bg-white border border-slate-200/80 rounded-lg p-1.5">
+                            <p className="text-[6px] font-medium text-slate-400 uppercase">{stat.label}</p>
+                            <p className={`text-[11px] font-bold ${stat.color} leading-tight`}>{stat.value}</p>
+                            <p className="text-[6px] text-slate-400">{stat.sub}</p>
+                          </div>
+                        ))}
                       </div>
 
                       {/* Action Feed */}
                       <div className="space-y-1">
                         <p className="text-[7px] font-semibold text-slate-400 uppercase tracking-wider">Needs Your Attention</p>
-                        <div className="flex items-center gap-2 px-2 py-1.5 bg-white rounded-lg border border-slate-200/80 border-l-2 border-l-red-400">
-                          <svg className="w-2.5 h-2.5 text-red-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-[8px] font-medium text-slate-800 truncate">3 follow-ups need attention</p>
-                            <p className="text-[7px] text-slate-400 truncate">Following up within 48hrs has 3x conversion</p>
+                        {[
+                          { icon: 'followup', title: '3 follow-ups need attention', sub: 'Following up within 48hrs has 3x conversion', border: 'border-l-red-400', iconColor: 'text-red-500' },
+                          { icon: 'expense', title: '2 days without expenses logged', sub: 'Log expenses to see your real profit', border: 'border-l-orange-400', iconColor: 'text-orange-500' },
+                          { icon: 'quote', title: '5 pending quotes', sub: '$3,200 total value', border: 'border-l-amber-400', iconColor: 'text-amber-500' },
+                        ].map((item, i) => (
+                          <div key={i} className={`flex items-center gap-2 px-2 py-1.5 bg-white rounded-lg border border-slate-200/80 border-l-2 ${item.border}`}>
+                            <svg className={`w-2.5 h-2.5 ${item.iconColor} shrink-0`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              {item.icon === 'followup' && <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />}
+                              {item.icon === 'expense' && <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />}
+                              {item.icon === 'quote' && <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />}
+                            </svg>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-[8px] font-medium text-slate-800 truncate">{item.title}</p>
+                              <p className="text-[7px] text-slate-400 truncate">{item.sub}</p>
+                            </div>
+                            <svg className="w-2 h-2 text-slate-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
                           </div>
+                        ))}
+                      </div>
+
+                      {/* Do it with Dyia */}
+                      <div>
+                        <div className="flex items-center gap-1 mb-1">
+                          <img src="/dyia-agent.png" alt="" className="w-2.5 h-2.5 object-contain" />
+                          <p className="text-[7px] font-semibold text-slate-400 uppercase tracking-wider">Do it with Dyia</p>
+                          <span className="px-1 py-px rounded text-[5px] font-bold bg-orange-500/10 text-orange-500 uppercase">Pro</span>
                         </div>
-                        <div className="flex items-center gap-2 px-2 py-1.5 bg-white rounded-lg border border-slate-200/80 border-l-2 border-l-amber-400">
-                          <svg className="w-2.5 h-2.5 text-amber-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-[8px] font-medium text-slate-800 truncate">5 pending quotes</p>
-                            <p className="text-[7px] text-slate-400 truncate">$3,200 total value</p>
-                          </div>
+                        <div className="grid grid-cols-4 gap-1">
+                          {[
+                            { label: 'Log a job', color: 'from-green-500 to-emerald-500', icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /> },
+                            { label: 'Create quote', color: 'from-blue-500 to-indigo-500', icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /> },
+                            { label: 'Log expense', color: 'from-orange-500 to-amber-500', icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /> },
+                            { label: 'Summary', color: 'from-purple-500 to-violet-500', icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /> },
+                          ].map((action, i) => (
+                            <div key={i} className="bg-white border border-slate-200/80 rounded-lg p-1.5 flex flex-col items-center gap-1">
+                              <div className={`w-5 h-5 rounded-md bg-gradient-to-br ${action.color} flex items-center justify-center`}>
+                                <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">{action.icon}</svg>
+                              </div>
+                              <p className="text-[6px] font-medium text-slate-600 text-center leading-tight">{action.label}</p>
+                            </div>
+                          ))}
                         </div>
                       </div>
 
@@ -322,7 +390,7 @@ export default function LandingPage() {
                         </div>
                       </div>
 
-                      {/* Dyia AI Insight Strip */}
+                      {/* AI Insight Strip */}
                       <div className="bg-white border border-orange-200/60 rounded-lg p-2 flex items-start gap-2">
                         <div className="w-5 h-5 rounded-md bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center shrink-0">
                           <img src="/dyia-agent.png" alt="" className="w-3 h-3 object-contain" />
@@ -334,31 +402,63 @@ export default function LandingPage() {
                         </div>
                       </div>
 
-                      {/* Recent Jobs */}
-                      <div>
-                        <div className="flex items-center justify-between mb-1">
-                          <p className="text-[7px] font-semibold text-slate-400 uppercase tracking-wider">Recent Jobs</p>
-                          <span className="text-[7px] text-orange-500 font-medium">View all</span>
-                        </div>
-                        <div className="bg-white rounded-lg border border-slate-200/80 divide-y divide-slate-100 overflow-hidden">
-                          {[
-                            { name: 'Mike R.', amount: '$520', profit: '68%', date: 'Today', color: 'text-green-600' },
-                            { name: 'Sarah K.', amount: '$280', profit: '87%', date: 'Yesterday', color: 'text-green-600' },
-                            { name: 'Tom L.', amount: '$1,200', profit: '54%', date: 'Feb 14', color: 'text-green-600' },
-                          ].map((job, i) => (
-                            <div key={i} className="flex items-center justify-between px-2 py-1.5">
-                              <div className="flex items-center gap-1.5">
-                                <div className={`w-5 h-5 rounded-md bg-green-50 flex items-center justify-center`}>
-                                  <span className="text-[7px] font-bold text-green-600">{job.profit}</span>
+                      {/* Recent Activity — Jobs + Quotes */}
+                      <div className="flex gap-1.5">
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between mb-1">
+                            <p className="text-[7px] font-semibold text-slate-400 uppercase tracking-wider">Recent Jobs</p>
+                            <span className="text-[7px] text-orange-500 font-medium">View all</span>
+                          </div>
+                          <div className="bg-white rounded-lg border border-slate-200/80 divide-y divide-slate-100 overflow-hidden">
+                            {[
+                              { name: 'Mike R.', amount: '$520', date: 'Today' },
+                              { name: 'Sarah K.', amount: '$280', date: 'Yesterday' },
+                              { name: 'Tom L.', amount: '$1,200', date: 'Mar 9' },
+                            ].map((job, i) => (
+                              <div key={i} className="flex items-center justify-between px-1.5 py-1">
+                                <div className="flex items-center gap-1">
+                                  <div className="w-4 h-4 bg-green-50 rounded flex items-center justify-center">
+                                    <svg className="w-2 h-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
+                                  </div>
+                                  <div>
+                                    <p className="text-[7px] font-medium text-slate-800">{job.name}</p>
+                                    <p className="text-[6px] text-slate-400">{job.date}</p>
+                                  </div>
                                 </div>
-                                <div>
-                                  <p className="text-[8px] font-medium text-slate-800">{job.name}</p>
-                                  <p className="text-[7px] text-slate-400">{job.date}</p>
-                                </div>
+                                <span className="text-[8px] font-semibold text-green-600">{job.amount}</span>
                               </div>
-                              <span className="text-[9px] font-semibold text-green-600">{job.amount}</span>
-                            </div>
-                          ))}
+                            ))}
+                          </div>
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between mb-1">
+                            <p className="text-[7px] font-semibold text-slate-400 uppercase tracking-wider">Recent Quotes</p>
+                            <span className="text-[7px] text-orange-500 font-medium">View all</span>
+                          </div>
+                          <div className="bg-white rounded-lg border border-slate-200/80 divide-y divide-slate-100 overflow-hidden">
+                            {[
+                              { name: 'James W.', amount: '$800', status: 'sent' },
+                              { name: 'Linda M.', amount: '$1,400', status: 'draft' },
+                              { name: 'Alex P.', amount: '$1,000', status: 'accepted' },
+                            ].map((quote, i) => (
+                              <div key={i} className="flex items-center justify-between px-1.5 py-1">
+                                <div className="flex items-center gap-1">
+                                  <div className="w-4 h-4 bg-blue-50 rounded flex items-center justify-center">
+                                    <svg className="w-2 h-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                                  </div>
+                                  <div>
+                                    <p className="text-[7px] font-medium text-slate-800">{quote.name}</p>
+                                    <span className={`text-[5px] px-1 py-px rounded-full font-medium ${
+                                      quote.status === 'accepted' ? 'bg-green-100 text-green-700' :
+                                      quote.status === 'sent' ? 'bg-blue-100 text-blue-700' :
+                                      'bg-slate-100 text-slate-600'
+                                    }`}>{quote.status}</span>
+                                  </div>
+                                </div>
+                                <span className="text-[8px] font-semibold text-blue-600">{quote.amount}</span>
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       </div>
                     </div>

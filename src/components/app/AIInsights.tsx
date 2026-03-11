@@ -88,8 +88,8 @@ export function AIInsights({ type, className = '', compact = false, autoRefresh 
     return () => clearInterval(interval)
   }, [autoRefresh, fetchInsight])
 
-  // Silently hide for non-Pro or unauthorized
-  if (state.error && (state.error.includes('Pro subscription') || state.error.includes('Unauthorized'))) {
+  // Silently hide for non-Pro users only
+  if (state.error && state.error.includes('Pro subscription')) {
     return null
   }
 
@@ -148,7 +148,28 @@ export function AIInsights({ type, className = '', compact = false, autoRefresh 
     )
   }
 
-  if (!state.insight) return null
+  if (!state.insight) {
+    return (
+      <div className={`${className}`}>
+        <div className="bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl p-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-slate-200 dark:bg-slate-700 rounded-lg flex items-center justify-center shrink-0">
+              <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+            </div>
+            <p className="text-sm text-slate-500 dark:text-slate-400">No insight available</p>
+          </div>
+          <button
+            onClick={() => fetchInsight(true)}
+            className="text-xs font-medium text-orange-600 dark:text-orange-400 hover:underline px-3 py-1.5 rounded-lg hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors"
+          >
+            Generate
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   const { insight } = state
 

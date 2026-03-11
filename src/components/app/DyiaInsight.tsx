@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import Link from 'next/link'
 
 interface DyiaInsightProps {
@@ -12,41 +12,41 @@ interface DyiaInsightProps {
 export function DyiaInsight({ context, className = '', isPro = true }: DyiaInsightProps) {
   const [insight, setInsight] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
   const [dismissed, setDismissed] = useState(false)
   const fetchedRef = useRef(false)
+
+  const fetchInsight = useCallback(async (force = false) => {
+    setLoading(true)
+    setError(false)
+    try {
+      const apiType = context === 'reports' ? 'reports' : 'dashboard'
+      const response = await fetch('/api/ai/insights', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: apiType, forceRefresh: force }),
+      })
+      if (!response.ok) throw new Error(`${response.status}`)
+      const data = await response.json()
+      const result = data.insight
+      const text = result?.tip || result?.recommendation || result?.summary || null
+      if (text) {
+        setInsight(text)
+      } else {
+        setError(true)
+      }
+    } catch {
+      setError(true)
+    } finally {
+      setLoading(false)
+    }
+  }, [context])
 
   useEffect(() => {
     if (fetchedRef.current || !isPro) return
     fetchedRef.current = true
-
-    const fetchInsight = async () => {
-      try {
-        const apiType = context === 'reports' ? 'reports' : 'dashboard'
-        const response = await fetch('/api/ai/insights', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ type: apiType }),
-        })
-        if (response.ok) {
-          const data = await response.json()
-          const result = data.insight
-          if (result?.tip) {
-            setInsight(result.tip)
-          } else if (result?.recommendation) {
-            setInsight(result.recommendation)
-          } else if (result?.summary) {
-            setInsight(result.summary)
-          }
-        }
-      } catch (err) {
-        console.error('Failed to fetch insight:', err)
-      } finally {
-        setLoading(false)
-      }
-    }
-
     fetchInsight()
-  }, [context, isPro])
+  }, [isPro, fetchInsight])
 
   if (dismissed) return null
 
@@ -69,35 +69,55 @@ export function DyiaInsight({ context, className = '', isPro = true }: DyiaInsig
     )
   }
 
-  if (!loading && !insight) return null
-
   return (
-    <div className={`flex items-start gap-3 px-4 py-3 bg-gradient-to-r from-orange-50/80 to-amber-50/50 dark:from-orange-950/20 dark:to-amber-950/10 border border-orange-200/50 dark:border-orange-800/30 rounded-xl transition-all ${loading ? '' : 'animate-fade-in'} ${className}`}>
+    <div className={`flex items-start gap-3 px-4 py-3 bg-gradient-to-r from-orange-50/80 to-amber-50/50 dark:from-orange-950/20 dark:to-amber-950/10 border border-orange-200/50 dark:border-orange-800/30 rounded-xl transition-all ${className}`}>
       <div className="w-6 h-6 bg-gradient-to-br from-orange-500 to-amber-500 rounded-md flex items-center justify-center shrink-0 mt-0.5 shadow-sm">
         <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
         </svg>
       </div>
-      
+
       {loading ? (
         <div className="flex-1 flex items-center gap-2 py-0.5">
           <p className="text-sm text-[var(--color-text-muted)]">Generating insight...</p>
           <div className="w-3 h-3 border-[1.5px] border-orange-500 border-t-transparent rounded-full animate-spin shrink-0" />
         </div>
+      ) : error ? (
+        <div className="flex-1 flex items-center justify-between gap-2 py-0.5">
+          <p className="text-sm text-[var(--color-text-muted)]">Couldn&apos;t load insight right now.</p>
+          <button
+            onClick={() => { fetchedRef.current = false; fetchInsight(true) }}
+            className="text-xs font-medium text-orange-600 dark:text-orange-400 hover:underline shrink-0"
+          >
+            Retry
+          </button>
+        </div>
       ) : (
         <p className="flex-1 text-sm text-[var(--color-text-secondary)] leading-relaxed">{insight}</p>
       )}
 
-      {!loading && (
-        <button
-          onClick={() => setDismissed(true)}
-          className="p-0.5 text-[var(--color-text-faint)] hover:text-[var(--color-text-muted)] rounded transition-colors shrink-0 mt-0.5"
-          aria-label="Dismiss insight"
-        >
-          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
+      {!loading && !error && (
+        <div className="flex items-center gap-1 shrink-0 mt-0.5">
+          <button
+            onClick={() => fetchInsight(true)}
+            className="p-0.5 text-[var(--color-text-faint)] hover:text-orange-500 rounded transition-colors"
+            aria-label="Refresh insight"
+            title="Refresh"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+          </button>
+          <button
+            onClick={() => setDismissed(true)}
+            className="p-0.5 text-[var(--color-text-faint)] hover:text-[var(--color-text-muted)] rounded transition-colors"
+            aria-label="Dismiss insight"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
       )}
     </div>
   )
