@@ -571,39 +571,47 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
               <p className="text-sm text-[var(--color-text-muted)]">
                 {isEditing ? 'Update job details'
                   : isFutureJob ? 'Schedule a job for a future date — log expenses when the day is done'
-                  : 'Log one or multiple customers from the same trip'}
+                  : 'Add your jobs, then close out the day to log expenses'}
               </p>
             </div>
           </div>
         </div>
 
-        {/* === LIVE PROFIT PREVIEW === */}
+        {/* === LIVE PREVIEW === */}
+        {(isEditing || totalRevenue > 0) && (
         <div className={`rounded-xl p-4 border-2 transition-colors ${totalRevenue > 0 ? (liveProfit >= 0 ? 'bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800/50' : 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800/50') : 'bg-[var(--color-bg-subtle)] border-[var(--color-border)]'}`}>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+          <div className={`grid gap-3 text-center ${isEditing ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-2'}`}>
             <div>
               <p className="text-xs text-[var(--color-text-muted)] mb-0.5">Revenue</p>
               <p className={`text-lg font-bold ${totalRevenue > 0 ? 'text-green-600 dark:text-green-400' : 'text-[var(--color-text-faint)]'}`}>{formatCurrency(totalRevenue)}</p>
             </div>
             <div>
-              <p className="text-xs text-[var(--color-text-muted)] mb-0.5">Expenses</p>
-              <p className={`text-lg font-bold ${totalExpenses > 0 ? 'text-red-500 dark:text-red-400' : 'text-[var(--color-text-faint)]'}`}>{totalExpenses > 0 ? `-${formatCurrency(totalExpenses)}` : '$0'}</p>
-            </div>
-            <div>
-              <p className="text-xs text-[var(--color-text-muted)] mb-0.5">Profit</p>
-              <p className={`text-lg font-bold ${totalRevenue > 0 ? (liveProfit >= 0 ? 'text-green-700 dark:text-green-300' : 'text-red-600 dark:text-red-400') : 'text-[var(--color-text-faint)]'}`}>
-                {formatCurrency(liveProfit)}
-                {liveProfitMargin > 0 && <span className="text-xs font-normal ml-1 opacity-70">{liveProfitMargin}%</span>}
+              <p className="text-xs text-[var(--color-text-muted)] mb-0.5">{isEditing ? 'Expenses' : 'Jobs'}</p>
+              <p className={`text-lg font-bold ${isEditing && totalExpenses > 0 ? 'text-red-500 dark:text-red-400' : 'text-[var(--color-text-primary)]'}`}>
+                {isEditing ? (totalExpenses > 0 ? `-${formatCurrency(totalExpenses)}` : '$0') : tempCustomers.filter(c => c.name.trim() && c.revenue > 0).length}
               </p>
             </div>
-            <div>
-              <p className="text-xs text-[var(--color-text-muted)] mb-0.5">Take Home</p>
-              <p className={`text-lg font-bold ${totalRevenue > 0 ? 'text-purple-600 dark:text-purple-400' : 'text-[var(--color-text-faint)]'}`}>
-                {formatCurrency(liveTakeHome)}
-                {totalRevenue > 0 && <span className="text-xs font-normal ml-1 opacity-70">-{taxRate}% tax</span>}
-              </p>
-            </div>
+            {isEditing && (
+              <>
+                <div>
+                  <p className="text-xs text-[var(--color-text-muted)] mb-0.5">Profit</p>
+                  <p className={`text-lg font-bold ${liveProfit >= 0 ? 'text-green-700 dark:text-green-300' : 'text-red-600 dark:text-red-400'}`}>
+                    {formatCurrency(liveProfit)}
+                    {liveProfitMargin > 0 && <span className="text-xs font-normal ml-1 opacity-70">{liveProfitMargin}%</span>}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-[var(--color-text-muted)] mb-0.5">Take Home</p>
+                  <p className="text-lg font-bold text-purple-600 dark:text-purple-400">
+                    {formatCurrency(liveTakeHome)}
+                    <span className="text-xs font-normal ml-1 opacity-70">-{taxRate}% tax</span>
+                  </p>
+                </div>
+              </>
+            )}
           </div>
         </div>
+        )}
 
         {/* === CUSTOMER + DATE === */}
         <div className="app-card p-4 sm:p-5">
@@ -794,7 +802,8 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
           </div>
         </div>
 
-        {/* === EXPENSES === */}
+        {/* === EXPENSES (only when editing an existing job) === */}
+        {isEditing && (
         <div className="app-card p-4 sm:p-5">
           <div className="flex justify-between items-center mb-3">
             <div>
@@ -802,11 +811,7 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
                 Expenses
                 {totalExpenses > 0 && <span className="text-red-500 font-normal ml-2 text-xs">{formatCurrency(totalExpenses)}</span>}
               </h3>
-              {isFutureJob && !isEditing && (
-                <p className="text-[10px] text-[var(--color-text-faint)] mt-0.5">Optional now — you can log expenses when you close out the day</p>
-              )}
             </div>
-            {/* Tab-style toggle */}
             <div className="bg-[var(--color-bg-subtle)] rounded-lg p-0.5 inline-flex text-xs">
               <button
                 type="button"
@@ -868,17 +873,27 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
                   </div>
                 ))}
               </div>
-
-              {!isEditing && tempCustomers.length > 1 && totalExpenses > 0 && (
-                <div className="bg-blue-50 dark:bg-blue-900/30 border border-blue-100 dark:border-blue-800/50 rounded-lg p-3 mt-3">
-                  <p className="text-xs text-blue-800 dark:text-blue-300">
-                    <strong>Expense Split:</strong> {formatCurrency(totalExpenses)} ÷ {tempCustomers.length} = <strong>{formatCurrency(expensePerCustomer)}</strong> per customer
-                  </p>
-                </div>
-              )}
             </div>
           )}
         </div>
+        )}
+
+        {/* === NEW JOB: Close out day hint === */}
+        {!isEditing && !isFutureJob && (
+          <div className="app-card p-4 sm:p-5 bg-orange-50/50 dark:bg-orange-950/10 border-orange-200/30 dark:border-orange-800/20">
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 rounded-lg bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center shrink-0 mt-0.5">
+                <svg className="w-4 h-4 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-[var(--color-text-primary)]">Log your jobs first, expenses later</p>
+                <p className="text-xs text-[var(--color-text-muted)] mt-0.5">After saving, use <strong>Close Out Day</strong> to add labor, gas, dump fees, and other expenses for the entire day in one go.</p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* === ADDRESS & NOTES === */}
         <div className="app-card p-4 sm:p-5 space-y-3">
@@ -922,38 +937,64 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
               )}
             </div>
             <div className="flex gap-2 sm:gap-3 w-full sm:w-auto">
-              <button onClick={cancelForm} className="app-btn-secondary flex-1 sm:flex-none text-sm py-2.5 px-4">
+              <button onClick={cancelForm} className="app-btn-secondary shrink-0 text-sm py-2.5 px-4">
                 Cancel
               </button>
-              <button 
-                onClick={saveJobs} 
-                disabled={saving} 
-                className="app-btn-primary flex-1 sm:flex-none text-sm py-2.5 px-5"
-              >
-                {saving ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    {isFutureJob ? 'Scheduling...' : 'Saving...'}
-                  </>
-                ) : isFutureJob ? (
-                  <>
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                    Schedule {tempCustomers.length > 1 ? `${tempCustomers.length} Jobs` : 'Job'}
-                  </>
-                ) : (
-                  <>
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                    {tempCustomers.length > 1 ? `Save ${tempCustomers.length} Jobs` : 'Save Job'}
-                  </>
-                )}
-              </button>
+              {!isEditing && !isFutureJob ? (
+                <>
+                  <button
+                    onClick={saveJobs}
+                    disabled={saving}
+                    className="app-btn-secondary flex-1 sm:flex-none text-sm py-2.5 px-4"
+                  >
+                    {saving ? 'Saving...' : 'Save'}
+                  </button>
+                  <button
+                    onClick={async () => {
+                      const dateToClose = tempDate
+                      await saveJobs()
+                      if (!saving) {
+                        setTimeout(() => openCloseDayModal(dateToClose), 300)
+                      }
+                    }}
+                    disabled={saving}
+                    className="app-btn-primary flex-1 sm:flex-none text-sm py-2.5 px-4"
+                  >
+                    {saving ? (
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    ) : (
+                      <>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                        Save & Close Out Day
+                      </>
+                    )}
+                  </button>
+                </>
+              ) : (
+                <button 
+                  onClick={saveJobs} 
+                  disabled={saving} 
+                  className="app-btn-primary flex-1 sm:flex-none text-sm py-2.5 px-5"
+                >
+                  {saving ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      {isFutureJob ? 'Scheduling...' : 'Saving...'}
+                    </>
+                  ) : isFutureJob ? (
+                    <>
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                      Schedule {tempCustomers.length > 1 ? `${tempCustomers.length} Jobs` : 'Job'}
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                      {isEditing ? 'Update Job' : `Save ${tempCustomers.length > 1 ? `${tempCustomers.length} Jobs` : 'Job'}`}
+                    </>
+                  )}
+                </button>
+              )}
             </div>
-            {/* Expense reminder for today's jobs */}
-            {isTodayJob && totalExpenses === 0 && totalRevenue > 0 && !isEditing && (
-              <p className="text-[10px] text-[var(--color-text-faint)] text-right mt-1 sm:hidden">
-                You can log expenses later when you close out your day
-              </p>
-            )}
           </div>
         </div>
       </div>
