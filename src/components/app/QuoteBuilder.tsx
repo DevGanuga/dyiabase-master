@@ -132,8 +132,12 @@ export function QuoteBuilder({ quotes, setQuotes, userId, selectedJob, editingQu
   const [newTemplateName, setNewTemplateName] = useState('')
   const [savingTemplate, setSavingTemplate] = useState(false)
 
-  // Pre-fill customer from autocomplete match
   const handleCustomerNameChange = useCallback((name: string) => {
+    setCustomer(prev => ({ ...prev, name }))
+    if (name.length > 0) setEditingCustomer(true)
+  }, [])
+
+  const selectCustomerSuggestion = useCallback((name: string) => {
     const match = findByName(name)
     if (match) {
       setCustomer(prev => ({
@@ -145,10 +149,6 @@ export function QuoteBuilder({ quotes, setQuotes, userId, selectedJob, editingQu
       }))
       setCustomerFound(true)
       setEditingCustomer(false)
-    } else {
-      setCustomer(prev => ({ ...prev, name }))
-      setCustomerFound(false)
-      if (name.length > 0) setEditingCustomer(true)
     }
   }, [findByName])
 
@@ -627,7 +627,13 @@ export function QuoteBuilder({ quotes, setQuotes, userId, selectedJob, editingQu
                   list="qb-names"
                   type="text"
                   value={customer.name}
-                  onChange={(e) => handleCustomerNameChange(e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value
+                    handleCustomerNameChange(val)
+                    if (nameList.some(n => n.toLowerCase() === val.trim().toLowerCase()) && val.length > customer.name.length + 1) {
+                      selectCustomerSuggestion(val)
+                    }
+                  }}
                   className="app-input"
                   placeholder="Customer name"
                   required

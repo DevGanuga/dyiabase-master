@@ -675,20 +675,8 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
                       aria-autocomplete="list"
                       value={customer.name}
                       onChange={(e) => {
-                        const name = e.target.value
-                        updateCustomer(index, 'name', name)
-                        setActiveAutocomplete(name.length >= 1 ? index : null)
-                        const match = findByName(name)
-                        if (match) {
-                          if (match.address) setTempAddress(match.address)
-                          if (match.phone) updateCustomer(index, 'phone', match.phone)
-                          if (match.email) updateCustomer(index, 'email', match.email)
-                          const lastJob = [...jobs]
-                            .sort((a, b) => parseLocalDate(b.date).getTime() - parseLocalDate(a.date).getTime())
-                            .find(j => j.customerName.toLowerCase() === name.trim().toLowerCase())
-                          if (lastJob?.source) updateCustomer(index, 'source', lastJob.source)
-                          setActiveAutocomplete(null)
-                        }
+                        updateCustomer(index, 'name', e.target.value)
+                        setActiveAutocomplete(e.target.value.length >= 1 ? index : null)
                       }}
                       onFocus={() => { if (customer.name.length >= 1) setActiveAutocomplete(index) }}
                       onBlur={() => setTimeout(() => setActiveAutocomplete(null), 200)}
@@ -699,7 +687,7 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
                     {activeAutocomplete === index && (() => {
                       const q = customer.name.trim().toLowerCase()
                       const filtered = customerSuggestions.filter(c => c.name.toLowerCase().includes(q))
-                      if (filtered.length === 0 || (filtered.length === 1 && filtered[0].name.toLowerCase() === q)) return null
+                      if (filtered.length === 0) return null
                       return (
                         <ul id={`customer-suggestions-${index}`} role="listbox" className="absolute z-20 left-0 right-0 top-full mt-1 max-h-44 overflow-y-auto rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-card)] shadow-lg py-1">
                           {filtered.slice(0, 8).map(c => (
@@ -720,10 +708,10 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
                                 }}
                                 className="w-full text-left px-3 py-2.5 text-sm hover:bg-[var(--color-bg-subtle)] transition-colors"
                               >
-                                <span className="font-medium text-[var(--color-text-primary)]">{c.name}</span>
-                                {(c.phone || c.email) && (
-                                  <span className="text-[var(--color-text-faint)] text-xs ml-2">{c.phone || c.email}</span>
-                                )}
+                                <div className="font-medium text-[var(--color-text-primary)]">{c.name}</div>
+                                <div className="text-[var(--color-text-faint)] text-xs">
+                                  {[c.phone, c.email, c.address].filter(Boolean).join(' · ') || 'No contact info'}
+                                </div>
                               </button>
                             </li>
                           ))}

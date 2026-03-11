@@ -25,8 +25,9 @@ const MassEmail = dynamic(() => import('@/components/app/MassEmail').then(m => (
 const Assistant = dynamic(() => import('@/components/app/Assistant').then(m => ({ default: m.Assistant })), { ssr: false })
 const Calendar = dynamic(() => import('@/components/app/Calendar').then(m => ({ default: m.Calendar })), { ssr: false })
 const AdminPanel = dynamic(() => import('@/components/app/AdminPanel').then(m => ({ default: m.AdminPanel })), { ssr: false })
+const ProfitCalculator = dynamic(() => import('@/components/app/ProfitCalculator').then(m => ({ default: m.ProfitCalculator })), { ssr: false })
 
-type View = 'dashboard' | 'jobs' | 'quotes' | 'quoteBuilder' | 'followUps' | 'calendar' | 'reports' | 'marketing' | 'customers' | 'massEmail' | 'assistant' | 'settings' | 'admin'
+type View = 'dashboard' | 'jobs' | 'quotes' | 'quoteBuilder' | 'followUps' | 'calendar' | 'reports' | 'marketing' | 'customers' | 'massEmail' | 'assistant' | 'settings' | 'admin' | 'profitCalculator'
 
 // Demo data for showcase
 const DEMO_JOBS: AppJob[] = [
@@ -54,7 +55,7 @@ const DEMO_SETTINGS: AppSettings = {
   onboardingCompletedAt: null
 }
 
-const VALID_VIEWS: View[] = ['dashboard', 'jobs', 'quotes', 'quoteBuilder', 'followUps', 'calendar', 'reports', 'marketing', 'customers', 'massEmail', 'assistant', 'settings', 'admin']
+const VALID_VIEWS: View[] = ['dashboard', 'jobs', 'quotes', 'quoteBuilder', 'followUps', 'calendar', 'reports', 'marketing', 'customers', 'massEmail', 'assistant', 'settings', 'admin', 'profitCalculator']
 
 export default function AppPage() {
   return (
@@ -820,6 +821,8 @@ function AppPageContent() {
         )
       case 'admin':
         return <AdminPanel />
+      case 'profitCalculator':
+        return <ProfitCalculator />
       case 'assistant':
         return null // Rendered separately in main - kept mounted for continuous chat experience
     }
