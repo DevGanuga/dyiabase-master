@@ -27,19 +27,59 @@ export function useCustomerAutocomplete(fallbackNames: string[] = [], isDemoMode
     async function load() {
       try {
         const supabase = createClient()
-        const { data, error } = await supabase
-          .from('dyia_customers')
-          .select('id, name, email, phone, address')
-          .order('name', { ascending: true })
+        const [{ data: customersData, error: customersError }, { data: quotesData, error: quotesError }] = await Promise.all([
+          supabase
+            .from('dyia_customers')
+            .select('id, name, email, phone, address')
+            .order('name', { ascending: true }),
+          supabase
+            .from('dyia_quotes')
+            .select('id, customer_name, customer_email, customer_phone, customer_address, created_at')
+            .order('created_at', { ascending: false })
+            .limit(200),
+        ])
 
-        if (error) throw error
-        setCustomers((data || []).map(c => ({
-          id: c.id,
-          name: c.name,
-          email: c.email,
-          phone: c.phone,
-          address: c.address,
-        })))
+        if (customersError) throw customersError
+        if (quotesError) throw quotesError
+
+        const merged = new Map<string, CustomerSuggestion>()
+
+        for (const c of (customersData || [])) {
+          const key = c.name.trim().toLowerCase()
+          if (!key) continue
+          merged.set(key, {
+            id: c.id,
+            name: c.name,
+            email: c.email,
+            phone: c.phone,
+            address: c.address,
+          })
+        }
+
+        for (const q of (quotesData || [])) {
+          const name = q.customer_name?.trim()
+          if (!name) continue
+          const key = name.toLowerCase()
+          const existing = merged.get(key)
+          if (existing) {
+            merged.set(key, {
+              ...existing,
+              email: existing.email || q.customer_email || null,
+              phone: existing.phone || q.customer_phone || null,
+              address: existing.address || q.customer_address || null,
+            })
+          } else {
+            merged.set(key, {
+              id: `quote-${q.id}`,
+              name,
+              email: q.customer_email || null,
+              phone: q.customer_phone || null,
+              address: q.customer_address || null,
+            })
+          }
+        }
+
+        setCustomers(Array.from(merged.values()).sort((a, b) => a.name.localeCompare(b.name)))
       } catch {
         // Fallback: build from provided names
         setCustomers(fallbackNames.map(name => ({
