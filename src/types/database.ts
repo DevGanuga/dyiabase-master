@@ -6,6 +6,8 @@ export interface Job {
   customer_name: string
   source?: string | null
   revenue: number
+  estimate_low?: number | null
+  estimate_high?: number | null
   labor: number
   gas: number
   dump_fee: number
@@ -170,11 +172,14 @@ export interface AppJob {
   customerName: string
   source?: string
   revenue: number
+  estimateLow?: number
+  estimateHigh?: number
   labor: number
   gas: number
   dumpFee: number
   dumpsterRental: number
   additionalExpense: number
+  additionalExpenseLabel?: string
   numWorkers: number
   costPerWorker: number
   notes?: string
@@ -411,11 +416,14 @@ export interface JobProposal {
   customerName: string
   source?: string
   revenue: number
+  estimateLow?: number
+  estimateHigh?: number
   labor: number
   gas: number
   dumpFee: number
   dumpsterRental: number
   additionalExpense: number
+  additionalExpenseLabel?: string
   numWorkers: number
   costPerWorker: number
   notes?: string

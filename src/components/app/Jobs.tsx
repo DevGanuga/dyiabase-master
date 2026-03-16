@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { AppJob, AppSettings } from '@/types/database'
-import { formatCurrency, parseLocalDate } from '@/lib/utils'
+import { formatCurrency, formatLocalDateInput, mergeAdditionalExpenseLabelIntoNotes, parseLocalDate } from '@/lib/utils'
 import { getReviewRequestMessage } from '@/lib/reviews'
 import { useConfirm } from '@/components/providers/ConfirmProvider'
 import { useCustomerAutocomplete } from '@/hooks/useCustomerAutocomplete'
@@ -17,6 +17,7 @@ interface JobsProps {
   jobs: AppJob[]
   setJobs: (jobs: AppJob[]) => void
   userId: string
+  isDemoMode?: boolean
   selectedMonth: Date
   setSelectedMonth: (date: Date) => void
   settings?: AppSettings
@@ -25,6 +26,9 @@ interface JobsProps {
   isPro?: boolean
   initialCloseDayDate?: string | null
   onCloseDayDateConsumed?: () => void
+  initialDraftDate?: string | null
+  initialDraftStatus?: AppJob['status'] | null
+  onDraftConsumed?: () => void
 }
 
 interface TempCustomer {
@@ -46,11 +50,15 @@ interface TempExpenses {
 
 const MARKETING_SOURCES = ['Google', 'Facebook', 'Referral', 'Repeat Customer', 'Yelp', 'Craigslist', 'Instagram', 'Nextdoor', 'Thumbtack', 'HomeAdvisor', 'Website', 'Other']
 
-export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, settings, showSuccess, onOpenDyiaWithPrompt, isPro = true, initialCloseDayDate, onCloseDayDateConsumed }: JobsProps) {
+export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth, setSelectedMonth, settings, showSuccess, onOpenDyiaWithPrompt, isPro = true, initialCloseDayDate, onCloseDayDateConsumed, initialDraftDate, initialDraftStatus, onDraftConsumed }: JobsProps) {
   const [editingJob, setEditingJob] = useState<AppJob | 'new' | null>(null)
   const [tempCustomers, setTempCustomers] = useState<TempCustomer[]>([])
   const [tempExpenses, setTempExpenses] = useState<TempExpenses>({ labor: 0, gas: 0, dumpFee: 0, dumpsterRental: 0, additional: 0 })
-  const [tempDate, setTempDate] = useState(new Date().toISOString().split('T')[0])
+  const [tempOtherLabel, setTempOtherLabel] = useState('')
+  const [tempStatus, setTempStatus] = useState<AppJob['status']>('completed')
+  const [tempEstimateLow, setTempEstimateLow] = useState(0)
+  const [tempEstimateHigh, setTempEstimateHigh] = useState(0)
+  const [tempDate, setTempDate] = useState(formatLocalDateInput())
   const [tempNotes, setTempNotes] = useState('')
   const [tempAddress, setTempAddress] = useState('')
   const [saving, setSaving] = useState(false)
@@ -64,6 +72,7 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
   const [showExpenseDetails, setShowExpenseDetails] = useState(false)
   const [closeDayDate, setCloseDayDate] = useState<string | null>(null)
   const [closeDayExpenses, setCloseDayExpenses] = useState({ labor: 0, gas: 0, dumpFee: 0, dumpsterRental: 0, additional: 0 })
+  const [closeDayOtherLabel, setCloseDayOtherLabel] = useState('')
   const [closeDaySaving, setCloseDaySaving] = useState(false)
   const [closeDayResult, setCloseDayResult] = useState<{ revenue: number; expenses: number; profit: number; jobCount: number; avgRevenue: number; avgProfit: number } | null>(null)
   const [nudgeDismissedDays, setNudgeDismissedDays] = useState<Record<string, boolean>>({})
@@ -101,6 +110,15 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
     onCloseDayDateConsumed?.()
   // eslint-disable-next-line react-hooks/exhaustive-deps -- only run when initialCloseDayDate changes
   }, [initialCloseDayDate])
+
+  useEffect(() => {
+    if (!initialDraftDate) return
+    const targetDate = parseLocalDate(initialDraftDate)
+    setSelectedMonth(new Date(targetDate.getFullYear(), targetDate.getMonth(), 1))
+    startAddJob(initialDraftDate, initialDraftStatus || 'scheduled')
+    onDraftConsumed?.()
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- only run when calendar draft trigger changes
+  }, [initialDraftDate, initialDraftStatus])
 
   // Filter jobs by month
   const monthJobs = useMemo(() => {
@@ -177,6 +195,7 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
     const existingDump = dayJobs.reduce((s, j) => s + (j.dumpFee || 0), 0)
     const existingDumpster = dayJobs.reduce((s, j) => s + (j.dumpsterRental || 0), 0)
     const existingOther = dayJobs.reduce((s, j) => s + (j.additionalExpense || 0), 0)
+    const additionalExpenseLabels = [...new Set(dayJobs.map(j => j.additionalExpenseLabel?.trim()).filter(Boolean))]
     setCloseDayExpenses({
       labor: existingLabor,
       gas: existingGas,
@@ -184,6 +203,7 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
       dumpsterRental: existingDumpster,
       additional: existingOther,
     })
+    setCloseDayOtherLabel(additionalExpenseLabels.length === 1 ? additionalExpenseLabels[0] || '' : '')
   }
 
   const applyDailyExpenses = async () => {
@@ -196,6 +216,7 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
     const totalDumpFee = Math.max(0, closeDayExpenses.dumpFee)
     const totalDumpster = Math.max(0, closeDayExpenses.dumpsterRental)
     const totalAdditional = Math.max(0, closeDayExpenses.additional)
+    const additionalExpenseLabel = totalAdditional > 0 ? closeDayOtherLabel.trim() : ''
     const totalExpenses = totalLabor + totalGas + totalDumpFee + totalDumpster + totalAdditional
     const dayRevenue = dayJobs.reduce((s, j) => s + (j.revenue || 0), 0)
 
@@ -216,8 +237,39 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
           dump_fee: Math.round(totalDumpFee * share * 100) / 100,
           dumpster_rental: Math.round(totalDumpster * share * 100) / 100,
           additional_expense: Math.round(totalAdditional * share * 100) / 100,
+          notes: mergeAdditionalExpenseLabelIntoNotes(job.notes, additionalExpenseLabel),
         }
       })
+
+      if (isDemoMode) {
+        setJobs(jobs.map(j => {
+          const u = updates.find(x => x.id === j.id)
+          if (!u) return j
+          return {
+            ...j,
+            labor: u.labor,
+            gas: u.gas,
+            dumpFee: u.dump_fee,
+            dumpsterRental: u.dumpster_rental,
+            additionalExpense: u.additional_expense,
+            additionalExpenseLabel: additionalExpenseLabel || undefined,
+          }
+        }))
+
+        const profit = dayRevenue - totalExpenses
+        const avgRevenue = dayJobs.length > 0 ? dayRevenue / dayJobs.length : 0
+        const avgProfit = dayJobs.length > 0 ? profit / dayJobs.length : 0
+        setCloseDayResult({
+          revenue: dayRevenue,
+          expenses: totalExpenses,
+          profit,
+          jobCount: dayJobs.length,
+          avgRevenue,
+          avgProfit,
+        })
+        showSuccess(`Daily expenses applied — ${formatCurrency(profit)} profit (${dayJobs.length} jobs)`)
+        return
+      }
 
       for (const u of updates) {
         const { error } = await supabase
@@ -228,6 +280,7 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
             dump_fee: u.dump_fee,
             dumpster_rental: u.dumpster_rental,
             additional_expense: u.additional_expense,
+            notes: u.notes,
           })
           .eq('id', u.id)
           .eq('user_id', userId)
@@ -244,6 +297,7 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
           dumpFee: u.dump_fee,
           dumpsterRental: u.dumpster_rental,
           additionalExpense: u.additional_expense,
+          additionalExpenseLabel: additionalExpenseLabel || undefined,
         }
       }))
 
@@ -289,11 +343,15 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
     setSelectedMonth(newDate)
   }
 
-  const startAddJob = () => {
+  const startAddJob = (date = formatLocalDateInput(), status: AppJob['status'] = 'completed') => {
     setEditingJob('new')
     setTempCustomers([{ id: Date.now(), name: '', source: '', revenue: 0, phone: '', email: '' }])
     setTempExpenses({ labor: 0, gas: 0, dumpFee: 0, dumpsterRental: 0, additional: 0 })
-    setTempDate(new Date().toISOString().split('T')[0])
+    setTempOtherLabel('')
+    setTempStatus(status)
+    setTempEstimateLow(0)
+    setTempEstimateHigh(0)
+    setTempDate(date)
     setTempNotes('')
     setTempAddress('')
     setShowExpenseDetails(false)
@@ -318,6 +376,10 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
       dumpsterRental: job.dumpsterRental,
       additional: job.additionalExpense
     })
+    setTempOtherLabel(job.additionalExpenseLabel || '')
+    setTempStatus(job.status || 'completed')
+    setTempEstimateLow(job.estimateLow || 0)
+    setTempEstimateHigh(job.estimateHigh || 0)
     setTempDate(job.date)
     setTempNotes(job.notes || '')
     setTempAddress(job.address || '')
@@ -329,9 +391,14 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
   const cancelForm = () => {
     setEditingJob(null)
     setTempCustomers([])
+    setTempOtherLabel('')
+    setTempStatus('completed')
+    setTempEstimateLow(0)
+    setTempEstimateHigh(0)
   }
 
   const addCustomerRow = () => {
+    if (tempStatus === 'scheduled') return
     setTempCustomers([...tempCustomers, { id: Date.now(), name: '', source: '', revenue: 0, phone: '', email: '' }])
   }
 
@@ -347,10 +414,16 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
     setTempCustomers(updated)
   }
 
-  const saveJobs = async () => {
-    const validCustomers = tempCustomers.filter(c => c.name.trim() && c.revenue > 0)
+  const saveJobs = async (targetStatus: AppJob['status'] = tempStatus) => {
+    const validCustomers = tempCustomers.filter(c => c.name.trim() && (targetStatus === 'scheduled' || c.revenue > 0))
     if (validCustomers.length === 0) {
-      await alert({ title: 'Missing Info', message: 'Please add at least one customer with a name and revenue greater than 0.', variant: 'warning' })
+      await alert({
+        title: 'Missing Info',
+        message: targetStatus === 'scheduled'
+          ? 'Please add at least one customer name to schedule the job.'
+          : 'Please add at least one customer with a name and revenue greater than 0.',
+        variant: 'warning'
+      })
       return
     }
 
@@ -358,6 +431,84 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
 
     try {
       const isEditing = editingJob && editingJob !== 'new'
+      const additionalExpenseLabel = tempExpenses.additional > 0 ? tempOtherLabel.trim() : ''
+      const notesWithExpenseLabel = mergeAdditionalExpenseLabelIntoNotes(tempNotes, additionalExpenseLabel)
+      const isScheduling = targetStatus === 'scheduled'
+      const normalizedEstimateLow = Math.max(0, tempEstimateLow || 0)
+      const normalizedEstimateHigh = Math.max(0, tempEstimateHigh || 0)
+
+      if (!isScheduling && validCustomers.some(c => c.revenue <= 0)) {
+        await alert({ title: 'Revenue Needed', message: 'Enter actual gross revenue before completing this job.', variant: 'warning' })
+        return
+      }
+
+      if (isDemoMode) {
+        if (isEditing) {
+          const customer = validCustomers[0]
+          const jobProfit = customer.revenue - totalExpenses
+          setJobs(jobs.map(j => j.id === (editingJob as AppJob).id ? {
+            ...j,
+            date: tempDate,
+            customerName: customer.name.trim(),
+            source: customer.source,
+            revenue: customer.revenue,
+            estimateLow: normalizedEstimateLow || undefined,
+            estimateHigh: normalizedEstimateHigh || undefined,
+            labor: tempExpenses.labor,
+            gas: tempExpenses.gas,
+            dumpFee: tempExpenses.dumpFee,
+            dumpsterRental: tempExpenses.dumpsterRental,
+            additionalExpense: tempExpenses.additional,
+            additionalExpenseLabel: additionalExpenseLabel || undefined,
+            notes: tempNotes.trim(),
+            address: tempAddress.trim() || undefined,
+            status: targetStatus,
+          } : j))
+          showSuccess(isScheduling
+            ? `Scheduled for ${parseLocalDate(tempDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}`
+            : `Job updated — ${formatCurrency(jobProfit)} profit`)
+        } else {
+          const newJobs: AppJob[] = validCustomers.map((customer, index) => {
+            const expPerCustomer = validCustomers.length
+            return {
+              id: `demo-job-${Date.now()}-${index}`,
+              customerId: `demo-customer-${Date.now()}-${index}`,
+              date: tempDate,
+              customerName: customer.name.trim(),
+              source: customer.source,
+              revenue: customer.revenue,
+              estimateLow: normalizedEstimateLow || undefined,
+              estimateHigh: normalizedEstimateHigh || undefined,
+              labor: tempExpenses.labor / expPerCustomer,
+              gas: tempExpenses.gas / expPerCustomer,
+              dumpFee: tempExpenses.dumpFee / expPerCustomer,
+              dumpsterRental: tempExpenses.dumpsterRental / expPerCustomer,
+              additionalExpense: tempExpenses.additional / expPerCustomer,
+              additionalExpenseLabel: additionalExpenseLabel || undefined,
+              numWorkers: 1,
+              costPerWorker: 0,
+              notes: tempNotes.trim(),
+              address: tempAddress.trim() || undefined,
+              status: targetStatus,
+            }
+          })
+
+          setJobs([...newJobs, ...jobs])
+          const totalRev = validCustomers.reduce((s, c) => s + c.revenue, 0)
+          const totalProf = totalRev - totalExpenses
+          const jobLabel = validCustomers.length === 1 ? 'Job' : `${validCustomers.length} jobs`
+          if (isScheduling) {
+            showSuccess(`${jobLabel} scheduled for ${parseLocalDate(tempDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}`)
+          } else if (totalExpenses === 0) {
+            showSuccess(`${jobLabel} saved — ${formatCurrency(totalRev)} revenue. Log expenses later to see profit.`)
+          } else {
+            showSuccess(`${jobLabel} saved — ${formatCurrency(totalProf)} profit`)
+          }
+        }
+
+        cancelForm()
+        return
+      }
 
       if (isEditing) {
         const customer = validCustomers[0]
@@ -373,13 +524,16 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
           customer_id: customerId,
           source: customer.source || null,
           revenue: Math.max(0, customer.revenue),
+          estimate_low: normalizedEstimateLow || null,
+          estimate_high: normalizedEstimateHigh || null,
           labor: Math.max(0, tempExpenses.labor),
           gas: Math.max(0, tempExpenses.gas),
           dump_fee: Math.max(0, tempExpenses.dumpFee),
           dumpster_rental: Math.max(0, tempExpenses.dumpsterRental),
           additional_expense: Math.max(0, tempExpenses.additional),
-          notes: tempNotes.trim() || null,
+          notes: notesWithExpenseLabel,
           address: tempAddress.trim() || null,
+          status: targetStatus,
         }
 
         const { error } = await supabase
@@ -398,15 +552,21 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
           customerName: customer.name.trim(),
           source: customer.source,
           revenue: customer.revenue,
+          estimateLow: normalizedEstimateLow || undefined,
+          estimateHigh: normalizedEstimateHigh || undefined,
           labor: tempExpenses.labor,
           gas: tempExpenses.gas,
           dumpFee: tempExpenses.dumpFee,
           dumpsterRental: tempExpenses.dumpsterRental,
           additionalExpense: tempExpenses.additional,
+          additionalExpenseLabel: additionalExpenseLabel || undefined,
           notes: tempNotes.trim(),
           address: tempAddress.trim() || undefined,
+          status: targetStatus,
         } : j))
-        showSuccess(`Job updated — ${formatCurrency(jobProfit)} profit`)
+        showSuccess(isScheduling
+          ? `Scheduled for ${parseLocalDate(tempDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}`
+          : `Job updated — ${formatCurrency(jobProfit)} profit`)
       } else {
         const newJobs: AppJob[] = []
         for (const customer of validCustomers) {
@@ -424,14 +584,16 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
             customer_id: customerId,
             source: customer.source || null,
             revenue: Math.max(0, customer.revenue),
+            estimate_low: normalizedEstimateLow || null,
+            estimate_high: normalizedEstimateHigh || null,
             labor: Math.max(0, tempExpenses.labor / expPerCustomer),
             gas: Math.max(0, tempExpenses.gas / expPerCustomer),
             dump_fee: Math.max(0, tempExpenses.dumpFee / expPerCustomer),
             dumpster_rental: Math.max(0, tempExpenses.dumpsterRental / expPerCustomer),
             additional_expense: Math.max(0, tempExpenses.additional / expPerCustomer),
-            notes: tempNotes.trim() || null,
+            notes: notesWithExpenseLabel,
             address: tempAddress.trim() || null,
-            status: 'completed',
+            status: targetStatus,
           }
 
           const { data, error } = await supabase
@@ -449,18 +611,22 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
             customerName: customer.name.trim(),
             source: customer.source,
             revenue: customer.revenue,
+            estimateLow: normalizedEstimateLow || undefined,
+            estimateHigh: normalizedEstimateHigh || undefined,
             labor: tempExpenses.labor / expPerCustomer,
             gas: tempExpenses.gas / expPerCustomer,
             dumpFee: tempExpenses.dumpFee / expPerCustomer,
             dumpsterRental: tempExpenses.dumpsterRental / expPerCustomer,
             additionalExpense: tempExpenses.additional / expPerCustomer,
+            additionalExpenseLabel: additionalExpenseLabel || undefined,
             numWorkers: 1,
             costPerWorker: 0,
             notes: tempNotes.trim(),
             address: tempAddress.trim() || undefined,
+            status: targetStatus,
           })
 
-          if (customerId) {
+          if (customerId && !isScheduling) {
             await supabase
               .from('dyia_follow_ups')
               .update({ status: 'converted' })
@@ -488,7 +654,7 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
         const totalRev = validCustomers.reduce((s, c) => s + c.revenue, 0)
         const totalProf = totalRev - totalExpenses
         const jobLabel = validCustomers.length === 1 ? 'Job' : `${validCustomers.length} jobs`
-        if (isFutureJob) {
+        if (isScheduling) {
           showSuccess(`${jobLabel} scheduled for ${parseLocalDate(tempDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}`)
         } else if (totalExpenses === 0) {
           showSuccess(`${jobLabel} saved — ${formatCurrency(totalRev)} revenue. Log expenses later to see profit.`)
@@ -512,6 +678,12 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
     if (!ok) return
 
     try {
+      if (isDemoMode) {
+        setJobs(jobs.filter(j => j.id !== id))
+        showSuccess('Job deleted')
+        return
+      }
+
       const { error } = await supabase
         .from('dyia_jobs')
         .delete()
@@ -538,9 +710,11 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
   const liveTakeHome = liveProfit - liveTaxSetAside
   const expensePerCustomer = tempCustomers.length > 0 ? totalExpenses / tempCustomers.length : 0
 
-  const todayStr = new Date().toISOString().split('T')[0]
+  const todayStr = formatLocalDateInput()
   const isFutureJob = tempDate > todayStr
   const isTodayJob = tempDate === todayStr
+  const isScheduledDraft = tempStatus === 'scheduled'
+  const isCompletingScheduledJob = editingJob !== 'new' && !!editingJob && tempStatus === 'scheduled'
 
   // ===================== FORM VIEW =====================
   if (editingJob) {
@@ -559,18 +733,19 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
             <div className="min-w-0">
               <div className="flex items-center gap-2">
                 <h1 className="text-xl sm:text-2xl font-bold text-[var(--color-text-primary)]">
-                  {isEditing ? 'Edit Job' : isFutureJob ? 'Schedule Job' : 'Log Job'}
+                  {isScheduledDraft ? (isEditing ? 'Scheduled Job' : 'Schedule Job') : isEditing ? 'Edit Job' : 'Log Job'}
                 </h1>
                 {isEditing && (
                   <span className="px-2 py-0.5 bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-full text-[10px] font-bold uppercase">Editing</span>
                 )}
-                {!isEditing && isFutureJob && (
+                {isScheduledDraft && (
                   <span className="px-2 py-0.5 bg-orange-500/10 text-orange-600 dark:text-orange-400 rounded-full text-[10px] font-bold uppercase">Scheduled</span>
                 )}
               </div>
               <p className="text-sm text-[var(--color-text-muted)]">
-                {isEditing ? 'Update job details'
-                  : isFutureJob ? 'Schedule a job for a future date — log expenses when the day is done'
+                {isScheduledDraft
+                  ? 'Add customer details and a rough estimate now, then complete the job later with actual gross'
+                  : isEditing ? 'Update job details'
                   : 'Add your jobs, then close out the day to log expenses'}
               </p>
             </div>
@@ -588,7 +763,7 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
             <div>
               <p className="text-xs text-[var(--color-text-muted)] mb-0.5">{isEditing ? 'Expenses' : 'Jobs'}</p>
               <p className={`text-lg font-bold ${isEditing && totalExpenses > 0 ? 'text-red-500 dark:text-red-400' : 'text-[var(--color-text-primary)]'}`}>
-                {isEditing ? (totalExpenses > 0 ? `-${formatCurrency(totalExpenses)}` : '$0') : tempCustomers.filter(c => c.name.trim() && c.revenue > 0).length}
+                {isEditing ? (totalExpenses > 0 ? `-${formatCurrency(totalExpenses)}` : '$0') : tempCustomers.filter(c => c.name.trim() && (isScheduledDraft || c.revenue > 0)).length}
               </p>
             </div>
             {isEditing && (
@@ -620,7 +795,7 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
               {isEditing ? 'Job Details' : `Customer${tempCustomers.length > 1 ? 's' : ''}`}
               {!isEditing && tempCustomers.length > 1 && <span className="text-[var(--color-text-faint)] font-normal ml-1">({tempCustomers.length})</span>}
             </h3>
-            {!isEditing && (
+            {!isEditing && !isScheduledDraft && (
               <button 
                 onClick={addCustomerRow} 
                 className="text-xs text-orange-600 dark:text-orange-400 hover:text-orange-700 dark:hover:text-orange-300 font-medium whitespace-nowrap flex items-center gap-1"
@@ -727,7 +902,7 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
                     })()}
                   </div>
                   <div>
-                    <label className="app-label">Revenue *</label>
+                    <label className="app-label">{isScheduledDraft ? 'Actual Gross' : 'Revenue *'}</label>
                     <div className="relative">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)] text-sm">$</span>
                       <input
@@ -735,10 +910,13 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
                         value={customer.revenue || ''}
                         onChange={(e) => updateCustomer(index, 'revenue', Math.max(0, parseFloat(e.target.value) || 0))}
                         className="app-input pl-7"
-                        placeholder="500"
+                        placeholder={isScheduledDraft ? 'Leave blank until completed' : '500'}
                         min="0"
                       />
                     </div>
+                    {isScheduledDraft && (
+                      <p className="text-[10px] text-[var(--color-text-faint)] mt-1">Set this when the job is complete.</p>
+                    )}
                   </div>
                   <div>
                     <label className="app-label">Lead Source</label>
@@ -797,8 +975,45 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
           </div>
         </div>
 
+        {isScheduledDraft && (
+          <div className="app-card p-4 sm:p-5">
+            <h3 className="text-sm font-semibold text-[var(--color-text-primary)] mb-3">Estimated Range</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-xl">
+              <div>
+                <label className="app-label">Low End</label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)] text-sm">$</span>
+                  <input
+                    type="number"
+                    value={tempEstimateLow || ''}
+                    onChange={(e) => setTempEstimateLow(Math.max(0, parseFloat(e.target.value) || 0))}
+                    className="app-input pl-7"
+                    placeholder="300"
+                    min="0"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="app-label">High End</label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)] text-sm">$</span>
+                  <input
+                    type="number"
+                    value={tempEstimateHigh || ''}
+                    onChange={(e) => setTempEstimateHigh(Math.max(0, parseFloat(e.target.value) || 0))}
+                    className="app-input pl-7"
+                    placeholder="500"
+                    min="0"
+                  />
+                </div>
+              </div>
+            </div>
+            <p className="text-xs text-[var(--color-text-faint)] mt-2">Optional rough range for the calendar until you know the final gross.</p>
+          </div>
+        )}
+
         {/* === EXPENSES (only when editing an existing job) === */}
-        {isEditing && (
+        {isEditing && !isScheduledDraft && (
         <div className="app-card p-4 sm:p-5">
           <div className="flex justify-between items-center mb-3">
             <div>
@@ -841,6 +1056,19 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
                   min="0"
                 />
               </div>
+              {(totalExpenses > 0 || tempOtherLabel) && (
+                <div className="mt-3 max-w-xs">
+                  <label className="app-label">What was this expense?</label>
+                  <input
+                    type="text"
+                    value={tempOtherLabel}
+                    onChange={(e) => setTempOtherLabel(e.target.value)}
+                    className="app-input"
+                    placeholder="U-Haul rental"
+                    maxLength={80}
+                  />
+                </div>
+              )}
               <p className="text-xs text-[var(--color-text-faint)] mt-1.5">Enter a lump sum, or switch to &quot;Itemize&quot; for a breakdown</p>
             </div>
           ) : (
@@ -868,13 +1096,26 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
                   </div>
                 ))}
               </div>
+              {(tempExpenses.additional > 0 || tempOtherLabel) && (
+                <div className="mt-3 max-w-xs">
+                  <label className="app-label">What was &quot;Other&quot;?</label>
+                  <input
+                    type="text"
+                    value={tempOtherLabel}
+                    onChange={(e) => setTempOtherLabel(e.target.value)}
+                    className="app-input"
+                    placeholder="U-Haul rental"
+                    maxLength={80}
+                  />
+                </div>
+              )}
             </div>
           )}
         </div>
         )}
 
         {/* === NEW JOB: Close out day hint === */}
-        {!isEditing && !isFutureJob && (
+        {!isEditing && !isScheduledDraft && !isFutureJob && (
           <div className="app-card p-4 sm:p-5 bg-orange-50/50 dark:bg-orange-950/10 border-orange-200/30 dark:border-orange-800/20">
             <div className="flex items-start gap-3">
               <div className="w-8 h-8 rounded-lg bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center shrink-0 mt-0.5">
@@ -919,7 +1160,13 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
           <div className="max-w-3xl mx-auto flex items-center justify-between gap-3">
             {/* Profit preview in sticky bar */}
             <div className="hidden sm:flex items-center gap-4 text-sm">
-              {totalRevenue > 0 ? (
+              {isScheduledDraft ? (
+                <span className="text-[var(--color-text-faint)]">
+                  {tempEstimateLow || tempEstimateHigh
+                    ? `Estimate: ${tempEstimateLow ? formatCurrency(tempEstimateLow) : '$0'}${tempEstimateHigh ? ` - ${formatCurrency(tempEstimateHigh)}` : ''}`
+                    : 'Add a rough estimate if you have one'}
+                </span>
+              ) : totalRevenue > 0 ? (
                 <>
                   <span className="text-[var(--color-text-muted)]">Profit:</span>
                   <span className={`font-bold ${liveProfit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500'}`}>{formatCurrency(liveProfit)}</span>
@@ -935,10 +1182,10 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
               <button onClick={cancelForm} className="app-btn-secondary shrink-0 text-sm py-2.5 px-4">
                 Cancel
               </button>
-              {!isEditing && !isFutureJob ? (
+              {!isEditing && !isScheduledDraft && !isFutureJob ? (
                 <>
                   <button
-                    onClick={saveJobs}
+                    onClick={() => saveJobs()}
                     disabled={saving}
                     className="app-btn-secondary flex-1 sm:flex-none text-sm py-2.5 px-4"
                   >
@@ -965,9 +1212,28 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
                     )}
                   </button>
                 </>
+              ) : isScheduledDraft ? (
+                <>
+                  <button
+                    onClick={() => saveJobs('scheduled')}
+                    disabled={saving}
+                    className="app-btn-secondary flex-1 sm:flex-none text-sm py-2.5 px-4"
+                  >
+                    {saving ? 'Saving...' : isEditing ? 'Update Schedule' : 'Save Schedule'}
+                  </button>
+                  {isEditing && (
+                    <button
+                      onClick={() => saveJobs('completed')}
+                      disabled={saving}
+                      className="app-btn-primary flex-1 sm:flex-none text-sm py-2.5 px-5"
+                    >
+                      {saving ? 'Completing...' : 'Complete Job'}
+                    </button>
+                  )}
+                </>
               ) : (
                 <button 
-                  onClick={saveJobs} 
+                  onClick={() => saveJobs(isFutureJob ? 'scheduled' : 'completed')} 
                   disabled={saving} 
                   className="app-btn-primary flex-1 sm:flex-none text-sm py-2.5 px-5"
                 >
@@ -1018,7 +1284,7 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
               isPro={isPro}
             />
           )}
-          <button onClick={startAddJob} className="app-btn-primary text-sm py-2.5 px-4">
+          <button onClick={() => startAddJob()} className="app-btn-primary text-sm py-2.5 px-4">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
@@ -1181,7 +1447,7 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
             </p>
             {!searchQuery && sourceFilter === 'all' && (
               <div className="flex flex-wrap justify-center gap-2">
-                <button onClick={startAddJob} className="app-btn-primary text-sm">
+                <button onClick={() => startAddJob()} className="app-btn-primary text-sm">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                   </svg>
@@ -1213,18 +1479,24 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-semibold text-[var(--color-text-primary)]">{dayLabel}</span>
                       <span className="text-xs text-[var(--color-text-muted)]">{dayJobs.length} job{dayJobs.length !== 1 ? 's' : ''}</span>
-                      <span className="text-xs text-green-600 dark:text-green-400 font-medium">{formatCurrency(dayRevenue)} rev</span>
+                      {dayRevenue > 0 ? (
+                        <span className="text-xs text-green-600 dark:text-green-400 font-medium">{formatCurrency(dayRevenue)} rev</span>
+                      ) : (
+                        <span className="text-xs text-blue-600 dark:text-blue-400 font-medium">scheduled</span>
+                      )}
                       {dayExpenses > 0 && (
                         <span className="text-xs text-[var(--color-text-muted)]">{formatCurrency(dayProfit)} profit</span>
                       )}
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => openCloseDayModal(date)}
-                      className="text-xs font-medium text-orange-600 dark:text-orange-400 hover:text-orange-700 dark:hover:text-orange-300 hover:underline"
-                    >
-                      {dayExpenses > 0 ? 'Edit daily expenses' : 'Log daily expenses'}
-                    </button>
+                    {dayRevenue > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => openCloseDayModal(date)}
+                        className="text-xs font-medium text-orange-600 dark:text-orange-400 hover:text-orange-700 dark:hover:text-orange-300 hover:underline"
+                      >
+                        {dayExpenses > 0 ? 'Edit daily expenses' : 'Log daily expenses'}
+                      </button>
+                    )}
                   </div>
                   {dayJobs.map((job) => {
                     const jobExpenses = (job.labor || 0) + (job.gas || 0) + (job.dumpFee || 0) +
@@ -1238,25 +1510,50 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
                         className="flex items-center justify-between p-3 sm:p-4 hover:bg-[var(--color-bg-subtle)] transition-colors"
                       >
                         <div className="flex items-center gap-3 min-w-0 flex-1">
-                          <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${profit >= 0 ? 'bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400' : 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400'}`}>
-                            <span className="text-xs font-bold">{margin}%</span>
+                          <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                            job.status === 'scheduled'
+                              ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
+                              : profit >= 0 ? 'bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400' : 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400'
+                          }`}>
+                            <span className="text-xs font-bold">{job.status === 'scheduled' ? 'SCH' : `${margin}%`}</span>
                           </div>
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2 flex-wrap">
                               <p className="text-sm font-medium text-[var(--color-text-primary)] truncate">{job.customerName}</p>
+                              {job.status === 'scheduled' && (
+                                <span className="hidden sm:inline text-[10px] px-1.5 py-0.5 bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-full shrink-0">Scheduled</span>
+                              )}
                               {job.source && (
                                 <span className="hidden sm:inline text-[10px] px-1.5 py-0.5 bg-orange-500/10 text-orange-600 dark:text-orange-400 rounded-full shrink-0">{job.source}</span>
                               )}
                             </div>
+                            {job.status === 'scheduled' && (job.estimateLow || job.estimateHigh) && (
+                              <div className="text-xs text-blue-600 dark:text-blue-400 truncate max-w-[220px]">
+                                Estimate: {job.estimateLow ? formatCurrency(job.estimateLow) : '$0'}{job.estimateHigh ? ` - ${formatCurrency(job.estimateHigh)}` : ''}
+                              </div>
+                            )}
                             {job.notes && (
                               <div className="text-xs text-[var(--color-text-muted)] truncate max-w-[200px]">{job.notes}</div>
+                            )}
+                            {job.additionalExpense > 0 && job.additionalExpenseLabel && (
+                              <div className="text-xs text-[var(--color-text-faint)] truncate max-w-[200px]">
+                                Other: {job.additionalExpenseLabel}
+                              </div>
                             )}
                           </div>
                         </div>
                         <div className="flex items-center gap-3 shrink-0">
                           <div className="text-right">
-                            <p className="text-sm font-semibold text-green-600 dark:text-green-400">{formatCurrency(job.revenue)}</p>
-                            <p className="text-[10px] text-[var(--color-text-faint)] hidden sm:block">{formatCurrency(profit)} profit</p>
+                            <p className={`text-sm font-semibold ${job.status === 'scheduled' ? 'text-blue-600 dark:text-blue-400' : 'text-green-600 dark:text-green-400'}`}>
+                              {job.status === 'scheduled'
+                                ? (job.estimateLow || job.estimateHigh
+                                  ? `${job.estimateLow ? formatCurrency(job.estimateLow) : '$0'}${job.estimateHigh ? `-${formatCurrency(job.estimateHigh)}` : ''}`
+                                  : 'Scheduled')
+                                : formatCurrency(job.revenue)}
+                            </p>
+                            <p className="text-[10px] text-[var(--color-text-faint)] hidden sm:block">
+                              {job.status === 'scheduled' ? 'Complete later' : `${formatCurrency(profit)} profit`}
+                            </p>
                           </div>
                           <div className="flex gap-0.5">
                             {settings && (
@@ -1388,6 +1685,19 @@ export function Jobs({ jobs, setJobs, userId, selectedMonth, setSelectedMonth, s
                           </div>
                         ))}
                       </div>
+                      {(closeDayExpenses.additional > 0 || closeDayOtherLabel) && (
+                        <div className="mb-4">
+                          <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1">What was &quot;Other&quot;?</label>
+                          <input
+                            type="text"
+                            value={closeDayOtherLabel}
+                            onChange={(e) => setCloseDayOtherLabel(e.target.value)}
+                            className="w-full px-3 py-2 bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-lg text-sm"
+                            placeholder="U-Haul rental"
+                            maxLength={80}
+                          />
+                        </div>
+                      )}
                       <div className="flex gap-2">
                         <button type="button" onClick={() => setCloseDayDate(null)} disabled={closeDaySaving} className="app-btn-secondary flex-1 py-2.5">Cancel</button>
                         <button type="button" onClick={applyDailyExpenses} disabled={closeDaySaving} className="app-btn-primary flex-1 py-2.5 disabled:opacity-50 flex items-center justify-center gap-2">

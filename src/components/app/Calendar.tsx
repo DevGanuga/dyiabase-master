@@ -2,19 +2,20 @@
 
 import { useMemo, useState, useCallback } from 'react'
 import type { AppJob } from '@/types/database'
-import { formatCurrency, parseLocalDate } from '@/lib/utils'
+import { formatCurrency, formatLocalDateInput, parseLocalDate } from '@/lib/utils'
 
 interface CalendarProps {
   jobs: AppJob[]
   onNavigate?: (view: string) => void
   initialDate?: string
+  onScheduleJob?: (date: string) => void
 }
 
 const WEEKDAYS_FULL = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 const WEEKDAYS_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
-export function Calendar({ jobs, onNavigate, initialDate }: CalendarProps) {
-  const todayStr = new Date().toISOString().split('T')[0]
+export function Calendar({ jobs, onNavigate, initialDate, onScheduleJob }: CalendarProps) {
+  const todayStr = formatLocalDateInput()
 
   const [currentMonth, setCurrentMonth] = useState(() => {
     if (initialDate) return new Date(initialDate + 'T00:00:00')
@@ -116,6 +117,13 @@ export function Calendar({ jobs, onNavigate, initialDate }: CalendarProps) {
     return Math.round((getJobProfit(job) / job.revenue) * 100)
   }
 
+  const getEstimateLabel = (job: AppJob) => {
+    if (job.estimateLow && job.estimateHigh) return `${formatCurrency(job.estimateLow)} - ${formatCurrency(job.estimateHigh)}`
+    if (job.estimateLow) return `From ${formatCurrency(job.estimateLow)}`
+    if (job.estimateHigh) return `Up to ${formatCurrency(job.estimateHigh)}`
+    return null
+  }
+
   const formatSelectedDate = (dateStr: string) => {
     const d = new Date(dateStr + 'T00:00:00')
     return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
@@ -135,11 +143,11 @@ export function Calendar({ jobs, onNavigate, initialDate }: CalendarProps) {
           </p>
         </div>
         <div className="flex gap-2 shrink-0">
-          <button onClick={() => onNavigate?.('jobs')} className="app-btn-primary text-sm py-2.5 px-4">
+          <button onClick={() => onScheduleJob?.(selectedDate || todayStr) || onNavigate?.('jobs')} className="app-btn-primary text-sm py-2.5 px-4">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
-            Log Job
+            Schedule Job
           </button>
         </div>
       </div>
@@ -236,7 +244,11 @@ export function Calendar({ jobs, onNavigate, initialDate }: CalendarProps) {
                       {day.jobs.slice(0, 2).map((job) => (
                         <div
                           key={job.id}
-                          className="text-[10px] leading-tight px-1 py-0.5 bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 rounded truncate"
+                          className={`text-[10px] leading-tight px-1 py-0.5 rounded truncate ${
+                            job.status === 'scheduled'
+                              ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
+                              : 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300'
+                          }`}
                         >
                           {job.customerName}
                         </div>
@@ -263,7 +275,7 @@ export function Calendar({ jobs, onNavigate, initialDate }: CalendarProps) {
                   {hasJobs && (
                     <div className="absolute bottom-1 right-1 hidden sm:block">
                       <span className="text-[9px] font-semibold text-green-600 dark:text-green-400">
-                        {formatCurrency(totalRevenue)}
+                        {totalRevenue > 0 ? formatCurrency(totalRevenue) : `${day.jobs.length} scheduled`}
                       </span>
                     </div>
                   )}
@@ -284,7 +296,9 @@ export function Calendar({ jobs, onNavigate, initialDate }: CalendarProps) {
                 {selectedDayJobs.length > 0 ? (
                   <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
                     {selectedDayJobs.length} job{selectedDayJobs.length !== 1 ? 's' : ''} &middot;{' '}
-                    {formatCurrency(selectedDayJobs.reduce((sum, j) => sum + (j.revenue || 0), 0))} revenue
+                    {selectedDayJobs.some(j => (j.revenue || 0) > 0)
+                      ? `${formatCurrency(selectedDayJobs.reduce((sum, j) => sum + (j.revenue || 0), 0))} revenue`
+                      : 'scheduled work'}
                   </p>
                 ) : (
                   <p className="text-xs text-[var(--color-text-muted)] mt-0.5">No jobs</p>
@@ -306,27 +320,35 @@ export function Calendar({ jobs, onNavigate, initialDate }: CalendarProps) {
                         >
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2.5 min-w-0">
-                              <div className="w-8 h-8 bg-green-50 dark:bg-green-900/30 rounded-lg flex items-center justify-center shrink-0">
-                                <svg className="w-4 h-4 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${job.status === 'scheduled' ? 'bg-blue-50 dark:bg-blue-900/30' : 'bg-green-50 dark:bg-green-900/30'}`}>
+                                <svg className={`w-4 h-4 ${job.status === 'scheduled' ? 'text-blue-600 dark:text-blue-400' : 'text-green-600 dark:text-green-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                                 </svg>
                               </div>
                               <div className="min-w-0">
                                 <p className="text-sm font-medium text-[var(--color-text-primary)] truncate">{job.customerName}</p>
                                 <div className="flex items-center gap-1.5">
+                                  {job.status === 'scheduled' && (
+                                    <span className="text-[10px] font-medium text-blue-600 dark:text-blue-400">Scheduled</span>
+                                  )}
                                   {job.source && (
                                     <span className="text-[10px] text-[var(--color-text-faint)]">{job.source}</span>
                                   )}
-                                  {margin > 0 && (
+                                  {job.status !== 'scheduled' && margin > 0 && (
                                     <span className={`text-[10px] font-medium ${margin >= 50 ? 'text-green-600 dark:text-green-400' : margin >= 25 ? 'text-amber-600 dark:text-amber-400' : 'text-red-500'}`}>
                                       {margin}% margin
                                     </span>
                                   )}
                                 </div>
+                                {job.status === 'scheduled' && getEstimateLabel(job) && (
+                                  <p className="text-[10px] text-blue-600 dark:text-blue-400 mt-0.5">{getEstimateLabel(job)}</p>
+                                )}
                               </div>
                             </div>
                             <div className="text-right shrink-0 ml-2 flex items-center gap-2">
-                              <span className="text-sm font-semibold text-green-600 dark:text-green-400">{formatCurrency(job.revenue)}</span>
+                              <span className={`text-sm font-semibold ${job.status === 'scheduled' ? 'text-blue-600 dark:text-blue-400' : 'text-green-600 dark:text-green-400'}`}>
+                                {job.status === 'scheduled' ? (getEstimateLabel(job) || 'Scheduled') : formatCurrency(job.revenue)}
+                              </span>
                               <svg className={`w-4 h-4 text-[var(--color-text-faint)] transition-transform ${isExpanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                               </svg>
@@ -338,14 +360,29 @@ export function Calendar({ jobs, onNavigate, initialDate }: CalendarProps) {
                           <div className="px-4 pb-3 animate-fade-in">
                             <div className="bg-[var(--color-bg-subtle)] rounded-lg p-3 space-y-2">
                               <div className="grid grid-cols-2 gap-2 text-xs">
-                                <div>
-                                  <span className="text-[var(--color-text-faint)]">Revenue</span>
-                                  <p className="font-semibold text-green-600 dark:text-green-400">{formatCurrency(job.revenue)}</p>
-                                </div>
-                                <div>
-                                  <span className="text-[var(--color-text-faint)]">Profit</span>
-                                  <p className={`font-semibold ${profit >= 0 ? 'text-purple-600 dark:text-purple-400' : 'text-red-500'}`}>{formatCurrency(profit)}</p>
-                                </div>
+                                {job.status === 'scheduled' ? (
+                                  <>
+                                    <div>
+                                      <span className="text-[var(--color-text-faint)]">Estimate</span>
+                                      <p className="font-semibold text-blue-600 dark:text-blue-400">{getEstimateLabel(job) || 'Not set'}</p>
+                                    </div>
+                                    <div>
+                                      <span className="text-[var(--color-text-faint)]">Status</span>
+                                      <p className="font-semibold text-blue-600 dark:text-blue-400">Scheduled</p>
+                                    </div>
+                                  </>
+                                ) : (
+                                  <>
+                                    <div>
+                                      <span className="text-[var(--color-text-faint)]">Revenue</span>
+                                      <p className="font-semibold text-green-600 dark:text-green-400">{formatCurrency(job.revenue)}</p>
+                                    </div>
+                                    <div>
+                                      <span className="text-[var(--color-text-faint)]">Profit</span>
+                                      <p className={`font-semibold ${profit >= 0 ? 'text-purple-600 dark:text-purple-400' : 'text-red-500'}`}>{formatCurrency(profit)}</p>
+                                    </div>
+                                  </>
+                                )}
                                 {job.labor > 0 && (
                                   <div>
                                     <span className="text-[var(--color-text-faint)]">Labor</span>
@@ -382,11 +419,17 @@ export function Calendar({ jobs, onNavigate, initialDate }: CalendarProps) {
                                   <p className="text-xs text-[var(--color-text-muted)] leading-relaxed">{job.notes}</p>
                                 </div>
                               )}
+                              {job.address && (
+                                <div className="pt-2 border-t border-[var(--color-border-light)]">
+                                  <p className="text-xs text-[var(--color-text-faint)]">Address</p>
+                                  <p className="text-xs text-[var(--color-text-muted)] leading-relaxed">{job.address}</p>
+                                </div>
+                              )}
                               <button
                                 onClick={() => onNavigate?.('jobs')}
                                 className="w-full mt-1 text-xs text-orange-600 dark:text-orange-400 hover:underline font-medium text-center py-1"
                               >
-                                Edit in Jobs &rarr;
+                                {job.status === 'scheduled' ? 'Open in Jobs to complete →' : 'Edit in Jobs →'}
                               </button>
                             </div>
                           </div>
@@ -404,10 +447,10 @@ export function Calendar({ jobs, onNavigate, initialDate }: CalendarProps) {
                   </div>
                   <p className="text-sm text-[var(--color-text-muted)] mb-1">No jobs on this day</p>
                   <button
-                    onClick={() => onNavigate?.('jobs')}
+                    onClick={() => onScheduleJob?.(selectedDate) || onNavigate?.('jobs')}
                     className="text-xs text-orange-600 dark:text-orange-400 hover:underline font-medium"
                   >
-                    Log a job &rarr;
+                    Schedule a job &rarr;
                   </button>
                 </div>
               )}
@@ -421,7 +464,7 @@ export function Calendar({ jobs, onNavigate, initialDate }: CalendarProps) {
               </div>
               <h3 className="text-sm font-semibold text-[var(--color-text-primary)] mb-1">Select a Day</h3>
               <p className="text-xs text-[var(--color-text-muted)] leading-relaxed">
-                Click on any day in the calendar to see the jobs scheduled for that date.
+                Click on any day in the calendar to see scheduled work or add a new job to that date.
               </p>
             </div>
           )}

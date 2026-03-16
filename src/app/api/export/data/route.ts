@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { createClient } from '@supabase/supabase-js'
+import { extractAdditionalExpenseLabel } from '@/lib/utils'
 
 function getSupabase() {
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
@@ -45,14 +46,21 @@ export async function GET() {
       supabase.from('dyia_customers').select('name, email, phone, address, tags, created_at').eq('user_id', dyiaUserId).order('name'),
     ])
 
-    const jobs = (jobsRes.data || []) as Record<string, unknown>[]
+    const jobs = ((jobsRes.data || []) as Record<string, unknown>[]).map<Record<string, unknown>>((job) => {
+      const { additionalExpenseLabel, cleanNotes } = extractAdditionalExpenseLabel((job.notes as string | null | undefined) || undefined)
+      return {
+        ...job,
+        additional_expense_label: additionalExpenseLabel || '',
+        notes: cleanNotes || '',
+      }
+    })
     const quotes = (quotesRes.data || []) as Record<string, unknown>[]
     const expenses = (expensesRes.data || []) as Record<string, unknown>[]
     const settings = settingsRes.data as Record<string, unknown> | null
     const customers = (customersRes.data || []) as Record<string, unknown>[]
 
     // ── Jobs section ──
-    const jobHeaders = ['date', 'customer_name', 'source', 'revenue', 'labor', 'gas', 'dump_fee', 'dumpster_rental', 'additional_expense', 'num_workers', 'cost_per_worker', 'notes']
+    const jobHeaders = ['date', 'customer_name', 'source', 'estimate_low', 'estimate_high', 'revenue', 'labor', 'gas', 'dump_fee', 'dumpster_rental', 'additional_expense', 'additional_expense_label', 'num_workers', 'cost_per_worker', 'notes']
     const jobsCsv = toCsvSection('Jobs', jobHeaders, jobs)
 
     // ── Quotes section ──

@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic'
 import { useUser, useClerk, useAuth } from '@clerk/nextjs'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient, initSupabaseAuth } from '@/lib/supabase/client'
+import { extractAdditionalExpenseLabel, getRelativeLocalDateInput } from '@/lib/utils'
 import type { AppJob, AppQuote, AppSettings, UserProfile } from '@/types/database'
 import { Sidebar } from '@/components/app/Sidebar'
 import { Dashboard } from '@/components/app/Dashboard'
@@ -31,11 +32,11 @@ type View = 'dashboard' | 'jobs' | 'quotes' | 'quoteBuilder' | 'followUps' | 'ca
 
 // Demo data for showcase
 const DEMO_JOBS: AppJob[] = [
-  { id: 'demo-1', date: new Date().toISOString().split('T')[0], customerName: 'Johnson Family', source: 'Google', revenue: 450, labor: 80, gas: 25, dumpFee: 65, dumpsterRental: 0, additionalExpense: 0, numWorkers: 2, costPerWorker: 40, notes: 'Full garage cleanout' },
-  { id: 'demo-2', date: new Date(Date.now() - 86400000).toISOString().split('T')[0], customerName: 'Mike\'s Restaurant', source: 'Referral', revenue: 800, labor: 150, gas: 40, dumpFee: 120, dumpsterRental: 150, additionalExpense: 0, numWorkers: 3, costPerWorker: 50, notes: 'Commercial kitchen equipment removal' },
-  { id: 'demo-3', date: new Date(Date.now() - 172800000).toISOString().split('T')[0], customerName: 'Sarah Miller', source: 'Yelp', revenue: 275, labor: 60, gas: 20, dumpFee: 45, dumpsterRental: 0, additionalExpense: 0, numWorkers: 2, costPerWorker: 30, notes: 'Basement cleanout' },
-  { id: 'demo-4', date: new Date(Date.now() - 259200000).toISOString().split('T')[0], customerName: 'Downtown Office Co', source: 'Website', revenue: 1200, labor: 200, gas: 50, dumpFee: 180, dumpsterRental: 200, additionalExpense: 50, numWorkers: 4, costPerWorker: 50, notes: 'Office furniture disposal' },
-  { id: 'demo-5', date: new Date(Date.now() - 345600000).toISOString().split('T')[0], customerName: 'The Martinez Home', source: 'Google', revenue: 350, labor: 70, gas: 22, dumpFee: 55, dumpsterRental: 0, additionalExpense: 0, numWorkers: 2, costPerWorker: 35, notes: 'Attic cleanout' },
+  { id: 'demo-1', date: getRelativeLocalDateInput(0), customerName: 'Johnson Family', source: 'Google', revenue: 450, labor: 80, gas: 25, dumpFee: 65, dumpsterRental: 0, additionalExpense: 0, numWorkers: 2, costPerWorker: 40, notes: 'Full garage cleanout' },
+  { id: 'demo-2', date: getRelativeLocalDateInput(-1), customerName: 'Mike\'s Restaurant', source: 'Referral', revenue: 800, labor: 150, gas: 40, dumpFee: 120, dumpsterRental: 150, additionalExpense: 0, numWorkers: 3, costPerWorker: 50, notes: 'Commercial kitchen equipment removal' },
+  { id: 'demo-3', date: getRelativeLocalDateInput(-2), customerName: 'Sarah Miller', source: 'Yelp', revenue: 275, labor: 60, gas: 20, dumpFee: 45, dumpsterRental: 0, additionalExpense: 0, numWorkers: 2, costPerWorker: 30, notes: 'Basement cleanout' },
+  { id: 'demo-4', date: getRelativeLocalDateInput(-3), customerName: 'Downtown Office Co', source: 'Website', revenue: 1200, labor: 200, gas: 50, dumpFee: 180, dumpsterRental: 200, additionalExpense: 50, additionalExpenseLabel: 'Supplies', numWorkers: 4, costPerWorker: 50, notes: 'Office furniture disposal' },
+  { id: 'demo-5', date: getRelativeLocalDateInput(-4), customerName: 'The Martinez Home', source: 'Google', revenue: 350, labor: 70, gas: 22, dumpFee: 55, dumpsterRental: 0, additionalExpense: 0, numWorkers: 2, costPerWorker: 35, notes: 'Attic cleanout' },
 ]
 
 const DEMO_QUOTES: AppQuote[] = [
@@ -130,6 +131,8 @@ function AppPageContent() {
   })
   const [selectedMonth, setSelectedMonth] = useState(new Date())
   const [closeDayDateFromDashboard, setCloseDayDateFromDashboard] = useState<string | null>(null)
+  const [jobDraftDate, setJobDraftDate] = useState<string | null>(null)
+  const [jobDraftStatus, setJobDraftStatus] = useState<AppJob['status'] | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [fixedMonthlyExpenses, setFixedMonthlyExpenses] = useState(0)
@@ -213,25 +216,32 @@ function AppPageContent() {
         .order('date', { ascending: false })
 
       if (jobsData) {
-        setJobs(jobsData.map(j => ({
-          id: j.id,
-          date: j.date,
-          customerName: j.customer_name,
-          customerId: j.customer_id || null,
-          source: j.source || undefined,
-          revenue: parseFloat(j.revenue) || 0,
-          labor: parseFloat(j.labor) || 0,
-          gas: parseFloat(j.gas) || 0,
-          dumpFee: parseFloat(j.dump_fee) || 0,
-          dumpsterRental: parseFloat(j.dumpster_rental) || 0,
-          additionalExpense: parseFloat(j.additional_expense) || 0,
-          numWorkers: j.num_workers || 1,
-          costPerWorker: parseFloat(j.cost_per_worker) || 0,
-          notes: j.notes || undefined,
-          address: (j as { address?: string }).address || undefined,
-          status: (j as { status?: string }).status as AppJob['status'] | undefined,
-          receiptUrl: (j as { receipt_url?: string | null }).receipt_url ?? undefined
-        })))
+        setJobs(jobsData.map(j => {
+          const { additionalExpenseLabel, cleanNotes } = extractAdditionalExpenseLabel(j.notes || undefined)
+
+          return {
+            id: j.id,
+            date: j.date,
+            customerName: j.customer_name,
+            customerId: j.customer_id || null,
+            source: j.source || undefined,
+            revenue: parseFloat(j.revenue) || 0,
+          estimateLow: j.estimate_low ? parseFloat(j.estimate_low) || 0 : undefined,
+          estimateHigh: j.estimate_high ? parseFloat(j.estimate_high) || 0 : undefined,
+            labor: parseFloat(j.labor) || 0,
+            gas: parseFloat(j.gas) || 0,
+            dumpFee: parseFloat(j.dump_fee) || 0,
+            dumpsterRental: parseFloat(j.dumpster_rental) || 0,
+            additionalExpense: parseFloat(j.additional_expense) || 0,
+            additionalExpenseLabel,
+            numWorkers: j.num_workers || 1,
+            costPerWorker: parseFloat(j.cost_per_worker) || 0,
+            notes: cleanNotes,
+            address: (j as { address?: string }).address || undefined,
+            status: (j as { status?: string }).status as AppJob['status'] | undefined,
+            receiptUrl: (j as { receipt_url?: string | null }).receipt_url ?? undefined
+          }
+        }))
       }
 
       // Load quotes
@@ -699,12 +709,19 @@ function AppPageContent() {
             jobs={jobs}
             setJobs={setJobs}
             userId={userProfile?.id || ''}
+            isDemoMode={isDemoMode}
             selectedMonth={selectedMonth}
             setSelectedMonth={setSelectedMonth}
             settings={settings}
             showSuccess={showSuccess}
             initialCloseDayDate={closeDayDateFromDashboard}
             onCloseDayDateConsumed={() => setCloseDayDateFromDashboard(null)}
+            initialDraftDate={jobDraftDate}
+            initialDraftStatus={jobDraftStatus}
+            onDraftConsumed={() => {
+              setJobDraftDate(null)
+              setJobDraftStatus(null)
+            }}
           />
         )
       case 'quotes':
@@ -783,6 +800,11 @@ function AppPageContent() {
           <Calendar
             jobs={jobs}
             onNavigate={(view) => setCurrentView(view as View)}
+            onScheduleJob={(date) => {
+              setJobDraftDate(date)
+              setJobDraftStatus('scheduled')
+              setCurrentView('jobs')
+            }}
           />
         )
       case 'reports':

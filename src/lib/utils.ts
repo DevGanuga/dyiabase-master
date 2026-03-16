@@ -16,6 +16,55 @@ export function parseLocalDate(dateStr: string): Date {
   return new Date(dateStr + 'T12:00:00')
 }
 
+/**
+ * Format a Date as YYYY-MM-DD using local calendar fields.
+ * Avoids UTC conversion bugs from `toISOString()` for date inputs.
+ */
+export function formatLocalDateInput(date: Date = new Date()): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+/**
+ * Get a local YYYY-MM-DD string offset by whole calendar days.
+ */
+export function getRelativeLocalDateInput(daysOffset = 0): string {
+  const date = new Date()
+  date.setDate(date.getDate() + daysOffset)
+  return formatLocalDateInput(date)
+}
+
+const ADDITIONAL_EXPENSE_LABEL_PREFIX = 'Other expense:'
+
+export function extractAdditionalExpenseLabel(notes?: string | null): {
+  additionalExpenseLabel?: string
+  cleanNotes?: string
+} {
+  const trimmedNotes = notes?.trim()
+  if (!trimmedNotes) return {}
+
+  const [firstLine, ...remainingLines] = trimmedNotes.split('\n')
+  if (!firstLine.startsWith(ADDITIONAL_EXPENSE_LABEL_PREFIX)) {
+    return { cleanNotes: trimmedNotes }
+  }
+
+  const additionalExpenseLabel = firstLine.slice(ADDITIONAL_EXPENSE_LABEL_PREFIX.length).trim() || undefined
+  const cleanNotes = remainingLines.join('\n').trim() || undefined
+  return { additionalExpenseLabel, cleanNotes }
+}
+
+export function mergeAdditionalExpenseLabelIntoNotes(notes?: string | null, label?: string | null): string | null {
+  const cleanLabel = label?.trim()
+  const { cleanNotes } = extractAdditionalExpenseLabel(notes)
+
+  if (!cleanLabel && !cleanNotes) return null
+  if (!cleanLabel) return cleanNotes || null
+  if (!cleanNotes) return `${ADDITIONAL_EXPENSE_LABEL_PREFIX} ${cleanLabel}`
+  return `${ADDITIONAL_EXPENSE_LABEL_PREFIX} ${cleanLabel}\n${cleanNotes}`
+}
+
 export function formatCurrency(amount: number): string {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
