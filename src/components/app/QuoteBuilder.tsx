@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { AppQuote, AppPriceTemplate, AppJob, QuoteStatus } from '@/types/database'
-import { formatCurrency, compressImage } from '@/lib/utils'
+import { formatCurrency, formatLocalDateInput, compressImage } from '@/lib/utils'
 import { useConfirm } from '@/components/providers/ConfirmProvider'
 import { useCustomerAutocomplete } from '@/hooks/useCustomerAutocomplete'
 import { ensureCustomer } from '@/lib/customers'
@@ -75,8 +75,8 @@ export function QuoteBuilder({ quotes, setQuotes, userId, selectedJob, editingQu
 
   // Quote date
   const [quoteDate, setQuoteDate] = useState(() => {
-    if (editingQuote?.createdAt) return new Date(editingQuote.createdAt).toISOString().split('T')[0]
-    return new Date().toISOString().split('T')[0]
+    if (editingQuote?.createdAt) return formatLocalDateInput(new Date(editingQuote.createdAt))
+    return formatLocalDateInput()
   })
 
   // Estimate range (direct inputs)

@@ -42,8 +42,9 @@ export function Reports({ jobs, quotes, fixedMonthlyExpenses, isPro = false }: R
   }, [jobs, timeRange])
 
   const stats = useMemo(() => {
-    const totalRevenue = filteredJobs.reduce((sum, j) => sum + (j.revenue || 0), 0)
-    const totalExpenses = filteredJobs.reduce((sum, j) => 
+    const completedJobs = filteredJobs.filter(j => j.status !== 'scheduled')
+    const totalRevenue = completedJobs.reduce((sum, j) => sum + (j.revenue || 0), 0)
+    const totalExpenses = completedJobs.reduce((sum, j) => 
       sum + (j.labor || 0) + (j.gas || 0) + (j.dumpFee || 0) + 
       (j.dumpsterRental || 0) + (j.additionalExpense || 0), 0)
     const grossProfit = totalRevenue - totalExpenses
@@ -66,7 +67,7 @@ export function Reports({ jobs, quotes, fixedMonthlyExpenses, isPro = false }: R
 
     // Source breakdown
     const sourceMap: Record<string, { count: number; revenue: number }> = {}
-    filteredJobs.forEach(j => {
+    completedJobs.forEach(j => {
       const source = j.source || 'Unknown'
       if (!sourceMap[source]) sourceMap[source] = { count: 0, revenue: 0 }
       sourceMap[source].count++
@@ -78,14 +79,14 @@ export function Reports({ jobs, quotes, fixedMonthlyExpenses, isPro = false }: R
 
     // Daily/Weekly breakdown
     const dayMap: Record<string, number> = {}
-    filteredJobs.forEach(j => {
+    completedJobs.forEach(j => {
       const day = parseLocalDate(j.date).toLocaleDateString('en-US', { weekday: 'short' })
       dayMap[day] = (dayMap[day] || 0) + 1
     })
 
     // Monthly trend
     const monthMap: Record<string, { revenue: number; profit: number; jobs: number }> = {}
-    filteredJobs.forEach(j => {
+    completedJobs.forEach(j => {
       const month = parseLocalDate(j.date).toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
       if (!monthMap[month]) monthMap[month] = { revenue: 0, profit: 0, jobs: 0 }
       const jobExpenses = (j.labor || 0) + (j.gas || 0) + (j.dumpFee || 0) + (j.dumpsterRental || 0) + (j.additionalExpense || 0)
@@ -99,22 +100,22 @@ export function Reports({ jobs, quotes, fixedMonthlyExpenses, isPro = false }: R
 
     // Expense breakdown
     const expenseBreakdown = {
-      labor: filteredJobs.reduce((sum, j) => sum + (j.labor || 0), 0),
-      gas: filteredJobs.reduce((sum, j) => sum + (j.gas || 0), 0),
-      dumpFees: filteredJobs.reduce((sum, j) => sum + (j.dumpFee || 0), 0),
-      dumpster: filteredJobs.reduce((sum, j) => sum + (j.dumpsterRental || 0), 0),
-      other: filteredJobs.reduce((sum, j) => sum + (j.additionalExpense || 0), 0),
+      labor: completedJobs.reduce((sum, j) => sum + (j.labor || 0), 0),
+      gas: completedJobs.reduce((sum, j) => sum + (j.gas || 0), 0),
+      dumpFees: completedJobs.reduce((sum, j) => sum + (j.dumpFee || 0), 0),
+      dumpster: completedJobs.reduce((sum, j) => sum + (j.dumpsterRental || 0), 0),
+      other: completedJobs.reduce((sum, j) => sum + (j.additionalExpense || 0), 0),
     }
 
     return {
-      jobCount: filteredJobs.length,
+      jobCount: completedJobs.length,
       totalRevenue,
       totalExpenses,
       grossProfit,
       fixedExpenses,
       netProfit,
-      avgJobRevenue: filteredJobs.length > 0 ? totalRevenue / filteredJobs.length : 0,
-      avgJobProfit: filteredJobs.length > 0 ? grossProfit / filteredJobs.length : 0,
+      avgJobRevenue: completedJobs.length > 0 ? totalRevenue / completedJobs.length : 0,
+      avgJobProfit: completedJobs.length > 0 ? grossProfit / completedJobs.length : 0,
       profitMargin: totalRevenue > 0 ? (grossProfit / totalRevenue) * 100 : 0,
       sources,
       dayMap,

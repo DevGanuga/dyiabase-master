@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useEffect, useCallback, useRef } from 'react'
 import type { AppJob, AppQuote, AppCustomer } from '@/types/database'
-import { formatCurrency, parseLocalDate } from '@/lib/utils'
+import { formatCurrency, formatLocalDateInput, parseLocalDate } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { useConfirm } from '@/components/providers/ConfirmProvider'
 import { DyiaInsight } from './DyiaInsight'
@@ -42,7 +42,7 @@ function buildMinimalJob(customerName: string): AppJob {
   const d = new Date()
   return {
     id: '',
-    date: d.toISOString().split('T')[0],
+    date: formatLocalDateInput(d),
     customerName,
     source: '',
     revenue: 0,

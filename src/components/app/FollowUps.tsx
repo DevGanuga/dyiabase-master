@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useConfirm } from '@/components/providers/ConfirmProvider'
 import KanbanBoard, { type KanbanColumn, type KanbanFollowUp, type RiskLevel } from '@/components/ui/kanban-board'
 import { ensureCustomer } from '@/lib/customers'
+import { formatLocalDateInput } from '@/lib/utils'
 
 type FollowUpView = 'kanban' | 'calendar'
 type FollowUpStatus = 'pending' | 'contacted' | 'converted' | 'lost' | 'snoozed'
@@ -320,7 +321,7 @@ export function FollowUps({ userId, businessName = 'dyia', showSuccess, onDataCh
         .insert({
           user_id: userId,
           customer_id: customerId,
-          date: new Date().toISOString().split('T')[0],
+          date: formatLocalDateInput(),
           customer_name: q.customerName,
           source: 'Quote',
           revenue: avgEstimate,
@@ -460,7 +461,7 @@ export function FollowUps({ userId, businessName = 'dyia', showSuccess, onDataCh
     }
 
     const days: Array<{ date: string; day: number; isCurrentMonth: boolean; isToday: boolean; followUps: FollowUpRow[] }> = []
-    const todayStr = new Date().toISOString().split('T')[0]
+    const todayStr = formatLocalDateInput()
 
     const prevMonthLast = new Date(year, month, 0).getDate()
     for (let i = startPad - 1; i >= 0; i--) {
@@ -647,7 +648,7 @@ export function FollowUps({ userId, businessName = 'dyia', showSuccess, onDataCh
                   {calendarMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
                 </h2>
                 <button
-                  onClick={() => { setCalendarMonth(new Date()); setSelectedCalDate(new Date().toISOString().split('T')[0]) }}
+                  onClick={() => { setCalendarMonth(new Date()); setSelectedCalDate(formatLocalDateInput()) }}
                   className="px-2.5 py-1 text-xs font-medium text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/20 rounded-md hover:bg-orange-100 dark:hover:bg-orange-900/30 transition-colors"
                 >
                   Today

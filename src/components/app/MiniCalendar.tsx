@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import type { AppJob } from '@/types/database'
-import { formatCurrency, parseLocalDate } from '@/lib/utils'
+import { formatCurrency, formatLocalDateInput, parseLocalDate } from '@/lib/utils'
 
 interface MiniCalendarProps {
   jobs: AppJob[]
@@ -15,7 +15,7 @@ const WEEKDAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa']
 export function MiniCalendar({ jobs, onDayClick, onViewFullCalendar }: MiniCalendarProps) {
   const [currentMonth, setCurrentMonth] = useState(() => new Date())
 
-  const todayStr = new Date().toISOString().split('T')[0]
+  const todayStr = formatLocalDateInput()
 
   const jobsByDate = useMemo(() => {
     const map = new Map<string, AppJob[]>()

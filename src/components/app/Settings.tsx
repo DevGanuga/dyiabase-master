@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { AppSettings, UserProfile } from '@/types/database'
-import { compressImage, formatCurrency } from '@/lib/utils'
+import { compressImage, formatCurrency, formatLocalDateInput } from '@/lib/utils'
 import { FixedExpenses } from './FixedExpenses'
 import { PriceTemplates } from './PriceTemplates'
 import { useConfirm } from '@/components/providers/ConfirmProvider'
@@ -91,7 +91,7 @@ export function Settings({ settings, setSettings, userId, showSuccess, userProfi
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `dyia-export-${new Date().toISOString().split('T')[0]}.csv`
+      a.download = `dyia-export-${formatLocalDateInput()}.csv`
       a.click()
       URL.revokeObjectURL(url)
       showSuccess('Export downloaded')

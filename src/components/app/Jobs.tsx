@@ -76,6 +76,7 @@ export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth,
   const [closeDaySaving, setCloseDaySaving] = useState(false)
   const [closeDayResult, setCloseDayResult] = useState<{ revenue: number; expenses: number; profit: number; jobCount: number; avgRevenue: number; avgProfit: number } | null>(null)
   const [nudgeDismissedDays, setNudgeDismissedDays] = useState<Record<string, boolean>>({})
+  const [closedOutDays, setClosedOutDays] = useState<Record<string, boolean>>({})
   const [activeAutocomplete, setActiveAutocomplete] = useState<number | null>(null)
   const [showContactFields, setShowContactFields] = useState<Record<number, boolean>>({})
 
@@ -171,9 +172,9 @@ export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth,
       byDate.set(j.date, { revenue: cur.revenue + rev, expenses: cur.expenses + exp })
     })
     return Array.from(byDate.entries())
-      .filter(([, v]) => v.revenue > 0 && v.expenses === 0)
+      .filter(([date, v]) => v.revenue > 0 && v.expenses === 0 && !closedOutDays[date])
       .map(([date]) => date)
-  }, [monthJobs])
+  }, [monthJobs, closedOutDays])
 
   // Group filtered jobs by date for day-based workflow (newest first)
   const jobsByDay = useMemo(() => {
@@ -208,7 +209,7 @@ export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth,
 
   const applyDailyExpenses = async () => {
     if (!closeDayDate) return
-    const dayJobs = jobs.filter(j => j.date === closeDayDate)
+    const dayJobs = jobs.filter(j => j.date === closeDayDate && j.status !== 'scheduled')
     if (dayJobs.length === 0) return
 
     const totalLabor = Math.max(0, closeDayExpenses.labor)
@@ -253,6 +254,7 @@ export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth,
             dumpsterRental: u.dumpster_rental,
             additionalExpense: u.additional_expense,
             additionalExpenseLabel: additionalExpenseLabel || undefined,
+            notes: u.notes ?? j.notes,
           }
         }))
 
@@ -268,6 +270,7 @@ export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth,
           avgProfit,
         })
         showSuccess(`Daily expenses applied — ${formatCurrency(profit)} profit (${dayJobs.length} jobs)`)
+        if (closeDayDate) setClosedOutDays(prev => ({ ...prev, [closeDayDate]: true }))
         return
       }
 
@@ -298,6 +301,7 @@ export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth,
           dumpsterRental: u.dumpster_rental,
           additionalExpense: u.additional_expense,
           additionalExpenseLabel: additionalExpenseLabel || undefined,
+          notes: u.notes ?? j.notes,
         }
       }))
 
@@ -313,6 +317,7 @@ export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth,
         avgProfit,
       })
       showSuccess(`Daily expenses applied — ${formatCurrency(profit)} profit (${dayJobs.length} jobs)`)
+      if (closeDayDate) setClosedOutDays(prev => ({ ...prev, [closeDayDate]: true }))
     } catch (err) {
       console.error('Apply daily expenses error:', err)
       await alert({ title: 'Error', message: 'Failed to apply daily expenses.', variant: 'error' })
@@ -1647,7 +1652,7 @@ export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth,
             ) : (
               <>
                 {(() => {
-                  const dayJobsList = jobs.filter(j => j.date === closeDayDate)
+                  const dayJobsList = jobs.filter(j => j.date === closeDayDate && j.status !== 'scheduled')
                   return (
                     <>
                       <div className="mb-4">

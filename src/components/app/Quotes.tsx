@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { AppQuote, AppSettings, AppJob, QuoteStatus } from '@/types/database'
-import { formatCurrency, parseLocalDate } from '@/lib/utils'
+import { formatCurrency, formatLocalDateInput, parseLocalDate } from '@/lib/utils'
 import { getReviewRequestMessage } from '@/lib/reviews'
 import { downloadQuotePdf } from '@/lib/quote-pdf'
 import { useConfirm } from '@/components/providers/ConfirmProvider'
@@ -44,7 +44,7 @@ export function Quotes({ quotes, setQuotes, jobs, userId, settings, onCreateQuot
   const [reviewCopied, setReviewCopied] = useState(false)
   const [reviewHistory, setReviewHistory] = useState<{ platform: string; requestedAt: string }[]>([])
   const [convertingQuote, setConvertingQuote] = useState<AppQuote | null>(null)
-  const [convertDate, setConvertDate] = useState(new Date().toISOString().split('T')[0])
+  const [convertDate, setConvertDate] = useState(formatLocalDateInput())
 
   const supabase = createClient()
   const { confirm, alert } = useConfirm()
@@ -123,7 +123,7 @@ export function Quotes({ quotes, setQuotes, jobs, userId, settings, onCreateQuot
       if (newStatus === 'accepted') {
         const quote = quotes.find(q => q.id === quoteId)
         if (quote) {
-          setConvertDate(new Date().toISOString().split('T')[0])
+          setConvertDate(formatLocalDateInput())
           setConvertingQuote(quote)
         }
       }
@@ -143,7 +143,7 @@ export function Quotes({ quotes, setQuotes, jobs, userId, settings, onCreateQuot
         .insert({
           user_id: userId,
           customer_id: customerId,
-          date: jobDate || new Date().toISOString().split('T')[0],
+          date: jobDate || formatLocalDateInput(),
           customer_name: quote.customer.name,
           source: 'Quote',
           revenue,
@@ -510,7 +510,7 @@ export function Quotes({ quotes, setQuotes, jobs, userId, settings, onCreateQuot
                       onClick={() => {
                         const fakeJob = {
                           id: '',
-                          date: new Date().toISOString().split('T')[0],
+                          date: formatLocalDateInput(),
                           customerName: quote.customer.name,
                           source: 'Quote',
                           revenue: quote.total || quote.estimateRange.high || 0,

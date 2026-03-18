@@ -113,7 +113,7 @@ function RevenueForecastCard({ jobs, onOpenDyiaWithPrompt }: { jobs: AppJob[]; o
   const forecast = useMemo(() => {
     const now = new Date()
     const threeMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 3, 1)
-    const recentJobs = jobs.filter(j => parseLocalDate(j.date) >= threeMonthsAgo)
+    const recentJobs = jobs.filter(j => j.status !== 'scheduled' && parseLocalDate(j.date) >= threeMonthsAgo)
 
     if (recentJobs.length < 5) return null
 
@@ -574,7 +574,13 @@ export function Dashboard({
                       </svg>
                     </div>
                     <span className="text-xs font-medium text-[var(--color-text-primary)] truncate flex-1">{job.customerName}</span>
-                    <span className="text-xs font-semibold text-green-600 dark:text-green-400 shrink-0">{formatCurrency(job.revenue)}</span>
+                    <span className={`text-xs font-semibold shrink-0 ${job.status === 'scheduled' ? 'text-blue-600 dark:text-blue-400' : 'text-green-600 dark:text-green-400'}`}>
+                      {job.status === 'scheduled'
+                        ? (job.estimateLow || job.estimateHigh
+                          ? `${job.estimateLow ? formatCurrency(job.estimateLow) : '$0'}–${job.estimateHigh ? formatCurrency(job.estimateHigh) : '$0'}`
+                          : 'Scheduled')
+                        : formatCurrency(job.revenue)}
+                    </span>
                   </button>
                 ))}
                 {stats.todayJobs.length > 4 && (
