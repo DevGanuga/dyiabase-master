@@ -69,6 +69,8 @@ export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth,
   const [reviewModalJob, setReviewModalJob] = useState<AppJob | null>(null)
   const [reviewPlatform, setReviewPlatform] = useState<string>(REVIEW_PLATFORMS[0])
   const [reviewCopied, setReviewCopied] = useState(false)
+  const [reviewSending, setReviewSending] = useState(false)
+  const [emailConnection, setEmailConnection] = useState<{ id: string; provider: string; email: string } | null>(null)
   const [showExpenseDetails, setShowExpenseDetails] = useState(false)
   const [closeDayDate, setCloseDayDate] = useState<string | null>(null)
   const [closeDayExpenses, setCloseDayExpenses] = useState({ labor: 0, gas: 0, dumpFee: 0, dumpsterRental: 0, additional: 0 })
@@ -83,6 +85,18 @@ export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth,
   const supabase = createClient()
   const { confirm, alert } = useConfirm()
   
+  useEffect(() => {
+    if (isDemoMode) return
+    fetch('/api/email/connections')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        const conn = data?.connections?.[0]
+        if (conn) setEmailConnection({ id: conn.id, provider: conn.provider, email: conn.emailAddress })
+      })
+      .catch(() => {})
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- fetch once on mount
+  }, [])
+
   // Auto-navigate to most recent job's month if current month has no jobs (on initial load)
   useEffect(() => {
     if (hasCheckedMonth || jobs.length === 0) return
@@ -1726,62 +1740,127 @@ export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth,
       )}
 
       {/* Request Review modal */}
-      {reviewModalJob && settings && (
-        <div className="modal-overlay" onClick={() => setReviewModalJob(null)}>
-          <div
-            className="modal-panel"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="modal-title">Request review</h3>
-            <p className="modal-description">Copy the message and send it to {reviewModalJob.customerName} (e.g. by text or email).</p>
-            <div className="mb-4">
-              <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1">Platform</label>
-              <select
-                value={reviewPlatform}
-                onChange={(e) => setReviewPlatform(e.target.value)}
-                className="app-input w-full"
-              >
-                {REVIEW_PLATFORMS.map(p => <option key={p} value={p}>{p}</option>)}
-              </select>
-            </div>
-            <div className="mb-4">
-              <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1">Message</label>
-              <textarea
-                readOnly
-                rows={4}
-                value={getReviewRequestMessage(reviewModalJob.customerName, settings.businessInfo, reviewPlatform)}
-                className="app-input w-full resize-none text-sm"
-              />
-            </div>
-            <div className="modal-actions">
-              <button
-                type="button"
-                onClick={async () => {
-                  const msg = getReviewRequestMessage(reviewModalJob.customerName, settings.businessInfo, reviewPlatform)
-                  await navigator.clipboard.writeText(msg)
-                  setReviewCopied(true)
-                  showSuccess('Copied to clipboard')
-                  try {
-                    await fetch('/api/review-requests', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({
-                        quoteId: null,
-                        customerName: reviewModalJob.customerName,
-                        platform: reviewPlatform,
-                      }),
-                    })
-                  } catch { /* ignore */ }
-                }}
-                className="app-btn-primary flex-1"
-              >
-                {reviewCopied ? 'Copied!' : 'Copy & record'}
-              </button>
-              <button type="button" onClick={() => setReviewModalJob(null)} className="app-btn-secondary">Done</button>
+      {reviewModalJob && settings && (() => {
+        const customerInfo = findByName(reviewModalJob.customerName)
+        const reviewMessage = getReviewRequestMessage(reviewModalJob.customerName, settings.businessInfo, reviewPlatform)
+        const customerPhone = customerInfo?.phone?.replace(/[^\d+]/g, '') || ''
+        const customerEmail = customerInfo?.email || ''
+
+        const recordRequest = async () => {
+          try {
+            await fetch('/api/review-requests', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ quoteId: null, customerName: reviewModalJob.customerName, platform: reviewPlatform }),
+            })
+          } catch { /* ignore */ }
+        }
+
+        const handleSendEmail = async () => {
+          if (!emailConnection || !customerEmail) return
+          setReviewSending(true)
+          try {
+            const res = await fetch('/api/email/send', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                connectionId: emailConnection.id,
+                recipients: [{ email: customerEmail, name: reviewModalJob.customerName }],
+                subject: `We'd love your feedback${settings.businessInfo.name ? ` — ${settings.businessInfo.name}` : ''}`,
+                body: reviewMessage,
+              }),
+            })
+            if (!res.ok) throw new Error('Send failed')
+            const data = await res.json()
+            if (data.sent > 0) {
+              showSuccess(`Review request emailed to ${customerEmail}`)
+              await recordRequest()
+            } else {
+              throw new Error('No emails sent')
+            }
+          } catch {
+            await alert({ title: 'Send Failed', message: 'Could not send email. Check your email connection in Settings.', variant: 'error' })
+          } finally {
+            setReviewSending(false)
+          }
+        }
+
+        const handleSendText = () => {
+          const encoded = encodeURIComponent(reviewMessage)
+          const smsUrl = customerPhone ? `sms:${customerPhone}?body=${encoded}` : `sms:?body=${encoded}`
+          window.open(smsUrl, '_self')
+          recordRequest()
+          showSuccess('Opening messages app...')
+        }
+
+        return (
+          <div className="modal-overlay" onClick={() => !reviewSending && setReviewModalJob(null)}>
+            <div className="modal-panel" onClick={(e) => e.stopPropagation()}>
+              <h3 className="modal-title">Request review</h3>
+              <p className="modal-description">Send a review request to {reviewModalJob.customerName}.</p>
+              <div className="mb-4">
+                <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1">Platform</label>
+                <select value={reviewPlatform} onChange={(e) => setReviewPlatform(e.target.value)} className="app-input w-full">
+                  {REVIEW_PLATFORMS.map(p => <option key={p} value={p}>{p}</option>)}
+                </select>
+              </div>
+              <div className="mb-4">
+                <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1">Message</label>
+                <textarea readOnly rows={3} value={reviewMessage} className="app-input w-full resize-none text-sm" />
+              </div>
+              <div className="space-y-2">
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    disabled={reviewSending}
+                    onClick={handleSendText}
+                    className="app-btn-primary flex-1 text-sm py-2.5"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
+                    Send via Text{customerPhone ? '' : ' (enter number)'}
+                  </button>
+                  {emailConnection && customerEmail && (
+                    <button
+                      type="button"
+                      disabled={reviewSending}
+                      onClick={handleSendEmail}
+                      className="app-btn-primary flex-1 text-sm py-2.5"
+                    >
+                      {reviewSending ? (
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      ) : (
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                      )}
+                      {reviewSending ? 'Sending...' : 'Send via Email'}
+                    </button>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      await navigator.clipboard.writeText(reviewMessage)
+                      setReviewCopied(true)
+                      showSuccess('Copied to clipboard')
+                      await recordRequest()
+                    }}
+                    className="app-btn-secondary flex-1 text-sm py-2"
+                  >
+                    {reviewCopied ? 'Copied!' : 'Copy message'}
+                  </button>
+                  <button type="button" onClick={() => setReviewModalJob(null)} className="app-btn-secondary text-sm py-2">Done</button>
+                </div>
+                {!emailConnection && customerEmail && (
+                  <p className="text-[10px] text-[var(--color-text-faint)] text-center">Connect Gmail or Outlook in Settings to send via email</p>
+                )}
+                {emailConnection && !customerEmail && (
+                  <p className="text-[10px] text-[var(--color-text-faint)] text-center">Add customer email in Customers to send via email</p>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      })()}
     </div>
   )
 }
