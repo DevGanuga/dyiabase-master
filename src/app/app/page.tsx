@@ -228,6 +228,8 @@ function AppPageContent() {
             revenue: parseFloat(j.revenue) || 0,
           estimateLow: j.estimate_low ? parseFloat(j.estimate_low) || 0 : undefined,
           estimateHigh: j.estimate_high ? parseFloat(j.estimate_high) || 0 : undefined,
+          appointmentWindow: (j as { appointment_window_text?: string | null }).appointment_window_text || undefined,
+          scheduledKind: (j as { scheduled_kind?: AppJob['scheduledKind'] | null }).scheduled_kind || undefined,
             labor: parseFloat(j.labor) || 0,
             gas: parseFloat(j.gas) || 0,
             dumpFee: parseFloat(j.dump_fee) || 0,

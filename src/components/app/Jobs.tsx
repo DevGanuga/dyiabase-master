@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import type { AppJob, AppSettings } from '@/types/database'
+import type { AppJob, AppSettings, ScheduledJobKind } from '@/types/database'
 import { formatCurrency, formatLocalDateInput, mergeAdditionalExpenseLabelIntoNotes, parseLocalDate } from '@/lib/utils'
 import { getReviewRequestMessage } from '@/lib/reviews'
 import { useConfirm } from '@/components/providers/ConfirmProvider'
@@ -56,6 +56,8 @@ export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth,
   const [tempExpenses, setTempExpenses] = useState<TempExpenses>({ labor: 0, gas: 0, dumpFee: 0, dumpsterRental: 0, additional: 0 })
   const [tempOtherLabel, setTempOtherLabel] = useState('')
   const [tempStatus, setTempStatus] = useState<AppJob['status']>('completed')
+  const [tempScheduledKind, setTempScheduledKind] = useState<'job' | 'estimate' | 'free_estimate'>('job')
+  const [tempAppointmentWindow, setTempAppointmentWindow] = useState('')
   const [tempEstimateLow, setTempEstimateLow] = useState(0)
   const [tempEstimateHigh, setTempEstimateHigh] = useState(0)
   const [tempDate, setTempDate] = useState(formatLocalDateInput())
@@ -368,6 +370,8 @@ export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth,
     setTempExpenses({ labor: 0, gas: 0, dumpFee: 0, dumpsterRental: 0, additional: 0 })
     setTempOtherLabel('')
     setTempStatus(status)
+    setTempScheduledKind('job')
+    setTempAppointmentWindow('')
     setTempEstimateLow(0)
     setTempEstimateHigh(0)
     setTempDate(date)
@@ -397,6 +401,8 @@ export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth,
     })
     setTempOtherLabel(job.additionalExpenseLabel || '')
     setTempStatus(job.status || 'completed')
+    setTempScheduledKind(job.scheduledKind || 'job')
+    setTempAppointmentWindow(job.appointmentWindow || '')
     setTempEstimateLow(job.estimateLow || 0)
     setTempEstimateHigh(job.estimateHigh || 0)
     setTempDate(job.date)
@@ -412,6 +418,8 @@ export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth,
     setTempCustomers([])
     setTempOtherLabel('')
     setTempStatus('completed')
+    setTempScheduledKind('job')
+    setTempAppointmentWindow('')
     setTempEstimateLow(0)
     setTempEstimateHigh(0)
   }
@@ -453,8 +461,10 @@ export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth,
       const additionalExpenseLabel = tempExpenses.additional > 0 ? tempOtherLabel.trim() : ''
       const notesWithExpenseLabel = mergeAdditionalExpenseLabelIntoNotes(tempNotes, additionalExpenseLabel)
       const isScheduling = targetStatus === 'scheduled'
-      const normalizedEstimateLow = Math.max(0, tempEstimateLow || 0)
-      const normalizedEstimateHigh = Math.max(0, tempEstimateHigh || 0)
+      const normalizedAppointmentWindow = tempAppointmentWindow.trim()
+      const normalizedScheduledKind = isScheduling ? tempScheduledKind : 'job'
+      const normalizedEstimateLow = isScheduling && normalizedScheduledKind === 'estimate' ? Math.max(0, tempEstimateLow || 0) : 0
+      const normalizedEstimateHigh = isScheduling && normalizedScheduledKind === 'estimate' ? Math.max(0, tempEstimateHigh || 0) : 0
 
       if (!isScheduling && validCustomers.some(c => c.revenue <= 0)) {
         await alert({ title: 'Revenue Needed', message: 'Enter actual gross revenue before completing this job.', variant: 'warning' })
@@ -473,6 +483,8 @@ export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth,
             revenue: customer.revenue,
             estimateLow: normalizedEstimateLow || undefined,
             estimateHigh: normalizedEstimateHigh || undefined,
+            appointmentWindow: normalizedAppointmentWindow || undefined,
+            scheduledKind: normalizedScheduledKind,
             labor: tempExpenses.labor,
             gas: tempExpenses.gas,
             dumpFee: tempExpenses.dumpFee,
@@ -498,6 +510,8 @@ export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth,
               revenue: customer.revenue,
               estimateLow: normalizedEstimateLow || undefined,
               estimateHigh: normalizedEstimateHigh || undefined,
+              appointmentWindow: normalizedAppointmentWindow || undefined,
+              scheduledKind: normalizedScheduledKind,
               labor: tempExpenses.labor / expPerCustomer,
               gas: tempExpenses.gas / expPerCustomer,
               dumpFee: tempExpenses.dumpFee / expPerCustomer,
@@ -545,6 +559,8 @@ export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth,
           revenue: Math.max(0, customer.revenue),
           estimate_low: normalizedEstimateLow || null,
           estimate_high: normalizedEstimateHigh || null,
+          appointment_window_text: normalizedAppointmentWindow || null,
+          scheduled_kind: normalizedScheduledKind,
           labor: Math.max(0, tempExpenses.labor),
           gas: Math.max(0, tempExpenses.gas),
           dump_fee: Math.max(0, tempExpenses.dumpFee),
@@ -573,6 +589,8 @@ export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth,
           revenue: customer.revenue,
           estimateLow: normalizedEstimateLow || undefined,
           estimateHigh: normalizedEstimateHigh || undefined,
+          appointmentWindow: normalizedAppointmentWindow || undefined,
+          scheduledKind: normalizedScheduledKind,
           labor: tempExpenses.labor,
           gas: tempExpenses.gas,
           dumpFee: tempExpenses.dumpFee,
@@ -605,6 +623,8 @@ export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth,
             revenue: Math.max(0, customer.revenue),
             estimate_low: normalizedEstimateLow || null,
             estimate_high: normalizedEstimateHigh || null,
+            appointment_window_text: normalizedAppointmentWindow || null,
+            scheduled_kind: normalizedScheduledKind,
             labor: Math.max(0, tempExpenses.labor / expPerCustomer),
             gas: Math.max(0, tempExpenses.gas / expPerCustomer),
             dump_fee: Math.max(0, tempExpenses.dumpFee / expPerCustomer),
@@ -632,6 +652,8 @@ export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth,
             revenue: customer.revenue,
             estimateLow: normalizedEstimateLow || undefined,
             estimateHigh: normalizedEstimateHigh || undefined,
+            appointmentWindow: normalizedAppointmentWindow || undefined,
+            scheduledKind: normalizedScheduledKind,
             labor: tempExpenses.labor / expPerCustomer,
             gas: tempExpenses.gas / expPerCustomer,
             dumpFee: tempExpenses.dumpFee / expPerCustomer,
@@ -732,7 +754,8 @@ export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth,
   const todayStr = formatLocalDateInput()
   const isFutureJob = tempDate > todayStr
   const isTodayJob = tempDate === todayStr
-  const isScheduledDraft = tempStatus === 'scheduled'
+  const isScheduledDraft = tempStatus === 'scheduled' || isFutureJob
+  const shouldShowEstimateRange = isScheduledDraft && tempScheduledKind === 'estimate'
   const isCompletingScheduledJob = editingJob !== 'new' && !!editingJob && tempStatus === 'scheduled'
 
   // ===================== FORM VIEW =====================
@@ -996,38 +1019,80 @@ export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth,
 
         {isScheduledDraft && (
           <div className="app-card p-4 sm:p-5">
-            <h3 className="text-sm font-semibold text-[var(--color-text-primary)] mb-3">Estimated Range</h3>
+            <h3 className="text-sm font-semibold text-[var(--color-text-primary)] mb-3">Appointment Details</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-xl">
               <div>
-                <label className="app-label">Low End</label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)] text-sm">$</span>
-                  <input
-                    type="number"
-                    value={tempEstimateLow || ''}
-                    onChange={(e) => setTempEstimateLow(Math.max(0, parseFloat(e.target.value) || 0))}
-                    className="app-input pl-7"
-                    placeholder="300"
-                    min="0"
-                  />
-                </div>
+                <label className="app-label">Time Window</label>
+                <input
+                  type="text"
+                  value={tempAppointmentWindow}
+                  onChange={(e) => setTempAppointmentWindow(e.target.value)}
+                  className="app-input"
+                  placeholder="2:00-4:00pm"
+                  maxLength={60}
+                />
               </div>
               <div>
-                <label className="app-label">High End</label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)] text-sm">$</span>
-                  <input
-                    type="number"
-                    value={tempEstimateHigh || ''}
-                    onChange={(e) => setTempEstimateHigh(Math.max(0, parseFloat(e.target.value) || 0))}
-                    className="app-input pl-7"
-                    placeholder="500"
-                    min="0"
-                  />
-                </div>
+                <label className="app-label">Appointment Type</label>
+                <select
+                  value={tempScheduledKind}
+                  onChange={(e) => {
+                    const nextKind = e.target.value as 'job' | 'estimate' | 'free_estimate'
+                    setTempScheduledKind(nextKind)
+                    if (nextKind !== 'estimate') {
+                      setTempEstimateLow(0)
+                      setTempEstimateHigh(0)
+                    }
+                  }}
+                  className="app-select"
+                >
+                  <option value="job">Scheduled Job</option>
+                  <option value="estimate">Estimate</option>
+                  <option value="free_estimate">Free Estimate</option>
+                </select>
               </div>
             </div>
-            <p className="text-xs text-[var(--color-text-faint)] mt-2">Optional rough range for the calendar until you know the final gross.</p>
+
+            {shouldShowEstimateRange && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-xl mt-3">
+                <div>
+                  <label className="app-label">Low End</label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)] text-sm">$</span>
+                    <input
+                      type="number"
+                      value={tempEstimateLow || ''}
+                      onChange={(e) => setTempEstimateLow(Math.max(0, parseFloat(e.target.value) || 0))}
+                      className="app-input pl-7"
+                      placeholder="300"
+                      min="0"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="app-label">High End</label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)] text-sm">$</span>
+                    <input
+                      type="number"
+                      value={tempEstimateHigh || ''}
+                      onChange={(e) => setTempEstimateHigh(Math.max(0, parseFloat(e.target.value) || 0))}
+                      className="app-input pl-7"
+                      placeholder="500"
+                      min="0"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <p className="text-xs text-[var(--color-text-faint)] mt-2">
+              {tempScheduledKind === 'estimate'
+                ? 'Add the expected price range for this estimate appointment.'
+                : tempScheduledKind === 'free_estimate'
+                  ? 'Mark this as a free estimate visit with no price range.'
+                  : 'Use this for normal scheduled jobs before you know the final gross.'}
+            </p>
           </div>
         )}
 
@@ -1181,9 +1246,11 @@ export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth,
             <div className="hidden sm:flex items-center gap-4 text-sm">
               {isScheduledDraft ? (
                 <span className="text-[var(--color-text-faint)]">
-                  {tempEstimateLow || tempEstimateHigh
-                    ? `Estimate: ${tempEstimateLow ? formatCurrency(tempEstimateLow) : '$0'}${tempEstimateHigh ? ` - ${formatCurrency(tempEstimateHigh)}` : ''}`
-                    : 'Add a rough estimate if you have one'}
+                  {tempScheduledKind === 'free_estimate'
+                    ? `Free estimate${tempAppointmentWindow ? ` · ${tempAppointmentWindow}` : ''}`
+                    : tempEstimateLow || tempEstimateHigh
+                      ? `Estimate: ${tempEstimateLow ? formatCurrency(tempEstimateLow) : '$0'}${tempEstimateHigh ? ` - ${formatCurrency(tempEstimateHigh)}` : ''}${tempAppointmentWindow ? ` · ${tempAppointmentWindow}` : ''}`
+                      : `Scheduled${tempAppointmentWindow ? ` · ${tempAppointmentWindow}` : ''}`}
                 </span>
               ) : totalRevenue > 0 ? (
                 <>

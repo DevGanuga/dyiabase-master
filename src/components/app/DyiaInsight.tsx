@@ -69,6 +69,8 @@ export function DyiaInsight({ context, className = '', isPro = true }: DyiaInsig
     )
   }
 
+  if (loading || error || !insight) return null
+
   return (
     <div className={`flex items-start gap-3 px-4 py-3 bg-gradient-to-r from-orange-50/80 to-amber-50/50 dark:from-orange-950/20 dark:to-amber-950/10 border border-orange-200/50 dark:border-orange-800/30 rounded-xl transition-all ${className}`}>
       <div className="w-6 h-6 bg-gradient-to-br from-orange-500 to-amber-500 rounded-md flex items-center justify-center shrink-0 mt-0.5 shadow-sm">
@@ -77,24 +79,7 @@ export function DyiaInsight({ context, className = '', isPro = true }: DyiaInsig
         </svg>
       </div>
 
-      {loading ? (
-        <div className="flex-1 flex items-center gap-2 py-0.5">
-          <p className="text-sm text-[var(--color-text-muted)]">Generating insight...</p>
-          <div className="w-3 h-3 border-[1.5px] border-orange-500 border-t-transparent rounded-full animate-spin shrink-0" />
-        </div>
-      ) : error ? (
-        <div className="flex-1 flex items-center justify-between gap-2 py-0.5">
-          <p className="text-sm text-[var(--color-text-muted)]">Couldn&apos;t load insight right now.</p>
-          <button
-            onClick={() => { fetchedRef.current = false; fetchInsight(true) }}
-            className="text-xs font-medium text-orange-600 dark:text-orange-400 hover:underline shrink-0"
-          >
-            Retry
-          </button>
-        </div>
-      ) : (
-        <p className="flex-1 text-sm text-[var(--color-text-secondary)] leading-relaxed">{insight}</p>
-      )}
+      <p className="flex-1 text-sm text-[var(--color-text-secondary)] leading-relaxed">{insight}</p>
 
       {!loading && !error && (
         <div className="flex items-center gap-1 shrink-0 mt-0.5">

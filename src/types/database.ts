@@ -164,6 +164,7 @@ export interface AppReviewRequest {
 
 // App-side transformed types (camelCase)
 export type JobStatus = 'scheduled' | 'in_progress' | 'completed' | 'cancelled'
+export type ScheduledJobKind = 'job' | 'estimate' | 'free_estimate'
 
 export interface AppJob {
   id: string
@@ -174,6 +175,8 @@ export interface AppJob {
   revenue: number
   estimateLow?: number
   estimateHigh?: number
+  appointmentWindow?: string
+  scheduledKind?: ScheduledJobKind
   labor: number
   gas: number
   dumpFee: number
