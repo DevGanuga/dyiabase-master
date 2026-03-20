@@ -323,19 +323,21 @@ Return a JSON object with:
 }`,
   }
 
-  const response = await openai.chat.completions.create({
+  // Use the Responses API (same as chat route) — gpt-5-mini does not support chat.completions
+  const response = await openai.responses.create({
     model: DYIA_MODEL_MINI,
-    messages: [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: prompts[type] },
-    ],
-    max_completion_tokens: MAX_OUTPUT_TOKENS_INSIGHT,
-    response_format: { type: 'json_object' },
-  })
+    instructions: systemPrompt,
+    input: prompts[type],
+    max_output_tokens: MAX_OUTPUT_TOKENS_INSIGHT,
+    text: { format: { type: 'json_object' } },
+    store: false,
+  } as Parameters<typeof openai.responses.create>[0])
 
-  const usage = response.usage
-  const inputTokens = usage?.prompt_tokens ?? 0
-  const outputTokens = usage?.completion_tokens ?? 0
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const responseAny = response as any
+  const usage = responseAny.usage
+  const inputTokens = usage?.input_tokens ?? 0
+  const outputTokens = usage?.output_tokens ?? 0
   const costEstimateUsd = estimateCostUsd(inputTokens, outputTokens, 'mini')
   await recordUsage(supabaseClient, {
     tokensInput: inputTokens,
@@ -344,8 +346,21 @@ Return a JSON object with:
     source: 'insights',
   })
 
-  const raw = response.choices[0]?.message?.content
-  if (!raw || !raw.trim()) {
+  // Extract text from Responses API output array
+  const outputItems: Array<{ type: string; content?: Array<{ type: string; text?: string }> }> =
+    responseAny.output ?? []
+  let raw = ''
+  for (const item of outputItems) {
+    if (item.type === 'message' && Array.isArray(item.content)) {
+      for (const block of item.content) {
+        if (block.type === 'output_text' && typeof block.text === 'string') {
+          raw += block.text
+        }
+      }
+    }
+  }
+
+  if (!raw.trim()) {
     throw new Error('OpenAI returned an empty insight response')
   }
 
