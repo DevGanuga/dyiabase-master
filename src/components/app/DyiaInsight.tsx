@@ -3,6 +3,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import Link from 'next/link'
 
+const INSIGHT_REQUEST_TIMEOUT_MS = 12000
+
 interface DyiaInsightProps {
   context: 'jobs' | 'quotes' | 'followUps' | 'reports' | 'customers'
   className?: string
@@ -19,12 +21,16 @@ export function DyiaInsight({ context, className = '', isPro = true }: DyiaInsig
   const fetchInsight = useCallback(async (force = false) => {
     setLoading(true)
     setError(null)
+    const controller = new AbortController()
+    const timeoutId = window.setTimeout(() => controller.abort(), INSIGHT_REQUEST_TIMEOUT_MS)
+
     try {
       const apiType = context === 'reports' ? 'reports' : 'dashboard'
       const response = await fetch('/api/ai/insights', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ type: apiType, forceRefresh: force }),
+        signal: controller.signal,
       })
       const data = await response.json().catch(() => ({}))
       if (!response.ok) {
@@ -42,8 +48,15 @@ export function DyiaInsight({ context, className = '', isPro = true }: DyiaInsig
       }
     } catch (e) {
       setInsight(null)
-      setError(e instanceof Error ? e.message : 'Failed to load insight')
+      const message =
+        e instanceof DOMException && e.name === 'AbortError'
+          ? 'Insight request timed out'
+          : e instanceof Error
+            ? e.message
+            : 'Failed to load insight'
+      setError(message)
     } finally {
+      window.clearTimeout(timeoutId)
       setLoading(false)
     }
   }, [context])

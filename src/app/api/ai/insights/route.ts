@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { createClient } from '@supabase/supabase-js'
-import { getOpenAI, DYIA_MODEL_MINI } from '@/lib/openai/client'
-import { checkDailyBudget, recordUsage, estimateCostUsd, MAX_OUTPUT_TOKENS_INSIGHT } from '@/lib/openai/guardrails'
 
 export const maxDuration = 30
 
@@ -90,20 +88,11 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Budget guardrail: reject if daily spend cap is exceeded
-    const budgetResult = await checkDailyBudget(supabase)
-    if (!budgetResult.allowed) {
-      return NextResponse.json(
-        { error: budgetResult.message ?? 'Daily AI budget exceeded. Try again tomorrow.' },
-        { status: 429 }
-      )
-    }
-
     // Fetch business data
     const businessData = await fetchBusinessData(userProfile.id)
 
-    // Generate insight using OpenAI
-    const insight = await generateInsight(supabase, type, businessData, userProfile.first_name || 'there')
+    // Build the insight directly from business data so this endpoint is fast and deterministic.
+    const insight = generateInsight(type, businessData, userProfile.first_name || 'there')
 
     // Cache the result
     await supabase.from('dyia_insights_cache').insert({
@@ -135,14 +124,14 @@ async function fetchBusinessData(userId: string): Promise<BusinessData> {
   // Get jobs for this month
   const { data: thisMonthJobs } = await supabase
     .from('dyia_jobs')
-    .select('*')
+    .select('revenue, labor, gas, dump_fee, dumpster_rental, additional_expense, source, status')
     .eq('user_id', userId)
     .gte('date', startOfMonth.toISOString().split('T')[0])
 
   // Get jobs for last month
   const { data: lastMonthJobs } = await supabase
     .from('dyia_jobs')
-    .select('*')
+    .select('revenue, labor, gas, dump_fee, dumpster_rental, additional_expense, source, status')
     .eq('user_id', userId)
     .gte('date', startOfLastMonth.toISOString().split('T')[0])
     .lte('date', endOfLastMonth.toISOString().split('T')[0])
@@ -169,8 +158,8 @@ async function fetchBusinessData(userId: string): Promise<BusinessData> {
     .single()
 
   // Calculate metrics
-  const jobs = thisMonthJobs || []
-  const lastJobs = lastMonthJobs || []
+  const jobs = (thisMonthJobs || []).filter(job => job.status !== 'scheduled')
+  const lastJobs = (lastMonthJobs || []).filter(job => job.status !== 'scheduled')
 
   const calcRevenue = (jobList: typeof jobs) =>
     jobList.reduce((sum, j) => sum + (parseFloat(j.revenue) || 0), 0)
@@ -225,157 +214,199 @@ async function fetchBusinessData(userId: string): Promise<BusinessData> {
   }
 }
 
-async function generateInsight(
-  supabaseClient: typeof supabase,
+function generateInsight(
   type: InsightType,
   data: BusinessData,
   firstName: string
-): Promise<InsightResult> {
-  const openai = getOpenAI()
+): InsightResult {
+  switch (type) {
+    case 'weekly':
+      return buildWeeklyInsight(data, firstName)
+    case 'monthly':
+      return buildMonthlyInsight(data, firstName)
+    case 'reports':
+      return buildReportsInsight(data, firstName)
+    case 'dashboard':
+    default:
+      return buildDashboardInsight(data, firstName)
+  }
+}
 
-  const systemPrompt = `You are Dyia's business insights AI. Generate brief, actionable insights for a service business owner.
+function buildDashboardInsight(data: BusinessData, firstName: string): InsightResult {
+  const revenueDelta = getDeltaPercent(data.revenueThisMonth, data.revenueLastMonth)
+  const jobsDelta = getDeltaPercent(data.jobCountThisMonth, data.jobCountLastMonth)
 
-Guidelines:
-- Be encouraging but honest
-- Use specific numbers from the data
-- Keep it concise (2-3 sentences for dashboard, 3-5 for detailed reports)
-- Focus on what's actionable
-- Use plain language, no jargon
-- Format currency with $ and commas`
-
-  const prompts: Record<InsightType, string> = {
-    dashboard: `Generate a brief, personalized greeting insight for ${firstName}'s dashboard.
-
-Business data:
-- Revenue this month: $${data.revenueThisMonth.toLocaleString()}
-- Revenue last month: $${data.revenueLastMonth.toLocaleString()}
-- Profit this month: $${data.profitThisMonth.toLocaleString()} (${Math.round(data.profitMargin)}% margin)
-- Jobs this month: ${data.jobCountThisMonth} (vs ${data.jobCountLastMonth} last month)
-- Average job value: $${Math.round(data.avgJobValue).toLocaleString()}
-- Pending follow-ups: ${data.pendingFollowUps}
-- Top lead source: ${data.topSource}
-- Monthly goal progress: ${Math.round(data.goalProgress)}% of $${data.monthlyGoal.toLocaleString()}
-
-Return a JSON object with:
-{
-  "headline": "Brief headline (max 8 words)",
-  "summary": "2-3 sentence personalized insight",
-  "metric": { "label": "Key metric label", "value": "formatted value", "trend": "up" | "down" | "neutral" },
-  "tip": "One actionable tip (max 15 words)"
-}`,
-
-    weekly: `Generate a weekly business insight summary for ${firstName}.
-
-Business data:
-- Revenue this month: $${data.revenueThisMonth.toLocaleString()}
-- Revenue last month: $${data.revenueLastMonth.toLocaleString()}  
-- Profit: $${data.profitThisMonth.toLocaleString()} (${Math.round(data.profitMargin)}% margin)
-- Jobs: ${data.jobCountThisMonth} this month vs ${data.jobCountLastMonth} last month
-- Avg job: $${Math.round(data.avgJobValue).toLocaleString()}
-- Follow-ups pending: ${data.pendingFollowUps}
-- Top source: ${data.topSource}
-
-Return a JSON object with:
-{
-  "headline": "Weekly insight headline",
-  "summary": "3-4 sentence analysis",
-  "highlights": ["highlight 1", "highlight 2"],
-  "recommendations": ["rec 1", "rec 2"]
-}`,
-
-    monthly: `Generate a monthly business report insight for ${firstName}.
-
-Business data:
-- Revenue: $${data.revenueThisMonth.toLocaleString()} (last month: $${data.revenueLastMonth.toLocaleString()})
-- Profit: $${data.profitThisMonth.toLocaleString()} (${Math.round(data.profitMargin)}% margin)
-- Jobs: ${data.jobCountThisMonth} (last month: ${data.jobCountLastMonth})
-- Avg job value: $${Math.round(data.avgJobValue).toLocaleString()}
-- Fixed overhead: $${Math.round(data.fixedExpenses).toLocaleString()}/mo
-- Top source: ${data.topSource}
-- Goal progress: ${Math.round(data.goalProgress)}%
-
-Return a JSON object with:
-{
-  "headline": "Monthly report headline",
-  "summary": "4-5 sentence detailed analysis",
-  "keyMetrics": [{ "label": "metric", "value": "value", "change": "+X%" }],
-  "strengths": ["strength 1"],
-  "opportunities": ["opportunity 1"],
-  "nextMonthFocus": "One key focus area"
-}`,
-
-    reports: `Generate an analytical insight for the reports page for ${firstName}.
-
-Business data:
-- Revenue this month: $${data.revenueThisMonth.toLocaleString()}
-- Profit margin: ${Math.round(data.profitMargin)}%
-- Jobs: ${data.jobCountThisMonth}
-- Avg job value: $${Math.round(data.avgJobValue).toLocaleString()}
-- Fixed expenses: $${Math.round(data.fixedExpenses).toLocaleString()}/mo
-- Top source: ${data.topSource}
-
-Return a JSON object with:
-{
-  "headline": "Analytical headline",
-  "summary": "3-4 sentence analysis focusing on trends and patterns",
-  "insights": ["insight 1", "insight 2", "insight 3"],
-  "recommendation": "Key recommendation"
-}`,
+  if (data.jobCountThisMonth === 0) {
+    return {
+      headline: data.pendingFollowUps > 0 ? 'Follow-ups are the move' : 'No completed jobs yet',
+      summary:
+        data.pendingFollowUps > 0
+          ? `${firstName}, you have no completed jobs logged this month yet, but ${data.pendingFollowUps} follow-up${data.pendingFollowUps === 1 ? '' : 's'} still in play. Closing even one of them gets revenue moving again.`
+          : `${firstName}, there are no completed jobs logged this month yet. As soon as the first job is closed out, this card will start tracking revenue, margin, and momentum automatically.`,
+      metric: {
+        label: data.pendingFollowUps > 0 ? 'Pending follow-ups' : 'Jobs this month',
+        value: data.pendingFollowUps > 0 ? String(data.pendingFollowUps) : '0',
+        trend: 'neutral',
+      },
+      tip:
+        data.pendingFollowUps > 0
+          ? 'Reach out to the hottest quote today.'
+          : 'Log your first completed job to start trends.',
+    }
   }
 
-  // Use the Responses API (same as chat route) — gpt-5-mini does not support chat.completions
-  const response = await openai.responses.create({
-    model: DYIA_MODEL_MINI,
-    instructions: systemPrompt,
-    input: prompts[type],
-    max_output_tokens: MAX_OUTPUT_TOKENS_INSIGHT,
-    text: { format: { type: 'json_object' } },
-    store: false,
-  } as Parameters<typeof openai.responses.create>[0])
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const responseAny = response as any
-  const usage = responseAny.usage
-  const inputTokens = usage?.input_tokens ?? 0
-  const outputTokens = usage?.output_tokens ?? 0
-  const costEstimateUsd = estimateCostUsd(inputTokens, outputTokens, 'mini')
-  await recordUsage(supabaseClient, {
-    tokensInput: inputTokens,
-    tokensOutput: outputTokens,
-    costEstimateUsd,
-    source: 'insights',
-  })
-
-  if (responseAny.error) {
-    throw new Error(responseAny.error.message || 'OpenAI failed to generate an insight')
+  if (data.goalProgress >= 100) {
+    return {
+      headline: 'Monthly goal cleared',
+      summary: `${firstName}, you are at ${formatPercent(data.goalProgress)} of your monthly goal with ${formatCurrency(data.revenueThisMonth)} in completed revenue. Profit is ${formatCurrency(data.profitThisMonth)} at a ${formatPercent(data.profitMargin)} margin.`,
+      metric: {
+        label: 'Goal progress',
+        value: formatPercent(data.goalProgress),
+        trend: 'up',
+      },
+      tip: 'Protect margin now that revenue is in.',
+    }
   }
 
-  if (responseAny.incomplete_details) {
-    throw new Error('OpenAI returned an incomplete insight response')
+  if (data.profitMargin < 30) {
+    return {
+      headline: 'Margins need attention',
+      summary: `${firstName}, revenue is ${formatCurrency(data.revenueThisMonth)} across ${data.jobCountThisMonth} completed jobs, but profit margin is only ${formatPercent(data.profitMargin)}. Costs are eating too much of each job right now.`,
+      metric: {
+        label: 'Profit margin',
+        value: formatPercent(data.profitMargin),
+        trend: 'down',
+      },
+      tip: 'Review pricing or expense-heavy jobs first.',
+    }
   }
 
-  const raw = typeof responseAny.output_text === 'string' ? responseAny.output_text.trim() : ''
-  if (!raw) {
-    throw new Error('OpenAI returned an empty output_text insight response')
+  if (data.pendingFollowUps >= 3) {
+    return {
+      headline: 'Revenue is still on table',
+      summary: `${firstName}, ${data.pendingFollowUps} follow-ups are still open while completed revenue sits at ${formatCurrency(data.revenueThisMonth)}. With ${data.topSource !== 'None' ? `${data.topSource} driving the most jobs, ` : ''}fast follow-up is likely the easiest way to grow this month.`,
+      metric: {
+        label: 'Pending follow-ups',
+        value: String(data.pendingFollowUps),
+        trend: 'up',
+      },
+      tip: 'Work the warmest follow-ups before chasing new leads.',
+    }
   }
 
-  let parsed: InsightResult
-  try {
-    parsed = JSON.parse(raw) as InsightResult
-  } catch {
-    throw new Error('OpenAI returned invalid JSON for insight')
+  return {
+    headline: revenueDelta >= 0 ? 'Revenue is moving up' : 'Revenue is off pace',
+    summary: `${firstName}, completed revenue is ${formatCurrency(data.revenueThisMonth)} from ${data.jobCountThisMonth} jobs this month. That is ${formatSignedPercent(revenueDelta)} versus last month, and your average completed job is ${formatCurrency(data.avgJobValue)}.`,
+    metric: {
+      label: 'Revenue vs last month',
+      value: formatSignedPercent(revenueDelta),
+      trend: revenueDelta > 0 ? 'up' : revenueDelta < 0 ? 'down' : 'neutral',
+    },
+    tip:
+      jobsDelta < 0
+        ? 'More booked jobs will matter more than higher ticket size.'
+        : data.topSource !== 'None'
+          ? `Double down on ${data.topSource}.`
+          : 'Keep logging source data to spot what is working.',
   }
+}
 
-  if (
-    typeof parsed.headline !== 'string' ||
-    !parsed.headline.trim() ||
-    typeof parsed.summary !== 'string' ||
-    !parsed.summary.trim()
-  ) {
-    throw new Error('OpenAI insight missing required headline or summary')
+function buildWeeklyInsight(data: BusinessData, firstName: string): InsightResult {
+  const revenueDelta = getDeltaPercent(data.revenueThisMonth, data.revenueLastMonth)
+  return {
+    headline: revenueDelta >= 0 ? 'Weekly momentum is solid' : 'Weekly pace needs a push',
+    summary: `${firstName}, you have ${data.jobCountThisMonth} completed jobs this month generating ${formatCurrency(data.revenueThisMonth)} in revenue and ${formatCurrency(data.profitThisMonth)} in profit. That puts average job value at ${formatCurrency(data.avgJobValue)} with ${data.pendingFollowUps} follow-up${data.pendingFollowUps === 1 ? '' : 's'} still open.`,
+    highlights: [
+      `${formatCurrency(data.revenueThisMonth)} revenue this month`,
+      `${formatPercent(data.profitMargin)} profit margin`,
+    ],
+    recommendations: [
+      data.pendingFollowUps > 0
+        ? `Contact ${data.pendingFollowUps} open follow-up${data.pendingFollowUps === 1 ? '' : 's'} this week`
+        : 'Keep current lead flow warm with quick callbacks',
+      data.topSource !== 'None'
+        ? `Lean into ${data.topSource}, your top source right now`
+        : 'Track lead source on every job to improve attribution',
+    ],
   }
+}
 
-  return parsed
+function buildMonthlyInsight(data: BusinessData, firstName: string): InsightResult {
+  const revenueDelta = getDeltaPercent(data.revenueThisMonth, data.revenueLastMonth)
+  return {
+    headline: data.goalProgress >= 100 ? 'Strong month on the board' : 'Month still has room',
+    summary: `${firstName}, the month is at ${formatCurrency(data.revenueThisMonth)} in completed revenue versus ${formatCurrency(data.revenueLastMonth)} last month. Profit is ${formatCurrency(data.profitThisMonth)} with ${formatCurrency(data.fixedExpenses)} in fixed monthly overhead and a ${formatPercent(data.profitMargin)} margin.`,
+    keyMetrics: [
+      { label: 'Revenue', value: formatCurrency(data.revenueThisMonth), change: formatSignedPercent(revenueDelta) },
+      { label: 'Jobs', value: String(data.jobCountThisMonth), change: formatSignedPercent(getDeltaPercent(data.jobCountThisMonth, data.jobCountLastMonth)) },
+      { label: 'Avg job', value: formatCurrency(data.avgJobValue), change: data.profitMargin >= 40 ? 'healthy margin' : 'watch margin' },
+    ],
+    strengths: [
+      data.topSource !== 'None' ? `${data.topSource} is leading your completed jobs` : 'You are building a baseline month of data',
+    ],
+    opportunities: [
+      data.pendingFollowUps > 0
+        ? `${data.pendingFollowUps} follow-up${data.pendingFollowUps === 1 ? '' : 's'} could still turn into closed revenue`
+        : 'More lead volume is the clearest growth lever right now',
+    ],
+    nextMonthFocus:
+      data.profitMargin < 30
+        ? 'Raise margin on lower-profit jobs before scaling volume.'
+        : data.goalProgress < 100
+          ? 'Close follow-ups faster so revenue catches up to goal.'
+          : 'Scale the sources bringing in your best-paying jobs.',
+  }
+}
+
+function buildReportsInsight(data: BusinessData, firstName: string): InsightResult {
+  const revenueDelta = getDeltaPercent(data.revenueThisMonth, data.revenueLastMonth)
+  const insights = [
+    `Completed revenue is ${formatCurrency(data.revenueThisMonth)} across ${data.jobCountThisMonth} jobs.`,
+    `Average completed job value is ${formatCurrency(data.avgJobValue)} with a ${formatPercent(data.profitMargin)} margin.`,
+    data.topSource !== 'None'
+      ? `${data.topSource} is the top source in your logged jobs this month.`
+      : 'Lead source data is still too thin to identify a winner.',
+  ]
+
+  return {
+    headline: revenueDelta >= 0 ? 'Business trend is improving' : 'Business trend is mixed',
+    summary: `${firstName}, the report shows ${formatCurrency(data.revenueThisMonth)} in completed revenue this month, ${formatCurrency(data.profitThisMonth)} in gross profit, and ${formatCurrency(data.fixedExpenses)} in fixed monthly overhead. ${data.monthlyGoal > 0 ? `You are at ${formatPercent(data.goalProgress)} of the monthly goal.` : 'Set a monthly goal to benchmark pace more clearly.'}`,
+    keyMetrics: [
+      { label: 'Revenue', value: formatCurrency(data.revenueThisMonth), change: formatSignedPercent(revenueDelta) },
+      { label: 'Profit', value: formatCurrency(data.profitThisMonth), change: `${formatPercent(data.profitMargin)} margin` },
+      { label: 'Follow-ups', value: String(data.pendingFollowUps), change: data.pendingFollowUps > 0 ? 'pipeline open' : 'pipeline clear' },
+    ],
+    insights,
+    recommendation:
+      data.pendingFollowUps > 0
+        ? 'Push follow-ups first. That is the fastest path to more closed revenue.'
+        : data.profitMargin < 30
+          ? 'Tighten pricing or job costs before adding more volume.'
+          : data.topSource !== 'None'
+            ? `Invest more in ${data.topSource} while margins are healthy.`
+            : 'Keep logging consistent source data so the report can identify what converts best.',
+  }
+}
+
+function formatCurrency(value: number): string {
+  return `$${Math.round(value).toLocaleString()}`
+}
+
+function formatPercent(value: number): string {
+  return `${Math.round(value)}%`
+}
+
+function formatSignedPercent(value: number): string {
+  const rounded = Math.round(value)
+  return `${rounded > 0 ? '+' : ''}${rounded}%`
+}
+
+function getDeltaPercent(current: number, previous: number): number {
+  if (previous === 0) {
+    if (current === 0) return 0
+    return 100
+  }
+  return ((current - previous) / previous) * 100
 }
 
 // Type for insight results

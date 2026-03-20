@@ -5,6 +5,8 @@ import type { InsightResult } from '@/app/api/ai/insights/route'
 
 type InsightType = 'dashboard' | 'weekly' | 'monthly' | 'reports'
 
+const INSIGHT_REQUEST_TIMEOUT_MS = 12000
+
 interface AIInsightsProps {
   type: InsightType
   className?: string
@@ -46,19 +48,22 @@ export function AIInsights({ type, className = '', compact = false }: AIInsights
       error: null,
     }))
 
+    const controller = new AbortController()
+    const timeoutId = window.setTimeout(() => controller.abort(), INSIGHT_REQUEST_TIMEOUT_MS)
+
     try {
       const response = await fetch('/api/ai/insights', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ type, forceRefresh }),
+        signal: controller.signal,
       })
 
+      const data = await response.json().catch(() => ({}))
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to fetch insights')
+        throw new Error(typeof data.error === 'string' ? data.error : 'Failed to fetch insights')
       }
 
-      const data = await response.json()
       if (!data.insight) {
         throw new Error('No insight in response')
       }
@@ -70,12 +75,20 @@ export function AIInsights({ type, className = '', compact = false }: AIInsights
         generatedAt: data.generatedAt,
       })
     } catch (err) {
+      const message =
+        err instanceof DOMException && err.name === 'AbortError'
+          ? 'Insight request timed out'
+          : err instanceof Error
+            ? err.message
+            : 'Failed to load insights'
       setState(prev => ({
         ...prev,
         loading: false,
         refreshing: false,
-        error: err instanceof Error ? err.message : 'Failed to load insights',
+        error: message,
       }))
+    } finally {
+      window.clearTimeout(timeoutId)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [type])
