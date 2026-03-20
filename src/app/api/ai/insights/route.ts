@@ -346,22 +346,17 @@ Return a JSON object with:
     source: 'insights',
   })
 
-  // Extract text from Responses API output array
-  const outputItems: Array<{ type: string; content?: Array<{ type: string; text?: string }> }> =
-    responseAny.output ?? []
-  let raw = ''
-  for (const item of outputItems) {
-    if (item.type === 'message' && Array.isArray(item.content)) {
-      for (const block of item.content) {
-        if (block.type === 'output_text' && typeof block.text === 'string') {
-          raw += block.text
-        }
-      }
-    }
+  if (responseAny.error) {
+    throw new Error(responseAny.error.message || 'OpenAI failed to generate an insight')
   }
 
-  if (!raw.trim()) {
-    throw new Error('OpenAI returned an empty insight response')
+  if (responseAny.incomplete_details) {
+    throw new Error('OpenAI returned an incomplete insight response')
+  }
+
+  const raw = typeof responseAny.output_text === 'string' ? responseAny.output_text.trim() : ''
+  if (!raw) {
+    throw new Error('OpenAI returned an empty output_text insight response')
   }
 
   let parsed: InsightResult
