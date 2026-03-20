@@ -4,6 +4,8 @@ import { createClient } from '@supabase/supabase-js'
 import { getOpenAI, DYIA_MODEL_MINI } from '@/lib/openai/client'
 import { checkDailyBudget, recordUsage, estimateCostUsd, MAX_OUTPUT_TOKENS_INSIGHT } from '@/lib/openai/guardrails'
 
+export const maxDuration = 30
+
 // Initialize Supabase client with service role for server-side operations
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -118,10 +120,9 @@ export async function POST(req: NextRequest) {
     })
   } catch (error) {
     console.error('AI Insights error:', error)
-    return NextResponse.json(
-      { error: 'Failed to generate insights' },
-      { status: 500 }
-    )
+    const message =
+      error instanceof Error ? error.message : 'Failed to generate insights'
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }
 
@@ -322,40 +323,49 @@ Return a JSON object with:
 }`,
   }
 
-  try {
-    const response = await openai.chat.completions.create({
-      model: DYIA_MODEL_MINI,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: prompts[type] },
-      ],
-      max_completion_tokens: MAX_OUTPUT_TOKENS_INSIGHT,
-      response_format: { type: 'json_object' },
-    })
+  const response = await openai.chat.completions.create({
+    model: DYIA_MODEL_MINI,
+    messages: [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: prompts[type] },
+    ],
+    max_completion_tokens: MAX_OUTPUT_TOKENS_INSIGHT,
+    response_format: { type: 'json_object' },
+  })
 
-    const usage = response.usage
-    const inputTokens = usage?.prompt_tokens ?? 0
-    const outputTokens = usage?.completion_tokens ?? 0
-    const costEstimateUsd = estimateCostUsd(inputTokens, outputTokens, 'mini')
-    await recordUsage(supabaseClient, {
-      tokensInput: inputTokens,
-      tokensOutput: outputTokens,
-      costEstimateUsd,
-      source: 'insights',
-    })
+  const usage = response.usage
+  const inputTokens = usage?.prompt_tokens ?? 0
+  const outputTokens = usage?.completion_tokens ?? 0
+  const costEstimateUsd = estimateCostUsd(inputTokens, outputTokens, 'mini')
+  await recordUsage(supabaseClient, {
+    tokensInput: inputTokens,
+    tokensOutput: outputTokens,
+    costEstimateUsd,
+    source: 'insights',
+  })
 
-    const content = response.choices[0]?.message?.content || '{}'
-    return JSON.parse(content) as InsightResult
-  } catch (error) {
-    console.error('OpenAI insight generation error:', error)
-    return {
-      headline: 'Your Business at a Glance',
-      summary: `You've generated $${data.revenueThisMonth.toLocaleString()} in revenue this month with ${data.jobCountThisMonth} jobs completed.`,
-      tip: data.pendingFollowUps > 0 
-        ? `You have ${data.pendingFollowUps} quotes waiting for follow-up.`
-        : 'Keep up the great work!',
-    }
+  const raw = response.choices[0]?.message?.content
+  if (!raw || !raw.trim()) {
+    throw new Error('OpenAI returned an empty insight response')
   }
+
+  let parsed: InsightResult
+  try {
+    parsed = JSON.parse(raw) as InsightResult
+  } catch {
+    throw new Error('OpenAI returned invalid JSON for insight')
+  }
+
+  if (
+    typeof parsed.headline !== 'string' ||
+    !parsed.headline.trim() ||
+    typeof parsed.summary !== 'string' ||
+    !parsed.summary.trim()
+  ) {
+    throw new Error('OpenAI insight missing required headline or summary')
+  }
+
+  return parsed
 }
 
 // Type for insight results

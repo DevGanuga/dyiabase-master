@@ -250,7 +250,7 @@ export function Calendar({ jobs, onNavigate, initialDate, onScheduleJob }: Calen
                               : 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300'
                           }`}
                         >
-                          {job.customerName}
+                          {job.appointmentWindow ? `${job.appointmentWindow} · ${job.customerName}` : job.customerName}
                         </div>
                       ))}
                       {day.jobs.length > 2 && (
@@ -328,6 +328,9 @@ export function Calendar({ jobs, onNavigate, initialDate, onScheduleJob }: Calen
                               <div className="min-w-0">
                                 <p className="text-sm font-medium text-[var(--color-text-primary)] truncate">{job.customerName}</p>
                                 <div className="flex items-center gap-1.5">
+                                  {job.appointmentWindow && (
+                                    <span className="text-[10px] font-medium text-orange-600 dark:text-orange-400">{job.appointmentWindow}</span>
+                                  )}
                                   {job.status === 'scheduled' && (
                                     <span className="text-[10px] font-medium text-blue-600 dark:text-blue-400">Scheduled</span>
                                   )}

@@ -498,7 +498,7 @@ export function Dashboard({
 
       {/* ===== AI INSIGHTS (Dyia Pro) — only after checklist is done ===== */}
       {isPro && !showLaunchpad && (
-        <AIInsights type="dashboard" compact autoRefresh />
+        <AIInsights type="dashboard" compact />
       )}
 
       {/* ===== YOUR DAY + MINI CALENDAR ===== */}

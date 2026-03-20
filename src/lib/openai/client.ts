@@ -11,6 +11,8 @@ export function getOpenAI(): OpenAI {
     }
     _openai = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY,
+      // Single attempt: no automatic retries on timeouts or 5xx (user-visible outcome is deterministic)
+      maxRetries: 0,
     })
   }
   return _openai

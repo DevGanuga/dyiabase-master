@@ -9,7 +9,6 @@ interface AIInsightsProps {
   type: InsightType
   className?: string
   compact?: boolean
-  autoRefresh?: boolean
 }
 
 interface InsightState {
@@ -30,7 +29,7 @@ function timeAgo(dateStr: string): string {
   return `${Math.floor(hrs / 24)}d ago`
 }
 
-export function AIInsights({ type, className = '', compact = false, autoRefresh = false }: AIInsightsProps) {
+export function AIInsights({ type, className = '', compact = false }: AIInsightsProps) {
   const [state, setState] = useState<InsightState>({
     insight: null,
     loading: true,
@@ -60,6 +59,9 @@ export function AIInsights({ type, className = '', compact = false, autoRefresh 
       }
 
       const data = await response.json()
+      if (!data.insight) {
+        throw new Error('No insight in response')
+      }
       setState({
         insight: data.insight,
         loading: false,
@@ -82,50 +84,29 @@ export function AIInsights({ type, className = '', compact = false, autoRefresh 
     fetchInsight()
   }, [fetchInsight])
 
-  useEffect(() => {
-    if (!autoRefresh) return
-    const interval = setInterval(() => fetchInsight(), 60 * 60 * 1000)
-    return () => clearInterval(interval)
-  }, [autoRefresh, fetchInsight])
-
-  // Silently hide for non-Pro users only
-  if (state.error && state.error.includes('Pro subscription')) {
-    return null
-  }
-
-  // Loading state
-  if (state.loading) {
-    return (
-      <div className={`${className}`}>
-        <div className={`bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50 dark:from-orange-950/30 dark:via-amber-950/30 dark:to-yellow-950/30 border border-orange-200/50 dark:border-orange-800/30 rounded-xl ${compact ? 'p-4' : 'p-5 sm:p-6'}`}>
-          <div className="flex items-center gap-3">
-            <div className={`${compact ? 'w-8 h-8 rounded-lg' : 'w-10 h-10 sm:w-12 sm:h-12 rounded-xl'} bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center flex-shrink-0 shadow-lg shadow-orange-500/20`}>
-              <svg className={`${compact ? 'w-4 h-4' : 'w-5 h-5 sm:w-6 sm:h-6'} text-white`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2.5">
-                <p className={`${compact ? 'text-sm' : 'text-base'} font-semibold text-slate-900 dark:text-slate-100`}>
-                  Dyia AI
-                </p>
-                <div className="flex items-center gap-1.5 px-2 py-0.5 bg-orange-100/80 dark:bg-orange-900/40 rounded-full">
-                  <div className="w-1.5 h-1.5 bg-orange-500 rounded-full animate-pulse" />
-                  <span className="text-[10px] font-medium text-orange-700 dark:text-orange-300">Analyzing</span>
-                </div>
-              </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                Reviewing your business data...
-              </p>
-            </div>
-          </div>
+  if (state.error) {
+    const box =
+      'rounded-xl border border-red-200/80 dark:border-red-900/40 bg-red-50/80 dark:bg-red-950/20 px-4 py-3 text-sm text-red-800 dark:text-red-200'
+    if (compact) {
+      return (
+        <div className={`${box} ${className}`} role="alert">
+          <p className="font-medium">Insight unavailable</p>
+          <p className="mt-1 text-red-700/90 dark:text-red-300/90">{state.error}</p>
         </div>
+      )
+    }
+    return (
+      <div className={`${box} ${className}`} role="alert">
+        <p className="font-medium">Couldn&apos;t load AI insight</p>
+        <p className="mt-1 text-red-700/90 dark:text-red-300/90">{state.error}</p>
       </div>
     )
   }
 
-  if (state.error || !state.insight) {
-    return null
+  if (state.loading || !state.insight) {
+    const skeleton =
+      'rounded-xl border border-slate-200/80 dark:border-slate-700/50 bg-slate-50/80 dark:bg-slate-900/30 px-4 py-3 text-sm text-slate-500 dark:text-slate-400'
+    return <div className={`${skeleton} ${className}`}>Loading insight…</div>
   }
 
   const { insight } = state
