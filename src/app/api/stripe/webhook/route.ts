@@ -291,39 +291,31 @@ async function handleCreditPurchase(supabase: any, session: Stripe.Checkout.Sess
   }
 
   const paymentId = session.payment_intent?.toString() || session.id
-
-  const { data: user, error: fetchError } = await supabase
-    .from('dyia_users')
-    .select('ai_credits_balance')
-    .eq('id', dyiaUserId)
-    .single()
-
-  if (fetchError || !user) {
-    console.error('Credit purchase: user not found', dyiaUserId, fetchError)
-    return
-  }
-
-  const currentBalance = user.ai_credits_balance ?? 0
-  const newBalance = currentBalance + creditsAmount
-
-  const { error: updateError } = await supabase
-    .from('dyia_users')
-    .update({ ai_credits_balance: newBalance })
-    .eq('id', dyiaUserId)
-
-  if (updateError) {
-    console.error('Credit purchase: failed to update balance', updateError)
-    throw updateError
-  }
-
-  await supabase.from('dyia_credit_transactions').insert({
-    user_id: dyiaUserId,
-    type: 'purchase',
-    amount: creditsAmount,
-    balance_after: newBalance,
-    description: `Purchased ${creditsAmount} AI credits`,
-    stripe_payment_id: paymentId,
-    message_id: null,
-    metadata: {},
+  const { data: applyResult, error: applyError } = await supabase.rpc('dyia_apply_credit_purchase', {
+    p_user_id: dyiaUserId,
+    p_amount: creditsAmount,
+    p_stripe_payment_id: paymentId,
+    p_description: `Purchased ${creditsAmount} AI credits`,
+    p_metadata: {
+      stripe_checkout_session_id: session.id,
+    },
   })
+
+  if (applyError) {
+    console.error('Credit purchase: failed to apply purchase', applyError)
+    throw applyError
+  }
+
+  const result = Array.isArray(applyResult) ? applyResult[0] : null
+  if (!result) {
+    throw new Error('Credit purchase: empty response from dyia_apply_credit_purchase')
+  }
+
+  if (!result.applied) {
+    console.info('Credit purchase: duplicate webhook ignored', {
+      paymentId,
+      dyiaUserId,
+      stripeCheckoutSessionId: session.id,
+    })
+  }
 }
