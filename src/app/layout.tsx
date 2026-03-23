@@ -26,9 +26,15 @@ export const metadata: Metadata = {
   keywords: ['profit tracking', 'job tracking', 'quotes', 'service business', 'junk removal', 'lawn care', 'house cleaning', 'small business'],
   authors: [{ name: 'dyia', url: appUrl }],
   creator: 'dyia',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'dyia',
+  },
   icons: {
     icon: [
-      { url: '/dyia-logo.png', type: 'image/png', sizes: '256x256' },
+      { url: '/dyia-icon-192.png', type: 'image/png', sizes: '192x192' },
+      { url: '/dyia-icon-512.png', type: 'image/png', sizes: '512x512' },
     ],
     apple: [
       { url: '/apple-touch-icon.png', type: 'image/png', sizes: '180x180' },
