@@ -44,7 +44,6 @@ export default function LandingPage() {
   const checkoutReady = !isSignedIn || (isLoaded && user)
   const [mounted, setMounted] = useState(false)
   const [loading, setLoading] = useState<string | null>(null)
-  const [couponInput, setCouponInput] = useState('')
   const [openFaq, setOpenFaq] = useState<number | null>(null)
   const [hasDemoCookie, setHasDemoCookie] = useState(false)
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly')
@@ -87,7 +86,6 @@ export default function LandingPage() {
           priceId: STRIPE_PRICES[tier][plan],
           clerkUserId: user.id,
           userEmail,
-          couponCode: couponInput || undefined,
           useFoundersCoupon: useFoundersCoupon || undefined,
           tier,
         }),
@@ -960,11 +958,6 @@ export default function LandingPage() {
               ))}
             </div>
 
-            {/* Coupon */}
-            <div className="mt-8 max-w-xs mx-auto">
-              <input type="text" value={couponInput} onChange={(e) => setCouponInput(e.target.value.toUpperCase())} placeholder="Have a coupon code?" className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-slate-600 focus:outline-none focus:border-orange-500 text-center text-sm" />
-              {couponInput && <p className="text-green-400 text-xs mt-2 text-center">✓ Will be applied at checkout</p>}
-            </div>
           </div>
         </section>
 

@@ -22,6 +22,36 @@ function getSupabase() {
   )
 }
 
+async function resolveStripeDiscount(
+  stripe: Stripe,
+  couponCode: string
+): Promise<{ promotion_code?: string; coupon?: string } | null> {
+  const normalizedCode = couponCode.trim()
+  if (!normalizedCode) return null
+
+  const promotionCodes = await stripe.promotionCodes.list({
+    code: normalizedCode,
+    active: true,
+    limit: 1,
+  })
+
+  const promotionCode = promotionCodes.data[0]
+  if (promotionCode) {
+    return { promotion_code: promotionCode.id }
+  }
+
+  try {
+    const coupon = await stripe.coupons.retrieve(normalizedCode)
+    if (!('deleted' in coupon) && coupon.valid) {
+      return { coupon: coupon.id }
+    }
+  } catch {
+    // Fall through to invalid-code response below.
+  }
+
+  return null
+}
+
 export async function POST(request: NextRequest) {
   // Rate limit: 10 requests per minute per IP
   const rateLimited = await rateLimiters.checkout.checkAsync(request)
@@ -122,7 +152,11 @@ export async function POST(request: NextRequest) {
       if (useFoundersCoupon && foundersCouponId) {
         sessionParams.discounts = [{ coupon: foundersCouponId }]
       } else if (couponCode) {
-        sessionParams.discounts = [{ coupon: couponCode }]
+        const discount = await resolveStripeDiscount(stripe, couponCode)
+        if (!discount) {
+          return NextResponse.json({ error: 'Invalid coupon code' }, { status: 400 })
+        }
+        sessionParams.discounts = [discount]
       } else {
         // No pre-applied coupon — let customers enter a promotion code at checkout
         sessionParams.allow_promotion_codes = true
