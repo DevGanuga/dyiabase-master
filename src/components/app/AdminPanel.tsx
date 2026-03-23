@@ -122,7 +122,23 @@ interface AdminStats {
   }>
 }
 
-type AdminTab = 'overview' | 'users' | 'ai' | 'revenue' | 'system'
+interface BetaAccessRequest {
+  id: string
+  name: string
+  signup_email: string
+  google_email: string
+  business_name: string | null
+  requested_feature: string
+  notes: string | null
+  status: 'pending' | 'approved' | 'google_added' | 'invited' | 'rejected'
+  admin_notes: string | null
+  reviewed_at: string | null
+  reviewed_by_clerk_user_id: string | null
+  created_at: string
+  updated_at: string
+}
+
+type AdminTab = 'overview' | 'users' | 'beta' | 'ai' | 'revenue' | 'system'
 
 // ---------- Component ----------
 
@@ -140,6 +156,13 @@ export function AdminPanel() {
   const [detailLoading, setDetailLoading] = useState(false)
   const [toggling, setToggling] = useState<string | null>(null)
   const [canceling, setCanceling] = useState<string | null>(null)
+  const [betaRequests, setBetaRequests] = useState<BetaAccessRequest[]>([])
+  const [betaLoading, setBetaLoading] = useState(false)
+  const [betaError, setBetaError] = useState<string | null>(null)
+  const [betaSearch, setBetaSearch] = useState('')
+  const [betaStatusFilter, setBetaStatusFilter] = useState('')
+  const [betaNotesDrafts, setBetaNotesDrafts] = useState<Record<string, string>>({})
+  const [savingBetaId, setSavingBetaId] = useState<string | null>(null)
 
   const loadStats = useCallback(async () => {
     try {
@@ -157,6 +180,35 @@ export function AdminPanel() {
   }, [])
 
   useEffect(() => { loadStats() }, [loadStats])
+
+  const loadBetaRequests = useCallback(async () => {
+    setBetaLoading(true)
+    setBetaError(null)
+    try {
+      const params = new URLSearchParams()
+      if (betaSearch) params.set('search', betaSearch)
+      if (betaStatusFilter) params.set('status', betaStatusFilter)
+      const res = await fetch(`/api/admin/beta-access?${params.toString()}`)
+      if (!res.ok) {
+        if (res.status === 403) throw new Error('You do not have admin access.')
+        throw new Error('Failed to load beta requests')
+      }
+      const data = await res.json()
+      const requests = data.requests || []
+      setBetaRequests(requests)
+      setBetaNotesDrafts(Object.fromEntries(requests.map((request: BetaAccessRequest) => [request.id, request.admin_notes || ''])))
+    } catch (err) {
+      setBetaError(err instanceof Error ? err.message : 'Failed to load beta requests')
+    } finally {
+      setBetaLoading(false)
+    }
+  }, [betaSearch, betaStatusFilter])
+
+  useEffect(() => {
+    if (activeTab === 'beta') {
+      loadBetaRequests()
+    }
+  }, [activeTab, loadBetaRequests])
 
   const loadUserDetail = useCallback(async (userId: string) => {
     setDetailLoading(true)
@@ -222,6 +274,28 @@ export function AdminPanel() {
     } catch (err) { console.error('Update user error:', err) }
   }
 
+  const handleUpdateBetaRequest = async (id: string, updates: { status?: BetaAccessRequest['status']; adminNotes?: string }) => {
+    setSavingBetaId(id)
+    try {
+      const res = await fetch('/api/admin/beta-access', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, ...updates }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to update beta request')
+
+      setBetaRequests((prev) => prev.map((request) => request.id === id ? data.request : request))
+      if (typeof data.request?.admin_notes === 'string') {
+        setBetaNotesDrafts((prev) => ({ ...prev, [id]: data.request.admin_notes }))
+      }
+    } catch (err) {
+      console.error('Update beta request error:', err)
+    } finally {
+      setSavingBetaId(null)
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -259,6 +333,7 @@ export function AdminPanel() {
   const tabs: { id: AdminTab; label: string; badge?: string }[] = [
     { id: 'overview', label: 'Overview' },
     { id: 'users', label: 'Users', badge: String(overview.totalUsers) },
+    { id: 'beta', label: 'Beta Access' },
     { id: 'ai', label: 'AI & Credits' },
     { id: 'revenue', label: 'Revenue' },
     { id: 'system', label: 'System' },
@@ -280,7 +355,17 @@ export function AdminPanel() {
           <QuickLink href="https://dashboard.stripe.com" label="Stripe" color="bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-200 dark:border-violet-800" />
           <QuickLink href="https://dashboard.clerk.com" label="Clerk" color="bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800" />
           <QuickLink href="https://supabase.com/dashboard" label="Supabase" color="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800" />
-          <button onClick={() => { setLoading(true); loadStats() }} className="p-2 rounded-lg text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-subtle)] transition">
+          <button
+            onClick={() => {
+              if (activeTab === 'beta') {
+                loadBetaRequests()
+              } else {
+                setLoading(true)
+                loadStats()
+              }
+            }}
+            className="p-2 rounded-lg text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-subtle)] transition"
+          >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
           </button>
         </div>
@@ -605,6 +690,150 @@ export function AdminPanel() {
                 {searchQuery || statusFilter ? 'No users match your filters.' : 'No users found.'}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ===== BETA ACCESS TAB ===== */}
+      {activeTab === 'beta' && (
+        <div className="space-y-4 animate-fade-in">
+          <div className="flex flex-col sm:flex-row gap-3">
+            <input
+              type="text"
+              placeholder="Search by name, signup email, Google email..."
+              value={betaSearch}
+              onChange={(e) => setBetaSearch(e.target.value)}
+              className="px-3 py-2 text-sm bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-lg text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-orange-500/30 flex-1"
+            />
+            <select
+              value={betaStatusFilter}
+              onChange={(e) => setBetaStatusFilter(e.target.value)}
+              className="px-3 py-2 text-sm bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-lg text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-orange-500/30"
+            >
+              <option value="">All statuses</option>
+              <option value="pending">Pending</option>
+              <option value="approved">Approved</option>
+              <option value="google_added">Google Added</option>
+              <option value="invited">Invited</option>
+              <option value="rejected">Rejected</option>
+            </select>
+            <button
+              onClick={loadBetaRequests}
+              className="px-3 py-2 text-sm rounded-lg border border-[var(--color-border)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-subtle)] transition"
+            >
+              Refresh
+            </button>
+          </div>
+
+          {betaError && (
+            <div className="p-4 rounded-xl bg-red-500/5 border border-red-500/20 text-sm text-red-400">
+              {betaError}
+            </div>
+          )}
+
+          <div className="grid gap-3">
+            {betaLoading ? (
+              <div className="flex items-center justify-center py-16">
+                <div className="w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+              </div>
+            ) : betaRequests.length === 0 ? (
+              <div className="text-center py-12 text-[var(--color-text-muted)] bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl">
+                No beta access requests found.
+              </div>
+            ) : betaRequests.map((request) => (
+              <div key={request.id} className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl p-5 space-y-4">
+                <div className="flex flex-col lg:flex-row lg:items-start gap-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-2 mb-2">
+                      <p className="text-base font-semibold text-[var(--color-text-primary)]">{request.name}</p>
+                      <BetaRequestStatusBadge status={request.status} />
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-[var(--color-bg-subtle)] text-[var(--color-text-muted)]">
+                        {request.requested_feature.replace(/_/g, ' ')}
+                      </span>
+                    </div>
+                    <div className="grid sm:grid-cols-2 gap-3 text-sm">
+                      <div>
+                        <p className="text-[var(--color-text-faint)] mb-0.5">dyia sign-up email</p>
+                        <p className="text-[var(--color-text-secondary)] break-all">{request.signup_email}</p>
+                      </div>
+                      <div>
+                        <p className="text-[var(--color-text-faint)] mb-0.5">Google account to whitelist</p>
+                        <p className="text-[var(--color-text-secondary)] break-all">{request.google_email}</p>
+                      </div>
+                      <div>
+                        <p className="text-[var(--color-text-faint)] mb-0.5">Business</p>
+                        <p className="text-[var(--color-text-secondary)]">{request.business_name || '—'}</p>
+                      </div>
+                      <div>
+                        <p className="text-[var(--color-text-faint)] mb-0.5">Submitted</p>
+                        <p className="text-[var(--color-text-secondary)]">{new Date(request.created_at).toLocaleString()}</p>
+                      </div>
+                    </div>
+                    {request.notes && (
+                      <div className="mt-3">
+                        <p className="text-[var(--color-text-faint)] text-xs uppercase tracking-wide mb-1">Requester notes</p>
+                        <p className="text-sm text-[var(--color-text-secondary)] whitespace-pre-wrap">{request.notes}</p>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="lg:w-64 space-y-2">
+                    <button
+                      onClick={() => handleUpdateBetaRequest(request.id, { status: 'approved' })}
+                      disabled={savingBetaId === request.id}
+                      className="w-full px-3 py-2 text-xs rounded-lg font-medium bg-blue-500/10 text-blue-500 hover:bg-blue-500/20 transition disabled:opacity-50"
+                    >
+                      Approve
+                    </button>
+                    <button
+                      onClick={() => handleUpdateBetaRequest(request.id, { status: 'google_added' })}
+                      disabled={savingBetaId === request.id}
+                      className="w-full px-3 py-2 text-xs rounded-lg font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 transition disabled:opacity-50"
+                    >
+                      Mark Google Added
+                    </button>
+                    <button
+                      onClick={() => handleUpdateBetaRequest(request.id, { status: 'invited' })}
+                      disabled={savingBetaId === request.id}
+                      className="w-full px-3 py-2 text-xs rounded-lg font-medium bg-green-500/10 text-green-500 hover:bg-green-500/20 transition disabled:opacity-50"
+                    >
+                      Mark Invited
+                    </button>
+                    <button
+                      onClick={() => handleUpdateBetaRequest(request.id, { status: 'rejected' })}
+                      disabled={savingBetaId === request.id}
+                      className="w-full px-3 py-2 text-xs rounded-lg font-medium bg-red-500/10 text-red-500 hover:bg-red-500/20 transition disabled:opacity-50"
+                    >
+                      Reject
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid lg:grid-cols-[1fr_auto] gap-3 pt-3 border-t border-[var(--color-border)]">
+                  <div>
+                    <label className="block text-xs text-[var(--color-text-faint)] uppercase tracking-wide mb-1.5">
+                      Admin notes
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={betaNotesDrafts[request.id] || ''}
+                      onChange={(e) => setBetaNotesDrafts((prev) => ({ ...prev, [request.id]: e.target.value }))}
+                      className="w-full px-3 py-2 text-sm bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-orange-500/30 resize-none"
+                      placeholder="Internal notes, approval context, invite details..."
+                    />
+                  </div>
+                  <div className="flex lg:flex-col gap-2 justify-end">
+                    <button
+                      onClick={() => handleUpdateBetaRequest(request.id, { adminNotes: betaNotesDrafts[request.id] || '' })}
+                      disabled={savingBetaId === request.id}
+                      className="px-3 py-2 text-xs rounded-lg font-medium bg-orange-500/10 text-orange-500 hover:bg-orange-500/20 transition disabled:opacity-50"
+                    >
+                      {savingBetaId === request.id ? 'Saving...' : 'Save Notes'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}
@@ -941,6 +1170,22 @@ function StatusBadge({ status }: { status: string }) {
   }
   return (
     <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${styles[status] || styles.inactive}`}>
+      {status.replace('_', ' ')}
+    </span>
+  )
+}
+
+function BetaRequestStatusBadge({ status }: { status: BetaAccessRequest['status'] }) {
+  const styles: Record<BetaAccessRequest['status'], string> = {
+    pending: 'bg-slate-500/15 text-slate-500',
+    approved: 'bg-blue-500/15 text-blue-600 dark:text-blue-400',
+    google_added: 'bg-amber-500/15 text-amber-600 dark:text-amber-400',
+    invited: 'bg-green-500/15 text-green-600 dark:text-green-400',
+    rejected: 'bg-red-500/15 text-red-500',
+  }
+
+  return (
+    <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${styles[status]}`}>
       {status.replace('_', ' ')}
     </span>
   )

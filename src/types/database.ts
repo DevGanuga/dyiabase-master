@@ -86,6 +86,24 @@ export interface UserProfile {
   updated_at: string
 }
 
+export type BetaAccessRequestStatus = 'pending' | 'approved' | 'google_added' | 'invited' | 'rejected'
+
+export interface BetaAccessRequest {
+  id: string
+  name: string
+  signup_email: string
+  google_email: string
+  business_name: string | null
+  requested_feature: string
+  notes: string | null
+  status: BetaAccessRequestStatus
+  admin_notes: string | null
+  reviewed_at: string | null
+  reviewed_by_clerk_user_id: string | null
+  created_at: string
+  updated_at: string
+}
+
 // ============================================
 // CREDIT TRANSACTIONS
 // ============================================
