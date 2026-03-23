@@ -14,6 +14,7 @@ import { Quotes } from '@/components/app/Quotes'
 import { QuoteBuilder } from '@/components/app/QuoteBuilder'
 import { Settings } from '@/components/app/Settings'
 import { TrialBanner } from '@/components/app/TrialBanner'
+import { BetaBanner } from '@/components/app/BetaBanner'
 import { TopBar } from '@/components/app/TopBar'
 import { ConfirmProvider } from '@/components/providers/ConfirmProvider'
 import type { LaunchpadItem } from '@/components/app/Launchpad'
@@ -906,6 +907,7 @@ function AppPageContent() {
           }
           isDemoMode={isDemoMode}
         />
+        {!isDemoMode && !isAdmin && <BetaBanner />}
         {/* Assistant: render when open; keep mounted after first visit so conversation persists when switching views */}
         {(currentView === 'assistant' || hasViewedAssistant) && (
           <div
