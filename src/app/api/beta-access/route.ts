@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { auth } from '@clerk/nextjs/server'
 import { rateLimiters } from '@/lib/rate-limit'
 
 function getSupabase() {
@@ -21,34 +22,68 @@ export async function POST(request: NextRequest) {
   if (rateLimited) return rateLimited
 
   try {
+    const { userId: clerkUserId } = await auth()
+    if (!clerkUserId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const body = await request.json()
-    const name = typeof body.name === 'string' ? body.name.trim() : ''
-    const signupEmail = typeof body.signupEmail === 'string' ? body.signupEmail.trim().toLowerCase() : ''
     const googleEmail = typeof body.googleEmail === 'string' ? body.googleEmail.trim().toLowerCase() : ''
-    const businessName = typeof body.businessName === 'string' ? body.businessName.trim() : ''
     const requestedFeature = typeof body.requestedFeature === 'string' ? body.requestedFeature.trim() : 'gmail_beta'
     const notes = typeof body.notes === 'string' ? body.notes.trim() : ''
 
-    if (!name || !signupEmail || !googleEmail) {
-      return NextResponse.json({ error: 'Name, signup email, and Google email are required.' }, { status: 400 })
+    if (!googleEmail) {
+      return NextResponse.json({ error: 'Google email is required.' }, { status: 400 })
     }
 
-    if (!isValidEmail(signupEmail) || !isValidEmail(googleEmail)) {
-      return NextResponse.json({ error: 'Please enter valid email addresses.' }, { status: 400 })
+    if (!isValidEmail(googleEmail)) {
+      return NextResponse.json({ error: 'Please enter a valid Google email address.' }, { status: 400 })
     }
 
-    if (requestedFeature.length > 100 || businessName.length > 160 || notes.length > 2000) {
+    if (requestedFeature.length > 100 || notes.length > 2000) {
       return NextResponse.json({ error: 'One or more fields are too long.' }, { status: 400 })
     }
 
     const supabase = getSupabase()
+    const { data: user, error: userError } = await supabase
+      .from('dyia_users')
+      .select('id, email, first_name, last_name')
+      .eq('clerk_user_id', clerkUserId)
+      .single()
+
+    if (userError || !user) {
+      return NextResponse.json({ error: 'User not found. Please sign in again.' }, { status: 404 })
+    }
+
+    const name = [user.first_name, user.last_name].filter(Boolean).join(' ').trim() || user.email
+    const signupEmail = user.email?.trim().toLowerCase()
+
+    const { data: existing } = await supabase
+      .from('dyia_beta_access_requests')
+      .select('id, status')
+      .eq('signup_email', signupEmail)
+      .eq('google_email', googleEmail)
+      .eq('requested_feature', requestedFeature || 'gmail_beta')
+      .in('status', ['pending', 'approved', 'google_added', 'invited'])
+      .order('created_at', { ascending: false })
+      .limit(1)
+
+    if (existing && existing.length > 0) {
+      return NextResponse.json({
+        success: true,
+        id: existing[0].id,
+        alreadyExists: true,
+        status: existing[0].status,
+      })
+    }
+
     const { data, error } = await supabase
       .from('dyia_beta_access_requests')
       .insert({
         name,
         signup_email: signupEmail,
         google_email: googleEmail,
-        business_name: businessName || null,
+        business_name: null,
         requested_feature: requestedFeature || 'gmail_beta',
         notes: notes || null,
       })
@@ -60,7 +95,7 @@ export async function POST(request: NextRequest) {
       throw error
     }
 
-    return NextResponse.json({ success: true, id: data.id })
+    return NextResponse.json({ success: true, id: data.id, alreadyExists: false })
   } catch (error) {
     console.error('Beta access request POST error:', error)
     return NextResponse.json(

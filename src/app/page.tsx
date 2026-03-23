@@ -119,7 +119,6 @@ export default function LandingPage() {
             <div className="hidden md:flex items-center gap-8">
               <Link href="/pricing-calculator" className="text-sm text-slate-400 hover:text-white transition">Pricing Calculator</Link>
               <Link href="/profit-calculator" className="text-sm text-slate-400 hover:text-white transition">Free quiz</Link>
-              <Link href="/beta-access" className="text-sm text-slate-400 hover:text-white transition">Beta access</Link>
               <a href="#features" className="text-sm text-slate-400 hover:text-white transition">Features</a>
               <a href="#ai" className="text-sm text-slate-400 hover:text-white transition">Dyia AI</a>
               <a href="#pricing" className="text-sm text-slate-400 hover:text-white transition">Pricing</a>

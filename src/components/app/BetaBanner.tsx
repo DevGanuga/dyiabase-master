@@ -60,12 +60,10 @@ export function BetaBanner() {
             Support
           </Link>
           <Link
-            href="/beta-access"
-            target="_blank"
-            rel="noopener noreferrer"
+            href="/app?view=massEmail"
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-semibold bg-gradient-to-r from-orange-500 to-amber-500 text-white hover:from-orange-400 hover:to-amber-400 transition-colors"
           >
-            Request Access
+            Open Email Blast
           </Link>
           <button
             onClick={handleDismiss}

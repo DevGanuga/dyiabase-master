@@ -21,6 +21,11 @@ interface SendResult {
   failed: number
 }
 
+interface BetaRequestState {
+  googleEmail: string
+  notes: string
+}
+
 export function MassEmail({ jobs, quotes, isPro = false, showSuccess, showError }: MassEmailProps) {
   const searchParams = useSearchParams()
   
@@ -49,6 +54,10 @@ export function MassEmail({ jobs, quotes, isPro = false, showSuccess, showError 
     createdAt: string
   }>>([])
   const [loadingHistory, setLoadingHistory] = useState(false)
+  const [betaRequest, setBetaRequest] = useState<BetaRequestState>({ googleEmail: '', notes: '' })
+  const [submittingBetaRequest, setSubmittingBetaRequest] = useState(false)
+  const [betaRequestSubmitted, setBetaRequestSubmitted] = useState(false)
+  const [betaRequestMessage, setBetaRequestMessage] = useState<string | null>(null)
 
   // Customer database state
   const [dbCustomers, setDbCustomers] = useState<Array<{ name: string; email: string }>>([])
@@ -305,6 +314,47 @@ export function MassEmail({ jobs, quotes, isPro = false, showSuccess, showError 
     }
   }, [view])
 
+  const submitBetaRequest = async () => {
+    const googleEmail = betaRequest.googleEmail.trim()
+    if (!googleEmail) {
+      showError('Enter the Google email you want to connect')
+      return
+    }
+
+    setSubmittingBetaRequest(true)
+    setBetaRequestMessage(null)
+    try {
+      const res = await fetch('/api/beta-access', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          googleEmail,
+          requestedFeature: 'gmail_beta',
+          notes: betaRequest.notes.trim() || undefined,
+        }),
+      })
+
+      const data = await res.json()
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to submit beta access request')
+      }
+
+      setBetaRequestSubmitted(true)
+      setBetaRequestMessage(
+        data.alreadyExists
+          ? 'You already have an active beta access request for this Google email. We will review it from the admin side.'
+          : 'Beta access request submitted. We will review it and add this Google account if approved.'
+      )
+      showSuccess('Beta access request submitted')
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to submit beta access request'
+      setBetaRequestMessage(message)
+      showError(message)
+    } finally {
+      setSubmittingBetaRequest(false)
+    }
+  }
+
   // Pro gate
   if (!isPro) {
     return (
@@ -502,6 +552,65 @@ export function MassEmail({ jobs, quotes, isPro = false, showSuccess, showError 
                     )}
                     Connect Outlook
                   </button>
+                </div>
+                <div className="mt-6 pt-6 border-t border-[var(--color-border)] text-left max-w-xl mx-auto">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-500/20">
+                      Gmail Beta
+                    </span>
+                    <p className="text-sm font-semibold text-[var(--color-text-primary)]">
+                      If Gmail says access is blocked
+                    </p>
+                  </div>
+                  <p className="text-sm text-[var(--color-text-muted)] mb-4">
+                    Submit the Google email you want to connect and we&apos;ll review it from the admin panel and grant access there.
+                  </p>
+
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
+                        Google email to approve
+                      </label>
+                      <input
+                        type="email"
+                        value={betaRequest.googleEmail}
+                        onChange={(e) => setBetaRequest(prev => ({ ...prev, googleEmail: e.target.value }))}
+                        placeholder="you@gmail.com"
+                        className="app-input w-full"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
+                        Notes (optional)
+                      </label>
+                      <textarea
+                        value={betaRequest.notes}
+                        onChange={(e) => setBetaRequest(prev => ({ ...prev, notes: e.target.value }))}
+                        placeholder="Anything helpful for approval"
+                        rows={3}
+                        className="app-input w-full resize-none"
+                      />
+                    </div>
+
+                    {betaRequestMessage && (
+                      <div className={`rounded-lg border px-4 py-3 text-sm ${
+                        betaRequestSubmitted
+                          ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800/50 text-green-700 dark:text-green-400'
+                          : 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800/50 text-amber-700 dark:text-amber-400'
+                      }`}>
+                        {betaRequestMessage}
+                      </div>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={submitBetaRequest}
+                      disabled={submittingBetaRequest}
+                      className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 text-white rounded-lg transition-colors disabled:opacity-50"
+                    >
+                      {submittingBetaRequest ? 'Submitting...' : 'Request Gmail Access'}
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
