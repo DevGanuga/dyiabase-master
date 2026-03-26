@@ -17,8 +17,6 @@ interface SavedQuote {
   margin: number
 }
 
-const LICENSE_KEY = 'DDE65C3A-9BB04BFF-B79018FB-EBC11933'
-const LICENSE_STORAGE_KEY = 'dyia_calc_license'
 const QUOTES_STORAGE_KEY = 'dyia_saved_quotes'
 
 const NATIONAL_AVERAGES = [
@@ -33,10 +31,6 @@ const JOB_TYPE_LABELS: Record<JobType, string> = {
   volume: 'Volume', multipleLoads: 'Multi-Load', specialty: 'Specialty', mixed: 'Mixed',
 }
 
-function normalize(key: string) {
-  return key.trim().toUpperCase().replace(/[^A-Z0-9]/g, '')
-}
-
 function fmt(n: number) { return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }
 
 
@@ -48,20 +42,36 @@ function LicenseGate({ onUnlock }: { onUnlock: () => void }) {
   const [key, setKey] = useState('')
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => { setTimeout(() => inputRef.current?.focus(), 300) }, [])
 
-  const handleSubmit = () => {
-    if (normalize(key) === normalize(LICENSE_KEY)) {
-      setError('')
-      setSuccess(true)
-      localStorage.setItem(LICENSE_STORAGE_KEY, JSON.stringify({ validated: new Date().toISOString() }))
-      setTimeout(onUnlock, 800)
-    } else {
-      setError('Invalid license key. Check your purchase email and try again.')
-      setKey('')
-      inputRef.current?.focus()
+  const handleSubmit = async () => {
+    if (!key.trim() || submitting) return
+    setSubmitting(true)
+    setError('')
+
+    try {
+      const res = await fetch('/api/calculator/verify-license', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key }),
+      })
+
+      if (res.ok) {
+        setSuccess(true)
+        setTimeout(onUnlock, 800)
+      } else {
+        const data = await res.json().catch(() => ({}))
+        setError(data.error || 'Invalid license key. Check your purchase email and try again.')
+        setKey('')
+        inputRef.current?.focus()
+      }
+    } catch {
+      setError('Something went wrong. Please try again.')
+    } finally {
+      setSubmitting(false)
     }
   }
 
@@ -111,8 +121,8 @@ function LicenseGate({ onUnlock }: { onUnlock: () => void }) {
                 spellCheck={false} autoComplete="off"
                 className="w-full bg-white/[0.05] border border-white/10 rounded-xl text-white px-4 py-3.5 text-sm font-mono tracking-wider placeholder:text-white/20 focus:outline-none focus:border-orange-500/60 focus:ring-1 focus:ring-orange-500/20 transition-all" />
               {error && <div className="mt-3 rounded-lg bg-red-500/10 border border-red-500/20 px-3.5 py-2.5 text-sm text-red-400 animate-fade-in">{error}</div>}
-              <button onClick={handleSubmit} disabled={!key.trim()} className="w-full mt-5 py-3.5 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 text-white font-semibold text-sm shadow-lg shadow-orange-500/20 transition-all disabled:opacity-40 disabled:cursor-not-allowed">
-                Unlock upgraded calculator
+              <button onClick={handleSubmit} disabled={!key.trim() || submitting} className="w-full mt-5 py-3.5 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 text-white font-semibold text-sm shadow-lg shadow-orange-500/20 transition-all disabled:opacity-40 disabled:cursor-not-allowed">
+                {submitting ? 'Verifying…' : 'Unlock upgraded calculator'}
               </button>
               <p className="text-center text-white/25 text-xs mt-4">Same key from your original Gumroad purchase. Check your confirmation email.</p>
             </>
@@ -312,13 +322,15 @@ export default function PricingCalculatorPage() {
   const resultsRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- hydration guard
     setMounted(true)
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- hydration guard
-    setLicensed(!!localStorage.getItem(LICENSE_STORAGE_KEY))
+
+    fetch('/api/calculator/verify-license')
+      .then((res) => res.json())
+      .then((data) => setLicensed(!!data.licensed))
+      .catch(() => setLicensed(false))
+
     try {
       const raw = localStorage.getItem(QUOTES_STORAGE_KEY)
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- hydration guard
       if (raw) setSavedQuotes(JSON.parse(raw))
     } catch { /* ignore */ }
   }, [])
