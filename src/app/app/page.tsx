@@ -28,8 +28,9 @@ const Assistant = dynamic(() => import('@/components/app/Assistant').then(m => (
 const Calendar = dynamic(() => import('@/components/app/Calendar').then(m => ({ default: m.Calendar })), { ssr: false })
 const AdminPanel = dynamic(() => import('@/components/app/AdminPanel').then(m => ({ default: m.AdminPanel })), { ssr: false })
 const ProfitCalculator = dynamic(() => import('@/components/app/ProfitCalculator').then(m => ({ default: m.ProfitCalculator })), { ssr: false })
+const Intel = dynamic(() => import('@/components/app/Intel').then(m => ({ default: m.Intel })), { ssr: false })
 
-type View = 'dashboard' | 'jobs' | 'quotes' | 'quoteBuilder' | 'followUps' | 'calendar' | 'reports' | 'marketing' | 'customers' | 'massEmail' | 'assistant' | 'settings' | 'admin' | 'profitCalculator'
+type View = 'dashboard' | 'jobs' | 'quotes' | 'quoteBuilder' | 'followUps' | 'calendar' | 'reports' | 'marketing' | 'customers' | 'massEmail' | 'assistant' | 'settings' | 'admin' | 'profitCalculator' | 'intel'
 
 // Demo data for showcase
 const DEMO_JOBS: AppJob[] = [
@@ -57,7 +58,7 @@ const DEMO_SETTINGS: AppSettings = {
   onboardingCompletedAt: null
 }
 
-const VALID_VIEWS: View[] = ['dashboard', 'jobs', 'quotes', 'quoteBuilder', 'followUps', 'calendar', 'reports', 'marketing', 'customers', 'massEmail', 'assistant', 'settings', 'admin', 'profitCalculator']
+const VALID_VIEWS: View[] = ['dashboard', 'jobs', 'quotes', 'quoteBuilder', 'followUps', 'calendar', 'reports', 'marketing', 'customers', 'massEmail', 'assistant', 'settings', 'admin', 'profitCalculator', 'intel']
 
 export default function AppPage() {
   return (
@@ -143,6 +144,7 @@ function AppPageContent() {
   const [assistantInitialPrompt, setAssistantInitialPrompt] = useState<string | null>(null)
   const [priceTemplatesCount, setPriceTemplatesCount] = useState(0)
   const [hasViewedAssistant, setHasViewedAssistant] = useState(false)
+  const [hasNewIntel, setHasNewIntel] = useState(false)
   const [checkoutLoading, setCheckoutLoading] = useState(false)
   const [settingsInitialTab, setSettingsInitialTab] = useState<'business' | 'templates' | null>(null)
   const [verifyingCheckout, setVerifyingCheckout] = useState(false)
@@ -160,6 +162,13 @@ function AppPageContent() {
   useEffect(() => {
     if (currentView === 'assistant') setHasViewedAssistant(true)
   }, [currentView])
+
+  // Clear Intel badge when viewing the Intel tab
+  useEffect(() => {
+    if (currentView === 'intel' && hasNewIntel) {
+      setHasNewIntel(false)
+    }
+  }, [currentView, hasNewIntel])
 
   // Scroll content area to top when switching views (smoother navigation)
   useEffect(() => {
@@ -351,6 +360,21 @@ function AppPageContent() {
       } catch (error) {
         console.error('Error loading templates count:', error)
         setPriceTemplatesCount(0)
+      }
+
+      // Check for new Intel report (unviewed monthly status)
+      try {
+        const now = new Date()
+        const monthYear = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+        const { data: intelStatus } = await supabase
+          .from('dyia_intel_monthly_status')
+          .select('viewed_at, job_status')
+          .eq('user_id', userId)
+          .eq('month_year', monthYear)
+          .single()
+        setHasNewIntel(intelStatus?.job_status === 'complete' && !intelStatus?.viewed_at)
+      } catch {
+        // Intel not set up yet — not an error
       }
     } catch (error) {
       console.error('Error loading data:', error)
@@ -848,6 +872,14 @@ function AppPageContent() {
         return <AdminPanel />
       case 'profitCalculator':
         return <ProfitCalculator />
+      case 'intel':
+        return (
+          <Intel
+            userId={userProfile?.id || ''}
+            businessName={settings.businessInfo.name || ''}
+            showSuccess={showSuccess}
+          />
+        )
       case 'assistant':
         return null // Rendered separately in main - kept mounted for continuous chat experience
     }
@@ -889,6 +921,7 @@ function AppPageContent() {
         subscriptionPlan={(userProfile?.subscription_plan || null) as 'monthly' | 'annual' | null}
         isDemoMode={isDemoMode}
         isAdmin={isAdmin}
+        hasNewIntel={hasNewIntel}
       />
       
       <main className={`flex-1 flex flex-col overflow-hidden ${isDemoMode ? 'pt-16' : ''}`} style={{ animation: 'contentReveal 0.6s cubic-bezier(0.16, 1, 0.3, 1) both' }}>

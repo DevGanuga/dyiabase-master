@@ -345,6 +345,75 @@ export function supportTicketEmail(name: string, email: string, subject: string,
   `)
 }
 
+// Intel Action Plan email — sent after $27 purchase
+export interface IntelActionPlanEmailData {
+  businessName: string
+  localRank: number
+  totalCompetitors: number
+  reviewGap: number
+  missingKeywordsCount: number
+  actionSteps: Array<{
+    stepNumber: number
+    priority: string
+    title: string
+    description: string
+  }>
+  reportUrl: string
+}
+
+export function intelActionPlanEmail(data: IntelActionPlanEmailData): string {
+  const priorityColors: Record<string, string> = {
+    high: '#ef4444',
+    medium: '#f59e0b',
+    quick_win: '#10b981',
+    ongoing: '#6366f1',
+  }
+
+  return wrap(`
+    <h1 class="header">Your Competitive Action Plan</h1>
+    <p class="text">Here's your personalized 90-day action plan for <strong>${data.businessName}</strong>.</p>
+
+    <div style="display: flex; gap: 12px; margin: 24px 0; flex-wrap: wrap;">
+      <div class="card" style="flex: 1; min-width: 120px; text-align: center;">
+        <p class="metric">#${data.localRank}</p>
+        <p class="metric-label">Local Rank</p>
+        <p class="text-small">of ${data.totalCompetitors} competitors</p>
+      </div>
+      <div class="card" style="flex: 1; min-width: 120px; text-align: center;">
+        <p class="metric" style="color: #ef4444;">${data.reviewGap}</p>
+        <p class="metric-label">Reviews Behind</p>
+      </div>
+      <div class="card" style="flex: 1; min-width: 120px; text-align: center;">
+        <p class="metric" style="color: #f59e0b;">${data.missingKeywordsCount}</p>
+        <p class="metric-label">Missing Keywords</p>
+      </div>
+    </div>
+
+    <h2 class="subheader">Your 6-Step Action Plan</h2>
+    ${data.actionSteps.map(step => `
+      <div class="card" style="border-left: 4px solid ${priorityColors[step.priority] || '#6366f1'};">
+        <p style="margin: 0 0 4px;">
+          <span style="display: inline-block; padding: 2px 8px; border-radius: 9999px; font-size: 11px; font-weight: 600; color: white; background: ${priorityColors[step.priority] || '#6366f1'};">${step.priority.replace('_', ' ').toUpperCase()}</span>
+          <strong style="margin-left: 8px;">${step.stepNumber}. ${step.title}</strong>
+        </p>
+        <p class="text" style="margin: 4px 0 0;">${step.description}</p>
+      </div>
+    `).join('')}
+
+    <p style="text-align: center; margin-top: 24px;">
+      <a href="${data.reportUrl}" class="btn">View Full Report</a>
+    </p>
+
+    <div class="divider"></div>
+
+    <div class="card" style="background: linear-gradient(to right, #f5f3ff, #ede9fe); text-align: center;">
+      <p class="subheader">Want this updated automatically every month?</p>
+      <p class="text">Dyia CRM subscribers get a fresh Intel report every month — no extra cost.</p>
+      <a href="${getBaseUrl()}/sign-up" class="btn" style="background: linear-gradient(to right, #7c3aed, #6366f1);">Start your free trial</a>
+    </div>
+  `)
+}
+
 // Support confirmation email (sent to the user)
 export function supportConfirmationEmail(name: string, subject: string): string {
   return wrap(`

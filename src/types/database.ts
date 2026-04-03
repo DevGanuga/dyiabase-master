@@ -659,3 +659,112 @@ export interface CustomerWithEmail {
   jobCount: number
   lastJobDate: string
 }
+
+// ============================================
+// INTEL — Competitive Intelligence
+// ============================================
+
+export type IntelSource = 'public_page' | 'crm_monthly'
+export type IntelJobStatus = 'pending' | 'running' | 'complete' | 'failed'
+export type IntelActionPriority = 'high' | 'medium' | 'quick_win' | 'ongoing'
+export type IntelActionCategory = 'reviews' | 'keywords' | 'ads' | 'gbp'
+
+export interface IntelTopCompetitor {
+  name: string
+  reviews: number
+  estimated_ad_spend: number
+  rank: number
+}
+
+export interface IntelGapScores {
+  reviews_pct: number
+  keywords_pct: number
+  ads_pct: number
+  gbp_pct: number
+}
+
+export interface IntelScanData {
+  local_rank: number
+  total_competitors: number
+  review_count_mine: number
+  review_count_leader: number
+  review_gap: number
+  missing_keywords: string[]
+  missing_keywords_count: number
+  competitor_ad_spend_avg: number
+  top_competitors: IntelTopCompetitor[]
+  gbp_gaps: string[]
+  gap_scores: IntelGapScores
+  scan_date: string
+  target_zip_codes: string[]
+}
+
+export interface IntelActionStep {
+  step_number: number
+  category: IntelActionCategory
+  priority: IntelActionPriority
+  title: string
+  description: string
+  include_in_free_preview: boolean
+}
+
+export interface IntelScan {
+  id: string
+  user_id: string | null
+  email: string | null
+  business_name: string
+  website_url: string | null
+  zip_code: string
+  industry: string
+  radius_miles: number
+  scan_data: IntelScanData | null
+  action_plan: IntelActionStep[] | null
+  stripe_session_id: string | null
+  action_plan_purchased: boolean
+  source: IntelSource
+  created_at: string
+}
+
+export interface IntelMonthlyStatus {
+  id: string
+  user_id: string
+  month_year: string
+  scan_id: string
+  job_status: IntelJobStatus
+  viewed_at: string | null
+  created_at: string
+}
+
+export interface AppIntelScan {
+  id: string
+  businessName: string
+  websiteUrl: string | null
+  zipCode: string
+  industry: string
+  radiusMiles: number
+  scanData: IntelScanData | null
+  actionPlan: IntelActionStep[] | null
+  actionPlanPurchased: boolean
+  source: IntelSource
+  createdAt: Date
+}
+
+export interface AppIntelMonthlyStatus {
+  id: string
+  monthYear: string
+  scanId: string
+  jobStatus: IntelJobStatus
+  viewedAt: Date | null
+  createdAt: Date
+}
+
+export const INTEL_INDUSTRIES = [
+  'Junk Removal', 'Landscaping', 'Plumbing', 'Cleaning', 'HVAC',
+  'Roofing', 'Painting', 'Moving', 'Pest Control', 'Pressure Washing',
+  'Electrical', 'Handyman', 'Tree Service', 'Fencing', 'Concrete', 'Other',
+] as const
+
+export type IntelIndustry = (typeof INTEL_INDUSTRIES)[number]
+
+export const INTEL_RADIUS_OPTIONS = [10, 25, 50, 100] as const
+export type IntelRadius = (typeof INTEL_RADIUS_OPTIONS)[number]

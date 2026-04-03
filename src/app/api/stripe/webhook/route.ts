@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
 import { sendEmail, isResendConfigured } from '@/lib/resend/client'
-import { subscriptionConfirmedEmail } from '@/lib/resend/templates'
+import { subscriptionConfirmedEmail, intelActionPlanEmail } from '@/lib/resend/templates'
 import { logWebhookEvent } from '@/lib/admin'
+import { getBaseUrl } from '@/lib/env'
 
 function getStripe() {
   if (!process.env.STRIPE_SECRET_KEY) {
@@ -53,8 +54,9 @@ export async function POST(request: NextRequest) {
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session
-        // Check if this is a credit purchase vs subscription
-        if (session.mode === 'payment' && session.metadata?.purchase_type === 'credits') {
+        if (session.mode === 'payment' && session.metadata?.purchase_type === 'intel_action_plan') {
+          await handleIntelPurchase(supabase, session)
+        } else if (session.mode === 'payment' && session.metadata?.purchase_type === 'credits') {
           await handleCreditPurchase(supabase, session)
         } else {
           await handleCheckoutComplete(stripe, supabase, session)
@@ -265,6 +267,68 @@ async function handlePaymentFailed(supabase: any, invoice: Stripe.Invoice) {
   if (error) {
     console.error('Error updating payment failed status:', error)
     throw error
+  }
+}
+
+// Intel Action Plan purchase: mark scan as purchased and send email.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function handleIntelPurchase(supabase: any, session: Stripe.Checkout.Session) {
+  const scanId = session.metadata?.scan_id
+  const email = session.metadata?.email
+
+  if (!scanId) {
+    console.error('Intel purchase: missing scan_id in metadata')
+    return
+  }
+
+  // Mark the scan as purchased
+  const { error: updateError } = await supabase
+    .from('dyia_intel_scans')
+    .update({
+      stripe_session_id: session.id,
+      action_plan_purchased: true,
+    })
+    .eq('id', scanId)
+
+  if (updateError) {
+    console.error('Intel purchase: failed to update scan', updateError)
+    throw updateError
+  }
+
+  // Send the action plan email
+  if (email && isResendConfigured()) {
+    try {
+      const { data: scan } = await supabase
+        .from('dyia_intel_scans')
+        .select('business_name, scan_data, action_plan')
+        .eq('id', scanId)
+        .single()
+
+      if (scan?.scan_data && scan?.action_plan) {
+        const baseUrl = getBaseUrl()
+        await sendEmail(
+          email,
+          `Your ${scan.business_name} Action Plan — Dyia Intel`,
+          intelActionPlanEmail({
+            businessName: scan.business_name,
+            localRank: scan.scan_data.local_rank,
+            totalCompetitors: scan.scan_data.total_competitors,
+            reviewGap: scan.scan_data.review_gap,
+            missingKeywordsCount: scan.scan_data.missing_keywords_count,
+            actionSteps: scan.action_plan.map((s: { step_number: number; priority: string; title: string; description: string }) => ({
+              stepNumber: s.step_number,
+              priority: s.priority,
+              title: s.title,
+              description: s.description,
+            })),
+            reportUrl: `${baseUrl}/intel/report?scan_id=${scanId}`,
+          }),
+          'intel_action_plan'
+        )
+      }
+    } catch (emailErr) {
+      console.error('Intel action plan email failed:', emailErr)
+    }
   }
 }
 

@@ -34,6 +34,7 @@ export type EmailType =
   | 'payment_failed'
   | 'quiz_report'
   | 'quiz_followup'
+  | 'intel_action_plan'
 
 export interface EmailSendResult {
   success: boolean

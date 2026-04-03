@@ -5,7 +5,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { useTheme } from '@/hooks/useTheme'
 
-type View = 'dashboard' | 'jobs' | 'quotes' | 'quoteBuilder' | 'followUps' | 'calendar' | 'reports' | 'marketing' | 'customers' | 'massEmail' | 'assistant' | 'settings' | 'admin' | 'profitCalculator'
+type View = 'dashboard' | 'jobs' | 'quotes' | 'quoteBuilder' | 'followUps' | 'calendar' | 'reports' | 'marketing' | 'customers' | 'massEmail' | 'assistant' | 'settings' | 'admin' | 'profitCalculator' | 'intel'
 
 type SubscriptionTier = 'basic' | 'trial' | 'pro'
 
@@ -19,6 +19,7 @@ interface SidebarProps {
   subscriptionPlan?: 'monthly' | 'annual' | null
   isDemoMode?: boolean
   isAdmin?: boolean
+  hasNewIntel?: boolean
 }
 
 // Clean SVG Icons
@@ -112,6 +113,11 @@ const Icons = {
       <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 15.75V18m-7.5-6.75h.008v.008H8.25v-.008zm0 2.25h.008v.008H8.25v-.008zm0 2.25h.008v.008H8.25v-.008zm0 2.25h.008v.008H8.25v-.008zm2.498-6h.008v.008h-.008v-.008zm0 2.25h.008v.008h-.008v-.008zm0 2.25h.008v.008h-.008v-.008zm2.504-4.5h.008v.008h-.008v-.008zm0 2.25h.008v.008h-.008v-.008zM6 6.75A.75.75 0 016.75 6h10.5a.75.75 0 01.75.75v.75a.75.75 0 01-.75.75H6.75A.75.75 0 016 7.5v-.75z" />
     </svg>
   ),
+  intel: (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3v11.25A2.25 2.25 0 006 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0118 16.5h-2.25m-7.5 0h7.5m-7.5 0l-1 3m8.5-3l1 3m0 0l.5 1.5m-.5-1.5h-9.5m0 0l-.5 1.5m.75-9l3-1.5M12 12.75l3-1.5m0 0l1.5-.75M15 11.25l-3-1.5m0 0l-1.5-.75M12 9.75L9 11.25" />
+    </svg>
+  ),
 }
 
 // Grouped navigation structure
@@ -143,6 +149,7 @@ const NAV_SECTIONS: NavSection[] = [
     label: 'Insights',
     items: [
       { id: 'reports', icon: 'chart', label: 'Reports' },
+      { id: 'intel', icon: 'intel', label: 'Intel' },
       { id: 'marketing', icon: 'megaphone', label: 'Marketing', pro: true },
       { id: 'assistant', icon: 'dyia', label: 'Ask Dyia', pro: true },
     ],
@@ -153,9 +160,9 @@ const NAV_SECTIONS: NavSection[] = [
 const MOBILE_PRIMARY: View[] = ['dashboard', 'jobs', 'quotes', 'customers']
 
 function NavButton({
-  icon, label, pro, isPro, isActive, onClick, animDelay
+  icon, label, pro, isPro, isActive, onClick, animDelay, badge
 }: {
-  id: View; icon: keyof typeof Icons; label: string; pro?: boolean; isPro: boolean; isActive: boolean; onClick: () => void; animDelay?: number
+  id: View; icon: keyof typeof Icons; label: string; pro?: boolean; isPro: boolean; isActive: boolean; onClick: () => void; animDelay?: number; badge?: string
 }) {
   return (
     <button
@@ -171,7 +178,12 @@ function NavButton({
         {Icons[icon]}
       </span>
       <span className="sidebar-text text-sm truncate">{label}</span>
-      {pro && !isPro && (
+      {badge && (
+        <span className="sidebar-text ml-auto px-1.5 py-0.5 rounded text-[9px] font-bold bg-purple-500/20 text-purple-400 flex-shrink-0">
+          {badge}
+        </span>
+      )}
+      {pro && !isPro && !badge && (
         <span className="sidebar-text ml-auto px-1.5 py-0.5 rounded text-[9px] font-bold bg-orange-500/20 text-orange-400 flex-shrink-0">
           PRO
         </span>
@@ -180,7 +192,7 @@ function NavButton({
   )
 }
 
-export function Sidebar({ currentView, setCurrentView, onLogout, isPro = false, subscriptionTier = 'basic', trialDaysRemaining = 0, subscriptionPlan, isDemoMode = false, isAdmin = false }: SidebarProps) {
+export function Sidebar({ currentView, setCurrentView, onLogout, isPro = false, subscriptionTier = 'basic', trialDaysRemaining = 0, subscriptionPlan, isDemoMode = false, isAdmin = false, hasNewIntel = false }: SidebarProps) {
   const { resolvedTheme, setTheme } = useTheme()
   const [createOpen, setCreateOpen] = useState(false)
   const [mobileMoreOpen, setMobileMoreOpen] = useState(false)
@@ -289,6 +301,7 @@ export function Sidebar({ currentView, setCurrentView, onLogout, isPro = false, 
                       isActive={currentView === item.id || (item.id === 'quotes' && currentView === 'quoteBuilder')}
                       onClick={() => setCurrentView(item.id)}
                       animDelay={idx * 0.04}
+                      badge={item.id === 'intel' && hasNewIntel ? 'New' : undefined}
                     />
                   )
                 })}
