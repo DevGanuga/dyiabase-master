@@ -17,11 +17,18 @@ export interface Job {
   cost_per_worker: number
   notes?: string | null
   receipt_url?: string | null
+  payment_status?: PaymentRequestStatus
+  payment_amount_cents?: number | null
+  payment_requested_at?: string | null
+  payment_paid_at?: string | null
+  payment_last_request_id?: string | null
   created_at: string
   updated_at: string
 }
 
 export type QuoteStatus = 'draft' | 'sent' | 'accepted' | 'declined' | 'expired' | 'completed'
+export type PaymentRequestStatus = 'not_requested' | 'pending' | 'paid' | 'failed' | 'expired' | 'refunded'
+export type PaymentRecordStatus = 'pending' | 'checkout_created' | 'paid' | 'failed' | 'expired' | 'refunded'
 
 export interface Quote {
   id: string
@@ -39,6 +46,11 @@ export interface Quote {
   total: number
   status: QuoteStatus
   sent_at?: string | null
+  payment_status?: PaymentRequestStatus
+  payment_amount_cents?: number | null
+  payment_requested_at?: string | null
+  payment_paid_at?: string | null
+  payment_last_request_id?: string | null
   photo_urls: string[]
   created_at: string
   updated_at: string
@@ -74,6 +86,13 @@ export interface UserProfile {
   first_name?: string | null
   last_name?: string | null
   stripe_customer_id?: string | null
+  stripe_connect_account_id?: string | null
+  stripe_connect_onboarding_complete: boolean
+  stripe_connect_details_submitted: boolean
+  stripe_connect_charges_enabled: boolean
+  stripe_connect_payouts_enabled: boolean
+  stripe_connect_country?: string | null
+  stripe_connect_default_currency?: string | null
   stripe_subscription_id?: string | null
   subscription_status: 'active' | 'inactive' | 'canceled' | 'past_due' | 'trialing'
   subscription_plan?: 'monthly' | 'annual' | null
@@ -207,6 +226,11 @@ export interface AppJob {
   status?: JobStatus
   address?: string
   receiptUrl?: string | null
+  paymentStatus?: PaymentRequestStatus
+  paymentAmountCents?: number | null
+  paymentRequestedAt?: string | null
+  paymentPaidAt?: string | null
+  paymentLastRequestId?: string | null
 }
 
 export interface AppQuote {
@@ -227,6 +251,11 @@ export interface AppQuote {
   total: number
   status: QuoteStatus
   sentAt?: number
+  paymentStatus?: PaymentRequestStatus
+  paymentAmountCents?: number | null
+  paymentRequestedAt?: string | null
+  paymentPaidAt?: string | null
+  paymentLastRequestId?: string | null
 }
 
 export interface AppSettings {
@@ -246,6 +275,52 @@ export interface AppSettings {
   onboardingCompleted: boolean
   onboardingSkipped: boolean
   onboardingCompletedAt: string | null
+}
+
+export interface PaymentRecord {
+  id: string
+  user_id: string
+  quote_id?: string | null
+  job_id?: string | null
+  public_token: string
+  stripe_connected_account_id: string
+  stripe_checkout_session_id?: string | null
+  stripe_payment_intent_id?: string | null
+  stripe_charge_id?: string | null
+  status: PaymentRecordStatus
+  amount_cents: number
+  application_fee_amount_cents: number
+  destination_amount_cents: number
+  currency: string
+  customer_name?: string | null
+  customer_email?: string | null
+  description?: string | null
+  checkout_url?: string | null
+  paid_at?: string | null
+  refunded_at?: string | null
+  metadata: Record<string, unknown>
+  created_at: string
+  updated_at: string
+}
+
+export interface AppPaymentRecord {
+  id: string
+  quoteId?: string | null
+  jobId?: string | null
+  publicToken: string
+  status: PaymentRecordStatus
+  amountCents: number
+  applicationFeeAmountCents: number
+  destinationAmountCents: number
+  currency: string
+  customerName?: string | null
+  customerEmail?: string | null
+  description?: string | null
+  checkoutUrl?: string | null
+  paidAt?: string | null
+  refundedAt?: string | null
+  createdAt: string
+  updatedAt: string
 }
 
 // ============================================

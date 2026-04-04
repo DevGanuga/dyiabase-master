@@ -26,11 +26,12 @@ const Customers = dynamic(() => import('@/components/app/Customers').then(m => (
 const MassEmail = dynamic(() => import('@/components/app/MassEmail').then(m => ({ default: m.MassEmail })), { ssr: false })
 const Assistant = dynamic(() => import('@/components/app/Assistant').then(m => ({ default: m.Assistant })), { ssr: false })
 const Calendar = dynamic(() => import('@/components/app/Calendar').then(m => ({ default: m.Calendar })), { ssr: false })
+const Payments = dynamic(() => import('@/components/app/Payments').then(m => ({ default: m.Payments })), { ssr: false })
 const AdminPanel = dynamic(() => import('@/components/app/AdminPanel').then(m => ({ default: m.AdminPanel })), { ssr: false })
 const ProfitCalculator = dynamic(() => import('@/components/app/ProfitCalculator').then(m => ({ default: m.ProfitCalculator })), { ssr: false })
 const Intel = dynamic(() => import('@/components/app/Intel').then(m => ({ default: m.Intel })), { ssr: false })
 
-type View = 'dashboard' | 'jobs' | 'quotes' | 'quoteBuilder' | 'followUps' | 'calendar' | 'reports' | 'marketing' | 'customers' | 'massEmail' | 'assistant' | 'settings' | 'admin' | 'profitCalculator' | 'intel'
+type View = 'dashboard' | 'jobs' | 'quotes' | 'quoteBuilder' | 'followUps' | 'calendar' | 'reports' | 'marketing' | 'customers' | 'massEmail' | 'assistant' | 'settings' | 'payments' | 'admin' | 'profitCalculator' | 'intel'
 
 // Demo data for showcase
 const DEMO_JOBS: AppJob[] = [
@@ -58,7 +59,7 @@ const DEMO_SETTINGS: AppSettings = {
   onboardingCompletedAt: null
 }
 
-const VALID_VIEWS: View[] = ['dashboard', 'jobs', 'quotes', 'quoteBuilder', 'followUps', 'calendar', 'reports', 'marketing', 'customers', 'massEmail', 'assistant', 'settings', 'admin', 'profitCalculator', 'intel']
+const VALID_VIEWS: View[] = ['dashboard', 'jobs', 'quotes', 'quoteBuilder', 'followUps', 'calendar', 'reports', 'marketing', 'customers', 'massEmail', 'assistant', 'settings', 'payments', 'admin', 'profitCalculator', 'intel']
 
 export default function AppPage() {
   return (
@@ -192,6 +193,10 @@ function AppPageContent() {
           id: 'demo-user',
           clerk_user_id: 'demo',
           email: 'demo@dyia.co',
+          stripe_connect_onboarding_complete: false,
+          stripe_connect_details_submitted: false,
+          stripe_connect_charges_enabled: false,
+          stripe_connect_payouts_enabled: false,
           subscription_status: 'active',
           ai_credits_balance: 0,
           ai_credits_used_lifetime: 0,
@@ -817,6 +822,18 @@ function AppPageContent() {
             initialTab={settingsInitialTab ?? undefined}
             onDataChanged={refreshCounts}
             onOpenPayments={() => setCurrentView('payments')}
+          />
+        )
+      case 'payments':
+        return (
+          <Payments
+            userProfile={userProfile}
+            settings={settings}
+            showSuccess={showSuccess}
+            onOpenSettings={() => {
+              setSettingsInitialTab('business')
+              setCurrentView('settings')
+            }}
           />
         )
       case 'followUps':
