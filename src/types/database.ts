@@ -744,6 +744,11 @@ export type IntelJobStatus = 'pending' | 'running' | 'complete' | 'failed'
 export type IntelActionPriority = 'high' | 'medium' | 'quick_win' | 'ongoing'
 export type IntelActionCategory = 'reviews' | 'keywords' | 'ads' | 'gbp'
 
+export interface IntelResearchSource {
+  url: string
+  title: string
+}
+
 export interface IntelTopCompetitor {
   name: string
   reviews: number
@@ -793,6 +798,7 @@ export interface IntelScan {
   industry: string
   radius_miles: number
   scan_data: IntelScanData | null
+  research_sources: IntelResearchSource[] | null
   action_plan: IntelActionStep[] | null
   stripe_session_id: string | null
   action_plan_purchased: boolean
@@ -818,6 +824,7 @@ export interface AppIntelScan {
   industry: string
   radiusMiles: number
   scanData: IntelScanData | null
+  researchSources: IntelResearchSource[] | null
   actionPlan: IntelActionStep[] | null
   actionPlanPurchased: boolean
   source: IntelSource

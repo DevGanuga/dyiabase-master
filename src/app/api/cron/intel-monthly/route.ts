@@ -159,13 +159,14 @@ async function processSingleUser(
       )
 
     // Run agent
-    const scanData = await runIntelAgent({
+    const intelResult = await runIntelAgent({
       businessName: userInfo.businessName,
       websiteUrl: userInfo.websiteUrl || undefined,
       zipCode: userInfo.zipCode,
       industry: userInfo.industry,
       radiusMiles: userInfo.radiusMiles,
-    })
+    }, { timeoutMs: 300_000 })
+    const scanData = intelResult.scanData
 
     // Generate action plan
     const actionPlan = await generateActionPlan(scanData, userInfo.businessName)
@@ -181,6 +182,7 @@ async function processSingleUser(
         industry: userInfo.industry,
         radius_miles: userInfo.radiusMiles,
         scan_data: scanData,
+        research_sources: intelResult.researchSources,
         action_plan: actionPlan,
         source: 'crm_monthly',
       })

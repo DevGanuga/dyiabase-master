@@ -92,6 +92,7 @@ export async function GET() {
             industry: currentScan.industry,
             radiusMiles: currentScan.radius_miles,
             scanData: currentScan.scan_data,
+            researchSources: currentScan.research_sources,
             actionPlan: currentScan.action_plan,
             createdAt: currentScan.created_at,
           }

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { INTEL_INDUSTRIES, INTEL_RADIUS_OPTIONS } from '@/types/database'
-import type { IntelScanData, IntelActionStep, IntelActionCategory } from '@/types/database'
+import type { IntelScanData, IntelActionStep, IntelActionCategory, IntelResearchSource } from '@/types/database'
 
 interface IntelProps {
   userId: string
@@ -27,6 +27,7 @@ interface CrmIntelData {
     industry: string
     radiusMiles: number
     scanData: IntelScanData
+    researchSources: IntelResearchSource[] | null
     actionPlan: IntelActionStep[]
     createdAt: string
   } | null
@@ -39,7 +40,7 @@ interface CrmIntelData {
   } | null
 }
 
-export function Intel({ userId, businessName, showSuccess }: IntelProps) {
+export function Intel({ businessName, showSuccess }: IntelProps) {
   const [data, setData] = useState<CrmIntelData | null>(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -239,6 +240,7 @@ export function Intel({ userId, businessName, showSuccess }: IntelProps) {
   const filteredSteps = actionPlan?.filter(
     s => activeFilter === 'all' || s.category === activeFilter
   )
+  const researchSources = scan.researchSources
 
   const filterTabs: { id: FilterTab; label: string }[] = [
     { id: 'all', label: 'All' },
@@ -452,6 +454,27 @@ export function Intel({ userId, businessName, showSuccess }: IntelProps) {
                   </div>
                 </div>
               </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {researchSources && researchSources.length > 0 && (
+        <div className="bg-[var(--color-card)] border border-[var(--color-border)] rounded-xl p-6 mb-6">
+          <h3 className="text-lg font-semibold text-[var(--color-text)] mb-3">Research Sources</h3>
+          <p className="text-sm text-[var(--color-text-secondary)] mb-4">These links were consulted while generating this report.</p>
+          <div className="space-y-2">
+            {researchSources.slice(0, 10).map(source => (
+              <a
+                key={source.url}
+                href={source.url}
+                target="_blank"
+                rel="noreferrer"
+                className="block px-4 py-3 bg-[var(--color-bg)] border border-[var(--color-border)] rounded-lg hover:border-purple-500/20 transition-colors"
+              >
+                <p className="text-sm font-medium text-[var(--color-text)]">{source.title}</p>
+                <p className="text-xs text-[var(--color-text-secondary)] truncate mt-0.5">{source.url}</p>
+              </a>
             ))}
           </div>
         </div>

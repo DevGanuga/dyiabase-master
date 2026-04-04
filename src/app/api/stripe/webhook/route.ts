@@ -5,6 +5,7 @@ import { sendEmail, isResendConfigured } from '@/lib/resend/client'
 import { subscriptionConfirmedEmail, intelActionPlanEmail } from '@/lib/resend/templates'
 import { logWebhookEvent } from '@/lib/admin'
 import { getBaseUrl } from '@/lib/env'
+import { generateActionPlan } from '@/lib/intel/action-plan'
 
 function getStripe() {
   if (!process.env.STRIPE_SECRET_KEY) {
@@ -359,7 +360,17 @@ async function handleIntelPurchase(supabase: any, session: Stripe.Checkout.Sessi
         .eq('id', scanId)
         .single()
 
-      if (scan?.scan_data && scan?.action_plan) {
+      if (scan?.scan_data) {
+        let actionPlan = scan.action_plan
+
+        if (!actionPlan) {
+          actionPlan = await generateActionPlan(scan.scan_data, scan.business_name)
+          await supabase
+            .from('dyia_intel_scans')
+            .update({ action_plan: actionPlan })
+            .eq('id', scanId)
+        }
+
         const baseUrl = getBaseUrl()
         await sendEmail(
           email,
@@ -370,7 +381,7 @@ async function handleIntelPurchase(supabase: any, session: Stripe.Checkout.Sessi
             totalCompetitors: scan.scan_data.total_competitors,
             reviewGap: scan.scan_data.review_gap,
             missingKeywordsCount: scan.scan_data.missing_keywords_count,
-            actionSteps: scan.action_plan.map((s: { step_number: number; priority: string; title: string; description: string }) => ({
+            actionSteps: actionPlan.map((s: { step_number: number; priority: string; title: string; description: string }) => ({
               stepNumber: s.step_number,
               priority: s.priority,
               title: s.title,

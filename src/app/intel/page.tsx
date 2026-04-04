@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { INTEL_INDUSTRIES, INTEL_RADIUS_OPTIONS } from '@/types/database'
-import type { IntelScanData, IntelActionStep } from '@/types/database'
+import type { IntelScanData, IntelActionStep, IntelResearchSource } from '@/types/database'
 
 type Stage = 'form' | 'email' | 'loading' | 'report'
 
@@ -32,6 +32,7 @@ export default function IntelPage() {
   // Report state
   const [scanId, setScanId] = useState<string | null>(null)
   const [scanData, setScanData] = useState<IntelScanData | null>(null)
+  const [researchSources, setResearchSources] = useState<IntelResearchSource[] | null>(null)
   const [actionPlanPreview, setActionPlanPreview] = useState<IntelActionStep[] | null>(null)
   const [checkoutLoading, setCheckoutLoading] = useState(false)
 
@@ -52,6 +53,7 @@ export default function IntelPage() {
         const data = await res.json()
         if (data.scan?.scanData) {
           setScanData(data.scan.scanData)
+          setResearchSources(data.scan.researchSources || null)
           setActionPlanPreview(data.scan.actionPlanPreview || null)
           setBusinessName(data.scan.businessName)
           setStage('report')
@@ -118,6 +120,7 @@ export default function IntelPage() {
       const data = await res.json()
       setScanId(data.scanId)
       setScanData(data.scanData)
+      setResearchSources(data.researchSources || null)
       setActionPlanPreview(data.actionPlanPreview || null)
       setStage('report')
     } catch (err) {
@@ -427,6 +430,27 @@ export default function IntelPage() {
             <p className="text-3xl font-bold text-amber-400">${scanData.competitor_ad_spend_avg}<span className="text-lg font-normal text-slate-400">/mo avg</span></p>
             <p className="text-sm text-slate-400 mt-1">Average monthly ad spend across top 3 competitors</p>
           </div>
+
+          {researchSources && researchSources.length > 0 && (
+            <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-6 mb-8">
+              <h3 className="text-lg font-semibold text-white mb-3">Research Sources</h3>
+              <p className="text-sm text-slate-400 mb-4">This report is grounded in live web research. OpenAI requires visible source citations for web-derived output.</p>
+              <div className="space-y-2">
+                {researchSources.slice(0, 8).map(source => (
+                  <a
+                    key={source.url}
+                    href={source.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="block px-4 py-3 bg-slate-900/60 border border-slate-700/40 rounded-lg hover:border-purple-500/30 hover:bg-slate-900 transition-colors"
+                  >
+                    <p className="text-sm font-medium text-white">{source.title}</p>
+                    <p className="text-xs text-slate-500 truncate mt-0.5">{source.url}</p>
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Action Plan Preview */}
           {actionPlanPreview && actionPlanPreview.length > 0 && (

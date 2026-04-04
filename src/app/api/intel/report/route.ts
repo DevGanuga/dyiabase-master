@@ -84,6 +84,7 @@ export async function GET(request: NextRequest) {
           industry: scan.industry,
           radiusMiles: scan.radius_miles,
           scanData: scan.scan_data,
+          researchSources: scan.research_sources,
           actionPlan: scan.action_plan,
           createdAt: scan.created_at,
         },
@@ -112,6 +113,7 @@ export async function GET(request: NextRequest) {
           industry: scan.industry,
           radiusMiles: scan.radius_miles,
           scanData: scan.scan_data,
+          researchSources: scan.research_sources,
           actionPlan: includeActionPlan ? scan.action_plan : null,
           actionPlanPreview: !includeActionPlan
             ? scan.action_plan?.filter((s: { include_in_free_preview: boolean }) => s.include_in_free_preview)

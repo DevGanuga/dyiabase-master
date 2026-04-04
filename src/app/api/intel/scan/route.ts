@@ -7,7 +7,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { runIntelAgent } from '@/lib/intel/agent'
-import { generateActionPlan } from '@/lib/intel/action-plan'
 import { INTEL_INDUSTRIES, INTEL_RADIUS_OPTIONS } from '@/types/database'
 
 function getSupabase() {
@@ -63,14 +62,17 @@ export async function POST(request: NextRequest) {
 
     // Run the AI agent
     let scanData
+    let researchSources = null
     try {
-      scanData = await runIntelAgent({
+      const intelResult = await runIntelAgent({
         businessName,
         websiteUrl,
         zipCode,
         industry,
         radiusMiles: radius,
-      })
+      }, { timeoutMs: 90_000 })
+      scanData = intelResult.scanData
+      researchSources = intelResult.researchSources
     } catch (agentError) {
       console.error('Intel agent failed:', agentError)
       return NextResponse.json(
@@ -79,21 +81,12 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Generate action plan (for post-purchase delivery)
-    let actionPlan = null
-    try {
-      actionPlan = await generateActionPlan(scanData, businessName)
-    } catch (planError) {
-      console.error('Action plan generation failed:', planError)
-      // Non-fatal — scan data is still valuable without the action plan
-    }
-
     // Update the scan record with results
     const { error: updateError } = await supabase
       .from('dyia_intel_scans')
       .update({
         scan_data: scanData,
-        action_plan: actionPlan,
+        research_sources: researchSources,
       })
       .eq('id', scan.id)
 
@@ -104,8 +97,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       scanId: scan.id,
       scanData,
-      // Only include preview steps (first 2) for free users
-      actionPlanPreview: actionPlan?.filter(s => s.include_in_free_preview) ?? null,
+      researchSources,
+      actionPlanPreview: null,
     })
   } catch (error) {
     console.error('Intel scan error:', error)

@@ -102,13 +102,14 @@ export async function POST(request: NextRequest) {
       )
 
     // Run the agent
-    const scanData = await runIntelAgent({
+    const intelResult = await runIntelAgent({
       businessName: settings.business_name,
       websiteUrl,
       zipCode,
       industry,
       radiusMiles: radiusMiles || 25,
-    })
+    }, { timeoutMs: 300_000 })
+    const scanData = intelResult.scanData
 
     // Generate action plan
     const actionPlan = await generateActionPlan(scanData, settings.business_name)
@@ -124,6 +125,7 @@ export async function POST(request: NextRequest) {
         industry,
         radius_miles: radiusMiles || 25,
         scan_data: scanData,
+        research_sources: intelResult.researchSources,
         action_plan: actionPlan,
         source: 'crm_monthly',
       })
@@ -145,6 +147,7 @@ export async function POST(request: NextRequest) {
       success: true,
       scanId: scan.id,
       scanData,
+      researchSources: intelResult.researchSources,
       actionPlan,
     })
   } catch (error) {

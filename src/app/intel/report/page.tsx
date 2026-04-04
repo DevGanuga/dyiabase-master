@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
-import type { IntelScanData, IntelActionStep } from '@/types/database'
+import type { IntelScanData, IntelActionStep, IntelResearchSource } from '@/types/database'
 import { Suspense } from 'react'
 
 function ReportContent() {
@@ -16,6 +16,7 @@ function ReportContent() {
   const [error, setError] = useState<string | null>(null)
   const [businessName, setBusinessName] = useState('')
   const [scanData, setScanData] = useState<IntelScanData | null>(null)
+  const [researchSources, setResearchSources] = useState<IntelResearchSource[] | null>(null)
   const [actionPlan, setActionPlan] = useState<IntelActionStep[] | null>(null)
   const [activeFilter, setActiveFilter] = useState<'all' | 'reviews' | 'keywords' | 'ads'>('all')
 
@@ -38,6 +39,7 @@ function ReportContent() {
         const data = await res.json()
         setBusinessName(data.scan.businessName)
         setScanData(data.scan.scanData)
+        setResearchSources(data.scan.researchSources || null)
         setActionPlan(data.scan.actionPlan)
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load report')
@@ -191,6 +193,27 @@ function ReportContent() {
             <p className="text-center text-slate-500 py-8">No steps in this category.</p>
           )}
         </div>
+
+        {researchSources && researchSources.length > 0 && (
+          <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-6 mb-12">
+            <h3 className="text-lg font-semibold text-white mb-3">Research Sources</h3>
+            <p className="text-sm text-slate-400 mb-4">These are the web sources consulted while building your report.</p>
+            <div className="space-y-2">
+              {researchSources.slice(0, 10).map(source => (
+                <a
+                  key={source.url}
+                  href={source.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="block px-4 py-3 bg-slate-900/60 border border-slate-700/40 rounded-lg hover:border-purple-500/30 hover:bg-slate-900 transition-colors"
+                >
+                  <p className="text-sm font-medium text-white">{source.title}</p>
+                  <p className="text-xs text-slate-500 truncate mt-0.5">{source.url}</p>
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Dyia CTA */}
         <div className="bg-gradient-to-r from-orange-500/10 to-amber-500/10 border border-orange-500/20 rounded-2xl p-8 text-center">
