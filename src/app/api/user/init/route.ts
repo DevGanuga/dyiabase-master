@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 import { sendEmail, isResendConfigured } from '@/lib/resend/client'
 import { welcomeEmail } from '@/lib/resend/templates'
+import { grantAdminAccess } from '@/lib/admin'
 
 function getSupabaseAdmin() {
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
@@ -46,12 +47,22 @@ export async function POST(req: Request) {
     if (existingUser) {
       // Auto-elevate known admin emails if their role was reset
       const shouldBeAdmin = ADMIN_EMAILS.includes(existingUser.email?.toLowerCase())
-      if (shouldBeAdmin && (!existingUser.is_admin || existingUser.role !== 'super_admin')) {
+      const isAdminAccount = !!existingUser.is_admin || ['admin', 'super_admin'].includes(existingUser.role || '')
+      const needsAdminNormalization = isAdminAccount && (
+        !!existingUser.stripe_subscription_id ||
+        existingUser.subscription_status !== 'active' ||
+        existingUser.subscription_plan !== 'annual' ||
+        !!existingUser.subscription_ends_at
+      )
+      if ((shouldBeAdmin && (!existingUser.is_admin || existingUser.role !== 'super_admin')) || needsAdminNormalization) {
+        await grantAdminAccess(
+          existingUser.id,
+          shouldBeAdmin || existingUser.role === 'super_admin' ? 'super_admin' : 'admin'
+        )
         const { data: elevated } = await supabase
           .from('dyia_users')
-          .update({ is_admin: true, role: 'super_admin', subscription_status: 'active' })
-          .eq('id', existingUser.id)
           .select('*')
+          .eq('id', existingUser.id)
           .single()
         if (elevated) return NextResponse.json({ profile: elevated })
       }

@@ -62,6 +62,36 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
+    const isAdmin = !!dyiaUser.is_admin || ['admin', 'super_admin'].includes(dyiaUser.role || '')
+    if (isAdmin) {
+      const subscriptionId = session.subscription as string | null
+      if (subscriptionId) {
+        const subscription = await stripe.subscriptions.retrieve(subscriptionId)
+        if (subscription.status !== 'canceled') {
+          await stripe.subscriptions.cancel(subscriptionId)
+        }
+      }
+
+      const { data: updatedAdmin, error: adminUpdateError } = await supabase
+        .from('dyia_users')
+        .update({
+          subscription_status: 'active',
+          subscription_plan: 'annual',
+          subscription_ends_at: null,
+          stripe_subscription_id: null,
+        })
+        .eq('id', dyiaUser.id)
+        .select()
+        .single()
+
+      if (adminUpdateError) {
+        console.error('Error normalizing admin subscription via verify-session:', adminUpdateError)
+        return NextResponse.json({ error: 'Failed to normalize admin account' }, { status: 500 })
+      }
+
+      return NextResponse.json({ profile: updatedAdmin })
+    }
+
     // If subscription is already active/trialing, the webhook already handled it — return current profile
     if (['active', 'trialing'].includes(dyiaUser.subscription_status)) {
       return NextResponse.json({ profile: dyiaUser })

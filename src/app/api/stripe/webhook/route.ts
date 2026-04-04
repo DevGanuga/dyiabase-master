@@ -142,6 +142,31 @@ async function handleCheckoutComplete(stripe: Stripe, supabase: any, session: St
     return
   }
 
+  const { data: currentUser } = await supabase
+    .from('dyia_users')
+    .select('id, is_admin, role')
+    .eq('id', dyiaUserId)
+    .single()
+
+  if (currentUser?.is_admin || ['admin', 'super_admin'].includes(currentUser?.role || '')) {
+    const adminSubscription = await stripe.subscriptions.retrieve(subscriptionId)
+    if (adminSubscription.status !== 'canceled') {
+      await stripe.subscriptions.cancel(subscriptionId)
+    }
+
+    await supabase
+      .from('dyia_users')
+      .update({
+        stripe_customer_id: customerId,
+        stripe_subscription_id: null,
+        subscription_status: 'active',
+        subscription_plan: 'annual',
+        subscription_ends_at: null,
+      })
+      .eq('id', dyiaUserId)
+    return
+  }
+
   const subscriptionResponse = await stripe.subscriptions.retrieve(subscriptionId)
   // Use type assertion to handle the response
   const subscription = subscriptionResponse as unknown as { 
@@ -205,6 +230,16 @@ async function handleCheckoutComplete(stripe: Stripe, supabase: any, session: St
 async function handleSubscriptionUpdate(supabase: any, subscription: Stripe.Subscription) {
   const customerId = subscription.customer as string
   const status = subscription.status
+
+  const { data: user } = await supabase
+    .from('dyia_users')
+    .select('is_admin, role')
+    .eq('stripe_customer_id', customerId)
+    .maybeSingle()
+
+  if (user?.is_admin || ['admin', 'super_admin'].includes(user?.role || '')) {
+    return
+  }
   
   // Use type assertion for subscription properties
   const sub = subscription as unknown as { 
@@ -241,6 +276,16 @@ async function handleSubscriptionCanceled(supabase: any, subscription: Stripe.Su
   const sub = subscription as unknown as { current_period_end?: number }
   const periodEnd = sub.current_period_end
 
+  const { data: user } = await supabase
+    .from('dyia_users')
+    .select('is_admin, role')
+    .eq('stripe_customer_id', customerId)
+    .maybeSingle()
+
+  if (user?.is_admin || ['admin', 'super_admin'].includes(user?.role || '')) {
+    return
+  }
+
   const { error } = await supabase
     .from('dyia_users')
     .update({
@@ -258,6 +303,16 @@ async function handleSubscriptionCanceled(supabase: any, subscription: Stripe.Su
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function handlePaymentFailed(supabase: any, invoice: Stripe.Invoice) {
   const customerId = invoice.customer as string
+
+  const { data: user } = await supabase
+    .from('dyia_users')
+    .select('is_admin, role')
+    .eq('stripe_customer_id', customerId)
+    .maybeSingle()
+
+  if (user?.is_admin || ['admin', 'super_admin'].includes(user?.role || '')) {
+    return
+  }
 
   const { error } = await supabase
     .from('dyia_users')

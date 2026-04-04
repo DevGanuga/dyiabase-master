@@ -25,9 +25,10 @@ interface SettingsProps {
   /** When set, open this tab (e.g. from launchpad "Add business info" or "Save a price template") */
   initialTab?: SettingsTabId | null
   onDataChanged?: () => void
+  onOpenPayments?: () => void
 }
 
-export function Settings({ settings, setSettings, userId, showSuccess, userProfile, userEmail, userImageUrl, userName, isDemoMode = false, initialTab, onDataChanged }: SettingsProps) {
+export function Settings({ settings, setSettings, userId, showSuccess, userProfile, userEmail, userImageUrl, userName, isDemoMode = false, initialTab, onDataChanged, onOpenPayments }: SettingsProps) {
   const hookSub = useSubscription()
   const clerk = useClerk()
 
@@ -47,6 +48,7 @@ export function Settings({ settings, setSettings, userId, showSuccess, userProfi
     canUseAI: ['active', 'trialing'].includes(userProfile.subscription_status) || (userProfile.ai_credits_balance || 0) > 0,
     isLoading: false,
   } : hookSub
+  const isAdminAccount = !!userProfile?.is_admin || ['admin', 'super_admin'].includes(userProfile?.role || '')
   const [businessName, setBusinessName] = useState(settings.businessInfo.name)
   const [businessPhone, setBusinessPhone] = useState(settings.businessInfo.phone)
   const [businessEmail, setBusinessEmail] = useState(settings.businessInfo.email)
@@ -733,7 +735,9 @@ export function Settings({ settings, setSettings, userId, showSuccess, userProfi
                       )}
                     </div>
                     <p className="text-sm text-[var(--color-text-secondary)]">
-                      {subscription.tier === 'trial'
+                      {isAdminAccount
+                        ? 'Admin accounts have full Pro access and are never billed through Stripe.'
+                        : subscription.tier === 'trial'
                         ? 'You have full Pro access. Your card will be charged when the free trial ends.'
                         : subscription.tier === 'pro' 
                           ? 'Full access to all features including AI assistant, reports, and marketing tools.'
@@ -766,7 +770,7 @@ export function Settings({ settings, setSettings, userId, showSuccess, userProfi
               </div>
 
               {/* Trial user: manage billing (card already on file) */}
-              {subscription.tier === 'trial' && !isDemoMode && (
+              {subscription.tier === 'trial' && !isDemoMode && !isAdminAccount && (
                 <div className="mb-5">
                   <div className="p-4 rounded-xl bg-[var(--color-bg-subtle)] border border-[var(--color-border)]">
                     <div className="flex items-start gap-3">
@@ -805,7 +809,7 @@ export function Settings({ settings, setSettings, userId, showSuccess, userProfi
               )}
 
               {/* Basic user: needs to subscribe */}
-              {subscription.tier === 'basic' && !isDemoMode && (
+              {subscription.tier === 'basic' && !isDemoMode && !isAdminAccount && (
                 <div className="mb-5">
                   <h4 className="text-sm font-semibold text-[var(--color-text-primary)] mb-1">Upgrade to Pro</h4>
                   <p className="text-xs text-[var(--color-text-muted)] mb-3">
@@ -880,7 +884,7 @@ export function Settings({ settings, setSettings, userId, showSuccess, userProfi
               )}
 
               {/* Pro user: Manage plan / Switch plan */}
-              {subscription.tier === 'pro' && !isDemoMode && (
+              {subscription.tier === 'pro' && !isDemoMode && !isAdminAccount && (
                 <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
@@ -904,7 +908,7 @@ export function Settings({ settings, setSettings, userId, showSuccess, userProfi
               )}
 
               {/* Basic user with Stripe history: billing portal */}
-              {subscription.tier === 'basic' && userProfile?.stripe_customer_id && (
+              {subscription.tier === 'basic' && userProfile?.stripe_customer_id && !isAdminAccount && (
                 <button
                   type="button"
                   onClick={openBillingPortal}
@@ -916,6 +920,35 @@ export function Settings({ settings, setSettings, userId, showSuccess, userProfi
               )}
             </>
           )}
+        </div>
+
+        <div className="app-card mb-6">
+          <div className="flex items-center gap-3 mb-5">
+            <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center shrink-0">
+              <svg className="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M2.25 8.25h19.5M3.75 5.25h16.5a1.5 1.5 0 011.5 1.5v10.5a1.5 1.5 0 01-1.5 1.5H3.75a1.5 1.5 0 01-1.5-1.5V6.75a1.5 1.5 0 011.5-1.5zm2.25 9h3.75" />
+              </svg>
+            </div>
+            <div>
+              <h3 className="font-semibold text-[var(--color-text-primary)]">Customer payments</h3>
+              <p className="text-sm text-[var(--color-text-muted)]">Set up Stripe Connect and request payment links for quotes and jobs.</p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${
+              userProfile?.stripe_connect_charges_enabled
+                ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
+                : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
+            }`}>
+              {userProfile?.stripe_connect_charges_enabled ? 'Ready to accept payments' : 'Stripe setup needed'}
+            </span>
+            {onOpenPayments && (
+              <button onClick={onOpenPayments} className="app-btn-secondary text-sm">
+                Open Payments
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Data & Export Card */}

@@ -28,11 +28,23 @@ export async function POST() {
     const supabase = getSupabase()
     const { data: user } = await supabase
       .from('dyia_users')
-      .select('stripe_customer_id')
+      .select('stripe_customer_id, is_admin, role')
       .eq('clerk_user_id', clerkUserId)
       .single()
 
-    const customerId = (user as { stripe_customer_id: string | null } | null)?.stripe_customer_id
+    const account = user as {
+      stripe_customer_id: string | null
+      is_admin?: boolean | null
+      role?: string | null
+    } | null
+    if (account?.is_admin || ['admin', 'super_admin'].includes(account?.role || '')) {
+      return NextResponse.json(
+        { error: 'Admin accounts are not billed and do not use the billing portal.' },
+        { status: 400 }
+      )
+    }
+
+    const customerId = account?.stripe_customer_id
     if (!customerId) {
       return NextResponse.json(
         { error: 'No billing account linked. Subscribe from the pricing page first.' },

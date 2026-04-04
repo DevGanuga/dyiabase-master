@@ -4,6 +4,7 @@ import { createClient } from '@supabase/supabase-js'
 import { auth } from '@clerk/nextjs/server'
 import { rateLimiters } from '@/lib/rate-limit'
 import { getBaseUrl } from '@/lib/env'
+import { grantAdminAccess } from '@/lib/admin'
 
 function getStripe() {
   if (!process.env.STRIPE_SECRET_KEY) {
@@ -105,11 +106,7 @@ export async function POST(request: NextRequest) {
 
     // Admin accounts get free access — never create a Stripe subscription
     if (dyiaUser.is_admin || ['admin', 'super_admin'].includes(dyiaUser.role)) {
-      // Ensure admin has active status in DB
-      await supabase
-        .from('dyia_users')
-        .update({ subscription_status: 'active', subscription_plan: 'annual' })
-        .eq('id', dyiaUser.id)
+      await grantAdminAccess(dyiaUser.id, dyiaUser.role === 'super_admin' ? 'super_admin' : 'admin')
       return NextResponse.json({ error: 'Admin accounts have free access. Your account has been activated.' }, { status: 400 })
     }
 

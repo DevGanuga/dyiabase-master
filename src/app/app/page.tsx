@@ -673,6 +673,13 @@ function AppPageContent() {
       action: (settings.businessInfo.name?.trim() && settings.businessInfo.phone?.trim() && settings.businessInfo.email?.trim()) ? undefined : () => { setSettingsInitialTab('business'); setCurrentView('settings') },
     },
     {
+      id: 'connect-payments',
+      label: 'Connect Stripe',
+      description: 'Accept customer payments',
+      completed: !!userProfile?.stripe_connect_charges_enabled,
+      action: userProfile?.stripe_connect_charges_enabled ? undefined : () => setCurrentView('payments'),
+    },
+    {
       id: 'first-job',
       label: 'Log your first job',
       description: 'Track revenue and expenses',
@@ -809,6 +816,7 @@ function AppPageContent() {
             isDemoMode={isDemoMode}
             initialTab={settingsInitialTab ?? undefined}
             onDataChanged={refreshCounts}
+            onOpenPayments={() => setCurrentView('payments')}
           />
         )
       case 'followUps':

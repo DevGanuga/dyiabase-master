@@ -5,7 +5,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { useTheme } from '@/hooks/useTheme'
 
-type View = 'dashboard' | 'jobs' | 'quotes' | 'quoteBuilder' | 'followUps' | 'calendar' | 'reports' | 'marketing' | 'customers' | 'massEmail' | 'assistant' | 'settings' | 'admin' | 'profitCalculator' | 'intel'
+type View = 'dashboard' | 'jobs' | 'quotes' | 'quoteBuilder' | 'followUps' | 'calendar' | 'reports' | 'marketing' | 'customers' | 'massEmail' | 'assistant' | 'settings' | 'payments' | 'admin' | 'profitCalculator' | 'intel'
 
 type SubscriptionTier = 'basic' | 'trial' | 'pro'
 
@@ -118,6 +118,11 @@ const Icons = {
       <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3v11.25A2.25 2.25 0 006 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0118 16.5h-2.25m-7.5 0h7.5m-7.5 0l-1 3m8.5-3l1 3m0 0l.5 1.5m-.5-1.5h-9.5m0 0l-.5 1.5m.75-9l3-1.5M12 12.75l3-1.5m0 0l1.5-.75M15 11.25l-3-1.5m0 0l-1.5-.75M12 9.75L9 11.25" />
     </svg>
   ),
+  card: (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M3.75 5.25h16.5a1.5 1.5 0 011.5 1.5v10.5a1.5 1.5 0 01-1.5 1.5H3.75a1.5 1.5 0 01-1.5-1.5V6.75a1.5 1.5 0 011.5-1.5zm2.25 9h3.75" />
+    </svg>
+  ),
 }
 
 // Grouped navigation structure
@@ -142,6 +147,7 @@ const NAV_SECTIONS: NavSection[] = [
     label: 'Customers',
     items: [
       { id: 'customers', icon: 'users', label: 'Customers' },
+      { id: 'payments', icon: 'card', label: 'Payments' },
       { id: 'massEmail', icon: 'envelope', label: 'Email Blast', pro: true },
     ],
   },

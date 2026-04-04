@@ -271,6 +271,36 @@ export function Quotes({ quotes, setQuotes, jobs, userId, settings, onCreateQuot
     )
   }
 
+  const requestQuotePayment = async (quote: AppQuote) => {
+    try {
+      const res = await fetch('/api/payments/request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ quoteId: quote.id }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        await alert({ title: 'Payment setup', message: data.error || 'Could not create payment link.', variant: 'warning' })
+        return
+      }
+
+      await navigator.clipboard.writeText(data.shareUrl)
+
+      const requestedAt = new Date().toISOString()
+      setQuotes(quotes.map(q => q.id === quote.id ? {
+        ...q,
+        paymentStatus: 'pending',
+        paymentAmountCents: data.amountCents ?? q.paymentAmountCents ?? Math.round(q.total * 100),
+        paymentRequestedAt: requestedAt,
+        paymentLastRequestId: data.paymentId ?? q.paymentLastRequestId,
+      } : q))
+      showSuccess('Payment link copied to clipboard')
+    } catch (error) {
+      console.error('Error requesting quote payment:', error)
+      await alert({ title: 'Error', message: 'Failed to create payment link.', variant: 'error' })
+    }
+  }
+
   // Empty state
   if (quotes.length === 0) {
     return (
@@ -413,6 +443,18 @@ export function Quotes({ quotes, setQuotes, jobs, userId, settings, onCreateQuot
                 </span>
               </div>
 
+              {quote.paymentStatus && quote.paymentStatus !== 'not_requested' && (
+                <div className="mb-3">
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                    quote.paymentStatus === 'paid'
+                      ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
+                      : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
+                  }`}>
+                    Payment {quote.paymentStatus}
+                  </span>
+                </div>
+              )}
+
               {/* Customer details */}
               {(quote.customer.phone || quote.customer.address) && (
                 <div className="text-xs text-[var(--color-text-muted)] mb-3 space-y-0.5">
@@ -528,6 +570,15 @@ export function Quotes({ quotes, setQuotes, jobs, userId, settings, onCreateQuot
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                       </svg>
                       Schedule Job
+                    </button>
+                  )}
+                  {quote.status !== 'draft' && quote.paymentStatus !== 'paid' && (
+                    <button
+                      onClick={() => requestQuotePayment(quote)}
+                      className="text-xs px-2.5 py-1 rounded-lg bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 hover:bg-purple-100 dark:hover:bg-purple-900/50 transition"
+                      title="Create payment link"
+                    >
+                      {quote.paymentStatus === 'pending' ? 'Copy Pay Link' : 'Request Payment'}
                     </button>
                   )}
                 </div>

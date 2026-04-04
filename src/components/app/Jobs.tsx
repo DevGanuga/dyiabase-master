@@ -741,6 +741,36 @@ export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth,
     }
   }
 
+  const requestJobPayment = async (job: AppJob) => {
+    try {
+      const res = await fetch('/api/payments/request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jobId: job.id }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        await alert({ title: 'Payment setup', message: data.error || 'Could not create payment link.', variant: 'warning' })
+        return
+      }
+
+      await navigator.clipboard.writeText(data.shareUrl)
+
+      const requestedAt = new Date().toISOString()
+      setJobs(jobs.map(j => j.id === job.id ? {
+        ...j,
+        paymentStatus: 'pending',
+        paymentAmountCents: data.amountCents ?? j.paymentAmountCents ?? Math.round(j.revenue * 100),
+        paymentRequestedAt: requestedAt,
+        paymentLastRequestId: data.paymentId ?? j.paymentLastRequestId,
+      } : j))
+      showSuccess('Payment link copied to clipboard')
+    } catch (error) {
+      console.error('Error requesting job payment:', error)
+      await alert({ title: 'Error', message: 'Failed to create payment link.', variant: 'error' })
+    }
+  }
+
   // === LIVE PROFIT CALCULATIONS ===
   const totalExpenses = Object.values(tempExpenses).reduce((sum, e) => sum + (e || 0), 0)
   const totalRevenue = tempCustomers.reduce((sum, c) => sum + (c.revenue || 0), 0)
@@ -1621,6 +1651,15 @@ export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth,
                             {job.notes && (
                               <div className="text-xs text-[var(--color-text-muted)] truncate max-w-[200px]">{job.notes}</div>
                             )}
+                            {job.paymentStatus && job.paymentStatus !== 'not_requested' && (
+                              <div className={`text-[10px] inline-flex w-fit px-1.5 py-0.5 rounded-full ${
+                                job.paymentStatus === 'paid'
+                                  ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
+                                  : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
+                              }`}>
+                                Payment {job.paymentStatus}
+                              </div>
+                            )}
                             {job.additionalExpense > 0 && job.additionalExpenseLabel && (
                               <div className="text-xs text-[var(--color-text-faint)] truncate max-w-[200px]">
                                 Other: {job.additionalExpenseLabel}
@@ -1661,6 +1700,17 @@ export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth,
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                               </svg>
                             </button>
+                            {job.status !== 'scheduled' && job.revenue > 0 && job.paymentStatus !== 'paid' && (
+                              <button
+                                onClick={() => requestJobPayment(job)}
+                                className="p-1.5 text-[var(--color-text-faint)] hover:text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-900/30 rounded-lg transition-colors"
+                                title={job.paymentStatus === 'pending' ? 'Copy payment link' : 'Request payment'}
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.25 8.25h19.5M3.75 5.25h16.5a1.5 1.5 0 011.5 1.5v10.5a1.5 1.5 0 01-1.5 1.5H3.75a1.5 1.5 0 01-1.5-1.5V6.75a1.5 1.5 0 011.5-1.5zm2.25 9h3.75" />
+                                </svg>
+                              </button>
+                            )}
                             <button 
                               onClick={() => deleteJob(job.id)} 
                               className="p-1.5 text-[var(--color-text-faint)] hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"

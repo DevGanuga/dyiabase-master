@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import Stripe from 'stripe'
 
 function getSupabaseAdmin() {
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
@@ -8,6 +9,13 @@ function getSupabaseAdmin() {
     process.env.NEXT_PUBLIC_SUPABASE_URL,
     process.env.SUPABASE_SERVICE_ROLE_KEY
   )
+}
+
+function getStripe() {
+  if (!process.env.STRIPE_SECRET_KEY) {
+    throw new Error('STRIPE_SECRET_KEY is not set')
+  }
+  return new Stripe(process.env.STRIPE_SECRET_KEY)
 }
 
 /**
@@ -76,16 +84,68 @@ export async function listAllUsers() {
   return data || []
 }
 
+async function cancelStripeSubscriptionIfNeeded(subscriptionId: string | null | undefined) {
+  if (!subscriptionId) return
+
+  try {
+    const stripe = getStripe()
+    const subscription = await stripe.subscriptions.retrieve(subscriptionId)
+    if (subscription.status !== 'canceled') {
+      await stripe.subscriptions.cancel(subscriptionId)
+    }
+  } catch (error) {
+    const code = error && typeof error === 'object' && 'code' in error ? error.code : null
+    if (code !== 'resource_missing') {
+      throw error
+    }
+  }
+}
+
+export async function grantAdminAccess(
+  userId: string,
+  role: 'admin' | 'super_admin' = 'admin'
+) {
+  const supabase = getSupabaseAdmin()
+  const { data: user, error: userError } = await supabase
+    .from('dyia_users')
+    .select('stripe_subscription_id')
+    .eq('id', userId)
+    .single()
+
+  if (userError) throw userError
+
+  await cancelStripeSubscriptionIfNeeded(user?.stripe_subscription_id)
+
+  const { error } = await supabase
+    .from('dyia_users')
+    .update({
+      is_admin: true,
+      role,
+      subscription_status: 'active',
+      subscription_plan: 'annual',
+      subscription_ends_at: null,
+      stripe_subscription_id: null,
+    })
+    .eq('id', userId)
+
+  if (error) throw error
+}
+
 /**
  * Toggle admin status for a user.
  */
 export async function toggleAdmin(userId: string, makeAdmin: boolean) {
+  if (makeAdmin) {
+    await grantAdminAccess(userId, 'admin')
+    return
+  }
+
   const supabase = getSupabaseAdmin()
   const { error } = await supabase
     .from('dyia_users')
     .update({
-      is_admin: makeAdmin,
-      role: makeAdmin ? 'admin' : 'user',
+      is_admin: false,
+      role: 'user',
     })
     .eq('id', userId)
 
