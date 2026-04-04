@@ -39,17 +39,7 @@ function getOpenAI(): OpenAI {
   return new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 }
 
-function getCandidateModels(): string[] {
-  if (process.env.OPENAI_INTEL_MODEL) {
-    return [process.env.OPENAI_INTEL_MODEL]
-  }
-
-  return [
-    'o4-mini-deep-research',
-    'gpt-4.1',
-    'gpt-4o',
-  ]
-}
+const INTEL_MODEL = 'o4-mini-deep-research'
 
 export interface IntelAgentInput {
   businessName: string
@@ -330,49 +320,37 @@ export async function runIntelAgent(
 ): Promise<IntelAgentResult> {
   const openai = getOpenAI()
   const timeoutMs = options.timeoutMs ?? 90_000
-  const candidateModels = getCandidateModels()
-  let lastError: unknown = null
 
-  for (const model of candidateModels) {
-    try {
-      const initial = await openai.responses.create({
-        model,
-        input: buildPrompt(input),
-        background: true,
-        tools: [{ type: 'web_search' }],
-        max_output_tokens: 3000,
-      }) as unknown as ResponseLike
+  const initial = await openai.responses.create({
+    model: INTEL_MODEL,
+    input: buildPrompt(input),
+    background: true,
+    tools: [{ type: 'web_search' }],
+    max_output_tokens: 3000,
+  }) as unknown as ResponseLike
 
-      const finalResponse = await pollUntilComplete(openai, initial.id, timeoutMs)
+  const finalResponse = await pollUntilComplete(openai, initial.id, timeoutMs)
 
-      if (finalResponse.status && finalResponse.status !== 'completed') {
-        throw new Error(finalResponse.error?.message || `Intel research failed with status: ${finalResponse.status}`)
-      }
-
-      const responseText = stripCodeFences(extractResponseText(finalResponse))
-      if (!responseText) {
-        throw new Error('Intel research returned empty output')
-      }
-
-      const parsedJson = parseJsonObject(responseText)
-
-      let researchSources = extractSources(finalResponse)
-      if (researchSources.length === 0) {
-        researchSources = await recoverSourcesFromFollowUp(openai, finalResponse.id, model)
-      }
-
-      return {
-        scanData: normalizeScanData(parsedJson),
-        researchSources,
-        responseId: finalResponse.id,
-        model,
-      }
-    } catch (error) {
-      lastError = error
-    }
+  if (finalResponse.status && finalResponse.status !== 'completed') {
+    throw new Error(finalResponse.error?.message || `Intel research failed with status: ${finalResponse.status}`)
   }
 
-  throw lastError instanceof Error
-    ? lastError
-    : new Error('Intel research failed on all configured OpenAI models')
+  const responseText = extractResponseText(finalResponse)
+  if (!responseText) {
+    throw new Error('Intel research returned empty output')
+  }
+
+  const parsedJson = parseJsonObject(responseText)
+
+  let researchSources = extractSources(finalResponse)
+  if (researchSources.length === 0) {
+    researchSources = await recoverSourcesFromFollowUp(openai, finalResponse.id, INTEL_MODEL)
+  }
+
+  return {
+    scanData: normalizeScanData(parsedJson),
+    researchSources,
+    responseId: finalResponse.id,
+    model: INTEL_MODEL,
+  }
 }

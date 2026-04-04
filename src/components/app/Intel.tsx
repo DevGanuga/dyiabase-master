@@ -5,7 +5,6 @@ import { INTEL_INDUSTRIES, INTEL_RADIUS_OPTIONS } from '@/types/database'
 import type { IntelScanData, IntelActionStep, IntelActionCategory, IntelResearchSource } from '@/types/database'
 
 interface IntelProps {
-  userId: string
   businessName: string
   showSuccess: (msg: string) => void
 }

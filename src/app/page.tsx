@@ -115,6 +115,7 @@ export default function LandingPage() {
               <img src="/dyia-logo-full.png" alt="dyia" className="h-8 object-contain brightness-0 invert" />
             </Link>
             <div className="hidden md:flex items-center gap-8">
+              <Link href="/intel" className="text-sm text-purple-400 hover:text-purple-300 transition font-medium">Intel</Link>
               <Link href="/pricing-calculator" className="text-sm text-slate-400 hover:text-white transition">Pricing Calculator</Link>
               <Link href="/profit-calculator" className="text-sm text-slate-400 hover:text-white transition">Free quiz</Link>
               <a href="#features" className="text-sm text-slate-400 hover:text-white transition">Features</a>
@@ -815,6 +816,46 @@ export default function LandingPage() {
                     ))}
                   </tbody>
                 </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ===== INTEL CTA ===== */}
+        <section className="py-24 px-6 relative">
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-purple-950/10 to-transparent" />
+          <div className="max-w-5xl mx-auto relative">
+            <div className="bg-gradient-to-br from-purple-600/10 via-indigo-600/5 to-purple-600/10 border border-purple-500/20 rounded-3xl p-10 sm:p-14 text-center">
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-purple-500/10 border border-purple-500/20 rounded-full text-purple-400 text-[13px] font-medium mb-6">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3.75 3v11.25A2.25 2.25 0 006 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0118 16.5h-2.25m-7.5 0h7.5m-7.5 0l-1 3m8.5-3l1 3m0 0l.5 1.5m-.5-1.5h-9.5m0 0l-.5 1.5" />
+                </svg>
+                Dyia Intel
+              </div>
+              <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">
+                How does your business stack up?
+              </h2>
+              <p className="text-lg text-slate-400 max-w-2xl mx-auto mb-8">
+                Get a free competitive intelligence report powered by live web research. See your local rank, review gaps, keyword opportunities, and how you compare to every competitor in your area.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center mb-6">
+                <Link
+                  href="/intel"
+                  className="inline-flex items-center justify-center gap-2 px-8 py-3.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold rounded-xl shadow-lg shadow-purple-500/20 transition-all"
+                >
+                  Get your free report
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                  </svg>
+                </Link>
+              </div>
+              <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-[13px] text-slate-500">
+                {['100% free scan', 'Real competitor data', 'No credit card needed'].map((item, i) => (
+                  <span key={i} className="flex items-center gap-1.5">
+                    <svg className="w-3.5 h-3.5 text-purple-400/70" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
+                    {item}
+                  </span>
+                ))}
               </div>
             </div>
           </div>

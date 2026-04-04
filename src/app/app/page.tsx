@@ -900,7 +900,6 @@ function AppPageContent() {
       case 'intel':
         return (
           <Intel
-            userId={userProfile?.id || ''}
             businessName={settings.businessInfo.name || ''}
             showSuccess={showSuccess}
           />
