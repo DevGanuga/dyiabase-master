@@ -45,8 +45,15 @@ export interface IntelAgentInput {
   businessName: string
   websiteUrl?: string
   zipCode: string
+  city?: string
+  state?: string
   industry: string
   radiusMiles: number
+  phone?: string
+  googleBusinessUrl?: string
+  mainServices?: string[]
+  yearsInBusiness?: number
+  teamSize?: number
 }
 
 export interface IntelAgentOptions {
@@ -101,24 +108,44 @@ Rules:
 - Output JSON only. No markdown. No prose before or after the JSON.`
 
 function buildPrompt(input: IntelAgentInput): string {
-  return [
+  const lines = [
     'Research this local service business and produce the required competitive intelligence JSON.',
     '',
     `Business name: ${input.businessName}`,
     `Website: ${input.websiteUrl || 'Not provided'}`,
     `Primary zip code: ${input.zipCode}`,
-    `Industry: ${input.industry}`,
-    `Search radius: ${input.radiusMiles} miles`,
+  ]
+
+  if (input.city || input.state) {
+    lines.push(`City/State: ${[input.city, input.state].filter(Boolean).join(', ')}`)
+  }
+
+  lines.push(`Industry: ${input.industry}`)
+  lines.push(`Search radius: ${input.radiusMiles} miles`)
+
+  if (input.phone) lines.push(`Business phone: ${input.phone}`)
+  if (input.googleBusinessUrl) lines.push(`Google Business Profile: ${input.googleBusinessUrl}`)
+  if (input.mainServices && input.mainServices.length > 0) {
+    lines.push(`Main services: ${input.mainServices.join(', ')}`)
+  }
+  if (input.yearsInBusiness) lines.push(`Years in business: ${input.yearsInBusiness}`)
+  if (input.teamSize) lines.push(`Team size: ${input.teamSize} people`)
+
+  lines.push(
     '',
     'Research checklist:',
-    '- Identify the actual business if possible.',
-    '- Identify the top local competitors in the same service category.',
+    '- Use the business name, phone, and website to identify the exact business in Google and review sites.',
+    '- If a Google Business Profile URL is provided, start there for review counts and profile completeness.',
+    '- Identify the top local competitors in the same service category within the zip code and radius.',
     '- Ground review counts and rankings in live search findings.',
-    '- Infer keyword gaps and GBP gaps from competitor positioning and available business profiles/pages.',
+    '- Use the main services list to identify relevant keyword gaps vs competitors.',
+    '- Infer GBP gaps from competitor profiles vs this business.',
     '- Use only evidence-backed competitor names.',
     '',
     'Return only the JSON object.',
-  ].join('\n')
+  )
+
+  return lines.join('\n')
 }
 
 function stripCodeFences(text: string): string {

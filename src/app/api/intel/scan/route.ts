@@ -19,7 +19,10 @@ function getSupabase() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { businessName, websiteUrl, zipCode, industry, radiusMiles, email } = body
+    const {
+      businessName, websiteUrl, zipCode, city, state, industry, radiusMiles,
+      email, fullName, phone, googleBusinessUrl, mainServices, yearsInBusiness, teamSize,
+    } = body
 
     if (!businessName || !zipCode || !industry || !email) {
       return NextResponse.json(
@@ -40,14 +43,21 @@ export async function POST(request: NextRequest) {
 
     const supabase = getSupabase()
 
-    // Create the scan record first (pending state)
     const { data: scan, error: insertError } = await supabase
       .from('dyia_intel_scans')
       .insert({
         email,
+        full_name: fullName || null,
         business_name: businessName,
         website_url: websiteUrl || null,
         zip_code: zipCode,
+        city: city || null,
+        state: state || null,
+        phone: phone || null,
+        google_business_url: googleBusinessUrl || null,
+        main_services: Array.isArray(mainServices) && mainServices.length > 0 ? mainServices : null,
+        years_in_business: yearsInBusiness || null,
+        team_size: teamSize || null,
         industry,
         radius_miles: radius,
         source: 'public_page',
@@ -68,8 +78,15 @@ export async function POST(request: NextRequest) {
         businessName,
         websiteUrl,
         zipCode,
+        city,
+        state,
         industry,
         radiusMiles: radius,
+        phone,
+        googleBusinessUrl,
+        mainServices: Array.isArray(mainServices) ? mainServices : undefined,
+        yearsInBusiness: yearsInBusiness || undefined,
+        teamSize: teamSize || undefined,
       }, { timeoutMs: 90_000 })
       scanData = intelResult.scanData
       researchSources = intelResult.researchSources

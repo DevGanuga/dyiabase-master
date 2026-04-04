@@ -1,0 +1,10 @@
+-- Richer lead intake fields for Intel scans
+ALTER TABLE dyia_intel_scans
+ADD COLUMN IF NOT EXISTS city TEXT,
+ADD COLUMN IF NOT EXISTS state TEXT,
+ADD COLUMN IF NOT EXISTS phone TEXT,
+ADD COLUMN IF NOT EXISTS google_business_url TEXT,
+ADD COLUMN IF NOT EXISTS main_services TEXT[],
+ADD COLUMN IF NOT EXISTS years_in_business INTEGER,
+ADD COLUMN IF NOT EXISTS team_size INTEGER,
+ADD COLUMN IF NOT EXISTS full_name TEXT;

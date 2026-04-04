@@ -792,9 +792,17 @@ export interface IntelScan {
   id: string
   user_id: string | null
   email: string | null
+  full_name: string | null
   business_name: string
   website_url: string | null
   zip_code: string
+  city: string | null
+  state: string | null
+  phone: string | null
+  google_business_url: string | null
+  main_services: string[] | null
+  years_in_business: number | null
+  team_size: number | null
   industry: string
   radius_miles: number
   scan_data: IntelScanData | null

@@ -14,15 +14,27 @@ const LOADING_MESSAGES = [
   'Building your report...',
 ]
 
+const US_STATES = ['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY'] as const
+
 export default function IntelPage() {
   const [stage, setStage] = useState<Stage>('form')
 
-  // Form state
+  // Form state — business info
   const [businessName, setBusinessName] = useState('')
   const [websiteUrl, setWebsiteUrl] = useState('')
   const [zipCode, setZipCode] = useState('')
+  const [city, setCity] = useState('')
+  const [usState, setUsState] = useState('')
   const [industry, setIndustry] = useState('')
   const [radiusMiles, setRadiusMiles] = useState(25)
+  const [googleBusinessUrl, setGoogleBusinessUrl] = useState('')
+  const [mainServices, setMainServices] = useState('')
+  const [yearsInBusiness, setYearsInBusiness] = useState('')
+  const [teamSize, setTeamSize] = useState('')
+
+  // Form state — lead contact (captured in email gate)
+  const [fullName, setFullName] = useState('')
+  const [phone, setPhone] = useState('')
   const [email, setEmail] = useState('')
 
   // Loading state
@@ -99,6 +111,8 @@ export default function IntelPage() {
     setLoadingError(null)
 
     try {
+      const serviceTags = mainServices.split(',').map(s => s.trim()).filter(Boolean)
+
       const res = await fetch('/api/intel/scan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -106,9 +120,17 @@ export default function IntelPage() {
           businessName: businessName.trim(),
           websiteUrl: websiteUrl.trim() || undefined,
           zipCode: zipCode.trim(),
+          city: city.trim() || undefined,
+          state: usState || undefined,
           industry,
           radiusMiles,
           email: email.trim(),
+          fullName: fullName.trim() || undefined,
+          phone: phone.trim() || undefined,
+          googleBusinessUrl: googleBusinessUrl.trim() || undefined,
+          mainServices: serviceTags.length > 0 ? serviceTags : undefined,
+          yearsInBusiness: yearsInBusiness ? parseInt(yearsInBusiness) : undefined,
+          teamSize: teamSize ? parseInt(teamSize) : undefined,
         }),
       })
 
