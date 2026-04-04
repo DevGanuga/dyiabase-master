@@ -234,7 +234,18 @@ export default function IntelPage() {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-1.5">Google Business Profile URL <span className="text-slate-500">(optional — helps us find your exact listing)</span></label>
+              <input
+                type="url"
+                value={googleBusinessUrl}
+                onChange={e => setGoogleBusinessUrl(e.target.value)}
+                className="w-full px-4 py-3 bg-slate-900 border border-slate-700 rounded-lg text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500"
+                placeholder="https://g.co/kgs/..."
+              />
+            </div>
+
+            <div className="grid grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-1.5">Zip code *</label>
                 <input
@@ -247,6 +258,44 @@ export default function IntelPage() {
                   className="w-full px-4 py-3 bg-slate-900 border border-slate-700 rounded-lg text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500"
                   placeholder="77001"
                 />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1.5">City</label>
+                <input
+                  type="text"
+                  value={city}
+                  onChange={e => setCity(e.target.value)}
+                  className="w-full px-4 py-3 bg-slate-900 border border-slate-700 rounded-lg text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500"
+                  placeholder="Houston"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1.5">State</label>
+                <select
+                  value={usState}
+                  onChange={e => setUsState(e.target.value)}
+                  className="w-full px-4 py-3 bg-slate-900 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500"
+                >
+                  <option value="">—</option>
+                  {US_STATES.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1.5">Industry *</label>
+                <select
+                  required
+                  value={industry}
+                  onChange={e => setIndustry(e.target.value)}
+                  className="w-full px-4 py-3 bg-slate-900 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500"
+                >
+                  <option value="">Select your industry</option>
+                  {INTEL_INDUSTRIES.map(ind => (
+                    <option key={ind} value={ind}>{ind}</option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-1.5">Search radius</label>
@@ -263,18 +312,41 @@ export default function IntelPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1.5">Industry *</label>
-              <select
-                required
-                value={industry}
-                onChange={e => setIndustry(e.target.value)}
-                className="w-full px-4 py-3 bg-slate-900 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500"
-              >
-                <option value="">Select your industry</option>
-                {INTEL_INDUSTRIES.map(ind => (
-                  <option key={ind} value={ind}>{ind}</option>
-                ))}
-              </select>
+              <label className="block text-sm font-medium text-slate-300 mb-1.5">Main services <span className="text-slate-500">(comma-separated)</span></label>
+              <input
+                type="text"
+                value={mainServices}
+                onChange={e => setMainServices(e.target.value)}
+                className="w-full px-4 py-3 bg-slate-900 border border-slate-700 rounded-lg text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500"
+                placeholder="e.g. Junk removal, Demolition, Cleanouts"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1.5">Years in business</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={yearsInBusiness}
+                  onChange={e => setYearsInBusiness(e.target.value)}
+                  className="w-full px-4 py-3 bg-slate-900 border border-slate-700 rounded-lg text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500"
+                  placeholder="3"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1.5">Team size</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="500"
+                  value={teamSize}
+                  onChange={e => setTeamSize(e.target.value)}
+                  className="w-full px-4 py-3 bg-slate-900 border border-slate-700 rounded-lg text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500"
+                  placeholder="4"
+                />
+              </div>
             </div>
 
             <button
@@ -303,15 +375,30 @@ export default function IntelPage() {
               <p className="text-sm text-slate-400">We&apos;ll email you a copy so you can reference it later.</p>
             </div>
 
-            <form onSubmit={handleEmailSubmit} className="space-y-4">
+            <form onSubmit={handleEmailSubmit} className="space-y-3">
+              <input
+                type="text"
+                required
+                autoFocus
+                value={fullName}
+                onChange={e => setFullName(e.target.value)}
+                className="w-full px-4 py-3 bg-slate-900 border border-slate-700 rounded-lg text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500"
+                placeholder="Your full name"
+              />
               <input
                 type="email"
                 required
-                autoFocus
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 className="w-full px-4 py-3 bg-slate-900 border border-slate-700 rounded-lg text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500"
                 placeholder="you@business.com"
+              />
+              <input
+                type="tel"
+                value={phone}
+                onChange={e => setPhone(e.target.value)}
+                className="w-full px-4 py-3 bg-slate-900 border border-slate-700 rounded-lg text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500"
+                placeholder="(555) 123-4567 (optional)"
               />
               <button
                 type="submit"

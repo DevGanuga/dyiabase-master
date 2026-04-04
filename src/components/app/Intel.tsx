@@ -50,8 +50,12 @@ export function Intel({ businessName, showSuccess }: IntelProps) {
   // Setup form state (for first-time setup)
   const [setupIndustry, setSetupIndustry] = useState('')
   const [setupZipCode, setSetupZipCode] = useState('')
+  const [setupCity, setSetupCity] = useState('')
+  const [setupState, setSetupState] = useState('')
   const [setupRadius, setSetupRadius] = useState(25)
   const [setupWebsite, setSetupWebsite] = useState('')
+  const [setupGbpUrl, setSetupGbpUrl] = useState('')
+  const [setupServices, setSetupServices] = useState('')
 
   const loadData = useCallback(async () => {
     try {
@@ -79,12 +83,17 @@ export function Intel({ businessName, showSuccess }: IntelProps) {
     setRefreshing(true)
     setError(null)
     try {
+      const serviceTags = setupServices.split(',').map(s => s.trim()).filter(Boolean)
       const body = showSetup
         ? {
             industry: setupIndustry,
             zipCode: setupZipCode,
+            city: setupCity || undefined,
+            state: setupState || undefined,
             radiusMiles: setupRadius,
             websiteUrl: setupWebsite || undefined,
+            googleBusinessUrl: setupGbpUrl || undefined,
+            mainServices: serviceTags.length > 0 ? serviceTags : undefined,
           }
         : {}
 
@@ -190,6 +199,30 @@ export function Intel({ businessName, showSuccess }: IntelProps) {
             </div>
           </div>
 
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-[var(--color-text)] mb-1.5">City</label>
+              <input
+                type="text"
+                value={setupCity}
+                onChange={e => setSetupCity(e.target.value)}
+                className="w-full px-4 py-2.5 bg-[var(--color-bg)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)]"
+                placeholder="Houston"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-[var(--color-text)] mb-1.5">State</label>
+              <input
+                type="text"
+                maxLength={2}
+                value={setupState}
+                onChange={e => setSetupState(e.target.value.toUpperCase().slice(0, 2))}
+                className="w-full px-4 py-2.5 bg-[var(--color-bg)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)]"
+                placeholder="TX"
+              />
+            </div>
+          </div>
+
           <div>
             <label className="block text-sm font-medium text-[var(--color-text)] mb-1.5">Website <span className="text-[var(--color-text-secondary)]">(optional)</span></label>
             <input
@@ -198,6 +231,28 @@ export function Intel({ businessName, showSuccess }: IntelProps) {
               onChange={e => setSetupWebsite(e.target.value)}
               className="w-full px-4 py-2.5 bg-[var(--color-bg)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)]"
               placeholder="https://www.yourbusiness.com"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-[var(--color-text)] mb-1.5">Google Business Profile URL <span className="text-[var(--color-text-secondary)]">(optional)</span></label>
+            <input
+              type="url"
+              value={setupGbpUrl}
+              onChange={e => setSetupGbpUrl(e.target.value)}
+              className="w-full px-4 py-2.5 bg-[var(--color-bg)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)]"
+              placeholder="https://g.co/kgs/..."
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-[var(--color-text)] mb-1.5">Main services <span className="text-[var(--color-text-secondary)]">(comma-separated)</span></label>
+            <input
+              type="text"
+              value={setupServices}
+              onChange={e => setSetupServices(e.target.value)}
+              className="w-full px-4 py-2.5 bg-[var(--color-bg)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)]"
+              placeholder="e.g. Lawn care, Hardscaping, Tree trimming"
             />
           </div>
 

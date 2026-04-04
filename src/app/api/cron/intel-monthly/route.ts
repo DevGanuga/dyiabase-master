@@ -25,8 +25,12 @@ interface UserToScan {
   businessName: string
   websiteUrl: string | null
   zipCode: string
+  city: string | null
+  state: string | null
   industry: string
   radiusMiles: number
+  googleBusinessUrl: string | null
+  mainServices: string[] | null
 }
 
 export async function GET(req: NextRequest) {
@@ -76,22 +80,26 @@ export async function GET(req: NextRequest) {
       // Get previous scan for industry/zip defaults
       const { data: prevScan } = await supabase
         .from('dyia_intel_scans')
-        .select('industry, zip_code, radius_miles, website_url')
+        .select('industry, zip_code, city, state, radius_miles, website_url, google_business_url, main_services')
         .eq('user_id', u.id)
         .eq('source', 'crm_monthly')
         .order('created_at', { ascending: false })
         .limit(1)
         .single()
 
-      if (!prevScan) continue // No prior scan — user needs to set up Intel first
+      if (!prevScan) continue
 
       usersToScan.push({
         userId: u.id,
         businessName: settings.business_name,
         websiteUrl: prevScan.website_url,
         zipCode: prevScan.zip_code,
+        city: prevScan.city,
+        state: prevScan.state,
         industry: prevScan.industry,
         radiusMiles: prevScan.radius_miles || 25,
+        googleBusinessUrl: prevScan.google_business_url,
+        mainServices: prevScan.main_services,
       })
     }
 
@@ -163,8 +171,12 @@ async function processSingleUser(
       businessName: userInfo.businessName,
       websiteUrl: userInfo.websiteUrl || undefined,
       zipCode: userInfo.zipCode,
+      city: userInfo.city || undefined,
+      state: userInfo.state || undefined,
       industry: userInfo.industry,
       radiusMiles: userInfo.radiusMiles,
+      googleBusinessUrl: userInfo.googleBusinessUrl || undefined,
+      mainServices: userInfo.mainServices || undefined,
     }, { timeoutMs: 300_000 })
     const scanData = intelResult.scanData
 
@@ -179,6 +191,10 @@ async function processSingleUser(
         business_name: userInfo.businessName,
         website_url: userInfo.websiteUrl,
         zip_code: userInfo.zipCode,
+        city: userInfo.city,
+        state: userInfo.state,
+        google_business_url: userInfo.googleBusinessUrl,
+        main_services: userInfo.mainServices,
         industry: userInfo.industry,
         radius_miles: userInfo.radiusMiles,
         scan_data: scanData,

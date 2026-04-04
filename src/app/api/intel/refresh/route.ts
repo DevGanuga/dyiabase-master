@@ -55,15 +55,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Get industry + zip from request body or previous scan
     const body = await request.json().catch(() => ({}))
-    let { industry, zipCode, radiusMiles, websiteUrl } = body
+    let { industry, zipCode, city, state, radiusMiles, websiteUrl, googleBusinessUrl, mainServices } = body
 
-    // Fall back to previous scan data
     if (!industry || !zipCode) {
       const { data: prevScan } = await supabase
         .from('dyia_intel_scans')
-        .select('industry, zip_code, radius_miles, website_url')
+        .select('industry, zip_code, city, state, radius_miles, website_url, google_business_url, main_services')
         .eq('user_id', dyiaUser.id)
         .eq('source', 'crm_monthly')
         .order('created_at', { ascending: false })
@@ -73,8 +71,12 @@ export async function POST(request: NextRequest) {
       if (prevScan) {
         industry = industry || prevScan.industry
         zipCode = zipCode || prevScan.zip_code
+        city = city || prevScan.city
+        state = state || prevScan.state
         radiusMiles = radiusMiles || prevScan.radius_miles
         websiteUrl = websiteUrl || prevScan.website_url
+        googleBusinessUrl = googleBusinessUrl || prevScan.google_business_url
+        mainServices = mainServices || prevScan.main_services
       }
     }
 
@@ -106,8 +108,12 @@ export async function POST(request: NextRequest) {
       businessName: settings.business_name,
       websiteUrl,
       zipCode,
+      city,
+      state,
       industry,
       radiusMiles: radiusMiles || 25,
+      googleBusinessUrl,
+      mainServices: Array.isArray(mainServices) ? mainServices : undefined,
     }, { timeoutMs: 300_000 })
     const scanData = intelResult.scanData
 
@@ -122,6 +128,10 @@ export async function POST(request: NextRequest) {
         business_name: settings.business_name,
         website_url: websiteUrl || null,
         zip_code: zipCode,
+        city: city || null,
+        state: state || null,
+        google_business_url: googleBusinessUrl || null,
+        main_services: Array.isArray(mainServices) && mainServices.length > 0 ? mainServices : null,
         industry,
         radius_miles: radiusMiles || 25,
         scan_data: scanData,
