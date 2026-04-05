@@ -6,6 +6,13 @@ import { rateLimiters } from '@/lib/rate-limit'
 import { getBaseUrl } from '@/lib/env'
 import { grantAdminAccess } from '@/lib/admin'
 
+const BILLABLE_SUBSCRIPTION_STATUSES = new Set<Stripe.Subscription.Status>([
+  'active',
+  'trialing',
+  'past_due',
+  'unpaid',
+])
+
 function getStripe() {
   if (!process.env.STRIPE_SECRET_KEY) {
     throw new Error('STRIPE_SECRET_KEY is not set')
@@ -53,6 +60,75 @@ async function resolveStripeDiscount(
   return null
 }
 
+async function resolveExistingCustomer(
+  stripe: Stripe,
+  suppliedCustomerId: string | null | undefined,
+  userEmail: string,
+  clerkUserId: string,
+  dyiaUserId: string
+) {
+  if (suppliedCustomerId) {
+    try {
+      const customer = await stripe.customers.retrieve(suppliedCustomerId)
+      if (!('deleted' in customer)) {
+        return customer
+      }
+    } catch {
+      // Fall through to email lookup/create below.
+    }
+  }
+
+  const existingCustomers = await stripe.customers.list({
+    email: userEmail,
+    limit: 10,
+  })
+
+  const reusableCustomer = existingCustomers.data.find((customer) => !customer.deleted)
+  if (reusableCustomer) {
+    return reusableCustomer
+  }
+
+  return stripe.customers.create({
+    email: userEmail,
+    metadata: {
+      clerk_user_id: clerkUserId,
+      dyia_user_id: dyiaUserId,
+    },
+  })
+}
+
+async function findBillableSubscription(stripe: Stripe, customerId: string) {
+  const subscriptions = await stripe.subscriptions.list({
+    customer: customerId,
+    status: 'all',
+    limit: 20,
+  })
+
+  return subscriptions.data.find((subscription) =>
+    BILLABLE_SUBSCRIPTION_STATUSES.has(subscription.status)
+  ) ?? null
+}
+
+async function findOpenCheckoutSession(
+  stripe: Stripe,
+  customerId: string,
+  mode: 'subscription' | 'payment'
+) {
+  const sessions = await stripe.checkout.sessions.list({
+    customer: customerId,
+    limit: 20,
+  })
+
+  const thirtyMinutesAgo = Math.floor(Date.now() / 1000) - (30 * 60)
+
+  return sessions.data.find((session) =>
+    session.mode === mode &&
+    session.status === 'open' &&
+    typeof session.url === 'string' &&
+    session.created >= thirtyMinutesAgo
+  ) ?? null
+}
+
 export async function POST(request: NextRequest) {
   // Rate limit: 10 requests per minute per IP
   const rateLimited = await rateLimiters.checkout.checkAsync(request)
@@ -93,7 +169,7 @@ export async function POST(request: NextRequest) {
     // Get the dyia user ID from clerk_user_id
     const { data: dyiaUser, error: userError } = await supabase
       .from('dyia_users')
-      .select('id, is_admin, role')
+      .select('id, is_admin, role, stripe_customer_id, stripe_subscription_id, subscription_status')
       .eq('clerk_user_id', clerkUserId)
       .single()
 
@@ -112,17 +188,74 @@ export async function POST(request: NextRequest) {
 
     const baseUrl = getBaseUrl()
     const isOneTime = mode === 'payment'
+    const checkoutMode: 'subscription' | 'payment' = isOneTime ? 'payment' : 'subscription'
+
+    const customer = await resolveExistingCustomer(
+      stripe,
+      dyiaUser.stripe_customer_id,
+      userEmail,
+      clerkUserId,
+      dyiaUser.id
+    )
+
+    if (dyiaUser.stripe_customer_id !== customer.id) {
+      await supabase
+        .from('dyia_users')
+        .update({ stripe_customer_id: customer.id })
+        .eq('id', dyiaUser.id)
+    }
+
+    if (!isOneTime) {
+      if (['active', 'trialing', 'past_due'].includes(dyiaUser.subscription_status || '')) {
+        return NextResponse.json(
+          { error: 'You already have a subscription. Please manage your existing billing instead of starting a new checkout.' },
+          { status: 409 }
+        )
+      }
+
+      if (dyiaUser.stripe_subscription_id) {
+        try {
+          const existingSubscription = await stripe.subscriptions.retrieve(dyiaUser.stripe_subscription_id)
+          if (BILLABLE_SUBSCRIPTION_STATUSES.has(existingSubscription.status)) {
+            return NextResponse.json(
+              { error: 'You already have a subscription. Please manage your existing billing instead of starting a new checkout.' },
+              { status: 409 }
+            )
+          }
+        } catch {
+          // Ignore stale subscription IDs and continue with customer-level checks below.
+        }
+      }
+
+      const billableSubscription = await findBillableSubscription(stripe, customer.id)
+      if (billableSubscription) {
+        return NextResponse.json(
+          { error: 'You already have a subscription in Stripe. Please manage billing instead of creating another one.' },
+          { status: 409 }
+        )
+      }
+
+      const openSession = await findOpenCheckoutSession(stripe, customer.id, 'subscription')
+      if (openSession?.url) {
+        return NextResponse.json({ sessionId: openSession.id, url: openSession.url })
+      }
+    } else {
+      const openSession = await findOpenCheckoutSession(stripe, customer.id, 'payment')
+      if (openSession?.url) {
+        return NextResponse.json({ sessionId: openSession.id, url: openSession.url })
+      }
+    }
 
     // Build session params based on mode
     const sessionParams: Stripe.Checkout.SessionCreateParams = {
-      mode: isOneTime ? 'payment' : 'subscription',
+      mode: checkoutMode,
       payment_method_types: ['card'],
       line_items: [{ price: priceId, quantity: 1 }],
       success_url: isOneTime
         ? `${baseUrl}/app/assistant?purchase=credits&session_id={CHECKOUT_SESSION_ID}`
         : `${baseUrl}/app?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: isOneTime ? `${baseUrl}/app/assistant` : `${baseUrl}/#pricing`,
-      customer_email: userEmail,
+      customer: customer.id,
       client_reference_id: clerkUserId,
       metadata: {
         clerk_user_id: clerkUserId,
@@ -160,7 +293,19 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const session = await stripe.checkout.sessions.create(sessionParams)
+    const session = await stripe.checkout.sessions.create(
+      sessionParams,
+      {
+        idempotencyKey: [
+          'checkout',
+          checkoutMode,
+          dyiaUser.id,
+          priceId,
+          couponCode || (useFoundersCoupon ? 'founders' : 'none'),
+          Math.floor(Date.now() / (5 * 60 * 1000)).toString(),
+        ].join(':'),
+      }
+    )
 
     return NextResponse.json({ sessionId: session.id, url: session.url })
   } catch (error) {

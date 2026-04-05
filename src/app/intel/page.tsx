@@ -48,10 +48,13 @@ export default function IntelPage() {
   const [actionPlanPreview, setActionPlanPreview] = useState<IntelActionStep[] | null>(null)
   const [checkoutLoading, setCheckoutLoading] = useState(false)
 
-  // Check for returning users with scan_id in URL
+  // Check for returning users with scan_id in URL (or cancelled checkout)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const existingScanId = params.get('scan_id')
+    if (params.get('cancelled') === 'true') {
+      setLoadingError('Payment was not completed. You can try again below.')
+    }
     if (existingScanId) {
       setScanId(existingScanId)
       fetchExistingScan(existingScanId)

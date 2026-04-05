@@ -43,31 +43,76 @@ export async function POST(request: NextRequest) {
 
     const supabase = getSupabase()
 
-    const { data: scan, error: insertError } = await supabase
+    // Check for existing incomplete scan with same email to avoid duplicates (spec: Section 8)
+    const { data: existingScan } = await supabase
       .from('dyia_intel_scans')
-      .insert({
-        email,
-        full_name: fullName || null,
-        business_name: businessName,
-        website_url: websiteUrl || null,
-        zip_code: zipCode,
-        city: city || null,
-        state: state || null,
-        phone: phone || null,
-        google_business_url: googleBusinessUrl || null,
-        main_services: Array.isArray(mainServices) && mainServices.length > 0 ? mainServices : null,
-        years_in_business: yearsInBusiness || null,
-        team_size: teamSize || null,
-        industry,
-        radius_miles: radius,
-        source: 'public_page',
-      })
-      .select('id')
+      .select('id, scan_data')
+      .eq('email', email)
+      .eq('source', 'public_page')
+      .order('created_at', { ascending: false })
+      .limit(1)
       .single()
 
-    if (insertError || !scan) {
-      console.error('Failed to create intel scan record:', insertError)
-      return NextResponse.json({ error: 'Failed to create scan' }, { status: 500 })
+    // If a completed scan already exists for this email, return it directly
+    if (existingScan?.scan_data) {
+      return NextResponse.json({
+        scanId: existingScan.id,
+        scanData: existingScan.scan_data,
+        researchSources: null,
+        actionPlanPreview: null,
+      })
+    }
+
+    // Reuse existing pending row or create new one
+    let scanId: string
+    if (existingScan && !existingScan.scan_data) {
+      scanId = existingScan.id
+      await supabase
+        .from('dyia_intel_scans')
+        .update({
+          full_name: fullName || null,
+          business_name: businessName,
+          website_url: websiteUrl || null,
+          zip_code: zipCode,
+          city: city || null,
+          state: state || null,
+          phone: phone || null,
+          google_business_url: googleBusinessUrl || null,
+          main_services: Array.isArray(mainServices) && mainServices.length > 0 ? mainServices : null,
+          years_in_business: yearsInBusiness || null,
+          team_size: teamSize || null,
+          industry,
+          radius_miles: radius,
+        })
+        .eq('id', scanId)
+    } else {
+      const { data: scan, error: insertError } = await supabase
+        .from('dyia_intel_scans')
+        .insert({
+          email,
+          full_name: fullName || null,
+          business_name: businessName,
+          website_url: websiteUrl || null,
+          zip_code: zipCode,
+          city: city || null,
+          state: state || null,
+          phone: phone || null,
+          google_business_url: googleBusinessUrl || null,
+          main_services: Array.isArray(mainServices) && mainServices.length > 0 ? mainServices : null,
+          years_in_business: yearsInBusiness || null,
+          team_size: teamSize || null,
+          industry,
+          radius_miles: radius,
+          source: 'public_page',
+        })
+        .select('id')
+        .single()
+
+      if (insertError || !scan) {
+        console.error('Failed to create intel scan record:', insertError)
+        return NextResponse.json({ error: 'Failed to create scan' }, { status: 500 })
+      }
+      scanId = scan.id
     }
 
     // Run the AI agent
@@ -105,14 +150,14 @@ export async function POST(request: NextRequest) {
         scan_data: scanData,
         research_sources: researchSources,
       })
-      .eq('id', scan.id)
+      .eq('id', scanId)
 
     if (updateError) {
       console.error('Failed to update scan with results:', updateError)
     }
 
     return NextResponse.json({
-      scanId: scan.id,
+      scanId,
       scanData,
       researchSources,
       actionPlanPreview: null,

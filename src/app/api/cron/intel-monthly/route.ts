@@ -12,6 +12,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { runIntelAgent } from '@/lib/intel/agent'
 import { generateActionPlan } from '@/lib/intel/action-plan'
+import { sendEmail, isResendConfigured } from '@/lib/resend/client'
 
 function getSupabase() {
   return createClient(
@@ -104,35 +105,37 @@ export async function GET(req: NextRequest) {
     }
 
     const results = { total: usersToScan.length, success: 0, failed: 0, retried: 0 }
-    const failedUsers: UserToScan[] = []
 
-    // Process each user
+    // First pass: run scans for all users
     for (const userInfo of usersToScan) {
       const ok = await processSingleUser(supabase, userInfo, monthYear)
       if (ok) {
         results.success++
       } else {
-        failedUsers.push(userInfo)
         results.failed++
       }
     }
 
-    // Retry failed users once
-    for (const userInfo of failedUsers) {
-      // Wait a moment before retry
-      await new Promise(r => setTimeout(r, 5000))
+    // Retry pass: pick up any rows that failed >= 1 hour ago (from this or a prior run)
+    const { data: failedRows } = await supabase
+      .from('dyia_intel_monthly_status')
+      .select('user_id')
+      .eq('month_year', monthYear)
+      .eq('job_status', 'failed')
+      .lt('created_at', new Date(Date.now() - 3600_000).toISOString())
 
-      const ok = await processSingleUser(supabase, userInfo, monthYear)
+    for (const row of failedRows || []) {
+      const retryUser = usersToScan.find(u => u.userId === row.user_id)
+      if (!retryUser) continue
+
+      const ok = await processSingleUser(supabase, retryUser, monthYear)
       if (ok) {
-        results.success++
-        results.failed--
         results.retried++
       } else {
-        // Final failure — log for owner alert
         console.error(
-          `[INTEL CRON] FINAL FAILURE for user ${userInfo.userId} (${userInfo.businessName}). ` +
-          `Owner alert needed.`
+          `[INTEL CRON] FINAL FAILURE for user ${retryUser.userId} (${retryUser.businessName}).`
         )
+        await alertOwnerOnFailure(retryUser.userId, retryUser.businessName)
       }
     }
 
@@ -234,5 +237,24 @@ async function processSingleUser(
       .catch(() => {})
 
     return false
+  }
+}
+
+async function alertOwnerOnFailure(userId: string, businessName: string): Promise<void> {
+  if (!isResendConfigured()) return
+  const ownerEmail = process.env.SUPPORT_EMAIL || process.env.RESEND_FROM_EMAIL?.match(/<(.+)>/)?.[1]
+  if (!ownerEmail) return
+
+  try {
+    await sendEmail(
+      ownerEmail,
+      `[Dyia Intel] Scan failed for ${businessName}`,
+      `<h2>Intel Scan Failure</h2>
+       <p>The monthly Intel scan for <strong>${businessName}</strong> (user ${userId}) failed after retry.</p>
+       <p>Check server logs for details.</p>`,
+      'monthly_report',
+    )
+  } catch {
+    console.error(`[INTEL CRON] Failed to send owner alert email for user ${userId}`)
   }
 }

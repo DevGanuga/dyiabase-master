@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import { useEffect, useMemo, useState } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
 import { formatCurrency } from '@/lib/utils'
@@ -94,7 +95,7 @@ export default function PublicPaymentPage() {
     <div className="min-h-screen bg-[var(--color-bg-page)] py-10 px-4">
       <div className="max-w-lg mx-auto">
         <div className="text-center mb-8">
-          <img src="/dyia-logo-full.png" alt="dyia" className="h-8 mx-auto mb-4" />
+          <Image src="/dyia-logo-full.png" alt="dyia" width={120} height={32} className="h-8 w-auto mx-auto mb-4" />
           <p className="text-sm text-[var(--color-text-muted)]">Secure checkout powered by Stripe</p>
         </div>
 
