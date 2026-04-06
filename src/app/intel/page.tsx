@@ -460,7 +460,7 @@ export default function IntelPage() {
             </p>
           </div>
 
-          {/* 4 Metric Cards */}
+          {/* 4 Metric Cards (spec 3.1 step 5) */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
             <MetricCard
               label="Local Rank"
@@ -469,15 +469,9 @@ export default function IntelPage() {
               color="purple"
             />
             <MetricCard
-              label="Your Reviews"
-              value={String(scanData.review_count_mine)}
-              sub={`Leader: ${scanData.review_count_leader}`}
-              color="blue"
-            />
-            <MetricCard
               label="Reviews Behind"
               value={String(scanData.review_gap)}
-              sub="vs #1 competitor"
+              sub={`You: ${scanData.review_count_mine} · Leader: ${scanData.review_count_leader}`}
               color="red"
             />
             <MetricCard
@@ -485,6 +479,12 @@ export default function IntelPage() {
               value={String(scanData.missing_keywords_count)}
               sub="competitors rank for"
               color="amber"
+            />
+            <MetricCard
+              label="Avg Ad Spend"
+              value={`$${scanData.competitor_ad_spend_avg}`}
+              sub="competitor avg/month"
+              color="blue"
             />
           </div>
 

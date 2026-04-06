@@ -8,6 +8,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { runIntelAgent } from '@/lib/intel/agent'
 import { INTEL_INDUSTRIES, INTEL_RADIUS_OPTIONS } from '@/types/database'
+import { sendEmail, isResendConfigured } from '@/lib/resend/client'
+import { intelFreeReportEmail } from '@/lib/resend/templates'
+import { getBaseUrl } from '@/lib/env'
 
 function getSupabase() {
   return createClient(
@@ -137,6 +140,22 @@ export async function POST(request: NextRequest) {
       researchSources = intelResult.researchSources
     } catch (agentError) {
       console.error('Intel agent failed:', agentError)
+
+      if (isResendConfigured()) {
+        const ownerEmail = process.env.SUPPORT_EMAIL || process.env.RESEND_FROM_EMAIL?.match(/<(.+)>/)?.[1]
+        if (ownerEmail) {
+          sendEmail(
+            ownerEmail,
+            `[Dyia Intel] Public scan failed for ${businessName}`,
+            `<h2>Intel Scan Failure</h2>
+             <p>A public page scan failed for <strong>${businessName}</strong> (${industry}, ${zipCode}).</p>
+             <p>Lead email: ${email}</p>
+             <p>Error: ${agentError instanceof Error ? agentError.message : 'Unknown'}</p>`,
+            'intel_free_report',
+          ).catch(() => {})
+        }
+      }
+
       return NextResponse.json(
         { error: 'Failed to generate competitive report. Please try again.' },
         { status: 502 }
@@ -154,6 +173,25 @@ export async function POST(request: NextRequest) {
 
     if (updateError) {
       console.error('Failed to update scan with results:', updateError)
+    }
+
+    // Email the free report to the lead (spec 3.1 step 3/7)
+    if (isResendConfigured()) {
+      const baseUrl = getBaseUrl()
+      sendEmail(
+        email,
+        `Your ${businessName} Competitive Report — Dyia Intel`,
+        intelFreeReportEmail({
+          businessName,
+          localRank: scanData.local_rank,
+          totalCompetitors: scanData.total_competitors,
+          reviewGap: scanData.review_gap,
+          missingKeywordsCount: scanData.missing_keywords_count,
+          competitorAdSpendAvg: scanData.competitor_ad_spend_avg,
+          reportUrl: `${baseUrl}/intel?scan_id=${scanId}`,
+        }),
+        'intel_free_report',
+      ).catch(err => console.error('Failed to send free Intel report email:', err))
     }
 
     return NextResponse.json({

@@ -13,44 +13,69 @@ function getAnthropic(): Anthropic {
   return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 }
 
-const ACTION_PLAN_PROMPT = `You are a local business marketing strategist. Given competitive intelligence scan data for a local service business, generate exactly 6 actionable steps as a JSON array.
-
-Each step must be a JSON object with these fields:
-- step_number: integer 1-6
-- category: one of "reviews", "keywords", "ads", "gbp"
-- priority: one of "high", "medium", "quick_win", "ongoing"
-- title: max 10 words, action-oriented
-- description: exactly 2 sentences max. Must reference specific numbers from the scan data.
-- include_in_free_preview: boolean — true for steps 1 and 2, false for steps 3-6
-
-Prioritization rules:
-- Step 1 should address the biggest gap (usually reviews if review_gap > 10)
-- Step 2 should address the second biggest gap
-- Steps 3-4 should be medium priority improvements
-- Steps 5-6 should be ongoing maintenance or quick wins
-- Spread categories across the 4 types (reviews, keywords, ads, gbp)
-
-Return ONLY a JSON array of 6 step objects. No markdown, no explanation.`
-
 export async function generateActionPlan(
   scanData: IntelScanData,
   businessName: string
 ): Promise<IntelActionStep[]> {
   const anthropic = getAnthropic()
 
-  const userMessage = [
-    `Generate a 6-step action plan for "${businessName}" based on this competitive scan data:`,
-    ``,
-    JSON.stringify(scanData, null, 2),
-    ``,
-    `Return only the JSON array of 6 step objects.`,
-  ].join('\n')
+  const leader = scanData.top_competitors[0]
+  const leaderName = leader?.name || 'the market leader'
+
+  const prompt = `You are a local business marketing strategist who builds 90-day action plans for service business owners.
+
+You have competitive intelligence scan data for "${businessName}". Your job is to turn this data into exactly 6 concrete, prioritized action steps that the owner can execute immediately.
+
+## Scan Data
+${JSON.stringify(scanData, null, 2)}
+
+## Key Facts to Reference
+- "${businessName}" is ranked #${scanData.local_rank} out of ${scanData.total_competitors} competitors
+- They have ${scanData.review_count_mine} Google reviews; ${leaderName} leads with ${scanData.review_count_leader} reviews (gap: ${scanData.review_gap})
+- ${scanData.missing_keywords_count} keywords their competitors rank for that they don't
+- Competitors spend an average of $${scanData.competitor_ad_spend_avg}/month on ads
+- Gap scores: Reviews ${scanData.gap_scores.reviews_pct}%, Keywords ${scanData.gap_scores.keywords_pct}%, Ads ${scanData.gap_scores.ads_pct}%, GBP ${scanData.gap_scores.gbp_pct}%
+${scanData.gbp_gaps.length > 0 ? `- GBP gaps: ${scanData.gbp_gaps.join('; ')}` : ''}
+
+## Prioritization Logic
+1. Identify which gap is largest (lowest gap_score percentage). That becomes step 1 with priority "high".
+2. The second largest gap becomes step 2 with priority "high".
+3. Steps 3-4 should address medium-priority improvements in the remaining categories.
+4. Steps 5-6 should be quick wins or ongoing actions.
+5. Every category (reviews, keywords, ads, gbp) must appear at least once across the 6 steps.
+
+## Description Rules
+- Every description MUST cite specific numbers from the scan data (review counts, keyword counts, competitor names, gap percentages, ad spend figures).
+- Example good description: "You're ${scanData.review_gap} reviews behind ${leaderName} who has ${scanData.review_count_leader}. Send review requests to your last 30 customers this week."
+- Example bad description: "You should get more reviews to improve your ranking." (too generic, no numbers)
+- Maximum 2 sentences per description. Be direct and specific.
+
+## Title Rules
+- Maximum 10 words
+- Must be action-oriented (start with a verb)
+- Example good: "Send review requests to your last 30 customers"
+- Example bad: "Review strategy improvement plan" (not actionable)
+
+## Output Format
+Return ONLY a JSON array of exactly 6 objects. No markdown, no explanation, no code fences.
+
+Each object:
+{
+  "step_number": <1-6>,
+  "category": <"reviews" | "keywords" | "ads" | "gbp">,
+  "priority": <"high" | "medium" | "quick_win" | "ongoing">,
+  "title": "<max 10 words, verb-first>",
+  "description": "<2 sentences max, must cite specific numbers from scan>",
+  "include_in_free_preview": <true for steps 1-2, false for steps 3-6>
+}`
+
+  const userMessage = `Generate the 6-step action plan for "${businessName}" now. Return only the JSON array.`
 
   const response = await anthropic.messages.create({
     model: 'claude-sonnet-4-20250514',
     max_tokens: 1500,
     messages: [
-      { role: 'user', content: ACTION_PLAN_PROMPT + '\n\n' + userMessage },
+      { role: 'user', content: prompt + '\n\n' + userMessage },
     ],
   })
 

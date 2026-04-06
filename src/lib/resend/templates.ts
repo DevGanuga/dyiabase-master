@@ -287,6 +287,62 @@ export function monthlyReportEmail(firstName: string, data: MonthlyReportData): 
   `)
 }
 
+// Intel Free Report email — sent after free scan completes
+export interface IntelFreeReportEmailData {
+  businessName: string
+  localRank: number
+  totalCompetitors: number
+  reviewGap: number
+  missingKeywordsCount: number
+  competitorAdSpendAvg: number
+  reportUrl: string
+}
+
+export function intelFreeReportEmail(data: IntelFreeReportEmailData): string {
+  return wrap(`
+    <h1 class="header">Your Competitive Intelligence Report</h1>
+    <p class="text">Here are the key findings for <strong>${data.businessName}</strong>.</p>
+
+    <div style="display: flex; gap: 12px; margin: 24px 0; flex-wrap: wrap;">
+      <div class="card" style="flex: 1; min-width: 120px; text-align: center;">
+        <p class="metric">#${data.localRank}</p>
+        <p class="metric-label">Local Rank</p>
+        <p class="text-small">of ${data.totalCompetitors} competitors</p>
+      </div>
+      <div class="card" style="flex: 1; min-width: 120px; text-align: center;">
+        <p class="metric" style="color: #ef4444;">${data.reviewGap}</p>
+        <p class="metric-label">Reviews Behind</p>
+      </div>
+      <div class="card" style="flex: 1; min-width: 120px; text-align: center;">
+        <p class="metric" style="color: #f59e0b;">${data.missingKeywordsCount}</p>
+        <p class="metric-label">Missing Keywords</p>
+      </div>
+      <div class="card" style="flex: 1; min-width: 120px; text-align: center;">
+        <p class="metric" style="color: #6366f1;">$${data.competitorAdSpendAvg}</p>
+        <p class="metric-label">Avg Ad Spend</p>
+      </div>
+    </div>
+
+    <p class="text">
+      You're ranked <strong>#${data.localRank}</strong> out of ${data.totalCompetitors} competitors in your area.
+      Your top competitor has <strong>${data.reviewGap} more reviews</strong> than you, and there are
+      <strong>${data.missingKeywordsCount} keywords</strong> your competitors rank for that you don't.
+    </p>
+
+    <p style="text-align: center; margin-top: 24px;">
+      <a href="${data.reportUrl}" class="btn">View Full Report</a>
+    </p>
+
+    <div class="divider"></div>
+
+    <div class="card" style="background: linear-gradient(to right, #f5f3ff, #ede9fe); text-align: center;">
+      <p class="subheader">Want a step-by-step action plan?</p>
+      <p class="text">Get 6 prioritized steps built from your data for just $27.</p>
+      <a href="${data.reportUrl}" class="btn" style="background: linear-gradient(to right, #7c3aed, #6366f1);">Get your action plan</a>
+    </div>
+  `)
+}
+
 // Profit leak quiz report (lead funnel)
 export interface QuizReportData {
   firstName: string

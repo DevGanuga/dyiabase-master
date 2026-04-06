@@ -39,7 +39,7 @@ function getOpenAI(): OpenAI {
   return new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 }
 
-const INTEL_MODEL = 'o4-mini-deep-research'
+const INTEL_MODEL = 'gpt-5.4'
 
 export interface IntelAgentInput {
   businessName: string
@@ -67,85 +67,111 @@ export interface IntelAgentResult {
   model: string
 }
 
-const SYSTEM_PROMPT = `You are a competitive intelligence research analyst for local service businesses.
+function buildPrompt(input: IntelAgentInput): string {
+  const location = [input.city, input.state].filter(Boolean).join(', ')
+  const locationLabel = location || `zip code ${input.zipCode}`
+  const servicesList = input.mainServices && input.mainServices.length > 0
+    ? input.mainServices.join(', ')
+    : input.industry
 
-You MUST use live web research via the web_search tool. Do not rely on prior knowledge alone.
-Do not invent competitors, review counts, or ranking positions. Every named competitor must be supported by web results.
-When an exact value cannot be directly confirmed from search results, produce the most conservative evidence-based estimate you can and keep it realistic.
+  const sections: string[] = []
 
-Return ONLY a JSON object matching this schema:
+  // --- CONTEXT ---
+  sections.push(`# Competitive Intelligence Research Brief
+
+You are conducting a competitive intelligence scan for a local service business. Your job is to produce a structured JSON report that a business owner will use to understand their competitive position in their local market.
+
+## Target Business
+- Business name: ${input.businessName}
+- Industry: ${input.industry}
+- Location: ${locationLabel} (zip: ${input.zipCode})
+- Search radius: ${input.radiusMiles} miles
+- Website: ${input.websiteUrl || 'Not provided'}`)
+
+  if (input.googleBusinessUrl) {
+    sections.push(`- Google Business Profile: ${input.googleBusinessUrl}`)
+  }
+  if (input.phone) {
+    sections.push(`- Phone: ${input.phone}`)
+  }
+  if (input.mainServices && input.mainServices.length > 0) {
+    sections.push(`- Services offered: ${servicesList}`)
+  }
+  if (input.yearsInBusiness) {
+    sections.push(`- Years in business: ${input.yearsInBusiness}`)
+  }
+  if (input.teamSize) {
+    sections.push(`- Team size: ${input.teamSize}`)
+  }
+
+  // --- RESEARCH METHODOLOGY ---
+  sections.push(`
+
+## Research Steps — Follow These In Order
+
+### Step 1: Find the target business
+Search for "${input.businessName}" in ${locationLabel}. Use the website, phone number, or Google Business Profile URL if provided to confirm you have the right business. Find their Google reviews count and note their Google Business Profile completeness (hours, photos, posts, service areas, Q&A, description).
+
+### Step 2: Identify competitors
+Search for "${input.industry} near ${input.zipCode}" and "${input.industry} in ${locationLabel}". Also search for "${servicesList} ${locationLabel}". Collect the top businesses that appear in Google Maps / local pack results and organic results within a ${input.radiusMiles}-mile radius. You need at least 5 competitors. For each one, find their name, Google review count, and note their online presence.
+
+### Step 3: Rank the market
+Based on Google Maps visibility, review counts, and organic search presence, rank all businesses you found (including the target). The business with the most reviews + highest Maps visibility = rank 1. Determine where the target business falls in this ranking. Count total competitors found.
+
+### Step 4: Analyze the review gap
+Compare the target business's Google review count to the #1 ranked competitor's review count. Calculate the gap. This is one of the most important metrics for the business owner.
+
+### Step 5: Find keyword gaps
+Search for commercial-intent keywords a potential customer would use to find this type of service in this area. Examples: "${input.industry} ${locationLabel}", "${input.industry} near me ${input.zipCode}", specific service keywords like "${servicesList} ${locationLabel}", "best ${input.industry} ${locationLabel}", "affordable ${input.industry} near ${input.zipCode}". Identify up to 15 keywords where competitors appear but the target business does not. These should be specific, local, commercially valuable search terms — not generic terms.
+
+### Step 6: Analyze Google Business Profile gaps
+Compare the target business's Google Business Profile to the #1 competitor's profile. Look for specific, actionable gaps: missing business hours, no recent Google posts, fewer photos, missing service area coverage, no Q&A section, missing business description, fewer categories selected, no products/services listed, missing attributes. Each gap should be something the business owner can fix.
+
+### Step 7: Estimate competitor ad spend
+Search for "${input.industry} ${locationLabel}" and note which competitors appear in Google Ads (sponsored results). For those running ads, estimate their monthly spend based on industry benchmarks for local service businesses ($200–$3,000/month range depending on market size and competition level). If no competitors are running ads, estimate $0. Calculate the average across the top 3 competitors.
+
+### Step 8: Identify target zip codes
+Determine the 3 zip codes within the ${input.radiusMiles}-mile radius that likely have the highest search volume for ${input.industry} services. These should be real zip codes near ${input.zipCode} — preferably more populated or commercially active areas.
+
+### Step 9: Calculate gap scores
+For each category, score how close the target business is to the market leader on a 0–100 scale:
+- reviews_pct: (target reviews / leader reviews) × 100, capped at 100
+- keywords_pct: rough estimate of what % of relevant local keywords the target ranks for vs the leader (based on your search findings)
+- ads_pct: if the target runs ads, how does their presence compare to the top advertiser? (0 if no ads, 100 if matching)
+- gbp_pct: how complete is the target's GBP vs the leader's? (based on gaps found in Step 6)
+
+## Output Format
+
+After completing all research steps, output a single JSON object with these exact fields. No markdown code fences. No prose before or after. Every field must be present with a real value — no nulls.
+
 {
-  "local_rank": <integer>,
-  "total_competitors": <integer>,
-  "review_count_mine": <integer>,
-  "review_count_leader": <integer>,
-  "review_gap": <integer>,
-  "missing_keywords": <string[] up to 15>,
-  "missing_keywords_count": <integer>,
-  "competitor_ad_spend_avg": <integer>,
+  "local_rank": <integer — target business rank from Step 3>,
+  "total_competitors": <integer — total competitors found in Step 2>,
+  "review_count_mine": <integer — target business Google review count>,
+  "review_count_leader": <integer — #1 competitor Google review count>,
+  "review_gap": <integer — leader reviews minus target reviews>,
+  "missing_keywords": <array of up to 15 strings from Step 5>,
+  "missing_keywords_count": <integer — length of missing_keywords array>,
+  "competitor_ad_spend_avg": <integer — average monthly USD from Step 7>,
   "top_competitors": [
-    { "name": <string>, "reviews": <integer>, "estimated_ad_spend": <integer>, "rank": <integer> }
+    { "name": "<real business name>", "reviews": <integer>, "estimated_ad_spend": <integer USD/month>, "rank": <integer> }
   ],
-  "gbp_gaps": <string[]>,
+  "gbp_gaps": <array of specific actionable strings from Step 6>,
   "gap_scores": {
-    "reviews_pct": <integer 0-100>,
-    "keywords_pct": <integer 0-100>,
-    "ads_pct": <integer 0-100>,
-    "gbp_pct": <integer 0-100>
+    "reviews_pct": <integer 0–100>,
+    "keywords_pct": <integer 0–100>,
+    "ads_pct": <integer 0–100>,
+    "gbp_pct": <integer 0–100>
   },
-  "scan_date": <ISO date string>,
-  "target_zip_codes": <string[] exactly 3>
+  "scan_date": "${new Date().toISOString().slice(0, 10)}",
+  "target_zip_codes": <array of exactly 3 zip code strings from Step 8>
 }
 
-Rules:
-- Use the business website if provided to identify the business accurately.
-- Competitors must be within the target market implied by the provided zip code and radius.
-- top_competitors must contain 5 entries sorted by rank.
-- missing_keywords must be relevant local commercial-intent phrases for the business niche.
-- gbp_gaps must be specific and actionable.
-- competitor_ad_spend_avg is allowed to be estimated, but only from evidence-based reasoning.
-- Do not use null values. Return integers or arrays for every field.
-- Output JSON only. No markdown. No prose before or after the JSON.`
+top_competitors must have exactly 5 entries, sorted by rank (1 = best).
+Every competitor name must be a real business you found during research — never invented.
+Every number must be grounded in what you actually found — never fabricated.`)
 
-function buildPrompt(input: IntelAgentInput): string {
-  const lines = [
-    'Research this local service business and produce the required competitive intelligence JSON.',
-    '',
-    `Business name: ${input.businessName}`,
-    `Website: ${input.websiteUrl || 'Not provided'}`,
-    `Primary zip code: ${input.zipCode}`,
-  ]
-
-  if (input.city || input.state) {
-    lines.push(`City/State: ${[input.city, input.state].filter(Boolean).join(', ')}`)
-  }
-
-  lines.push(`Industry: ${input.industry}`)
-  lines.push(`Search radius: ${input.radiusMiles} miles`)
-
-  if (input.phone) lines.push(`Business phone: ${input.phone}`)
-  if (input.googleBusinessUrl) lines.push(`Google Business Profile: ${input.googleBusinessUrl}`)
-  if (input.mainServices && input.mainServices.length > 0) {
-    lines.push(`Main services: ${input.mainServices.join(', ')}`)
-  }
-  if (input.yearsInBusiness) lines.push(`Years in business: ${input.yearsInBusiness}`)
-  if (input.teamSize) lines.push(`Team size: ${input.teamSize} people`)
-
-  lines.push(
-    '',
-    'Research checklist:',
-    '- Use the business name, phone, and website to identify the exact business in Google and review sites.',
-    '- If a Google Business Profile URL is provided, start there for review counts and profile completeness.',
-    '- Identify the top local competitors in the same service category within the zip code and radius.',
-    '- Ground review counts and rankings in live search findings.',
-    '- Use the main services list to identify relevant keyword gaps vs competitors.',
-    '- Infer GBP gaps from competitor profiles vs this business.',
-    '- Use only evidence-backed competitor names.',
-    '',
-    'Return only the JSON object.',
-  )
-
-  return lines.join('\n')
+  return sections.join('\n')
 }
 
 function stripCodeFences(text: string): string {
