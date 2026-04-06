@@ -178,6 +178,25 @@ export default function IntelPage() {
     }
   }
 
+  const publicCompetitorRows = scanData
+    ? (() => {
+        const alreadyIncluded = scanData.top_competitors.some(
+          comp => comp.name.toLowerCase() === businessName.toLowerCase()
+        )
+        if (alreadyIncluded) return scanData.top_competitors
+
+        return [
+          ...scanData.top_competitors.slice(0, 4),
+          {
+            name: businessName,
+            reviews: scanData.review_count_mine,
+            estimated_ad_spend: 0,
+            rank: scanData.local_rank,
+          },
+        ].sort((a, b) => a.rank - b.rank)
+      })()
+    : []
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white">
       {/* Nav */}
@@ -502,7 +521,7 @@ export default function IntelPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {scanData.top_competitors.map((comp, i) => {
+                  {publicCompetitorRows.map((comp, i) => {
                     const isMe = comp.name.toLowerCase() === businessName.toLowerCase()
                     return (
                       <tr

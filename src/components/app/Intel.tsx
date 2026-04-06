@@ -295,6 +295,22 @@ export function Intel({ businessName, showSuccess }: IntelProps) {
     s => activeFilter === 'all' || s.category === activeFilter
   )
   const researchSources = scan.researchSources
+  const competitorRows = (() => {
+    const alreadyIncluded = scanData.top_competitors.some(
+      comp => comp.name.toLowerCase() === scan.businessName.toLowerCase()
+    )
+    if (alreadyIncluded) return scanData.top_competitors
+
+    return [
+      ...scanData.top_competitors.slice(0, 4),
+      {
+        name: scan.businessName,
+        reviews: scanData.review_count_mine,
+        estimated_ad_spend: 0,
+        rank: scanData.local_rank,
+      },
+    ].sort((a, b) => a.rank - b.rank)
+  })()
 
   const filterTabs: { id: FilterTab; label: string }[] = [
     { id: 'all', label: 'All' },
@@ -415,7 +431,7 @@ export function Intel({ businessName, showSuccess }: IntelProps) {
               </tr>
             </thead>
             <tbody>
-              {scanData.top_competitors.map((comp, i) => {
+              {competitorRows.map((comp, i) => {
                 const isMe = comp.name.toLowerCase() === scan.businessName.toLowerCase()
                 return (
                   <tr

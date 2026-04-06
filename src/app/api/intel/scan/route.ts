@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
     // Check for existing incomplete scan with same email to avoid duplicates (spec: Section 8)
     const { data: existingScan } = await supabase
       .from('dyia_intel_scans')
-      .select('id, scan_data')
+      .select('id, scan_data, research_sources')
       .eq('email', email)
       .eq('source', 'public_page')
       .order('created_at', { ascending: false })
@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         scanId: existingScan.id,
         scanData: existingScan.scan_data,
-        researchSources: null,
+        researchSources: existingScan.research_sources || null,
         actionPlanPreview: null,
       })
     }

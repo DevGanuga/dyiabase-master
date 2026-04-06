@@ -30,6 +30,7 @@ type ResponseLike = {
   output?: ResponseOutputItem[]
   output_text?: string
   error?: { message?: string } | null
+  incomplete_details?: { reason?: string } | null
 }
 
 function getOpenAI(): OpenAI {
@@ -367,6 +368,23 @@ async function pollUntilComplete(
   return response
 }
 
+async function continueIncompleteResponse(
+  openai: OpenAI,
+  responseId: string,
+  timeoutMs: number
+): Promise<ResponseLike> {
+  const continuation = await openai.responses.create({
+    model: INTEL_MODEL,
+    previous_response_id: responseId,
+    input: 'Continue the previous competitive intelligence research and output only the final JSON object now. No prose. No markdown.',
+    background: true,
+    tools: [{ type: 'web_search' }],
+    max_output_tokens: 5000,
+  }) as unknown as ResponseLike
+
+  return await pollUntilComplete(openai, continuation.id, timeoutMs)
+}
+
 export async function runIntelAgent(
   input: IntelAgentInput,
   options: IntelAgentOptions = {}
@@ -379,13 +397,23 @@ export async function runIntelAgent(
     input: buildPrompt(input),
     background: true,
     tools: [{ type: 'web_search' }],
-    max_output_tokens: 3000,
+    max_output_tokens: 5000,
   }) as unknown as ResponseLike
 
-  const finalResponse = await pollUntilComplete(openai, initial.id, timeoutMs)
+  let finalResponse = await pollUntilComplete(openai, initial.id, timeoutMs)
+
+  // gpt-5.4 can occasionally end as incomplete after long web-search runs.
+  // Give it one continuation turn instead of hard-failing immediately.
+  if (finalResponse.status === 'incomplete') {
+    finalResponse = await continueIncompleteResponse(openai, finalResponse.id, timeoutMs)
+  }
 
   if (finalResponse.status && finalResponse.status !== 'completed') {
-    throw new Error(finalResponse.error?.message || `Intel research failed with status: ${finalResponse.status}`)
+    throw new Error(
+      finalResponse.error?.message ||
+      finalResponse.incomplete_details?.reason ||
+      `Intel research failed with status: ${finalResponse.status}`
+    )
   }
 
   const responseText = extractResponseText(finalResponse)

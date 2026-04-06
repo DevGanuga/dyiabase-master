@@ -387,7 +387,7 @@ async function handleIntelPurchase(supabase: any, session: Stripe.Checkout.Sessi
               title: s.title,
               description: s.description,
             })),
-            reportUrl: `${baseUrl}/intel/report?scan_id=${scanId}`,
+            reportUrl: `${baseUrl}/report?scan_id=${scanId}`,
           }),
           'intel_action_plan'
         )
