@@ -7,6 +7,7 @@ import OpenAI from 'openai'
 import type { IntelResearchSource, IntelScanData } from '@/types/database'
 
 const POLL_INTERVAL_MS = 2500
+const MAX_CONTINUATIONS = 3
 
 type OutputTextContent = {
   type?: string
@@ -40,7 +41,7 @@ function getOpenAI(): OpenAI {
   return new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 }
 
-const INTEL_MODEL = 'gpt-5.4'
+const INTEL_MODEL = 'o4-mini-deep-research'
 
 export interface IntelAgentInput {
   businessName: string
@@ -68,111 +69,93 @@ export interface IntelAgentResult {
   model: string
 }
 
-function buildPrompt(input: IntelAgentInput): string {
+const DEEP_RESEARCH_INSTRUCTIONS = `You are a competitive intelligence researcher for local service businesses.
+
+Use the web_search tool to do a real market scan. Do not rely on prior knowledge alone.
+Do not invent competitors, rankings, review counts, ad-spend signals, or GBP gaps.
+If a value cannot be directly observed, infer it conservatively from evidence gathered during research.
+
+Research workflow:
+1. Identify the target business using website, phone, name, and Google Business Profile URL if provided.
+2. Find local competitors in the provided service area.
+3. Compare Google review counts, Maps/local-pack visibility, organic visibility, and GBP completeness.
+4. Identify keyword gaps using commercial-intent local searches.
+5. Estimate competitor ad presence/spend conservatively from search evidence.
+6. Return only the final JSON object, with no prose or markdown.
+
+Output rules:
+- Every field in the schema must be present.
+- No null values.
+- top_competitors must contain exactly 5 real businesses sorted by rank.
+- missing_keywords must contain up to 15 local commercial-intent keywords.
+- gbp_gaps must be actionable.
+- All output must be a single JSON object only.`
+
+function buildResearchInput(input: IntelAgentInput): string {
   const location = [input.city, input.state].filter(Boolean).join(', ')
   const locationLabel = location || `zip code ${input.zipCode}`
   const servicesList = input.mainServices && input.mainServices.length > 0
     ? input.mainServices.join(', ')
     : input.industry
 
-  const sections: string[] = []
+  const lines: string[] = [
+    '# Competitive Intelligence Research Brief',
+    '',
+    '## Target Business',
+    `- Business name: ${input.businessName}`,
+    `- Industry: ${input.industry}`,
+    `- Location: ${locationLabel} (zip: ${input.zipCode})`,
+    `- Search radius: ${input.radiusMiles} miles`,
+    `- Website: ${input.websiteUrl || 'Not provided'}`,
+  ]
 
-  // --- CONTEXT ---
-  sections.push(`# Competitive Intelligence Research Brief
+  if (input.googleBusinessUrl) lines.push(`- Google Business Profile: ${input.googleBusinessUrl}`)
+  if (input.phone) lines.push(`- Phone: ${input.phone}`)
+  if (input.mainServices?.length) lines.push(`- Services offered: ${servicesList}`)
+  if (input.yearsInBusiness) lines.push(`- Years in business: ${input.yearsInBusiness}`)
+  if (input.teamSize) lines.push(`- Team size: ${input.teamSize}`)
 
-You are conducting a competitive intelligence scan for a local service business. Your job is to produce a structured JSON report that a business owner will use to understand their competitive position in their local market.
+  lines.push(
+    '',
+    '## Required Research Tasks',
+    `1. Find the exact target business in ${locationLabel} using the name, website, phone, and GBP URL if available.`,
+    `2. Search for ${input.industry} and ${servicesList} providers within ${input.radiusMiles} miles of ${input.zipCode}.`,
+    '3. Build a ranked list of the top 5 real competitors based on local-pack/Maps presence, review strength, and organic visibility.',
+    '4. Find the target business review count and the leader review count.',
+    '5. Identify up to 15 commercial-intent local keywords competitors rank for but the target business does not.',
+    '6. Identify actionable GBP gaps by comparing the target business vs the top competitor.',
+    '7. Estimate average monthly competitor ad spend from live search evidence.',
+    '8. Identify the top 3 nearby zip codes with likely highest search demand.',
+    '9. Compute gap scores for reviews, keywords, ads, and GBP completeness.',
+    '',
+    '## JSON Schema',
+    '{',
+    '  "local_rank": <integer>,',
+    '  "total_competitors": <integer>,',
+    '  "review_count_mine": <integer>,',
+    '  "review_count_leader": <integer>,',
+    '  "review_gap": <integer>,',
+    '  "missing_keywords": <string[] up to 15>,',
+    '  "missing_keywords_count": <integer>,',
+    '  "competitor_ad_spend_avg": <integer>,',
+    '  "top_competitors": [',
+    '    { "name": "<real business name>", "reviews": <integer>, "estimated_ad_spend": <integer>, "rank": <integer> }',
+    '  ],',
+    '  "gbp_gaps": <string[]>,',
+    '  "gap_scores": {',
+    '    "reviews_pct": <integer 0-100>,',
+    '    "keywords_pct": <integer 0-100>,',
+    '    "ads_pct": <integer 0-100>,',
+    '    "gbp_pct": <integer 0-100>',
+    '  },',
+    `  "scan_date": "${new Date().toISOString().slice(0, 10)}",`,
+    '  "target_zip_codes": <string[] exactly 3>',
+    '}',
+    '',
+    'Return only the JSON object. No prose. No markdown. No code fences.',
+  )
 
-## Target Business
-- Business name: ${input.businessName}
-- Industry: ${input.industry}
-- Location: ${locationLabel} (zip: ${input.zipCode})
-- Search radius: ${input.radiusMiles} miles
-- Website: ${input.websiteUrl || 'Not provided'}`)
-
-  if (input.googleBusinessUrl) {
-    sections.push(`- Google Business Profile: ${input.googleBusinessUrl}`)
-  }
-  if (input.phone) {
-    sections.push(`- Phone: ${input.phone}`)
-  }
-  if (input.mainServices && input.mainServices.length > 0) {
-    sections.push(`- Services offered: ${servicesList}`)
-  }
-  if (input.yearsInBusiness) {
-    sections.push(`- Years in business: ${input.yearsInBusiness}`)
-  }
-  if (input.teamSize) {
-    sections.push(`- Team size: ${input.teamSize}`)
-  }
-
-  // --- RESEARCH METHODOLOGY ---
-  sections.push(`
-
-## Research Steps — Follow These In Order
-
-### Step 1: Find the target business
-Search for "${input.businessName}" in ${locationLabel}. Use the website, phone number, or Google Business Profile URL if provided to confirm you have the right business. Find their Google reviews count and note their Google Business Profile completeness (hours, photos, posts, service areas, Q&A, description).
-
-### Step 2: Identify competitors
-Search for "${input.industry} near ${input.zipCode}" and "${input.industry} in ${locationLabel}". Also search for "${servicesList} ${locationLabel}". Collect the top businesses that appear in Google Maps / local pack results and organic results within a ${input.radiusMiles}-mile radius. You need at least 5 competitors. For each one, find their name, Google review count, and note their online presence.
-
-### Step 3: Rank the market
-Based on Google Maps visibility, review counts, and organic search presence, rank all businesses you found (including the target). The business with the most reviews + highest Maps visibility = rank 1. Determine where the target business falls in this ranking. Count total competitors found.
-
-### Step 4: Analyze the review gap
-Compare the target business's Google review count to the #1 ranked competitor's review count. Calculate the gap. This is one of the most important metrics for the business owner.
-
-### Step 5: Find keyword gaps
-Search for commercial-intent keywords a potential customer would use to find this type of service in this area. Examples: "${input.industry} ${locationLabel}", "${input.industry} near me ${input.zipCode}", specific service keywords like "${servicesList} ${locationLabel}", "best ${input.industry} ${locationLabel}", "affordable ${input.industry} near ${input.zipCode}". Identify up to 15 keywords where competitors appear but the target business does not. These should be specific, local, commercially valuable search terms — not generic terms.
-
-### Step 6: Analyze Google Business Profile gaps
-Compare the target business's Google Business Profile to the #1 competitor's profile. Look for specific, actionable gaps: missing business hours, no recent Google posts, fewer photos, missing service area coverage, no Q&A section, missing business description, fewer categories selected, no products/services listed, missing attributes. Each gap should be something the business owner can fix.
-
-### Step 7: Estimate competitor ad spend
-Search for "${input.industry} ${locationLabel}" and note which competitors appear in Google Ads (sponsored results). For those running ads, estimate their monthly spend based on industry benchmarks for local service businesses ($200–$3,000/month range depending on market size and competition level). If no competitors are running ads, estimate $0. Calculate the average across the top 3 competitors.
-
-### Step 8: Identify target zip codes
-Determine the 3 zip codes within the ${input.radiusMiles}-mile radius that likely have the highest search volume for ${input.industry} services. These should be real zip codes near ${input.zipCode} — preferably more populated or commercially active areas.
-
-### Step 9: Calculate gap scores
-For each category, score how close the target business is to the market leader on a 0–100 scale:
-- reviews_pct: (target reviews / leader reviews) × 100, capped at 100
-- keywords_pct: rough estimate of what % of relevant local keywords the target ranks for vs the leader (based on your search findings)
-- ads_pct: if the target runs ads, how does their presence compare to the top advertiser? (0 if no ads, 100 if matching)
-- gbp_pct: how complete is the target's GBP vs the leader's? (based on gaps found in Step 6)
-
-## Output Format
-
-After completing all research steps, output a single JSON object with these exact fields. No markdown code fences. No prose before or after. Every field must be present with a real value — no nulls.
-
-{
-  "local_rank": <integer — target business rank from Step 3>,
-  "total_competitors": <integer — total competitors found in Step 2>,
-  "review_count_mine": <integer — target business Google review count>,
-  "review_count_leader": <integer — #1 competitor Google review count>,
-  "review_gap": <integer — leader reviews minus target reviews>,
-  "missing_keywords": <array of up to 15 strings from Step 5>,
-  "missing_keywords_count": <integer — length of missing_keywords array>,
-  "competitor_ad_spend_avg": <integer — average monthly USD from Step 7>,
-  "top_competitors": [
-    { "name": "<real business name>", "reviews": <integer>, "estimated_ad_spend": <integer USD/month>, "rank": <integer> }
-  ],
-  "gbp_gaps": <array of specific actionable strings from Step 6>,
-  "gap_scores": {
-    "reviews_pct": <integer 0–100>,
-    "keywords_pct": <integer 0–100>,
-    "ads_pct": <integer 0–100>,
-    "gbp_pct": <integer 0–100>
-  },
-  "scan_date": "${new Date().toISOString().slice(0, 10)}",
-  "target_zip_codes": <array of exactly 3 zip code strings from Step 8>
-}
-
-top_competitors must have exactly 5 entries, sorted by rank (1 = best).
-Every competitor name must be a real business you found during research — never invented.
-Every number must be grounded in what you actually found — never fabricated.`)
-
-  return sections.join('\n')
+  return lines.join('\n')
 }
 
 function stripCodeFences(text: string): string {
@@ -385,6 +368,10 @@ async function continueIncompleteResponse(
   return await pollUntilComplete(openai, continuation.id, timeoutMs)
 }
 
+function hasUsableOutput(response: ResponseLike): boolean {
+  return extractResponseText(response).trim().length > 0
+}
+
 export async function runIntelAgent(
   input: IntelAgentInput,
   options: IntelAgentOptions = {}
@@ -394,7 +381,8 @@ export async function runIntelAgent(
 
   const initial = await openai.responses.create({
     model: INTEL_MODEL,
-    input: buildPrompt(input),
+    instructions: DEEP_RESEARCH_INSTRUCTIONS,
+    input: buildResearchInput(input),
     background: true,
     tools: [{ type: 'web_search' }],
     max_output_tokens: 5000,
@@ -403,8 +391,13 @@ export async function runIntelAgent(
   let finalResponse = await pollUntilComplete(openai, initial.id, timeoutMs)
 
   // gpt-5.4 can occasionally end as incomplete after long web-search runs.
-  // Give it one continuation turn instead of hard-failing immediately.
-  if (finalResponse.status === 'incomplete') {
+  // Continue up to MAX_CONTINUATIONS times before failing.
+  let continuations = 0
+  while (
+    (finalResponse.status === 'incomplete' || !hasUsableOutput(finalResponse)) &&
+    continuations < MAX_CONTINUATIONS
+  ) {
+    continuations++
     finalResponse = await continueIncompleteResponse(openai, finalResponse.id, timeoutMs)
   }
 
@@ -412,13 +405,13 @@ export async function runIntelAgent(
     throw new Error(
       finalResponse.error?.message ||
       finalResponse.incomplete_details?.reason ||
-      `Intel research failed with status: ${finalResponse.status}`
+      `Intel research failed with status: ${finalResponse.status} after ${continuations} continuation attempts`
     )
   }
 
   const responseText = extractResponseText(finalResponse)
   if (!responseText) {
-    throw new Error('Intel research returned empty output')
+    throw new Error(`Intel research returned empty output after ${continuations} continuation attempts`)
   }
 
   const parsedJson = parseJsonObject(responseText)
