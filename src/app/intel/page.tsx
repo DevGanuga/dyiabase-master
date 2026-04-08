@@ -12,6 +12,8 @@ const LOADING_MESSAGES = [
   'Scanning your market...',
   'Analyzing competitors...',
   'Building your report...',
+  'Researching deeper findings...',
+  'Finalizing your report...',
 ]
 
 const US_STATES = ['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY'] as const
@@ -84,17 +86,17 @@ export default function IntelPage() {
     if (stage !== 'loading') return
     const interval = setInterval(() => {
       setLoadingMsgIdx(prev => Math.min(prev + 1, LOADING_MESSAGES.length - 1))
-    }, 12000)
+    }, 15000)
     return () => clearInterval(interval)
   }, [stage])
 
-  // 90-second timeout
+  // Deep research can take longer than standard model runs.
   useEffect(() => {
     if (stage !== 'loading') return
     const timeout = setTimeout(() => {
-      setLoadingError('The scan is taking longer than expected. Please try again.')
+      setLoadingError('The research is taking longer than expected. Please try again in a moment.')
       setStage('form')
-    }, 90000)
+    }, 300000)
     return () => clearTimeout(timeout)
   }, [stage])
 
@@ -452,7 +454,7 @@ export default function IntelPage() {
           <p className="text-xl font-semibold text-white mb-2 animate-pulse">
             {LOADING_MESSAGES[loadingMsgIdx]}
           </p>
-          <p className="text-sm text-slate-400">This usually takes 30–60 seconds</p>
+          <p className="text-sm text-slate-400">Deep research usually takes 1–3 minutes</p>
           <div className="mt-8 flex justify-center gap-2">
             {LOADING_MESSAGES.map((_, i) => (
               <div

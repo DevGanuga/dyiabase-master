@@ -12,6 +12,8 @@ import { sendEmail, isResendConfigured } from '@/lib/resend/client'
 import { intelFreeReportEmail } from '@/lib/resend/templates'
 import { getBaseUrl } from '@/lib/env'
 
+export const maxDuration = 300
+
 function getSupabase() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -135,7 +137,7 @@ export async function POST(request: NextRequest) {
         mainServices: Array.isArray(mainServices) ? mainServices : undefined,
         yearsInBusiness: yearsInBusiness || undefined,
         teamSize: teamSize || undefined,
-      }, { timeoutMs: 90_000 })
+      }, { timeoutMs: 300_000 })
       scanData = intelResult.scanData
       researchSources = intelResult.researchSources
     } catch (agentError) {
