@@ -1,18 +1,13 @@
 /**
  * POST /api/intel/scan
- * Public endpoint — runs competitive intelligence scan.
- * Requires email (gate). No auth required (public page).
+ * Public endpoint — kicks off a deep research scan.
+ * Returns immediately with scanId. Frontend polls /api/intel/scan/status.
  */
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { runIntelAgent } from '@/lib/intel/agent'
+import { startResearch } from '@/lib/intel/agent'
 import { INTEL_INDUSTRIES, INTEL_RADIUS_OPTIONS } from '@/types/database'
-import { sendEmail, isResendConfigured } from '@/lib/resend/client'
-import { intelFreeReportEmail } from '@/lib/resend/templates'
-import { getBaseUrl } from '@/lib/env'
-
-export const maxDuration = 300
 
 function getSupabase() {
   return createClient(
@@ -45,10 +40,9 @@ export async function POST(request: NextRequest) {
     }
 
     const radius = INTEL_RADIUS_OPTIONS.includes(radiusMiles) ? radiusMiles : 25
-
     const supabase = getSupabase()
 
-    // Check for existing incomplete scan with same email to avoid duplicates (spec: Section 8)
+    // Duplicate check
     const { data: existingScan } = await supabase
       .from('dyia_intel_scans')
       .select('id, scan_data, research_sources')
@@ -58,17 +52,32 @@ export async function POST(request: NextRequest) {
       .limit(1)
       .single()
 
-    // If a completed scan already exists for this email, return it directly
     if (existingScan?.scan_data) {
       return NextResponse.json({
         scanId: existingScan.id,
+        status: 'complete',
         scanData: existingScan.scan_data,
         researchSources: existingScan.research_sources || null,
-        actionPlanPreview: null,
       })
     }
 
-    // Reuse existing pending row or create new one
+    // Start the deep research (returns OpenAI response ID instantly)
+    const openaiResponseId = await startResearch({
+      businessName,
+      websiteUrl,
+      zipCode,
+      city,
+      state,
+      industry,
+      radiusMiles: radius,
+      phone,
+      googleBusinessUrl,
+      mainServices: Array.isArray(mainServices) ? mainServices : undefined,
+      yearsInBusiness: yearsInBusiness || undefined,
+      teamSize: teamSize || undefined,
+    })
+
+    // Reuse pending row or create new one
     let scanId: string
     if (existingScan && !existingScan.scan_data) {
       scanId = existingScan.id
@@ -88,6 +97,7 @@ export async function POST(request: NextRequest) {
           team_size: teamSize || null,
           industry,
           radius_miles: radius,
+          openai_response_id: openaiResponseId,
         })
         .eq('id', scanId)
     } else {
@@ -109,6 +119,7 @@ export async function POST(request: NextRequest) {
           industry,
           radius_miles: radius,
           source: 'public_page',
+          openai_response_id: openaiResponseId,
         })
         .select('id')
         .single()
@@ -120,88 +131,7 @@ export async function POST(request: NextRequest) {
       scanId = scan.id
     }
 
-    // Run the AI agent
-    let scanData
-    let researchSources = null
-    try {
-      const intelResult = await runIntelAgent({
-        businessName,
-        websiteUrl,
-        zipCode,
-        city,
-        state,
-        industry,
-        radiusMiles: radius,
-        phone,
-        googleBusinessUrl,
-        mainServices: Array.isArray(mainServices) ? mainServices : undefined,
-        yearsInBusiness: yearsInBusiness || undefined,
-        teamSize: teamSize || undefined,
-      }, { timeoutMs: 300_000 })
-      scanData = intelResult.scanData
-      researchSources = intelResult.researchSources
-    } catch (agentError) {
-      console.error('Intel agent failed:', agentError)
-
-      if (isResendConfigured()) {
-        const ownerEmail = process.env.SUPPORT_EMAIL || process.env.RESEND_FROM_EMAIL?.match(/<(.+)>/)?.[1]
-        if (ownerEmail) {
-          sendEmail(
-            ownerEmail,
-            `[Dyia Intel] Public scan failed for ${businessName}`,
-            `<h2>Intel Scan Failure</h2>
-             <p>A public page scan failed for <strong>${businessName}</strong> (${industry}, ${zipCode}).</p>
-             <p>Lead email: ${email}</p>
-             <p>Error: ${agentError instanceof Error ? agentError.message : 'Unknown'}</p>`,
-            'intel_free_report',
-          ).catch(() => {})
-        }
-      }
-
-      return NextResponse.json(
-        { error: 'Failed to generate competitive report. Please try again.' },
-        { status: 502 }
-      )
-    }
-
-    // Update the scan record with results
-    const { error: updateError } = await supabase
-      .from('dyia_intel_scans')
-      .update({
-        scan_data: scanData,
-        research_sources: researchSources,
-      })
-      .eq('id', scanId)
-
-    if (updateError) {
-      console.error('Failed to update scan with results:', updateError)
-    }
-
-    // Email the free report to the lead (spec 3.1 step 3/7)
-    if (isResendConfigured()) {
-      const baseUrl = getBaseUrl()
-      sendEmail(
-        email,
-        `Your ${businessName} Competitive Report — Dyia Intel`,
-        intelFreeReportEmail({
-          businessName,
-          localRank: scanData.local_rank,
-          totalCompetitors: scanData.total_competitors,
-          reviewGap: scanData.review_gap,
-          missingKeywordsCount: scanData.missing_keywords_count,
-          competitorAdSpendAvg: scanData.competitor_ad_spend_avg,
-          reportUrl: `${baseUrl}/intel?scan_id=${scanId}`,
-        }),
-        'intel_free_report',
-      ).catch(err => console.error('Failed to send free Intel report email:', err))
-    }
-
-    return NextResponse.json({
-      scanId,
-      scanData,
-      researchSources,
-      actionPlanPreview: null,
-    })
+    return NextResponse.json({ scanId, status: 'researching' })
   } catch (error) {
     console.error('Intel scan error:', error)
     return NextResponse.json(

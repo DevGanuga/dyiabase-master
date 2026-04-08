@@ -7,7 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { auth } from '@clerk/nextjs/server'
-import { runIntelAgent } from '@/lib/intel/agent'
+import { startResearch, checkResearch } from '@/lib/intel/agent'
 import { generateActionPlan } from '@/lib/intel/action-plan'
 
 function getSupabase() {
@@ -103,8 +103,8 @@ export async function POST(request: NextRequest) {
         { onConflict: 'user_id,month_year' }
       )
 
-    // Run the agent
-    const intelResult = await runIntelAgent({
+    // Start deep research (returns instantly)
+    const openaiResponseId = await startResearch({
       businessName: settings.business_name,
       websiteUrl,
       zipCode,
@@ -114,13 +114,9 @@ export async function POST(request: NextRequest) {
       radiusMiles: radiusMiles || 25,
       googleBusinessUrl,
       mainServices: Array.isArray(mainServices) ? mainServices : undefined,
-    }, { timeoutMs: 300_000 })
-    const scanData = intelResult.scanData
+    })
 
-    // Generate action plan
-    const actionPlan = await generateActionPlan(scanData, settings.business_name)
-
-    // Store the scan
+    // Store a pending scan row with the response ID
     const { data: scan, error: scanError } = await supabase
       .from('dyia_intel_scans')
       .insert({
@@ -134,32 +130,64 @@ export async function POST(request: NextRequest) {
         main_services: Array.isArray(mainServices) && mainServices.length > 0 ? mainServices : null,
         industry,
         radius_miles: radiusMiles || 25,
-        scan_data: scanData,
-        research_sources: intelResult.researchSources,
-        action_plan: actionPlan,
+        openai_response_id: openaiResponseId,
         source: 'crm_monthly',
       })
       .select('id')
       .single()
 
     if (scanError || !scan) {
-      throw new Error('Failed to store scan results')
+      throw new Error('Failed to store scan record')
     }
 
-    // Update monthly status to 'complete'
+    // Update monthly status
     await supabase
       .from('dyia_intel_monthly_status')
-      .update({ scan_id: scan.id, job_status: 'complete' })
+      .update({ scan_id: scan.id, job_status: 'running' })
       .eq('user_id', dyiaUser.id)
       .eq('month_year', monthYear)
 
-    return NextResponse.json({
-      success: true,
-      scanId: scan.id,
-      scanData,
-      researchSources: intelResult.researchSources,
-      actionPlan,
-    })
+    // Poll OpenAI in a tight loop (CRM refresh is user-initiated, shorter timeout is acceptable)
+    const deadline = Date.now() + 600_000
+    while (Date.now() < deadline) {
+      await new Promise(r => setTimeout(r, 3000))
+      const status = await checkResearch(openaiResponseId)
+
+      if (!status.done) continue
+
+      if ('error' in status) {
+        await supabase
+          .from('dyia_intel_monthly_status')
+          .update({ job_status: 'failed' })
+          .eq('user_id', dyiaUser.id)
+          .eq('month_year', monthYear)
+        throw new Error(status.error)
+      }
+
+      const { scanData, researchSources } = status.result
+      const actionPlan = await generateActionPlan(scanData, settings.business_name)
+
+      await supabase
+        .from('dyia_intel_scans')
+        .update({ scan_data: scanData, research_sources: researchSources, action_plan: actionPlan })
+        .eq('id', scan.id)
+
+      await supabase
+        .from('dyia_intel_monthly_status')
+        .update({ job_status: 'complete' })
+        .eq('user_id', dyiaUser.id)
+        .eq('month_year', monthYear)
+
+      return NextResponse.json({
+        success: true,
+        scanId: scan.id,
+        scanData,
+        researchSources,
+        actionPlan,
+      })
+    }
+
+    throw new Error('Research timed out')
   } catch (error) {
     console.error('Intel refresh error:', error)
     return NextResponse.json(

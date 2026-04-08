@@ -118,6 +118,7 @@ export default function IntelPage() {
     try {
       const serviceTags = mainServices.split(',').map(s => s.trim()).filter(Boolean)
 
+      // Start the research (returns immediately)
       const res = await fetch('/api/intel/scan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -146,10 +147,36 @@ export default function IntelPage() {
 
       const data = await res.json()
       setScanId(data.scanId)
-      setScanData(data.scanData)
-      setResearchSources(data.researchSources || null)
-      setActionPlanPreview(data.actionPlanPreview || null)
-      setStage('report')
+
+      // If the scan was already completed (duplicate email), show it immediately
+      if (data.status === 'complete' && data.scanData) {
+        setScanData(data.scanData)
+        setResearchSources(data.researchSources || null)
+        setStage('report')
+        return
+      }
+
+      // Poll the status endpoint until deep research completes
+      const deadline = Date.now() + 600_000
+      while (Date.now() < deadline) {
+        await new Promise(r => setTimeout(r, 3000))
+
+        const statusRes = await fetch(`/api/intel/scan/status?scanId=${data.scanId}`)
+        const statusData = await statusRes.json()
+
+        if (statusData.status === 'complete') {
+          setScanData(statusData.scanData)
+          setResearchSources(statusData.researchSources || null)
+          setStage('report')
+          return
+        }
+
+        if (statusData.status === 'failed') {
+          throw new Error(statusData.error || 'Research failed')
+        }
+      }
+
+      throw new Error('Research is taking longer than expected. Please try again.')
     } catch (err) {
       setLoadingError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
       setStage('form')

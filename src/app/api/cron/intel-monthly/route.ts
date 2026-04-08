@@ -10,7 +10,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { runIntelAgent } from '@/lib/intel/agent'
+import { startResearch, checkResearch } from '@/lib/intel/agent'
 import { generateActionPlan } from '@/lib/intel/action-plan'
 import { sendEmail, isResendConfigured } from '@/lib/resend/client'
 
@@ -169,8 +169,7 @@ async function processSingleUser(
         { onConflict: 'user_id,month_year' }
       )
 
-    // Run agent
-    const intelResult = await runIntelAgent({
+    const openaiResponseId = await startResearch({
       businessName: userInfo.businessName,
       websiteUrl: userInfo.websiteUrl || undefined,
       zipCode: userInfo.zipCode,
@@ -180,44 +179,53 @@ async function processSingleUser(
       radiusMiles: userInfo.radiusMiles,
       googleBusinessUrl: userInfo.googleBusinessUrl || undefined,
       mainServices: userInfo.mainServices || undefined,
-    }, { timeoutMs: 300_000 })
-    const scanData = intelResult.scanData
+    })
 
-    // Generate action plan
-    const actionPlan = await generateActionPlan(scanData, userInfo.businessName)
+    // Poll until done (cron functions have longer limits than edge)
+    const deadline = Date.now() + 600_000
+    while (Date.now() < deadline) {
+      await new Promise(r => setTimeout(r, 5000))
+      const status = await checkResearch(openaiResponseId)
+      if (!status.done) continue
+      if ('error' in status) throw new Error(status.error)
 
-    // Store scan
-    const { data: scan, error: scanError } = await supabase
-      .from('dyia_intel_scans')
-      .insert({
-        user_id: userInfo.userId,
-        business_name: userInfo.businessName,
-        website_url: userInfo.websiteUrl,
-        zip_code: userInfo.zipCode,
-        city: userInfo.city,
-        state: userInfo.state,
-        google_business_url: userInfo.googleBusinessUrl,
-        main_services: userInfo.mainServices,
-        industry: userInfo.industry,
-        radius_miles: userInfo.radiusMiles,
-        scan_data: scanData,
-        research_sources: intelResult.researchSources,
-        action_plan: actionPlan,
-        source: 'crm_monthly',
-      })
-      .select('id')
-      .single()
+      const { scanData, researchSources } = status.result
+      const actionPlan = await generateActionPlan(scanData, userInfo.businessName)
 
-    if (scanError || !scan) {
-      throw new Error(`Failed to store scan: ${scanError?.message}`)
+      const { data: scan, error: scanError } = await supabase
+        .from('dyia_intel_scans')
+        .insert({
+          user_id: userInfo.userId,
+          business_name: userInfo.businessName,
+          website_url: userInfo.websiteUrl,
+          zip_code: userInfo.zipCode,
+          city: userInfo.city,
+          state: userInfo.state,
+          google_business_url: userInfo.googleBusinessUrl,
+          main_services: userInfo.mainServices,
+          industry: userInfo.industry,
+          radius_miles: userInfo.radiusMiles,
+          scan_data: scanData,
+          research_sources: researchSources,
+          action_plan: actionPlan,
+          openai_response_id: openaiResponseId,
+          source: 'crm_monthly',
+        })
+        .select('id')
+        .single()
+
+      if (scanError || !scan) throw new Error(`Failed to store scan: ${scanError?.message}`)
+
+      await supabase
+        .from('dyia_intel_monthly_status')
+        .update({ scan_id: scan.id, job_status: 'complete' })
+        .eq('user_id', userInfo.userId)
+        .eq('month_year', monthYear)
+
+      return true
     }
 
-    // Update monthly status to 'complete'
-    await supabase
-      .from('dyia_intel_monthly_status')
-      .update({ scan_id: scan.id, job_status: 'complete' })
-      .eq('user_id', userInfo.userId)
-      .eq('month_year', monthYear)
+    throw new Error('Research timed out after 10 minutes')
 
     return true
   } catch (error) {

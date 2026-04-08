@@ -1,30 +1,23 @@
 /**
- * Intel Research Agent — uses OpenAI Responses API + web search to generate
- * real competitive intelligence data backed by live web results.
+ * Intel Research Agent — uses OpenAI Responses API with o4-mini-deep-research.
+ *
+ * Deep research runs can take several minutes. This module is designed for
+ * serverless: startResearch() kicks off the job and returns instantly,
+ * checkResearch() polls OpenAI once per call and returns the current status.
+ * The frontend polls /api/intel/scan/status until the job completes.
  */
 
 import OpenAI from 'openai'
 import type { IntelResearchSource, IntelScanData } from '@/types/database'
 
-const POLL_INTERVAL_MS = 2500
-const MAX_CONTINUATIONS = 3
+const INTEL_MODEL = 'o4-mini-deep-research'
 
 type OutputTextContent = {
   type?: string
   text?: string
-  annotations?: Array<{
-    type?: string
-    url?: string
-    title?: string
-  }>
+  annotations?: Array<{ type?: string; url?: string; title?: string }>
 }
-
-type ResponseOutputItem = {
-  type?: string
-  role?: string
-  content?: OutputTextContent[]
-}
-
+type ResponseOutputItem = { type?: string; role?: string; content?: OutputTextContent[] }
 type ResponseLike = {
   id: string
   status?: string
@@ -35,13 +28,9 @@ type ResponseLike = {
 }
 
 function getOpenAI(): OpenAI {
-  if (!process.env.OPENAI_API_KEY) {
-    throw new Error('OPENAI_API_KEY is not set')
-  }
+  if (!process.env.OPENAI_API_KEY) throw new Error('OPENAI_API_KEY is not set')
   return new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 }
-
-const INTEL_MODEL = 'o4-mini-deep-research'
 
 export interface IntelAgentInput {
   businessName: string
@@ -56,10 +45,6 @@ export interface IntelAgentInput {
   mainServices?: string[]
   yearsInBusiness?: number
   teamSize?: number
-}
-
-export interface IntelAgentOptions {
-  timeoutMs?: number
 }
 
 export interface IntelAgentResult {
@@ -94,9 +79,7 @@ Output rules:
 function buildResearchInput(input: IntelAgentInput): string {
   const location = [input.city, input.state].filter(Boolean).join(', ')
   const locationLabel = location || `zip code ${input.zipCode}`
-  const servicesList = input.mainServices && input.mainServices.length > 0
-    ? input.mainServices.join(', ')
-    : input.industry
+  const servicesList = input.mainServices?.length ? input.mainServices.join(', ') : input.industry
 
   const lines: string[] = [
     '# Competitive Intelligence Research Brief',
@@ -158,6 +141,88 @@ function buildResearchInput(input: IntelAgentInput): string {
   return lines.join('\n')
 }
 
+// ── Public API ──────────────────────────────────────────────────────
+
+/**
+ * Kick off a deep research job. Returns the OpenAI response ID immediately.
+ * The caller stores this ID and the frontend polls checkResearch().
+ */
+export async function startResearch(input: IntelAgentInput): Promise<string> {
+  const openai = getOpenAI()
+
+  const response = await openai.responses.create({
+    model: INTEL_MODEL,
+    instructions: DEEP_RESEARCH_INSTRUCTIONS,
+    input: buildResearchInput(input),
+    background: true,
+    tools: [{ type: 'web_search_preview' }],
+    max_output_tokens: 5000,
+  }) as unknown as ResponseLike
+
+  return response.id
+}
+
+export type ResearchStatus =
+  | { done: false; status: string }
+  | { done: true; result: IntelAgentResult }
+  | { done: true; error: string }
+
+/**
+ * Check the status of a running deep research job. Each call is a single
+ * OpenAI retrieve — no polling loop, no long-lived function.
+ */
+export async function checkResearch(responseId: string): Promise<ResearchStatus> {
+  const openai = getOpenAI()
+  const response = await openai.responses.retrieve(responseId) as unknown as ResponseLike
+
+  if (response.status === 'queued' || response.status === 'in_progress') {
+    return { done: false, status: response.status }
+  }
+
+  if (response.status === 'failed') {
+    return { done: true, error: response.error?.message || 'Research failed' }
+  }
+
+  if (response.status === 'incomplete') {
+    const text = extractResponseText(response)
+    if (text) {
+      try {
+        return { done: true, result: buildResult(response) }
+      } catch {
+        return { done: true, error: response.incomplete_details?.reason || 'Research incomplete with unparseable output' }
+      }
+    }
+    return { done: true, error: response.incomplete_details?.reason || 'Research incomplete' }
+  }
+
+  // status === 'completed'
+  const text = extractResponseText(response)
+  if (!text) {
+    return { done: true, error: 'Research completed but returned empty output' }
+  }
+
+  try {
+    return { done: true, result: buildResult(response) }
+  } catch (err) {
+    return { done: true, error: err instanceof Error ? err.message : 'Failed to parse research output' }
+  }
+}
+
+// ── Internal helpers ────────────────────────────────────────────────
+
+function buildResult(response: ResponseLike): IntelAgentResult {
+  const responseText = extractResponseText(response)
+  const parsedJson = parseJsonObject(responseText)
+  const researchSources = extractSources(response)
+
+  return {
+    scanData: normalizeScanData(parsedJson),
+    researchSources,
+    responseId: response.id,
+    model: INTEL_MODEL,
+  }
+}
+
 function stripCodeFences(text: string): string {
   const trimmed = text.trim()
   if (!trimmed.startsWith('```')) return trimmed
@@ -166,47 +231,25 @@ function stripCodeFences(text: string): string {
 
 function parseJsonObject(text: string): unknown {
   const cleaned = stripCodeFences(text)
-
   try {
     return JSON.parse(cleaned)
   } catch {
-    const firstBrace = cleaned.indexOf('{')
-    const lastBrace = cleaned.lastIndexOf('}')
-    if (firstBrace === -1 || lastBrace === -1 || lastBrace <= firstBrace) {
+    const first = cleaned.indexOf('{')
+    const last = cleaned.lastIndexOf('}')
+    if (first === -1 || last === -1 || last <= first) {
       throw new Error('Intel research did not return parseable JSON')
     }
-    return JSON.parse(cleaned.slice(firstBrace, lastBrace + 1))
+    return JSON.parse(cleaned.slice(first, last + 1))
   }
-}
-
-function parseJsonArray(text: string): unknown[] {
-  const cleaned = stripCodeFences(text)
-
-  try {
-    const parsed = JSON.parse(cleaned)
-    if (Array.isArray(parsed)) return parsed
-  } catch {
-    const firstBracket = cleaned.indexOf('[')
-    const lastBracket = cleaned.lastIndexOf(']')
-    if (firstBracket !== -1 && lastBracket !== -1 && lastBracket > firstBracket) {
-      const parsed = JSON.parse(cleaned.slice(firstBracket, lastBracket + 1))
-      if (Array.isArray(parsed)) return parsed
-    }
-  }
-
-  return []
 }
 
 function extractResponseText(response: ResponseLike): string {
   if (response.output_text) return response.output_text
-
   let output = ''
   for (const item of response.output || []) {
     if (item.type !== 'message' || item.role !== 'assistant') continue
     for (const part of item.content || []) {
-      if (part.type === 'output_text' && part.text) {
-        output += part.text
-      }
+      if (part.type === 'output_text' && part.text) output += part.text
     }
   }
   return output
@@ -215,216 +258,64 @@ function extractResponseText(response: ResponseLike): string {
 function extractSources(response: ResponseLike): IntelResearchSource[] {
   const seen = new Set<string>()
   const sources: IntelResearchSource[] = []
-
   for (const item of response.output || []) {
     if (item.type !== 'message' || item.role !== 'assistant') continue
     for (const part of item.content || []) {
-      for (const annotation of part.annotations || []) {
-        if (annotation.type !== 'url_citation' || !annotation.url) continue
-        if (seen.has(annotation.url)) continue
-        seen.add(annotation.url)
-        sources.push({
-          url: annotation.url,
-          title: annotation.title || annotation.url,
-        })
+      for (const ann of part.annotations || []) {
+        if (ann.type !== 'url_citation' || !ann.url || seen.has(ann.url)) continue
+        seen.add(ann.url)
+        sources.push({ url: ann.url, title: ann.title || ann.url })
       }
     }
   }
-
   return sources
 }
 
-async function recoverSourcesFromFollowUp(
-  openai: OpenAI,
-  responseId: string,
-  model: string
-): Promise<IntelResearchSource[]> {
-  const followUp = await openai.responses.create({
-    model,
-    previous_response_id: responseId,
-    input: 'Return only a JSON array of the web sources you relied on in the previous answer. Each item must be {"title": string, "url": string}. No prose.',
-    max_output_tokens: 1200,
-  }) as unknown as ResponseLike
-
-  const parsed = parseJsonArray(extractResponseText(followUp))
-  const seen = new Set<string>()
-
-  return parsed
-    .filter((item): item is { title?: unknown; url?: unknown } => typeof item === 'object' && item !== null)
-    .map(item => ({
-      title: typeof item.title === 'string' && item.title.trim() ? item.title.trim() : '',
-      url: typeof item.url === 'string' ? item.url.trim() : '',
-    }))
-    .filter(item => item.url.length > 0 && !seen.has(item.url) && (seen.add(item.url), true))
-    .map(item => ({
-      title: item.title || item.url,
-      url: item.url,
-    }))
+function toInt(v: unknown, fallback = 0): number {
+  const n = Number(v)
+  return Number.isFinite(n) ? Math.round(n) : fallback
 }
 
-function toInt(value: unknown, fallback = 0): number {
-  const n = Number(value)
-  if (!Number.isFinite(n)) return fallback
-  return Math.round(n)
-}
-
-function clampPercent(value: unknown): number {
-  return Math.max(0, Math.min(100, toInt(value)))
+function clampPct(v: unknown): number {
+  return Math.max(0, Math.min(100, toInt(v)))
 }
 
 function normalizeScanData(raw: unknown): IntelScanData {
-  const parsed = raw as Partial<IntelScanData> & {
-    top_competitors?: Array<Record<string, unknown>>
-    gap_scores?: Record<string, unknown>
-  }
-
-  const topCompetitors = Array.isArray(parsed.top_competitors)
-    ? parsed.top_competitors.slice(0, 5).map((item, index) => ({
-        name: typeof item.name === 'string' && item.name.trim() ? item.name.trim() : `Competitor ${index + 1}`,
-        reviews: toInt(item.reviews),
-        estimated_ad_spend: toInt(item.estimated_ad_spend),
-        rank: toInt(item.rank, index + 1),
+  const p = raw as Record<string, unknown>
+  const topCompetitors = Array.isArray(p.top_competitors)
+    ? (p.top_competitors as Record<string, unknown>[]).slice(0, 5).map((c, i) => ({
+        name: typeof c.name === 'string' && c.name.trim() ? c.name.trim() : `Competitor ${i + 1}`,
+        reviews: toInt(c.reviews),
+        estimated_ad_spend: toInt(c.estimated_ad_spend),
+        rank: toInt(c.rank, i + 1),
       }))
     : []
-
-  const missingKeywords = Array.isArray(parsed.missing_keywords)
-    ? parsed.missing_keywords
-        .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
-        .slice(0, 15)
+  const missingKw = Array.isArray(p.missing_keywords)
+    ? (p.missing_keywords as unknown[]).filter((v): v is string => typeof v === 'string' && v.trim().length > 0).slice(0, 15)
+    : []
+  const gbpGaps = Array.isArray(p.gbp_gaps)
+    ? (p.gbp_gaps as unknown[]).filter((v): v is string => typeof v === 'string' && v.trim().length > 0).slice(0, 10)
+    : []
+  const zips = Array.isArray(p.target_zip_codes)
+    ? (p.target_zip_codes as unknown[]).filter((v): v is string => typeof v === 'string' && v.trim().length > 0).slice(0, 3)
     : []
 
-  const gbpGaps = Array.isArray(parsed.gbp_gaps)
-    ? parsed.gbp_gaps
-        .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
-        .slice(0, 10)
-    : []
+  if (topCompetitors.length === 0) throw new Error('Intel agent returned no competitors')
 
-  const targetZipCodes = Array.isArray(parsed.target_zip_codes)
-    ? parsed.target_zip_codes
-        .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
-        .slice(0, 3)
-    : []
-
-  if (topCompetitors.length === 0) {
-    throw new Error('Intel agent returned no competitors')
-  }
-
+  const gs = (p.gap_scores || {}) as Record<string, unknown>
   return {
-    local_rank: Math.max(1, toInt(parsed.local_rank, 1)),
-    total_competitors: Math.max(topCompetitors.length, toInt(parsed.total_competitors, topCompetitors.length)),
-    review_count_mine: Math.max(0, toInt(parsed.review_count_mine)),
-    review_count_leader: Math.max(0, toInt(parsed.review_count_leader)),
-    review_gap: Math.max(0, toInt(parsed.review_gap)),
-    missing_keywords: missingKeywords,
-    missing_keywords_count: Math.max(missingKeywords.length, toInt(parsed.missing_keywords_count, missingKeywords.length)),
-    competitor_ad_spend_avg: Math.max(0, toInt(parsed.competitor_ad_spend_avg)),
+    local_rank: Math.max(1, toInt(p.local_rank, 1)),
+    total_competitors: Math.max(topCompetitors.length, toInt(p.total_competitors, topCompetitors.length)),
+    review_count_mine: Math.max(0, toInt(p.review_count_mine)),
+    review_count_leader: Math.max(0, toInt(p.review_count_leader)),
+    review_gap: Math.max(0, toInt(p.review_gap)),
+    missing_keywords: missingKw,
+    missing_keywords_count: Math.max(missingKw.length, toInt(p.missing_keywords_count, missingKw.length)),
+    competitor_ad_spend_avg: Math.max(0, toInt(p.competitor_ad_spend_avg)),
     top_competitors: topCompetitors,
     gbp_gaps: gbpGaps,
-    gap_scores: {
-      reviews_pct: clampPercent(parsed.gap_scores?.reviews_pct),
-      keywords_pct: clampPercent(parsed.gap_scores?.keywords_pct),
-      ads_pct: clampPercent(parsed.gap_scores?.ads_pct),
-      gbp_pct: clampPercent(parsed.gap_scores?.gbp_pct),
-    },
-    scan_date: typeof parsed.scan_date === 'string' && parsed.scan_date ? parsed.scan_date : new Date().toISOString(),
-    target_zip_codes: targetZipCodes,
-  }
-}
-
-async function pollUntilComplete(
-  openai: OpenAI,
-  responseId: string,
-  timeoutMs: number
-): Promise<ResponseLike> {
-  const deadline = Date.now() + timeoutMs
-  let response = await openai.responses.retrieve(responseId) as unknown as ResponseLike
-
-  while (response.status === 'queued' || response.status === 'in_progress') {
-    if (Date.now() >= deadline) {
-      throw new Error('Intel research timed out before completion')
-    }
-
-    await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL_MS))
-    response = await openai.responses.retrieve(responseId) as unknown as ResponseLike
-  }
-
-  return response
-}
-
-async function continueIncompleteResponse(
-  openai: OpenAI,
-  responseId: string,
-  timeoutMs: number
-): Promise<ResponseLike> {
-  const continuation = await openai.responses.create({
-    model: INTEL_MODEL,
-    previous_response_id: responseId,
-    input: 'Continue the previous competitive intelligence research and output only the final JSON object now. No prose. No markdown.',
-    background: true,
-    tools: [{ type: 'web_search' }],
-    max_output_tokens: 5000,
-  }) as unknown as ResponseLike
-
-  return await pollUntilComplete(openai, continuation.id, timeoutMs)
-}
-
-function hasUsableOutput(response: ResponseLike): boolean {
-  return extractResponseText(response).trim().length > 0
-}
-
-export async function runIntelAgent(
-  input: IntelAgentInput,
-  options: IntelAgentOptions = {}
-): Promise<IntelAgentResult> {
-  const openai = getOpenAI()
-  const timeoutMs = options.timeoutMs ?? 90_000
-
-  const initial = await openai.responses.create({
-    model: INTEL_MODEL,
-    instructions: DEEP_RESEARCH_INSTRUCTIONS,
-    input: buildResearchInput(input),
-    background: true,
-    tools: [{ type: 'web_search' }],
-    max_output_tokens: 5000,
-  }) as unknown as ResponseLike
-
-  let finalResponse = await pollUntilComplete(openai, initial.id, timeoutMs)
-
-  // gpt-5.4 can occasionally end as incomplete after long web-search runs.
-  // Continue up to MAX_CONTINUATIONS times before failing.
-  let continuations = 0
-  while (
-    (finalResponse.status === 'incomplete' || !hasUsableOutput(finalResponse)) &&
-    continuations < MAX_CONTINUATIONS
-  ) {
-    continuations++
-    finalResponse = await continueIncompleteResponse(openai, finalResponse.id, timeoutMs)
-  }
-
-  if (finalResponse.status && finalResponse.status !== 'completed') {
-    throw new Error(
-      finalResponse.error?.message ||
-      finalResponse.incomplete_details?.reason ||
-      `Intel research failed with status: ${finalResponse.status} after ${continuations} continuation attempts`
-    )
-  }
-
-  const responseText = extractResponseText(finalResponse)
-  if (!responseText) {
-    throw new Error(`Intel research returned empty output after ${continuations} continuation attempts`)
-  }
-
-  const parsedJson = parseJsonObject(responseText)
-
-  let researchSources = extractSources(finalResponse)
-  if (researchSources.length === 0) {
-    researchSources = await recoverSourcesFromFollowUp(openai, finalResponse.id, INTEL_MODEL)
-  }
-
-  return {
-    scanData: normalizeScanData(parsedJson),
-    researchSources,
-    responseId: finalResponse.id,
-    model: INTEL_MODEL,
+    gap_scores: { reviews_pct: clampPct(gs.reviews_pct), keywords_pct: clampPct(gs.keywords_pct), ads_pct: clampPct(gs.ads_pct), gbp_pct: clampPct(gs.gbp_pct) },
+    scan_date: typeof p.scan_date === 'string' && p.scan_date ? p.scan_date : new Date().toISOString(),
+    target_zip_codes: zips,
   }
 }
