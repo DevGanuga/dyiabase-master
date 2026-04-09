@@ -71,9 +71,10 @@ Research workflow:
 Output rules:
 - Every field in the schema must be present.
 - No null values.
-- top_competitors must contain exactly 5 real businesses sorted by rank.
+- top_competitors must contain exactly 5 real businesses sorted by rank. Include the target business itself in this list at its correct rank position.
+- review_count_leader must be >= all competitor review counts in the list.
 - missing_keywords must contain up to 15 local commercial-intent keywords.
-- gbp_gaps must be actionable.
+- gbp_gaps must be actionable and specific.
 - All output must be a single JSON object only.`
 
 function buildResearchInput(input: IntelAgentInput): string {
@@ -150,12 +151,20 @@ function buildResearchInput(input: IntelAgentInput): string {
 export async function startResearch(input: IntelAgentInput): Promise<string> {
   const openai = getOpenAI()
 
-  const response = await (openai.responses.create as Function)({
+  const response = await (openai.responses.create as (...args: unknown[]) => Promise<unknown>)({
     model: INTEL_MODEL,
     instructions: DEEP_RESEARCH_INSTRUCTIONS,
     input: buildResearchInput(input),
     background: true,
-    tools: [{ type: 'web_search_preview' }],
+    tools: [{
+      type: 'web_search_preview' as const,
+      user_location: {
+        type: 'approximate' as const,
+        country: 'US',
+        city: input.city || undefined,
+        region: input.state || undefined,
+      },
+    }],
     max_tool_calls: 15,
   }) as ResponseLike
 
@@ -308,7 +317,7 @@ function normalizeScanData(raw: unknown): IntelScanData {
     local_rank: Math.max(1, toInt(p.local_rank, 1)),
     total_competitors: Math.max(topCompetitors.length, toInt(p.total_competitors, topCompetitors.length)),
     review_count_mine: Math.max(0, toInt(p.review_count_mine)),
-    review_count_leader: Math.max(0, toInt(p.review_count_leader)),
+    review_count_leader: Math.max(topCompetitors.length > 0 ? Math.max(...topCompetitors.map(c => c.reviews)) : 0, toInt(p.review_count_leader)),
     review_gap: Math.max(0, toInt(p.review_gap)),
     missing_keywords: missingKw,
     missing_keywords_count: Math.max(missingKw.length, toInt(p.missing_keywords_count, missingKw.length)),
@@ -320,4 +329,5 @@ function normalizeScanData(raw: unknown): IntelScanData {
     target_zip_codes: zips,
   }
 }
+
 

@@ -105,3 +105,51 @@ Each object:
 
   return steps
 }
+
+export async function generatePreviewSteps(
+  scanData: IntelScanData,
+  businessName: string
+): Promise<IntelActionStep[]> {
+  const anthropic = getAnthropic()
+
+  const leader = scanData.top_competitors[0]
+  const leaderName = leader?.name || 'the market leader'
+
+  const prompt = `You are a local business marketing strategist. Generate exactly 2 high-priority action steps for "${businessName}" based on this competitive scan data. These are preview steps to convince the owner to buy the full action plan.
+
+## Key Data
+- Ranked #${scanData.local_rank} of ${scanData.total_competitors} competitors
+- ${scanData.review_count_mine} Google reviews vs ${leaderName} with ${scanData.review_count_leader} (gap: ${scanData.review_gap})
+- ${scanData.missing_keywords_count} missing keywords
+- Competitors spend avg $${scanData.competitor_ad_spend_avg}/mo on ads
+${scanData.gbp_gaps.length > 0 ? `- GBP gaps: ${scanData.gbp_gaps.slice(0, 3).join('; ')}` : ''}
+
+## Rules
+- Step 1: Address the biggest gap. Step 2: Address the second biggest.
+- Each step must have different category (reviews, keywords, ads, or gbp).
+- Descriptions MUST cite specific numbers from the data.
+- Maximum 2 sentences per description. Be direct.
+- Both steps have include_in_free_preview: true.
+
+Return ONLY a JSON array of 2 objects: { step_number, category, priority, title (max 10 words, verb-first), description, include_in_free_preview: true }`
+
+  const response = await anthropic.messages.create({
+    model: 'claude-sonnet-4-20250514',
+    max_tokens: 600,
+    messages: [{ role: 'user', content: prompt }],
+  })
+
+  const textBlock = response.content.find(b => b.type === 'text')
+  if (!textBlock || textBlock.type !== 'text') return []
+
+  let raw = textBlock.text.trim()
+  if (raw.startsWith('```')) raw = raw.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '')
+
+  try {
+    const steps = JSON.parse(raw) as IntelActionStep[]
+    if (!Array.isArray(steps)) return []
+    return steps.slice(0, 2).map(s => ({ ...s, include_in_free_preview: true }))
+  } catch {
+    return []
+  }
+}

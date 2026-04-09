@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { checkResearch } from '@/lib/intel/agent'
+import { generatePreviewSteps } from '@/lib/intel/action-plan'
 import { sendEmail, isResendConfigured } from '@/lib/resend/client'
 import { intelFreeReportEmail } from '@/lib/resend/templates'
 import { getBaseUrl } from '@/lib/env'
@@ -104,9 +105,18 @@ export async function GET(request: NextRequest) {
     ).catch(err => console.error('Failed to send free Intel report email:', err))
   }
 
+  // Generate 2 preview steps for the free report upsell
+  let actionPlanPreview = null
+  try {
+    actionPlanPreview = await generatePreviewSteps(scanData, scan.business_name)
+  } catch (err) {
+    console.error('Failed to generate preview steps:', err)
+  }
+
   return NextResponse.json({
     status: 'complete',
     scanData,
     researchSources,
+    actionPlanPreview,
   })
 }
