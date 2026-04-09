@@ -150,14 +150,14 @@ function buildResearchInput(input: IntelAgentInput): string {
 export async function startResearch(input: IntelAgentInput): Promise<string> {
   const openai = getOpenAI()
 
-  const response = await openai.responses.create({
+  const response = await (openai.responses.create as Function)({
     model: INTEL_MODEL,
     instructions: DEEP_RESEARCH_INSTRUCTIONS,
     input: buildResearchInput(input),
     background: true,
     tools: [{ type: 'web_search_preview' }],
     max_tool_calls: 15,
-  }) as unknown as ResponseLike
+  }) as ResponseLike
 
   return response.id
 }
