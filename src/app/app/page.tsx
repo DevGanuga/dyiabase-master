@@ -723,7 +723,7 @@ function AppPageContent() {
             jobs={jobs}
             quotes={quotes}
             settings={settings}
-            userName={isDemoMode ? 'Demo User' : (userProfile?.first_name || user?.firstName || user?.primaryEmailAddress?.emailAddress || '')}
+            userName={isDemoMode ? 'Demo User' : (user?.firstName || userProfile?.first_name || user?.primaryEmailAddress?.emailAddress || '')}
             onNavigate={(view) => setCurrentView(view as View)}
             pendingFollowUps={pendingFollowUpsCount}
             fixedMonthlyExpenses={fixedMonthlyExpenses}
@@ -769,6 +769,7 @@ function AppPageContent() {
             quotes={quotes}
             setQuotes={setQuotes}
             jobs={jobs}
+            setJobs={setJobs}
             userId={userProfile?.id || ''}
             settings={settings}
             onCreateQuote={(job?: AppJob) => {
@@ -817,7 +818,7 @@ function AppPageContent() {
             userProfile={userProfile}
             userEmail={isDemoMode ? 'demo@dyia.co' : (user?.primaryEmailAddress?.emailAddress || '')}
             userImageUrl={isDemoMode ? undefined : user?.imageUrl}
-            userName={isDemoMode ? 'Demo User' : (userProfile?.first_name || user?.firstName || '')}
+            userName={isDemoMode ? 'Demo User' : (user?.firstName || userProfile?.first_name || '')}
             isDemoMode={isDemoMode}
             initialTab={settingsInitialTab ?? undefined}
             onDataChanged={refreshCounts}
@@ -951,7 +952,7 @@ function AppPageContent() {
       <main className={`flex-1 flex flex-col overflow-hidden ${isDemoMode ? 'pt-16' : ''}`} style={{ animation: 'contentReveal 0.6s cubic-bezier(0.16, 1, 0.3, 1) both' }}>
         {!isDemoMode && !isAdmin && <TrialBanner />}
         <TopBar
-          userName={isDemoMode ? 'Demo User' : (userProfile?.first_name || user?.firstName || '')}
+          userName={isDemoMode ? 'Demo User' : (user?.firstName || userProfile?.first_name || '')}
           userEmail={isDemoMode ? 'demo@dyia.co' : (user?.primaryEmailAddress?.emailAddress || '')}
           userImageUrl={isDemoMode ? undefined : user?.imageUrl}
           onLogout={handleLogout}

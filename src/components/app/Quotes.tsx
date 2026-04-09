@@ -15,6 +15,7 @@ interface QuotesProps {
   quotes: AppQuote[]
   setQuotes: (quotes: AppQuote[]) => void
   jobs: AppJob[]
+  setJobs: React.Dispatch<React.SetStateAction<AppJob[]>>
   userId: string
   settings: AppSettings
   onCreateQuote: (job?: AppJob) => void
@@ -35,7 +36,7 @@ const STATUS_CONFIG: Record<QuoteStatus, { label: string; color: string; bg: str
 
 const REVIEW_PLATFORMS = ['Google', 'Yelp', 'Facebook'] as const
 
-export function Quotes({ quotes, setQuotes, jobs, userId, settings, onCreateQuote, onEditQuote, showSuccess, onOpenDyiaWithPrompt, isPro = true }: QuotesProps) {
+export function Quotes({ quotes, setQuotes, jobs, setJobs, userId, settings, onCreateQuote, onEditQuote, showSuccess, onOpenDyiaWithPrompt, isPro = true }: QuotesProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<QuoteStatus | 'all'>('all')
   const [linkingQuoteId, setLinkingQuoteId] = useState<string | null>(null)
@@ -173,7 +174,21 @@ export function Quotes({ quotes, setQuotes, jobs, userId, settings, onCreateQuot
           .in('status', ['pending', 'contacted', 'snoozed'])
       }
 
-      setQuotes(quotes.map(q => q.id === quote.id ? { ...q, jobId: job.id, status: 'accepted' as QuoteStatus } : q))
+      const newJob: AppJob = {
+        id: job.id,
+        date: jobDate || formatLocalDateInput(),
+        customerName: quote.customer.name,
+        customerId: customerId || undefined,
+        source: 'Quote',
+        revenue,
+        labor: 0, gas: 0, dumpFee: 0, dumpsterRental: 0, additionalExpense: 0,
+        numWorkers: 1, costPerWorker: 0,
+        notes: quote.customer.jobDescription || '',
+        address: quote.customer.address || '',
+        status: 'completed',
+      }
+      setJobs(prev => [newJob, ...prev])
+      setQuotes(quotes.map(q => q.id === quote.id ? { ...q, jobId: job.id, customerId: customerId || q.customerId, status: 'accepted' as QuoteStatus } : q))
       showSuccess(`Job logged for ${quote.customer.name} — ${formatCurrency(revenue)}`)
     } catch (error) {
       console.error('Error converting quote to job:', error)
@@ -550,18 +565,8 @@ export function Quotes({ quotes, setQuotes, jobs, userId, settings, onCreateQuot
                   {quote.status === 'accepted' && !linkedJob && (
                     <button
                       onClick={() => {
-                        const fakeJob = {
-                          id: '',
-                          date: formatLocalDateInput(),
-                          customerName: quote.customer.name,
-                          source: 'Quote',
-                          revenue: quote.total || quote.estimateRange.high || 0,
-                          labor: 0, gas: 0, dumpFee: 0, dumpsterRental: 0, additionalExpense: 0,
-                          numWorkers: 1, costPerWorker: 0,
-                          notes: quote.customer.jobDescription || '',
-                          address: quote.customer.address || '',
-                        }
-                        onCreateQuote(fakeJob as unknown as AppJob)
+                        setConvertDate(formatLocalDateInput())
+                        setConvertingQuote(quote)
                       }}
                       className="text-xs px-2.5 py-1 rounded-lg bg-orange-50 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 hover:bg-orange-100 dark:hover:bg-orange-900/50 transition font-medium flex items-center gap-1"
                       title="Create a job from this accepted quote"

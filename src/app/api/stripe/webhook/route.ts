@@ -24,6 +24,16 @@ function getSupabase() {
   )
 }
 
+function determineTierFromPriceId(price: unknown): 'basic' | 'pro' {
+  const priceId = (price as { id?: string })?.id
+  if (!priceId) return 'pro'
+  const basicPriceIds = [
+    process.env.NEXT_PUBLIC_STRIPE_BASIC_MONTHLY_PRICE_ID,
+    process.env.NEXT_PUBLIC_STRIPE_BASIC_ANNUAL_PRICE_ID,
+  ].filter(Boolean)
+  return basicPriceIds.includes(priceId) ? 'basic' : 'pro'
+}
+
 export async function POST(request: NextRequest) {
   const body = await request.text()
   const sig = request.headers.get('stripe-signature')
@@ -188,6 +198,8 @@ async function handleCheckoutComplete(stripe: Stripe, supabase: any, session: St
   // For trials, use trial_end as the period end; otherwise use current_period_end
   const periodEnd = subscription.trial_end || subscription.current_period_end
 
+  const subscriptionTier = session.metadata?.subscription_tier || determineTierFromPriceId(subscription.items.data[0]?.price)
+
   const { error } = await supabase
     .from('dyia_users')
     .update({
@@ -195,6 +207,7 @@ async function handleCheckoutComplete(stripe: Stripe, supabase: any, session: St
       stripe_subscription_id: subscriptionId,
       subscription_status: ourStatus,
       subscription_plan: plan,
+      subscription_tier: subscriptionTier,
       subscription_ends_at: periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
     })
     .eq('id', dyiaUserId)

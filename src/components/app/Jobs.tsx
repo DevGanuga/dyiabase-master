@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { AppJob, AppSettings, ScheduledJobKind } from '@/types/database'
-import { formatCurrency, formatLocalDateInput, mergeAdditionalExpenseLabelIntoNotes, parseLocalDate } from '@/lib/utils'
+import { formatCurrency, formatLocalDateInput, mergeAdditionalExpenseLabelIntoNotes, extractAdditionalExpenseLabel, parseLocalDate } from '@/lib/utils'
 import { getReviewRequestMessage } from '@/lib/reviews'
 import { useConfirm } from '@/components/providers/ConfirmProvider'
 import { useCustomerAutocomplete } from '@/hooks/useCustomerAutocomplete'
@@ -173,8 +173,9 @@ export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth,
         return [...filtered].sort((a, b) => (b.revenue || 0) - (a.revenue || 0))
       case 'rev-asc':
         return [...filtered].sort((a, b) => (a.revenue || 0) - (b.revenue || 0))
+      case 'newest':
       default:
-        return filtered
+        return [...filtered].sort((a, b) => parseLocalDate(b.date).getTime() - parseLocalDate(a.date).getTime())
     }
   }, [monthJobs, searchQuery, sourceFilter, sortOrder])
 
@@ -200,8 +201,10 @@ export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth,
       list.push(job)
       map.set(job.date, list)
     })
-    return Array.from(map.entries()).sort(([a], [b]) => b.localeCompare(a))
-  }, [filteredJobs])
+    return Array.from(map.entries()).sort(([a], [b]) =>
+      sortOrder === 'oldest' ? a.localeCompare(b) : b.localeCompare(a)
+    )
+  }, [filteredJobs, sortOrder])
 
   const openCloseDayModal = (date: string) => {
     setCloseDayDate(date)
@@ -262,6 +265,7 @@ export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth,
         setJobs(jobs.map(j => {
           const u = updates.find(x => x.id === j.id)
           if (!u) return j
+          const { cleanNotes } = extractAdditionalExpenseLabel(u.notes || undefined)
           return {
             ...j,
             labor: u.labor,
@@ -270,7 +274,7 @@ export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth,
             dumpsterRental: u.dumpster_rental,
             additionalExpense: u.additional_expense,
             additionalExpenseLabel: additionalExpenseLabel || undefined,
-            notes: u.notes ?? j.notes,
+            notes: cleanNotes,
           }
         }))
 
@@ -309,6 +313,7 @@ export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth,
       setJobs(jobs.map(j => {
         const u = updates.find(x => x.id === j.id)
         if (!u) return j
+        const { cleanNotes } = extractAdditionalExpenseLabel(u.notes || undefined)
         return {
           ...j,
           labor: u.labor,
@@ -317,7 +322,7 @@ export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth,
           dumpsterRental: u.dumpster_rental,
           additionalExpense: u.additional_expense,
           additionalExpenseLabel: additionalExpenseLabel || undefined,
-          notes: u.notes ?? j.notes,
+          notes: cleanNotes,
         }
       }))
 
@@ -946,14 +951,14 @@ export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth,
                                   const lastJob = [...jobs]
                                     .sort((a, b) => parseLocalDate(b.date).getTime() - parseLocalDate(a.date).getTime())
                                     .find(j => j.customerName.toLowerCase() === c.name.trim().toLowerCase())
-                                  if (c.address) setTempAddress(c.address)
+                                  setTempAddress(c.address || '')
                                   setTempCustomers(prev => {
                                     const updated = [...prev]
                                     updated[index] = {
                                       ...updated[index],
                                       name: c.name,
-                                      ...(c.phone ? { phone: c.phone } : {}),
-                                      ...(c.email ? { email: c.email } : {}),
+                                      phone: c.phone || '',
+                                      email: c.email || '',
                                       ...(lastJob?.source ? { source: lastJob.source } : {}),
                                     }
                                     return updated
@@ -1534,12 +1539,12 @@ export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth,
           <select
             value={sortOrder}
             onChange={(e) => setSortOrder(e.target.value)}
-            className="app-select !py-2.5 max-w-[170px]"
+            className="app-select !py-2.5 min-w-[160px]"
           >
             <option value="newest">Newest First</option>
             <option value="oldest">Oldest First</option>
-            <option value="rev-desc">Revenue: High→Low</option>
-            <option value="rev-asc">Revenue: Low→High</option>
+            <option value="rev-desc">Revenue: High-Low</option>
+            <option value="rev-asc">Revenue: Low-High</option>
           </select>
         </div>
       </div>
@@ -1649,7 +1654,7 @@ export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth,
                               </div>
                             )}
                             {job.notes && (
-                              <div className="text-xs text-[var(--color-text-muted)] truncate max-w-[200px]">{job.notes}</div>
+                              <div className="text-xs text-[var(--color-text-muted)] truncate max-w-[300px] sm:max-w-[400px]">{job.notes}</div>
                             )}
                             {job.paymentStatus && job.paymentStatus !== 'not_requested' && (
                               <div className={`text-[10px] inline-flex w-fit px-1.5 py-0.5 rounded-full ${
@@ -1733,9 +1738,9 @@ export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth,
 
       {/* Close day / Log daily expenses modal */}
       {closeDayDate && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={() => !closeDaySaving && setCloseDayDate(null)}>
+        <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-4 pt-12 sm:pt-4 bg-black/50 overflow-y-auto" onClick={() => !closeDaySaving && setCloseDayDate(null)}>
           <div
-            className="bg-[var(--color-bg)] border border-[var(--color-border)] rounded-xl shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto p-6"
+            className="bg-[var(--color-bg)] border border-[var(--color-border)] rounded-xl shadow-xl max-w-md w-full max-h-[85vh] sm:max-h-[90vh] overflow-y-auto p-6"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-4">

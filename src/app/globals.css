@@ -1082,6 +1082,17 @@
   }
 }
 
+/* iOS Safari: prevent auto-zoom on input focus (triggered when font-size < 16px) */
+@supports (-webkit-touch-callout: none) {
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+  input.app-input, select.app-select, textarea.app-input,
+  .filter-search-input, .app-select {
+    font-size: 16px !important;
+  }
+}
+
 /* ============================================ */
 /* PERFORMATIVE ANIMATIONS */
 /* ============================================ */

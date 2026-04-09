@@ -68,14 +68,6 @@ export function useCustomerAutocomplete(fallbackNames: string[] = [], isDemoMode
               phone: existing.phone || q.customer_phone || null,
               address: existing.address || q.customer_address || null,
             })
-          } else {
-            merged.set(key, {
-              id: `quote-${q.id}`,
-              name,
-              email: q.customer_email || null,
-              phone: q.customer_phone || null,
-              address: q.customer_address || null,
-            })
           }
         }
 

@@ -549,6 +549,58 @@ export const DYIA_TOOLS: FunctionTool[] = [
     strict: true
   },
   // ============================================
+  // UPDATE TOOL
+  // ============================================
+  {
+    type: 'function',
+    name: 'update_job',
+    description: 'Update an existing job record. Use when the user wants to change the revenue, expenses, customer name, date, notes, or other details of an already-logged job. Requires the job_id.',
+    parameters: {
+      type: 'object',
+      properties: {
+        job_id: {
+          type: 'string',
+          description: 'The ID of the job to update (required)'
+        },
+        date: {
+          type: 'string',
+          description: 'New job date in YYYY-MM-DD format. Leave empty string to keep current.'
+        },
+        customer_name: {
+          type: 'string',
+          description: 'Updated customer name. Leave empty string to keep current.'
+        },
+        source: {
+          type: 'string',
+          description: 'Updated lead source. Leave empty string to keep current.'
+        },
+        revenue: {
+          type: 'number',
+          description: 'Updated revenue in dollars. Use -1 to keep current.'
+        },
+        labor: {
+          type: 'number',
+          description: 'Updated labor cost. Use -1 to keep current.'
+        },
+        gas: {
+          type: 'number',
+          description: 'Updated gas cost. Use -1 to keep current.'
+        },
+        dump_fee: {
+          type: 'number',
+          description: 'Updated dump fee. Use -1 to keep current.'
+        },
+        notes: {
+          type: 'string',
+          description: 'Updated notes. Leave empty string to keep current.'
+        }
+      },
+      required: ['job_id', 'date', 'customer_name', 'source', 'revenue', 'labor', 'gas', 'dump_fee', 'notes'],
+      additionalProperties: false
+    },
+    strict: true
+  },
+  // ============================================
   // MEMORY TOOL
   // ============================================
   {
@@ -594,6 +646,7 @@ export type DyiaFunctionName =
   | 'get_follow_up_risk_analysis'
   | 'batch_store_customers'
   | 'batch_create_quotes'
+  | 'update_job'
   | 'save_memory'
 
 export type ProposalFunctionName = 'propose_job' | 'propose_quote'

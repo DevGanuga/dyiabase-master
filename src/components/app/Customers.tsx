@@ -214,7 +214,12 @@ export function Customers({ jobs, quotes = [], isPro = false, userId, onCreateQu
     })
 
     setCustomers(merged)
-  }, [rawCustomers, jobsByCustomer, quotesByCustomer, jobs, isDemoMode, loading])
+
+    if (selectedCustomer) {
+      const updated = merged.find(c => c.id === selectedCustomer.id)
+      if (updated) setSelectedCustomer(updated)
+    }
+  }, [rawCustomers, jobsByCustomer, quotesByCustomer, jobs, isDemoMode, loading]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSave = async () => {
     if (!formData.name.trim()) return

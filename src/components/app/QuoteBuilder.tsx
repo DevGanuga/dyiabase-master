@@ -143,9 +143,9 @@ export function QuoteBuilder({ quotes, setQuotes, userId, selectedJob, editingQu
       setCustomer(prev => ({
         ...prev,
         name,
-        phone: match.phone || prev.phone,
-        email: match.email || prev.email,
-        address: match.address || prev.address,
+        phone: match.phone || '',
+        email: match.email || '',
+        address: match.address || '',
       }))
       setCustomerFound(true)
       setEditingCustomer(false)

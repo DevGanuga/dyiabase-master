@@ -263,34 +263,37 @@ async function getPerformanceStats(args: Record<string, unknown>, dyiaUserId: st
   const supabase = getSupabase()
   try {
     const period = (args.period as string) || 'this_month'
-    let startDate: string
-    let endDate: string = new Date().toISOString().split('T')[0]
-
     const now = new Date()
+    const pad = (n: number) => String(n).padStart(2, '0')
+    const toLocal = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+
+    let startDate: string
+    let endDate: string = toLocal(now)
+
     switch (period) {
       case 'today':
         startDate = endDate
         break
-      case 'this_week':
-        const weekStart = new Date(now)
-        weekStart.setDate(now.getDate() - now.getDay())
-        startDate = weekStart.toISOString().split('T')[0]
+      case 'this_week': {
+        const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay())
+        startDate = toLocal(weekStart)
         break
+      }
       case 'this_month':
-        startDate = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0]
+        startDate = toLocal(new Date(now.getFullYear(), now.getMonth(), 1))
         break
       case 'last_month':
-        startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().split('T')[0]
-        endDate = new Date(now.getFullYear(), now.getMonth(), 0).toISOString().split('T')[0]
+        startDate = toLocal(new Date(now.getFullYear(), now.getMonth() - 1, 1))
+        endDate = toLocal(new Date(now.getFullYear(), now.getMonth(), 0))
         break
       case 'this_year':
-        startDate = new Date(now.getFullYear(), 0, 1).toISOString().split('T')[0]
+        startDate = toLocal(new Date(now.getFullYear(), 0, 1))
         break
       case 'all_time':
         startDate = '2000-01-01'
         break
       default:
-        startDate = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0]
+        startDate = toLocal(new Date(now.getFullYear(), now.getMonth(), 1))
     }
 
     const { data: jobs, error } = await supabase
@@ -1821,6 +1824,53 @@ async function getFollowUpRiskAnalysis(args: Record<string, unknown>, dyiaUserId
 // MEMORY HANDLER
 // =============================================
 
+async function updateJob(args: Record<string, unknown>, dyiaUserId: string): Promise<HandlerResult> {
+  const supabase = getSupabase()
+  try {
+    const jobId = args.job_id as string
+    if (!jobId) return { success: false, error: 'Missing job_id', message: 'I need a job ID to update. Which job should I update?' }
+
+    const { data: existing, error: fetchError } = await supabase
+      .from('dyia_jobs')
+      .select('*')
+      .eq('id', jobId)
+      .eq('user_id', dyiaUserId)
+      .single()
+
+    if (fetchError || !existing) return { success: false, error: 'Job not found', message: 'Could not find that job. It may have been deleted.' }
+
+    const updates: Record<string, unknown> = {}
+    if (args.date && (args.date as string) !== '') updates.date = args.date
+    if (args.customer_name && (args.customer_name as string) !== '') updates.customer_name = args.customer_name
+    if (args.source && (args.source as string) !== '') updates.source = args.source
+    if (typeof args.revenue === 'number' && (args.revenue as number) >= 0) updates.revenue = args.revenue
+    if (typeof args.labor === 'number' && (args.labor as number) >= 0) updates.labor = args.labor
+    if (typeof args.gas === 'number' && (args.gas as number) >= 0) updates.gas = args.gas
+    if (typeof args.dump_fee === 'number' && (args.dump_fee as number) >= 0) updates.dump_fee = args.dump_fee
+    if (args.notes && (args.notes as string) !== '') updates.notes = args.notes
+
+    if (Object.keys(updates).length === 0) return { success: true, message: 'No changes to apply. The job remains as-is.' }
+
+    const { error: updateError } = await supabase
+      .from('dyia_jobs')
+      .update(updates)
+      .eq('id', jobId)
+      .eq('user_id', dyiaUserId)
+
+    if (updateError) throw updateError
+
+    const fields = Object.keys(updates).join(', ')
+    return {
+      success: true,
+      data: { jobId, updatedFields: Object.keys(updates) },
+      message: `✅ Job updated! Changed: ${fields}. Refresh your Jobs page to see the changes.`
+    }
+  } catch (error) {
+    console.error('Error updating job:', error)
+    return { success: false, error: String(error), message: 'Failed to update the job. Please try again.' }
+  }
+}
+
 async function saveMemory(args: Record<string, unknown>, dyiaUserId: string): Promise<HandlerResult> {
   const supabase = getSupabase()
   try {
@@ -2124,6 +2174,9 @@ export async function handleFunctionCall(
 
     case 'batch_create_quotes':
       return batchCreateQuotes(args, dyiaUserId)
+
+    case 'update_job':
+      return updateJob(args, dyiaUserId)
 
     case 'save_memory':
       return saveMemory(args, dyiaUserId)

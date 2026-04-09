@@ -124,7 +124,7 @@ export default function LandingPage() {
               <a href="#faq" className="text-sm text-slate-400 hover:text-white transition">FAQ</a>
             </div>
             <div className="flex items-center gap-3">
-              <Link href={(isSignedIn || hasDemoCookie) ? "/app" : "/sign-in"} className="text-sm text-slate-400 hover:text-white transition hidden sm:block">
+              <Link href={(isSignedIn || hasDemoCookie) ? "/app" : "/sign-in"} className="text-sm text-slate-400 hover:text-white transition">
                 {(isSignedIn || hasDemoCookie) ? 'Dashboard' : 'Sign in'}
               </Link>
               <button onClick={startFreeTrial} className="px-5 py-2.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 text-white rounded-xl font-semibold text-sm shadow-lg shadow-orange-500/20 transition-all">

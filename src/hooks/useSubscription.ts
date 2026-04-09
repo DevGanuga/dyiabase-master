@@ -51,7 +51,7 @@ export function useSubscription(): SubscriptionState {
       try {
         const { data, error } = await supabase
           .from('dyia_users')
-          .select('subscription_status, subscription_plan, subscription_ends_at, ai_credits_balance')
+          .select('subscription_status, subscription_plan, subscription_tier, subscription_ends_at, ai_credits_balance')
           .eq('clerk_user_id', user.id)
           .maybeSingle()
 
@@ -86,10 +86,11 @@ export function useSubscription(): SubscriptionState {
         const hasAccess = PRO_STATUSES.includes(effectiveStatus) || (isCanceled && hasTimeLeft)
         const trialExpired = !hasAccess && (rawStatus === 'inactive' || (isCanceled && !hasTimeLeft) || (rawStatus === 'trialing' && !hasTimeLeft))
 
+        const dbTier = (data?.subscription_tier as string) || 'pro'
         const tier: SubscriptionTier =
           (isCanceled && hasTimeLeft) ? 'trial'
           : TRIAL_STATUSES.includes(effectiveStatus) ? 'trial'
-          : PRO_STATUSES.includes(effectiveStatus) ? 'pro'
+          : PRO_STATUSES.includes(effectiveStatus) ? (dbTier === 'basic' ? 'basic' : 'pro')
           : 'basic'
 
         const aiCredits = data?.ai_credits_balance || 0

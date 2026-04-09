@@ -320,3 +320,4 @@ function normalizeScanData(raw: unknown): IntelScanData {
     target_zip_codes: zips,
   }
 }
+

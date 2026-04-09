@@ -24,8 +24,8 @@ export function TopBar({ userName, userEmail, userImageUrl, onLogout, subscripti
       }
     }
     if (menuOpen) {
-      document.addEventListener('mousedown', handleClickOutside)
-      return () => document.removeEventListener('mousedown', handleClickOutside)
+      document.addEventListener('click', handleClickOutside)
+      return () => document.removeEventListener('click', handleClickOutside)
     }
   }, [menuOpen])
 
@@ -35,7 +35,7 @@ export function TopBar({ userName, userEmail, userImageUrl, onLogout, subscripti
     <div className="top-bar flex items-center justify-between h-14 px-4 sm:px-6 lg:px-8 shrink-0 border-b border-[var(--color-border-light)]">
       {/* Left: Logo on mobile (sidebar logo is hidden) */}
       <div className="sm:hidden flex items-center">
-        <img src="/dyia-logo-full.png" alt="dyia" className="h-5 opacity-80" />
+        <img src="/dyia-logo-full.png" alt="dyia" className="h-5 opacity-80 dark:brightness-0 dark:invert" />
       </div>
       <div className="hidden sm:block" />
 
@@ -98,7 +98,7 @@ export function TopBar({ userName, userEmail, userImageUrl, onLogout, subscripti
           </button>
 
           {menuOpen && (
-            <div className="absolute right-0 top-full mt-2 w-72 rounded-xl border shadow-xl z-50 overflow-hidden animate-slide-down"
+            <div className="absolute right-0 top-full mt-2 w-72 rounded-xl border shadow-xl z-[60] overflow-hidden animate-slide-down"
                  style={{ background: 'var(--color-bg-card)', borderColor: 'var(--color-border)' }}>
               {/* User info */}
               <div className="px-4 py-3.5 border-b" style={{ borderColor: 'var(--color-border-light)' }}>

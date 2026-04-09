@@ -298,9 +298,7 @@ export function Dashboard({
       (j.dumpsterRental || 0) + (j.additionalExpense || 0), 0)
 
     const pendingQuotes = quotes.filter(q => {
-      const created = new Date(q.createdAt)
-      const daysSince = Math.floor((now.getTime() - created.getTime()) / (1000 * 60 * 60 * 24))
-      return daysSince < 30 // Active quotes less than 30 days old
+      return q.status === 'sent' || q.status === 'draft'
     })
 
     const quoteValue = pendingQuotes.reduce((sum, q) => sum + (q.total || 0), 0)

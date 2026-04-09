@@ -142,7 +142,7 @@ export async function POST(request: NextRequest) {
 
     const stripe = getStripe()
     const supabase = getSupabase()
-    const { priceId, clerkUserId, userEmail, couponCode, useFoundersCoupon, mode = 'subscription', creditsAmount = 100 } = await request.json()
+    const { priceId, clerkUserId, userEmail, couponCode, useFoundersCoupon, mode = 'subscription', creditsAmount = 100, tier } = await request.json()
 
     if (!priceId || !clerkUserId || !userEmail) {
       return NextResponse.json(
@@ -262,6 +262,7 @@ export async function POST(request: NextRequest) {
         dyia_user_id: dyiaUser.id,
         purchase_type: isOneTime ? 'credits' : 'subscription',
         credits_amount: isOneTime ? String(creditsAmount) : '',
+        subscription_tier: isOneTime ? '' : (tier || 'pro'),
       },
     }
 

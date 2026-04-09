@@ -68,7 +68,7 @@ export function TrialBanner() {
   return (
     <div
       className={`w-full ${bgClass} text-white overflow-hidden transition-all duration-400 ease-in-out ${
-        hiding ? 'max-h-0 opacity-0' : visible ? 'max-h-20 opacity-100' : 'max-h-0 opacity-0'
+        hiding ? 'max-h-0 opacity-0' : visible ? 'max-h-28 sm:max-h-20 opacity-100' : 'max-h-0 opacity-0'
       }`}
       style={visible && !hiding ? { animation: 'bannerSlideDown 0.5s cubic-bezier(0.16, 1, 0.3, 1) both' } : undefined}
     >
