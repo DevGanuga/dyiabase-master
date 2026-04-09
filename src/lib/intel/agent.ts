@@ -156,15 +156,7 @@ export async function startResearch(input: IntelAgentInput): Promise<string> {
     instructions: DEEP_RESEARCH_INSTRUCTIONS,
     input: buildResearchInput(input),
     background: true,
-    tools: [{
-      type: 'web_search_preview' as const,
-      user_location: {
-        type: 'approximate' as const,
-        country: 'US',
-        city: input.city || undefined,
-        region: input.state || undefined,
-      },
-    }],
+    tools: [{ type: 'web_search_preview' }],
     max_tool_calls: 15,
   }) as ResponseLike
 
