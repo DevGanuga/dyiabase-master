@@ -1,0 +1,129 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - navigation [ref=e3]:
+      - generic [ref=e4]:
+        - link "dyia Intel" [ref=e5] [cursor=pointer]:
+          - /url: /
+          - img "dyia" [ref=e6]
+          - generic [ref=e7]: Intel
+        - link "Sign up for Dyia" [ref=e8] [cursor=pointer]:
+          - /url: /sign-up
+    - generic [ref=e81]:
+      - paragraph [ref=e82]: max_output_tokens
+      - button "×" [ref=e83]
+    - generic [ref=e84]:
+      - generic [ref=e85]:
+        - heading "How does your business stack up?" [level=1] [ref=e86]
+        - paragraph [ref=e87]: Get a free competitive intelligence report for your local service business in 60 seconds.
+      - generic [ref=e88]:
+        - generic [ref=e89]:
+          - generic [ref=e90]: Business name *
+          - textbox "e.g. Quick Haul Junk Removal" [ref=e91]: Sparkle Clean Maids
+        - generic [ref=e92]:
+          - generic [ref=e93]: Website URL (optional)
+          - textbox "https://www.yourbusiness.com" [ref=e94]: https://www.sparklecleanmaids.com
+        - generic [ref=e95]:
+          - generic [ref=e96]: Google Business Profile URL (optional — helps us find your exact listing)
+          - textbox "https://g.co/kgs/..." [ref=e97]
+        - generic [ref=e98]:
+          - generic [ref=e99]:
+            - generic [ref=e100]: Zip code *
+            - textbox "77001" [ref=e101]: "30301"
+          - generic [ref=e102]:
+            - generic [ref=e103]: City
+            - textbox "Houston" [ref=e104]: Atlanta
+          - generic [ref=e105]:
+            - generic [ref=e106]: State
+            - combobox [ref=e107]:
+              - option "—"
+              - option "AL"
+              - option "AK"
+              - option "AZ"
+              - option "AR"
+              - option "CA"
+              - option "CO"
+              - option "CT"
+              - option "DE"
+              - option "FL"
+              - option "GA" [selected]
+              - option "HI"
+              - option "ID"
+              - option "IL"
+              - option "IN"
+              - option "IA"
+              - option "KS"
+              - option "KY"
+              - option "LA"
+              - option "ME"
+              - option "MD"
+              - option "MA"
+              - option "MI"
+              - option "MN"
+              - option "MS"
+              - option "MO"
+              - option "MT"
+              - option "NE"
+              - option "NV"
+              - option "NH"
+              - option "NJ"
+              - option "NM"
+              - option "NY"
+              - option "NC"
+              - option "ND"
+              - option "OH"
+              - option "OK"
+              - option "OR"
+              - option "PA"
+              - option "RI"
+              - option "SC"
+              - option "SD"
+              - option "TN"
+              - option "TX"
+              - option "UT"
+              - option "VT"
+              - option "VA"
+              - option "WA"
+              - option "WV"
+              - option "WI"
+              - option "WY"
+        - generic [ref=e108]:
+          - generic [ref=e109]:
+            - generic [ref=e110]: Industry *
+            - combobox [ref=e111]:
+              - option "Select your industry"
+              - option "Junk Removal"
+              - option "Landscaping"
+              - option "Plumbing"
+              - option "Cleaning" [selected]
+              - option "HVAC"
+              - option "Roofing"
+              - option "Painting"
+              - option "Moving"
+              - option "Pest Control"
+              - option "Pressure Washing"
+              - option "Electrical"
+              - option "Handyman"
+              - option "Tree Service"
+              - option "Fencing"
+              - option "Concrete"
+              - option "Other"
+          - generic [ref=e112]:
+            - generic [ref=e113]: Search radius
+            - combobox [ref=e114]:
+              - option "10 miles"
+              - option "25 miles" [selected]
+              - option "50 miles"
+              - option "100 miles"
+        - generic [ref=e115]:
+          - generic [ref=e116]: Main services (comma-separated)
+          - textbox "e.g. Junk removal, Demolition, Cleanouts" [ref=e117]: House cleaning, Deep cleaning, Move-out cleaning
+        - generic [ref=e118]:
+          - generic [ref=e119]:
+            - generic [ref=e120]: Years in business
+            - spinbutton [ref=e121]: "5"
+          - generic [ref=e122]:
+            - generic [ref=e123]: Team size
+            - spinbutton [ref=e124]: "8"
+        - button "Generate my report" [ref=e125]
+        - paragraph [ref=e126]: Free and instant. No credit card required.
+  - alert [ref=e52]

@@ -1,0 +1,14 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - navigation [ref=e3]:
+      - generic [ref=e4]:
+        - link "dyia Intel" [ref=e5] [cursor=pointer]:
+          - /url: /
+          - img "dyia" [ref=e6]
+          - generic [ref=e7]: Intel
+        - link "Sign up for Dyia" [ref=e8] [cursor=pointer]:
+          - /url: /sign-up
+    - generic [ref=e67]:
+      - paragraph [ref=e73]: Scanning your market...
+      - paragraph [ref=e74]: Deep research usually takes 1–3 minutes
+  - alert [ref=e52]

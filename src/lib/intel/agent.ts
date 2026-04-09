@@ -156,7 +156,7 @@ export async function startResearch(input: IntelAgentInput): Promise<string> {
     input: buildResearchInput(input),
     background: true,
     tools: [{ type: 'web_search_preview' }],
-    max_output_tokens: 5000,
+    max_tool_calls: 15,
   }) as unknown as ResponseLike
 
   return response.id
@@ -189,10 +189,11 @@ export async function checkResearch(responseId: string): Promise<ResearchStatus>
       try {
         return { done: true, result: buildResult(response) }
       } catch {
-        return { done: true, error: response.incomplete_details?.reason || 'Research incomplete with unparseable output' }
+        // Output exists but wasn't parseable — still not done, treat as in-progress
+        // so the caller can retry or the user sees a meaningful error
       }
     }
-    return { done: true, error: response.incomplete_details?.reason || 'Research incomplete' }
+    return { done: true, error: `Research ended early (${response.incomplete_details?.reason || 'unknown reason'}). Please try again.` }
   }
 
   // status === 'completed'
