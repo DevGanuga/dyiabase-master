@@ -54,28 +54,32 @@ export interface IntelAgentResult {
   model: string
 }
 
-const DEEP_RESEARCH_INSTRUCTIONS = `You are a competitive intelligence researcher for local service businesses.
+const DEEP_RESEARCH_INSTRUCTIONS = `You are a competitive intelligence researcher for local service businesses. Your job is to produce ACCURATE data that a business owner will trust. Inaccurate data destroys credibility — every number must be grounded in what you actually find on the web.
 
-Use the web_search tool to do a real market scan. Do not rely on prior knowledge alone.
-Do not invent competitors, rankings, review counts, ad-spend signals, or GBP gaps.
-If a value cannot be directly observed, infer it conservatively from evidence gathered during research.
+CRITICAL RULES:
+- You MUST search for the target business by name and verify its Google review count by opening its Google Business Profile or Google Maps listing page. Do NOT guess review counts.
+- You MUST search for each competitor individually and verify their review counts from their actual Google listings. Do NOT estimate review counts — open the page and read the number.
+- If you cannot find a verified review count for a business, set it to 0 and note that in gbp_gaps.
+- NEVER invent or hallucinate competitor names, review counts, or rankings. Every data point must come from a web search result you actually retrieved.
 
 Research workflow:
-1. Identify the target business using website, phone, name, and Google Business Profile URL if provided.
-2. Find local competitors in the provided service area.
-3. Compare Google review counts, Maps/local-pack visibility, organic visibility, and GBP completeness.
-4. Identify keyword gaps using commercial-intent local searches.
-5. Estimate competitor ad presence/spend conservatively from search evidence.
-6. Return only the final JSON object, with no prose or markdown.
+1. Search for the target business name + city/state. Open their Google Business Profile or Google Maps page. Record their exact review count and profile details (hours, photos, posts, categories, description).
+2. Search for the industry + location (e.g. "junk removal Houston TX"). Identify the top businesses that appear in search results and Google Maps.
+3. For EACH competitor found, search for their name individually and record their actual Google review count from their listing page. Do not estimate — verify.
+4. Rank all businesses (including the target) by review count and Maps visibility. The business with the most reviews + best visibility = rank 1.
+5. Search for 10-15 commercial-intent local keywords (e.g. "junk removal near [zip]", "[service] [city]") and note which businesses appear vs which do not.
+6. Compare the target business GBP profile to the #1 competitor — note specific missing elements.
+7. Note which competitors appear in Google Ads sponsored results.
 
 Output rules:
-- Every field in the schema must be present.
-- No null values.
-- top_competitors must contain exactly 5 real businesses sorted by rank. Include the target business itself in this list at its correct rank position.
-- review_count_leader must be >= all competitor review counts in the list.
-- missing_keywords must contain up to 15 local commercial-intent keywords.
-- gbp_gaps must be actionable and specific.
-- All output must be a single JSON object only.`
+- Every field must be present with a real value. No nulls.
+- review_count_mine MUST be the actual verified Google review count, not a guess.
+- top_competitors must contain exactly 5 real businesses sorted by rank. Include the target business itself at its correct position.
+- review_count_leader must equal the reviews of the #1 ranked competitor.
+- missing_keywords: up to 15 specific local search terms.
+- gbp_gaps: specific actionable items (e.g. "Missing business description", "No photos uploaded", "No recent Google Posts").
+- gap_scores: reviews_pct = (target reviews / leader reviews) * 100 capped at 100.
+- Output only a single JSON object. No prose, no markdown, no code fences.`
 
 function buildResearchInput(input: IntelAgentInput): string {
   const location = [input.city, input.state].filter(Boolean).join(', ')
@@ -101,16 +105,16 @@ function buildResearchInput(input: IntelAgentInput): string {
 
   lines.push(
     '',
-    '## Required Research Tasks',
-    `1. Find the exact target business in ${locationLabel} using the name, website, phone, and GBP URL if available.`,
-    `2. Search for ${input.industry} and ${servicesList} providers within ${input.radiusMiles} miles of ${input.zipCode}.`,
-    '3. Build a ranked list of the top 5 real competitors based on local-pack/Maps presence, review strength, and organic visibility.',
-    '4. Find the target business review count and the leader review count.',
-    '5. Identify up to 15 commercial-intent local keywords competitors rank for but the target business does not.',
-    '6. Identify actionable GBP gaps by comparing the target business vs the top competitor.',
-    '7. Estimate average monthly competitor ad spend from live search evidence.',
-    '8. Identify the top 3 nearby zip codes with likely highest search demand.',
-    '9. Compute gap scores for reviews, keywords, ads, and GBP completeness.',
+    '## Exact Searches to Perform',
+    `1. Search: "${input.businessName}" ${locationLabel} — open the Google Maps/GBP listing and record the EXACT review count. This is review_count_mine.`,
+    `2. Search: "${input.industry} ${locationLabel}" and "${input.industry} near ${input.zipCode}" — identify real businesses from the results.`,
+    `3. For each competitor found, search their name individually (e.g. "CompetitorName ${locationLabel}") and open their Google listing to record their EXACT review count. Do NOT guess.`,
+    '4. Rank all businesses by reviews + visibility. #1 = most reviews + best visibility.',
+    `5. Search these keywords and note which businesses appear: "${input.industry} ${locationLabel}", "${input.industry} near me", "${servicesList} ${locationLabel}", "best ${input.industry} ${locationLabel}", "cheap ${input.industry} ${locationLabel}", "${input.industry} reviews ${locationLabel}"`,
+    '6. Compare target GBP profile to #1 competitor — note missing: hours, photos, posts, description, categories, Q&A, service areas.',
+    `7. Search "${input.industry} ${locationLabel}" and note any sponsored/ad results.`,
+    `8. Identify 3 nearby zip codes to ${input.zipCode} with high population/commercial activity.`,
+    '9. Calculate gap_scores: reviews_pct = (review_count_mine / review_count_leader) * 100, capped at 100.',
     '',
     '## JSON Schema',
     '{',
@@ -321,5 +325,6 @@ function normalizeScanData(raw: unknown): IntelScanData {
     target_zip_codes: zips,
   }
 }
+
 
 
