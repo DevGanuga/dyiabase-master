@@ -47,6 +47,7 @@ export async function POST(request: NextRequest) {
       .from('dyia_intel_scans')
       .select('id, scan_data, research_sources')
       .eq('email', email)
+      .eq('business_name', businessName)
       .eq('source', 'public_page')
       .order('created_at', { ascending: false })
       .limit(1)

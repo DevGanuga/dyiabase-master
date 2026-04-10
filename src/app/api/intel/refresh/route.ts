@@ -187,6 +187,12 @@ export async function POST(request: NextRequest) {
       })
     }
 
+    // Timed out — mark as failed before throwing
+    await supabase
+      .from('dyia_intel_monthly_status')
+      .update({ job_status: 'failed' })
+      .eq('user_id', dyiaUser.id)
+      .eq('month_year', monthYear)
     throw new Error('Research timed out')
   } catch (error) {
     console.error('Intel refresh error:', error)

@@ -29,6 +29,7 @@ const FILTER_TABS = [
   { id: 'reviews' as const, label: 'Reviews' },
   { id: 'keywords' as const, label: 'Keywords' },
   { id: 'ads' as const, label: 'Ads' },
+  { id: 'gbp' as const, label: 'GBP' },
 ]
 
 function ReportContent() {
@@ -41,7 +42,7 @@ function ReportContent() {
   const [scanData, setScanData] = useState<IntelScanData | null>(null)
   const [researchSources, setResearchSources] = useState<IntelResearchSource[] | null>(null)
   const [actionPlan, setActionPlan] = useState<IntelActionStep[] | null>(null)
-  const [activeFilter, setActiveFilter] = useState<'all' | 'reviews' | 'keywords' | 'ads'>('all')
+  const [activeFilter, setActiveFilter] = useState<'all' | 'reviews' | 'keywords' | 'ads' | 'gbp'>('all')
 
   useEffect(() => {
     (async () => {
@@ -79,16 +80,18 @@ function ReportContent() {
       <nav className="border-b border-slate-800/50 backdrop-blur-sm">
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2"><Image src="/dyia-logo-full.png" alt="dyia" width={100} height={33} className="brightness-0 invert opacity-90" /><span className="text-xs font-bold text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded-full">Intel</span></Link>
-          <button className="px-4 py-2 text-sm text-slate-400 border border-slate-700 rounded-lg hover:text-white hover:border-slate-500 transition-colors">Download PDF</button>
+          <Link href="/intel" className="px-4 py-2 text-sm text-slate-400 border border-slate-700 rounded-lg hover:text-white hover:border-slate-500 transition-colors">New report</Link>
         </div>
       </nav>
 
       <div className="max-w-4xl mx-auto px-4 py-8 sm:py-12">
         <div className="text-center mb-10">
-          <div className="inline-flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm font-medium px-4 py-1.5 rounded-full mb-4">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-            Payment successful
-          </div>
+          {sessionId && (
+            <div className="inline-flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm font-medium px-4 py-1.5 rounded-full mb-4">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+              Payment successful
+            </div>
+          )}
           <h1 className="text-3xl sm:text-4xl font-bold text-white mb-2">Your 90-Day Action Plan</h1>
           <p className="text-slate-400 mb-4">{businessName}</p>
           {scanData && (

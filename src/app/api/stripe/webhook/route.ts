@@ -347,7 +347,7 @@ async function handleIntelPurchase(supabase: any, session: Stripe.Checkout.Sessi
 
   if (!scanId) {
     console.error('Intel purchase: missing scan_id in metadata')
-    return
+    throw new Error('Intel purchase webhook: missing scan_id in session metadata')
   }
 
   // Mark the scan as purchased

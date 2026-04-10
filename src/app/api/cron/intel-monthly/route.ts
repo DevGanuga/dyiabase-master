@@ -226,8 +226,6 @@ async function processSingleUser(
     }
 
     throw new Error('Research timed out after 10 minutes')
-
-    return true
   } catch (error) {
     console.error(`[INTEL CRON] Failed for user ${userInfo.userId}:`, error)
 

@@ -58,8 +58,11 @@ export async function GET() {
       .eq('month_year', monthYear)
       .single()
 
-    // Mark as viewed if this is a fresh report
-    if (monthlyStatus && !monthlyStatus.viewed_at) {
+    // Compute hasNewReport BEFORE marking viewed (so the first load shows the badge)
+    const hasNewReport = !!(monthlyStatus && monthlyStatus.job_status === 'complete' && !monthlyStatus.viewed_at)
+
+    // Mark as viewed after computing the flag
+    if (hasNewReport) {
       await supabase
         .from('dyia_intel_monthly_status')
         .update({ viewed_at: new Date().toISOString() })
@@ -99,7 +102,7 @@ export async function GET() {
         : null,
       changes,
       daysUntilRefresh,
-      hasNewReport: monthlyStatus ? !monthlyStatus.viewed_at : false,
+      hasNewReport,
       monthlyStatus: monthlyStatus
         ? {
             jobStatus: monthlyStatus.job_status,

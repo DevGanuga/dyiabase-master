@@ -74,7 +74,7 @@ export default function IntelPage() {
 
   useEffect(() => {
     if (stage !== 'loading') return
-    const t = setTimeout(() => { setLoadingError('Research is taking longer than expected. Please try again.'); setStage('form') }, 600_000)
+    const t = setTimeout(() => { setLoadingError('Research is taking longer than expected. Your report may still complete — check your email or refresh this page with ?scan_id=' + (scanId || '')); setStage('form') }, 600_000)
     return () => clearTimeout(t)
   }, [stage])
 

@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: 'Scan not found' }, { status: 404 })
       }
 
-      // Generate action plan if missing
+      // Generate action plan if missing — this is a paid customer, so failure is critical
       if (!scan.action_plan && scan.scan_data) {
         try {
           const actionPlan = await generateActionPlan(scan.scan_data, scan.business_name)
@@ -73,6 +73,10 @@ export async function GET(request: NextRequest) {
           scan.action_plan = actionPlan
         } catch (err) {
           console.error('Failed to generate action plan post-purchase:', err)
+          return NextResponse.json(
+            { error: 'Your action plan is still being generated. Please refresh in a moment.' },
+            { status: 503 }
+          )
         }
       }
 

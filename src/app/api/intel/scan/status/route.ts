@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
 
   const { data: scan } = await supabase
     .from('dyia_intel_scans')
-    .select('id, openai_response_id, scan_data, email, business_name')
+    .select('id, openai_response_id, scan_data, research_sources, action_plan, email, business_name')
     .eq('id', scanId)
     .single()
 
@@ -39,9 +39,14 @@ export async function GET(request: NextRequest) {
 
   // Already done from a previous poll
   if (scan.scan_data) {
+    const previewSteps = Array.isArray(scan.action_plan)
+      ? scan.action_plan.filter((s: { include_in_free_preview?: boolean }) => s.include_in_free_preview)
+      : null
     return NextResponse.json({
       status: 'complete',
       scanData: scan.scan_data,
+      researchSources: scan.research_sources || null,
+      actionPlanPreview: previewSteps && previewSteps.length > 0 ? previewSteps : null,
     })
   }
 
@@ -105,10 +110,16 @@ export async function GET(request: NextRequest) {
     ).catch(err => console.error('Failed to send free Intel report email:', err))
   }
 
-  // Generate 2 preview steps for the free report upsell
+  // Generate 2 preview steps and persist them as the action_plan for this scan
   let actionPlanPreview = null
   try {
     actionPlanPreview = await generatePreviewSteps(scanData, scan.business_name)
+    if (actionPlanPreview && actionPlanPreview.length > 0) {
+      await supabase
+        .from('dyia_intel_scans')
+        .update({ action_plan: actionPlanPreview })
+        .eq('id', scanId)
+    }
   } catch (err) {
     console.error('Failed to generate preview steps:', err)
   }
