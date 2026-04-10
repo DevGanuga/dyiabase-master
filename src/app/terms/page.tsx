@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import type { Metadata } from 'next'
+import { PublicHeader } from '@/components/PublicHeader'
 
 export const metadata: Metadata = {
   title: 'Terms of Service — dyia',
@@ -13,17 +14,7 @@ export default function TermsPage() {
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-orange-900/10 via-[#09090b] to-[#09090b]" />
       </div>
 
-      <nav className="border-b border-white/[0.06] bg-white/[0.02] backdrop-blur-xl">
-        <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
-          <Link href="/" className="flex items-center">
-            <img src="/dyia-logo-full.png" alt="dyia" className="h-8 object-contain brightness-0 invert" />
-          </Link>
-          <div className="flex items-center gap-4">
-            <Link href="/" className="text-sm text-slate-400 hover:text-white transition">Home</Link>
-            <Link href="/support" className="text-sm text-slate-400 hover:text-white transition">Support</Link>
-          </div>
-        </div>
-      </nav>
+      <PublicHeader variant="simple" />
 
       <main className="max-w-3xl mx-auto px-6 py-12">
         <h1 className="text-4xl font-bold mb-2">Terms of Service</h1>

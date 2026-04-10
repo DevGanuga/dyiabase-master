@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { PublicHeader } from '@/components/PublicHeader'
 
 const SUBJECT_OPTIONS = [
   { value: 'bug', label: 'Bug Report', icon: '🐛', desc: 'Something isn\'t working right' },
@@ -159,18 +160,7 @@ export default function SupportPage() {
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-orange-900/20 via-[#09090b] to-[#09090b]" />
       </div>
 
-      {/* Nav */}
-      <nav className="border-b border-white/[0.06] bg-white/[0.02] backdrop-blur-xl">
-        <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
-          <Link href="/" className="flex items-center">
-            <img src="/dyia-logo-full.png" alt="dyia" className="h-8 object-contain brightness-0 invert" />
-          </Link>
-          <div className="flex items-center gap-4">
-            <Link href="/" className="text-sm text-slate-400 hover:text-white transition">Home</Link>
-            <Link href="/app" className="text-sm text-slate-400 hover:text-white transition">Dashboard</Link>
-          </div>
-        </div>
-      </nav>
+      <PublicHeader variant="simple" activePage="/support" />
 
       <main className="max-w-5xl mx-auto px-6 py-12">
         {/* Header */}

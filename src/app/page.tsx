@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useUser } from '@clerk/nextjs'
 import Link from 'next/link'
 import BusinessTypes from '@/components/landing/BusinessTypes'
+import { PublicHeader } from '@/components/PublicHeader'
 
 const STRIPE_PRICES = {
   basic: {
@@ -108,32 +109,7 @@ export default function LandingPage() {
       </div>
 
       {/* Navigation */}
-      <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${mounted ? 'translate-y-0 opacity-100' : '-translate-y-4 opacity-0'}`}>
-        <div className="mx-auto max-w-7xl px-6 py-4">
-          <div className="flex items-center justify-between rounded-2xl bg-white/[0.03] backdrop-blur-xl border border-white/[0.06] px-6 py-3">
-            <Link href="/" className="flex items-center">
-              <img src="/dyia-logo-full.png" alt="dyia" className="h-8 object-contain brightness-0 invert" />
-            </Link>
-            <div className="hidden md:flex items-center gap-8">
-              <Link href="/intel" className="text-sm text-purple-400 hover:text-purple-300 transition font-medium">Intel</Link>
-              <Link href="/pricing-calculator" className="text-sm text-slate-400 hover:text-white transition">Pricing Calculator</Link>
-              <Link href="/profit-calculator" className="text-sm text-slate-400 hover:text-white transition">Free quiz</Link>
-              <a href="#features" className="text-sm text-slate-400 hover:text-white transition">Features</a>
-              <a href="#ai" className="text-sm text-slate-400 hover:text-white transition">Dyia AI</a>
-              <a href="#pricing" className="text-sm text-slate-400 hover:text-white transition">Pricing</a>
-              <a href="#faq" className="text-sm text-slate-400 hover:text-white transition">FAQ</a>
-            </div>
-            <div className="flex items-center gap-3">
-              <Link href={(isSignedIn || hasDemoCookie) ? "/app" : "/sign-in"} className="text-sm text-slate-400 hover:text-white transition">
-                {(isSignedIn || hasDemoCookie) ? 'Dashboard' : 'Sign in'}
-              </Link>
-              <button onClick={startFreeTrial} className="px-5 py-2.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 text-white rounded-xl font-semibold text-sm shadow-lg shadow-orange-500/20 transition-all">
-                Start Free
-              </button>
-            </div>
-          </div>
-        </div>
-      </nav>
+      <PublicHeader activePage="/" />
 
       <main>
         {/* ===== HERO ===== */}

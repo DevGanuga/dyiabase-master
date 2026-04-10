@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
+import { PublicHeader } from '@/components/PublicHeader'
 import { INTEL_INDUSTRIES, INTEL_RADIUS_OPTIONS } from '@/types/database'
 import type { IntelScanData, IntelActionStep, IntelResearchSource } from '@/types/database'
 
@@ -147,12 +148,7 @@ export default function IntelPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white">
-      <nav className="border-b border-slate-800/50 backdrop-blur-sm">
-        <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2"><Image src="/dyia-logo-full.png" alt="dyia" width={100} height={33} className="brightness-0 invert opacity-90" /><span className="text-xs font-bold text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded-full">Intel</span></Link>
-          <Link href="/sign-up" className="text-sm text-slate-400 hover:text-white transition-colors">Sign up for Dyia</Link>
-        </div>
-      </nav>
+      <PublicHeader variant="simple" activePage="/intel" />
 
       {loadingError && (
         <div className="fixed top-4 right-4 z-50 bg-red-500/90 text-white px-4 py-3 rounded-lg shadow-lg max-w-sm">
