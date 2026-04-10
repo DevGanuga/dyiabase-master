@@ -42,6 +42,7 @@ function ReportContent() {
   const [scanData, setScanData] = useState<IntelScanData | null>(null)
   const [researchSources, setResearchSources] = useState<IntelResearchSource[] | null>(null)
   const [actionPlan, setActionPlan] = useState<IntelActionStep[] | null>(null)
+  const [researchReport, setResearchReport] = useState<string | null>(null)
   const [activeFilter, setActiveFilter] = useState<'all' | 'reviews' | 'keywords' | 'ads' | 'gbp'>('all')
 
   useEffect(() => {
@@ -53,7 +54,7 @@ function ReportContent() {
         if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed to load report') }
         const data = await res.json()
         setBusinessName(data.scan.businessName); setScanData(data.scan.scanData)
-        setResearchSources(data.scan.researchSources || null); setActionPlan(data.scan.actionPlan)
+        setResearchSources(data.scan.researchSources || null); setResearchReport(data.scan.researchReport || null); setActionPlan(data.scan.actionPlan)
       } catch (err) { setError(err instanceof Error ? err.message : 'Failed to load report') }
       finally { setLoading(false) }
     })()
@@ -119,6 +120,19 @@ function ReportContent() {
             ))}
           </div>
         )}
+
+        {/* Full Research Report — the core paid product */}
+        {researchReport && (
+          <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-6 sm:p-8 mb-10">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center"><svg className="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg></div>
+              <div><h3 className="text-lg font-semibold text-white">Full Research Report</h3><p className="text-xs text-slate-400">Competitive analysis with verified data and source citations</p></div>
+            </div>
+            <div className="prose prose-invert prose-sm max-w-none prose-headings:text-white prose-headings:font-semibold prose-h2:text-xl prose-h2:mt-10 prose-h2:mb-4 prose-h2:pb-2 prose-h2:border-b prose-h2:border-slate-700/50 prose-h3:text-base prose-h3:mt-6 prose-p:text-slate-300 prose-p:leading-relaxed prose-strong:text-white prose-li:text-slate-300 prose-a:text-purple-400 prose-a:no-underline hover:prose-a:underline" dangerouslySetInnerHTML={{ __html: researchReport.replace(/\n/g, '<br>').replace(/^## (.*$)/gm, '<h2>$1</h2>').replace(/^### (.*$)/gm, '<h3>$1</h3>').replace(/^- (.*$)/gm, '<li>$1</li>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\[(.*?)\]\((.*?)\)/g, '<a href=\"$2\" target=\"_blank\" rel=\"noreferrer\">$1</a>') }} />
+          </div>
+        )}
+
+        <h2 className="text-xl font-bold text-white mb-6">Your 6-Step Action Plan</h2>
 
         {/* Filter */}
         <div className="flex gap-2 mb-6">

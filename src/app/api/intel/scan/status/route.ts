@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
 
   const { data: scan } = await supabase
     .from('dyia_intel_scans')
-    .select('id, openai_response_id, scan_data, research_sources, action_plan, email, business_name')
+    .select('id, openai_response_id, scan_data, research_sources, research_report, action_plan, email, business_name')
     .eq('id', scanId)
     .single()
 
@@ -46,6 +46,7 @@ export async function GET(request: NextRequest) {
       status: 'complete',
       scanData: scan.scan_data,
       researchSources: scan.research_sources || null,
+      researchReport: scan.research_report || null,
       actionPlanPreview: previewSteps && previewSteps.length > 0 ? previewSteps : null,
     })
   }
@@ -82,12 +83,13 @@ export async function GET(request: NextRequest) {
   }
 
   // Store results
-  const { scanData, researchSources } = result.result
+  const { scanData, researchSources, researchReport } = result.result
   await supabase
     .from('dyia_intel_scans')
     .update({
       scan_data: scanData,
       research_sources: researchSources,
+      research_report: researchReport || null,
     })
     .eq('id', scanId)
 
@@ -128,6 +130,7 @@ export async function GET(request: NextRequest) {
     status: 'complete',
     scanData,
     researchSources,
+    researchReport: researchReport || null,
     actionPlanPreview,
   })
 }

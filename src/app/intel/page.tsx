@@ -41,6 +41,7 @@ export default function IntelPage() {
   const [scanId, setScanId] = useState<string | null>(null)
   const [scanData, setScanData] = useState<IntelScanData | null>(null)
   const [researchSources, setResearchSources] = useState<IntelResearchSource[] | null>(null)
+  const [researchReport, setResearchReport] = useState<string | null>(null)
   const [actionPlanPreview, setActionPlanPreview] = useState<IntelActionStep[] | null>(null)
   const [checkoutLoading, setCheckoutLoading] = useState(false)
 
@@ -106,6 +107,7 @@ export default function IntelPage() {
       setScanId(data.scanId)
       if (data.status === 'complete' && data.scanData) {
         setScanData(data.scanData); setResearchSources(data.researchSources || null)
+        setResearchReport(data.researchReport || null)
         setActionPlanPreview(data.actionPlanPreview || null); setStage('report'); return
       }
       const deadline = Date.now() + 600_000
@@ -115,6 +117,7 @@ export default function IntelPage() {
         const sd = await sr.json()
         if (sd.status === 'complete') {
           setScanData(sd.scanData); setResearchSources(sd.researchSources || null)
+          setResearchReport(sd.researchReport || null)
           setActionPlanPreview(sd.actionPlanPreview || null); setStage('report'); return
         }
         if (sd.status === 'failed') throw new Error(sd.error || 'Research failed')
@@ -311,6 +314,31 @@ export default function IntelPage() {
             </div>
           </div>
 
+          {/* Research Report Preview — show executive summary only, rest is gated */}
+          {researchReport && (() => {
+            const lines = researchReport.split('\n')
+            const execEnd = lines.findIndex((l, i) => i > 5 && l.startsWith('## '))
+            const previewText = execEnd > 0 ? lines.slice(0, execEnd).join('\n') : lines.slice(0, 15).join('\n')
+            return (
+              <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl overflow-hidden mb-8">
+                <div className="p-6 sm:p-8">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center"><svg className="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg></div>
+                    <div><h3 className="text-lg font-semibold text-white">Research Report</h3><p className="text-xs text-slate-400">AI-generated competitive analysis with verified data and citations</p></div>
+                  </div>
+                  <div className="prose prose-invert prose-sm max-w-none prose-headings:text-white prose-headings:font-semibold prose-h2:text-lg prose-h2:mt-6 prose-h2:mb-3 prose-p:text-slate-300 prose-strong:text-white prose-li:text-slate-300 prose-a:text-purple-400" dangerouslySetInnerHTML={{ __html: previewText.replace(/\n/g, '<br>').replace(/^## (.*$)/gm, '<h2>$1</h2>').replace(/^### (.*$)/gm, '<h3>$1</h3>').replace(/^- (.*$)/gm, '<li>$1</li>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" target="_blank" rel="noreferrer">$1</a>') }} />
+                </div>
+                <div className="relative">
+                  <div className="h-32 bg-gradient-to-b from-transparent to-slate-900/95" />
+                  <div className="absolute inset-x-0 bottom-0 p-6 text-center">
+                    <p className="text-sm text-slate-400 mb-2">Full report includes: Competitor Deep Dive, Review Analysis, Keyword Gap Analysis, GBP Audit, Ad Landscape, and Opportunity Assessment</p>
+                    <p className="text-xs text-purple-400 font-medium">Included in the $27 action plan below</p>
+                  </div>
+                </div>
+              </div>
+            )
+          })()}
+
           {/* Missing Keywords */}
           {scanData.missing_keywords.length > 0 && (
             <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-6 mb-8">
@@ -364,10 +392,18 @@ export default function IntelPage() {
           {/* Upsell */}
           <div className="bg-gradient-to-br from-purple-600/90 via-indigo-600/80 to-purple-700/90 border border-purple-500/30 rounded-2xl p-8 sm:p-10 mb-8">
             <div className="max-w-lg mx-auto text-center">
-              <h2 className="text-2xl sm:text-3xl font-bold text-white mb-3">Your personalized 90-day action plan</h2>
-              <p className="text-purple-100/90 mb-6">6 prioritized steps built from <span className="font-semibold text-white">your</span> competitive data.{scanData.review_gap > 0 ? ` Close your ${scanData.review_gap}-review gap.` : ''}{scanData.missing_keywords_count > 0 ? ` Capture ${scanData.missing_keywords_count} missing keywords.` : ''} Start winning.</p>
+              <h2 className="text-2xl sm:text-3xl font-bold text-white mb-3">Your full competitive analysis + 90-day action plan</h2>
+              <p className="text-purple-100/90 mb-6">A complete analyst-level research report + 6 prioritized action steps, all built from <span className="font-semibold text-white">your</span> verified market data.{scanData.review_gap > 0 ? ` Close your ${scanData.review_gap}-review gap.` : ''}{scanData.missing_keywords_count > 0 ? ` Capture ${scanData.missing_keywords_count} missing keywords.` : ''} Start winning.</p>
               <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 mb-6 text-left">
-                <ul className="space-y-2 text-sm text-purple-100">{['6 steps prioritized by impact on your ranking','Every step references your real numbers','Covers reviews, keywords, ads, and Google profile','Delivered instantly + emailed to you','Money-back guarantee'].map((t,i) => <li key={i} className="flex items-start gap-2"><svg className="w-4 h-4 text-emerald-400 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>{t}</li>)}</ul>
+                <ul className="space-y-2.5 text-sm text-purple-100">{[
+                    'Full analyst-level research report with citations',
+                    '6 prioritized action steps built from your data',
+                    'Competitor deep dive — strengths, weaknesses, ad spend',
+                    'Keyword gap analysis with specific search terms',
+                    'Google Business Profile audit vs #1 competitor',
+                    'Delivered instantly + emailed to you',
+                    'Money-back guarantee',
+                  ].map((t,i) => <li key={i} className="flex items-start gap-2"><svg className="w-4 h-4 text-emerald-400 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>{t}</li>)}</ul>
               </div>
               <p className="text-xs text-purple-200/60 mb-4">Businesses spend $1,500+/mo on consultants for this.</p>
               <button onClick={handleCheckout} disabled={checkoutLoading} className="px-10 py-4 bg-white text-purple-700 font-bold rounded-xl hover:bg-purple-50 transition-colors shadow-xl disabled:opacity-50 text-lg">{checkoutLoading ? 'Opening checkout...' : 'Get my action plan — $27'}</button>

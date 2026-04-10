@@ -96,6 +96,7 @@ export async function GET() {
             radiusMiles: currentScan.radius_miles,
             scanData: currentScan.scan_data,
             researchSources: currentScan.research_sources,
+            researchReport: currentScan.research_report || null,
             actionPlan: currentScan.action_plan,
             createdAt: currentScan.created_at,
           }

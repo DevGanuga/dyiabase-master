@@ -1,10 +1,10 @@
 /**
- * Intel Research Agent — uses OpenAI Responses API with o4-mini-deep-research.
+ * Intel Research Agent — uses OpenAI deep research to produce a comprehensive
+ * competitive intelligence report with narrative analysis + structured data.
  *
- * Deep research runs can take several minutes. This module is designed for
- * serverless: startResearch() kicks off the job and returns instantly,
- * checkResearch() polls OpenAI once per call and returns the current status.
- * The frontend polls /api/intel/scan/status until the job completes.
+ * Architecture: the deep research model produces a FULL NARRATIVE REPORT
+ * (like a research analyst would write) with a structured JSON block at the end.
+ * We store both the narrative and the extracted data.
  */
 
 import OpenAI from 'openai'
@@ -49,37 +49,108 @@ export interface IntelAgentInput {
 
 export interface IntelAgentResult {
   scanData: IntelScanData
+  researchReport: string
   researchSources: IntelResearchSource[]
   responseId: string
   model: string
 }
 
-const DEEP_RESEARCH_INSTRUCTIONS = `You are a competitive intelligence researcher for local service businesses. Your job is to produce ACCURATE data that a business owner will trust. Inaccurate data destroys credibility — every number must be grounded in what you actually find on the web.
+const DEEP_RESEARCH_INSTRUCTIONS = `You are a competitive intelligence analyst producing a professional market research report for a local service business owner.
 
-CRITICAL RULES:
-- You MUST search for the target business by name and verify its Google review count by opening its Google Business Profile or Google Maps listing page. Do NOT guess review counts.
-- You MUST search for each competitor individually and verify their review counts from their actual Google listings. Do NOT estimate review counts — open the page and read the number.
-- If you cannot find a verified review count for a business, set it to 0 and note that in gbp_gaps.
-- NEVER invent or hallucinate competitor names, review counts, or rankings. Every data point must come from a web search result you actually retrieved.
+ACCURACY IS CRITICAL:
+- You MUST search for every business by name and open their Google Business Profile or Google Maps page to verify their exact review count. Do NOT estimate or guess review counts.
+- Every competitor name, review count, and data point must come from an actual web search result.
+- If you cannot verify a number, say so explicitly rather than inventing one.
 
-Research workflow:
-1. Search for the target business name + city/state. Open their Google Business Profile or Google Maps page. Record their exact review count and profile details (hours, photos, posts, categories, description).
-2. Search for the industry + location (e.g. "junk removal Houston TX"). Identify the top businesses that appear in search results and Google Maps.
-3. For EACH competitor found, search for their name individually and record their actual Google review count from their listing page. Do not estimate — verify.
-4. Rank all businesses (including the target) by review count and Maps visibility. The business with the most reviews + best visibility = rank 1.
-5. Search for 10-15 commercial-intent local keywords (e.g. "junk removal near [zip]", "[service] [city]") and note which businesses appear vs which do not.
-6. Compare the target business GBP profile to the #1 competitor — note specific missing elements.
-7. Note which competitors appear in Google Ads sponsored results.
+Your output must have TWO parts:
 
-Output rules:
-- Every field must be present with a real value. No nulls.
-- review_count_mine MUST be the actual verified Google review count, not a guess.
-- top_competitors must contain exactly 5 real businesses sorted by rank. Include the target business itself at its correct position.
-- review_count_leader must equal the reviews of the #1 ranked competitor.
-- missing_keywords: up to 15 specific local search terms.
-- gbp_gaps: specific actionable items (e.g. "Missing business description", "No photos uploaded", "No recent Google Posts").
-- gap_scores: reviews_pct = (target reviews / leader reviews) * 100 capped at 100.
-- Output only a single JSON object. No prose, no markdown, no code fences.`
+PART 1 — NARRATIVE RESEARCH REPORT (in markdown):
+Write a comprehensive, analytical report that a business owner would find genuinely valuable. Include:
+
+## Executive Summary
+A 3-4 sentence overview of the business's competitive position, biggest threats, and top opportunity.
+
+## Market Overview
+- Total number of competitors found in the service area
+- Market saturation assessment (undersaturated, competitive, or oversaturated)
+- Key trends in this local market (growing demand, new entrants, pricing pressure, etc.)
+
+## Competitor Deep Dive
+For each of the top 5 competitors, include:
+- Business name and verified Google review count (cite where you found it)
+- Their apparent strengths (what they do well online)
+- Their weaknesses (gaps you identified)
+- Estimated monthly ad spend and whether they run Google Ads
+
+## Review Analysis
+- The target business's verified review count vs the market leader
+- Review velocity comparison (if observable — are competitors getting reviews faster?)
+- Review quality observations (average star rating if visible)
+- Specific recommendations for closing the review gap
+
+## Keyword & SEO Gap Analysis
+- List specific keywords competitors rank for that the target business does not
+- For each keyword, note which competitor(s) appear and where the target business is missing
+- Local SEO observations (Maps pack positioning, organic ranking signals)
+
+## Google Business Profile Audit
+- Specific gaps in the target business's GBP vs the top competitor
+- Each gap should be actionable (e.g., "Missing: business description with service keywords", "No Google Posts in the last 30 days")
+
+## Advertising Landscape
+- Which competitors are running Google Ads in this market
+- Estimated monthly spend levels
+- Ad copy patterns or positioning observations
+
+## Market Positioning Analysis
+- Where the target business sits in the market (challenger, established, new entrant, dominant, or niche)
+- What positioning the top competitors use (price leader, premium, fastest response, most reviews, widest coverage)
+- Gaps in the market that the target business could exploit
+- Service area overlap with top competitors
+
+## Pricing & Value Signals
+- Any pricing information visible from competitor websites or ads
+- How competitors position their pricing (free estimates, flat rate, hourly, by-the-load)
+- Whether the target business's pricing positioning is competitive based on available evidence
+
+## Opportunity Assessment
+- Top 3 highest-impact actions the business should take immediately, ranked by effort vs. impact
+- Expected timeline to see results for each action (e.g., "2-4 weeks for review velocity improvement")
+- What the business is doing well that should be maintained and leveraged
+- Specific competitive advantages the business has over at least one competitor
+
+## Bottom Line
+A direct, honest 2-3 sentence assessment: what is the single most important thing this business should do in the next 30 days to improve their competitive position, and why.
+
+PART 2 — STRUCTURED DATA (as a JSON code block at the very end):
+After the narrative report, include a JSON code block with this exact schema:
+
+\`\`\`json
+{
+  "local_rank": <integer>,
+  "total_competitors": <integer>,
+  "review_count_mine": <integer — VERIFIED from Google>,
+  "review_count_leader": <integer — VERIFIED from Google>,
+  "review_gap": <integer>,
+  "missing_keywords": [<up to 15 strings>],
+  "missing_keywords_count": <integer>,
+  "competitor_ad_spend_avg": <integer>,
+  "top_competitors": [
+    {"name": "<verified name>", "reviews": <verified integer>, "estimated_ad_spend": <integer>, "rank": <integer>}
+  ],
+  "gbp_gaps": [<specific actionable strings>],
+  "gap_scores": {
+    "reviews_pct": <0-100>,
+    "keywords_pct": <0-100>,
+    "ads_pct": <0-100>,
+    "gbp_pct": <0-100>
+  },
+  "scan_date": "<today's date ISO>",
+  "target_zip_codes": [<3 strings>]
+}
+\`\`\`
+
+Include inline citations throughout the narrative using [source title](url) format.`
 
 function buildResearchInput(input: IntelAgentInput): string {
   const location = [input.city, input.state].filter(Boolean).join(', ')
@@ -87,60 +158,32 @@ function buildResearchInput(input: IntelAgentInput): string {
   const servicesList = input.mainServices?.length ? input.mainServices.join(', ') : input.industry
 
   const lines: string[] = [
-    '# Competitive Intelligence Research Brief',
-    '',
-    '## Target Business',
-    `- Business name: ${input.businessName}`,
-    `- Industry: ${input.industry}`,
-    `- Location: ${locationLabel} (zip: ${input.zipCode})`,
-    `- Search radius: ${input.radiusMiles} miles`,
-    `- Website: ${input.websiteUrl || 'Not provided'}`,
+    `Produce a full competitive intelligence report for this local service business:`,
+    ``,
+    `Business: ${input.businessName}`,
+    `Industry: ${input.industry}`,
+    `Location: ${locationLabel} (zip: ${input.zipCode})`,
+    `Search radius: ${input.radiusMiles} miles`,
+    `Website: ${input.websiteUrl || 'Not provided'}`,
   ]
 
-  if (input.googleBusinessUrl) lines.push(`- Google Business Profile: ${input.googleBusinessUrl}`)
-  if (input.phone) lines.push(`- Phone: ${input.phone}`)
-  if (input.mainServices?.length) lines.push(`- Services offered: ${servicesList}`)
-  if (input.yearsInBusiness) lines.push(`- Years in business: ${input.yearsInBusiness}`)
-  if (input.teamSize) lines.push(`- Team size: ${input.teamSize}`)
+  if (input.googleBusinessUrl) lines.push(`Google Business Profile: ${input.googleBusinessUrl}`)
+  if (input.phone) lines.push(`Phone: ${input.phone}`)
+  if (input.mainServices?.length) lines.push(`Services: ${servicesList}`)
+  if (input.yearsInBusiness) lines.push(`Years in business: ${input.yearsInBusiness}`)
+  if (input.teamSize) lines.push(`Team size: ${input.teamSize}`)
 
   lines.push(
-    '',
-    '## Exact Searches to Perform',
-    `1. Search: "${input.businessName}" ${locationLabel} — open the Google Maps/GBP listing and record the EXACT review count. This is review_count_mine.`,
-    `2. Search: "${input.industry} ${locationLabel}" and "${input.industry} near ${input.zipCode}" — identify real businesses from the results.`,
-    `3. For each competitor found, search their name individually (e.g. "CompetitorName ${locationLabel}") and open their Google listing to record their EXACT review count. Do NOT guess.`,
-    '4. Rank all businesses by reviews + visibility. #1 = most reviews + best visibility.',
-    `5. Search these keywords and note which businesses appear: "${input.industry} ${locationLabel}", "${input.industry} near me", "${servicesList} ${locationLabel}", "best ${input.industry} ${locationLabel}", "cheap ${input.industry} ${locationLabel}", "${input.industry} reviews ${locationLabel}"`,
-    '6. Compare target GBP profile to #1 competitor — note missing: hours, photos, posts, description, categories, Q&A, service areas.',
-    `7. Search "${input.industry} ${locationLabel}" and note any sponsored/ad results.`,
-    `8. Identify 3 nearby zip codes to ${input.zipCode} with high population/commercial activity.`,
-    '9. Calculate gap_scores: reviews_pct = (review_count_mine / review_count_leader) * 100, capped at 100.',
-    '',
-    '## JSON Schema',
-    '{',
-    '  "local_rank": <integer>,',
-    '  "total_competitors": <integer>,',
-    '  "review_count_mine": <integer>,',
-    '  "review_count_leader": <integer>,',
-    '  "review_gap": <integer>,',
-    '  "missing_keywords": <string[] up to 15>,',
-    '  "missing_keywords_count": <integer>,',
-    '  "competitor_ad_spend_avg": <integer>,',
-    '  "top_competitors": [',
-    '    { "name": "<real business name>", "reviews": <integer>, "estimated_ad_spend": <integer>, "rank": <integer> }',
-    '  ],',
-    '  "gbp_gaps": <string[]>,',
-    '  "gap_scores": {',
-    '    "reviews_pct": <integer 0-100>,',
-    '    "keywords_pct": <integer 0-100>,',
-    '    "ads_pct": <integer 0-100>,',
-    '    "gbp_pct": <integer 0-100>',
-    '  },',
-    `  "scan_date": "${new Date().toISOString().slice(0, 10)}",`,
-    '  "target_zip_codes": <string[] exactly 3>',
-    '}',
-    '',
-    'Return only the JSON object. No prose. No markdown. No code fences.',
+    ``,
+    `Research requirements:`,
+    `1. Search for "${input.businessName}" in ${locationLabel} and VERIFY their exact Google review count from their actual listing.`,
+    `2. Search "${input.industry} ${locationLabel}" and "${input.industry} near ${input.zipCode}" to find competitors.`,
+    `3. For each competitor, verify their review count from their actual Google listing.`,
+    `4. Search commercial keywords like "${input.industry} ${locationLabel}", "best ${input.industry} ${locationLabel}", "${servicesList} near ${input.zipCode}" and note which businesses appear.`,
+    `5. Check for Google Ads in "${input.industry} ${locationLabel}" results.`,
+    `6. Produce the full narrative report + JSON data block as specified in the instructions.`,
+    ``,
+    `Today's date for scan_date: ${new Date().toISOString().slice(0, 10)}`,
   )
 
   return lines.join('\n')
@@ -148,10 +191,6 @@ function buildResearchInput(input: IntelAgentInput): string {
 
 // ── Public API ──────────────────────────────────────────────────────
 
-/**
- * Kick off a deep research job. Returns the OpenAI response ID immediately.
- * The caller stores this ID and the frontend polls checkResearch().
- */
 export async function startResearch(input: IntelAgentInput): Promise<string> {
   const openai = getOpenAI()
 
@@ -160,8 +199,11 @@ export async function startResearch(input: IntelAgentInput): Promise<string> {
     instructions: DEEP_RESEARCH_INSTRUCTIONS,
     input: buildResearchInput(input),
     background: true,
-    tools: [{ type: 'web_search_preview' }],
-    max_tool_calls: 15,
+    tools: [
+      { type: 'web_search_preview' },
+      { type: 'code_interpreter', container: { type: 'auto' } },
+    ],
+    max_tool_calls: 25,
   }) as ResponseLike
 
   return response.id
@@ -172,10 +214,6 @@ export type ResearchStatus =
   | { done: true; result: IntelAgentResult }
   | { done: true; error: string }
 
-/**
- * Check the status of a running deep research job. Each call is a single
- * OpenAI retrieve — no polling loop, no long-lived function.
- */
 export async function checkResearch(responseId: string): Promise<ResearchStatus> {
   const openai = getOpenAI()
   const response = await openai.responses.retrieve(responseId) as unknown as ResponseLike
@@ -191,60 +229,70 @@ export async function checkResearch(responseId: string): Promise<ResearchStatus>
   if (response.status === 'incomplete') {
     const text = extractResponseText(response)
     if (text) {
-      try {
-        return { done: true, result: buildResult(response) }
-      } catch {
-        // Output exists but wasn't parseable — still not done, treat as in-progress
-        // so the caller can retry or the user sees a meaningful error
-      }
+      try { return { done: true, result: buildResult(response) } }
+      catch { /* fall through */ }
     }
-    return { done: true, error: `Research ended early (${response.incomplete_details?.reason || 'unknown reason'}). Please try again.` }
+    return { done: true, error: `Research ended early (${response.incomplete_details?.reason || 'unknown'}). Please try again.` }
   }
 
-  // status === 'completed'
   const text = extractResponseText(response)
-  if (!text) {
-    return { done: true, error: 'Research completed but returned empty output' }
-  }
+  if (!text) return { done: true, error: 'Research completed but returned empty output' }
 
-  try {
-    return { done: true, result: buildResult(response) }
-  } catch (err) {
-    return { done: true, error: err instanceof Error ? err.message : 'Failed to parse research output' }
-  }
+  try { return { done: true, result: buildResult(response) } }
+  catch (err) { return { done: true, error: err instanceof Error ? err.message : 'Failed to parse research output' } }
 }
 
 // ── Internal helpers ────────────────────────────────────────────────
 
 function buildResult(response: ResponseLike): IntelAgentResult {
-  const responseText = extractResponseText(response)
-  const parsedJson = parseJsonObject(responseText)
+  const fullText = extractResponseText(response)
+  const { narrative, jsonBlock } = splitReportAndJson(fullText)
+  const parsedJson = parseJsonObject(jsonBlock)
   const researchSources = extractSources(response)
 
   return {
     scanData: normalizeScanData(parsedJson),
+    researchReport: narrative,
     researchSources,
     responseId: response.id,
     model: INTEL_MODEL,
   }
 }
 
-function stripCodeFences(text: string): string {
-  const trimmed = text.trim()
-  if (!trimmed.startsWith('```')) return trimmed
-  return trimmed.replace(/^```(?:json)?\s*/, '').replace(/\s*```$/, '').trim()
+function splitReportAndJson(text: string): { narrative: string; jsonBlock: string } {
+  // Look for the last JSON code block in the output
+  const jsonMatch = text.match(/```json\s*([\s\S]*?)```\s*$/)
+  if (jsonMatch) {
+    const jsonBlock = jsonMatch[1].trim()
+    const narrative = text.slice(0, jsonMatch.index).trim()
+    return { narrative, jsonBlock }
+  }
+
+  // Fallback: find the last { ... } block
+  const lastBrace = text.lastIndexOf('}')
+  if (lastBrace === -1) return { narrative: text, jsonBlock: '{}' }
+
+  let depth = 0
+  let start = lastBrace
+  for (let i = lastBrace; i >= 0; i--) {
+    if (text[i] === '}') depth++
+    if (text[i] === '{') depth--
+    if (depth === 0) { start = i; break }
+  }
+
+  return {
+    narrative: text.slice(0, start).trim(),
+    jsonBlock: text.slice(start, lastBrace + 1),
+  }
 }
 
 function parseJsonObject(text: string): unknown {
-  const cleaned = stripCodeFences(text)
-  try {
-    return JSON.parse(cleaned)
-  } catch {
+  const cleaned = text.trim()
+  try { return JSON.parse(cleaned) }
+  catch {
     const first = cleaned.indexOf('{')
     const last = cleaned.lastIndexOf('}')
-    if (first === -1 || last === -1 || last <= first) {
-      throw new Error('Intel research did not return parseable JSON')
-    }
+    if (first === -1 || last === -1 || last <= first) throw new Error('No parseable JSON found in research output')
     return JSON.parse(cleaned.slice(first, last + 1))
   }
 }
@@ -325,6 +373,3 @@ function normalizeScanData(raw: unknown): IntelScanData {
     target_zip_codes: zips,
   }
 }
-
-
-
