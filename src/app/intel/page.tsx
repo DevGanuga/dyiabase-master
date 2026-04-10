@@ -174,7 +174,11 @@ export default function IntelPage() {
           </div>
           <form onSubmit={handleFormSubmit} className="space-y-4 bg-slate-800/50 border border-slate-700/50 rounded-2xl p-6 sm:p-8">
             <div><label className="block text-sm font-medium text-slate-300 mb-1.5">Business name *</label><input type="text" required value={businessName} onChange={e => setBusinessName(e.target.value)} className={IC} placeholder="e.g. Quick Haul Junk Removal" /></div>
-            <div><label className="block text-sm font-medium text-slate-300 mb-1.5">Website URL <span className="text-slate-500">(optional)</span></label><input type="url" value={websiteUrl} onChange={e => setWebsiteUrl(e.target.value)} className={IC} placeholder="https://www.yourbusiness.com" /></div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><label className="block text-sm font-medium text-slate-300 mb-1.5">Website URL <span className="text-slate-500">(optional)</span></label><input type="url" value={websiteUrl} onChange={e => setWebsiteUrl(e.target.value)} className={IC} placeholder="https://yourbusiness.com" /></div>
+              <div><label className="block text-sm font-medium text-slate-300 mb-1.5">Google review link <span className="text-slate-500">(recommended)</span></label><input type="url" value={googleBusinessUrl} onChange={e => setGoogleBusinessUrl(e.target.value)} className={IC} placeholder="https://g.co/kgs/..." /></div>
+            </div>
+            <p className="text-[11px] text-slate-500 -mt-2">Adding your Google review link helps us find your exact listing and get accurate review counts.</p>
             <div className="grid grid-cols-3 gap-3">
               <div><label className="block text-sm font-medium text-slate-300 mb-1.5">Zip code *</label><input type="text" required maxLength={5} pattern="\d{5}" value={zipCode} onChange={e => setZipCode(e.target.value.replace(/\D/g, '').slice(0, 5))} className={IC} placeholder="77001" /></div>
               <div><label className="block text-sm font-medium text-slate-300 mb-1.5">Industry *</label><select required value={industry} onChange={e => setIndustry(e.target.value)} className={IC}><option value="">Select</option>{INTEL_INDUSTRIES.map(i => <option key={i} value={i}>{i}</option>)}</select></div>
@@ -209,7 +213,6 @@ export default function IntelPage() {
               <details className="group"><summary className="text-xs text-purple-400 cursor-pointer hover:text-purple-300 py-1">Help us find your business faster (optional)</summary>
                 <div className="space-y-3 mt-3 pt-3 border-t border-slate-700/50">
                   <div className="grid grid-cols-2 gap-3"><input type="text" value={city} onChange={e => setCity(e.target.value)} className={IC} placeholder="City" /><input type="text" value={usState} onChange={e => setUsState(e.target.value.toUpperCase().slice(0, 2))} className={IC} placeholder="State (e.g. TX)" maxLength={2} /></div>
-                  <input type="url" value={googleBusinessUrl} onChange={e => setGoogleBusinessUrl(e.target.value)} className={IC} placeholder="Google Business Profile URL" />
                   <input type="text" value={mainServices} onChange={e => setMainServices(e.target.value)} className={IC} placeholder="Main services (comma-separated)" />
                 </div>
               </details>

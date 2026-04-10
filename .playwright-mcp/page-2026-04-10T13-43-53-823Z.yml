@@ -1,0 +1,334 @@
+- generic [ref=e1]:
+  - generic [active]:
+    - generic [ref=e293]:
+      - generic [ref=e294]:
+        - generic [ref=e295]:
+          - navigation [ref=e296]:
+            - button "previous" [disabled] [ref=e297]:
+              - img "previous" [ref=e298]
+            - generic [ref=e300]:
+              - generic [ref=e301]: 1/
+              - text: "1"
+            - button "next" [disabled] [ref=e302]:
+              - img "next" [ref=e303]
+          - img
+        - generic [ref=e305]:
+          - link "Next.js 16.1.4 (stale) Turbopack" [ref=e306] [cursor=pointer]:
+            - /url: https://nextjs.org/docs/messages/version-staleness
+            - img [ref=e307]
+            - generic "There is a newer version (16.2.3) available, upgrade recommended!" [ref=e309]: Next.js 16.1.4 (stale)
+            - generic [ref=e310]: Turbopack
+          - img
+      - generic [ref=e311]:
+        - dialog "Console Error" [ref=e312]:
+          - generic [ref=e315]:
+            - generic [ref=e316]:
+              - generic [ref=e317]:
+                - generic [ref=e319]: Console Error
+                - generic [ref=e320]:
+                  - button "Copy Error Info" [ref=e321] [cursor=pointer]:
+                    - img [ref=e322]
+                  - button "No related documentation found" [disabled] [ref=e324]:
+                    - img [ref=e325]
+                  - button "Attach Node.js inspector" [ref=e327] [cursor=pointer]:
+                    - img [ref=e328]
+              - generic [ref=e337]: "Error updating quote status: {}"
+            - generic [ref=e338]:
+              - generic [ref=e339]:
+                - paragraph [ref=e341]:
+                  - img [ref=e343]
+                  - generic [ref=e346]: src/components/app/Quotes.tsx (132:15) @ updateQuoteStatus
+                  - button "Open in editor" [ref=e347] [cursor=pointer]:
+                    - img [ref=e349]
+                - generic [ref=e352]:
+                  - generic [ref=e353]: "130 | }"
+                  - generic [ref=e354]: "131 | } catch (error) {"
+                  - generic [ref=e355]: "> 132 | console.error('Error updating quote status:', error)"
+                  - generic [ref=e356]: "| ^"
+                  - generic [ref=e357]: "133 | await alert({ title: 'Error', message: 'Failed to update quote status.', variant: 'error' })"
+                  - generic [ref=e358]: "134 | }"
+                  - generic [ref=e359]: "135 | }"
+              - generic [ref=e360]:
+                - generic [ref=e361]:
+                  - paragraph [ref=e362]:
+                    - text: Call Stack
+                    - generic [ref=e363]: "4"
+                  - button "Show 3 ignore-listed frame(s)" [ref=e364] [cursor=pointer]:
+                    - text: Show 3 ignore-listed frame(s)
+                    - img [ref=e365]
+                - generic [ref=e367]:
+                  - generic [ref=e368]:
+                    - text: updateQuoteStatus
+                    - button "Open updateQuoteStatus in editor" [ref=e369] [cursor=pointer]:
+                      - img [ref=e370]
+                  - text: src/components/app/Quotes.tsx (132:15)
+          - generic [ref=e372]: "1"
+          - generic [ref=e373]: "2"
+        - contentinfo [ref=e374]:
+          - region "Error feedback" [ref=e375]:
+            - paragraph [ref=e376]:
+              - link "Was this helpful?" [ref=e377] [cursor=pointer]:
+                - /url: https://nextjs.org/telemetry#error-feedback
+            - button "Mark as helpful" [ref=e378] [cursor=pointer]:
+              - img [ref=e379]
+            - button "Mark as not helpful" [ref=e382] [cursor=pointer]:
+              - img [ref=e383]
+    - generic [ref=e11] [cursor=pointer]:
+      - button "Open Next.js Dev Tools" [ref=e12]:
+        - img [ref=e13]
+      - generic [ref=e272]:
+        - button "Open issues overlay" [ref=e273]:
+          - generic [ref=e274]:
+            - generic [ref=e275]: "0"
+            - generic [ref=e276]: "1"
+          - generic [ref=e277]: Issue
+        - button "Collapse issues badge" [ref=e278]:
+          - img [ref=e279]
+  - alert [ref=e16]
+  - generic [ref=e17]:
+    - generic [ref=e18]:
+      - text: Demo Mode — Sample data only, nothing is saved.
+      - button "Exit" [ref=e19]
+    - complementary [ref=e20]:
+      - link "dyia Beta" [ref=e22] [cursor=pointer]:
+        - /url: /
+        - img "dyia" [ref=e23]
+        - generic [ref=e24]: Beta
+      - button "Create new item" [ref=e26]:
+        - generic [ref=e27]:
+          - img
+          - generic [ref=e28]: Create
+        - generic [ref=e29]:
+          - img
+      - navigation [ref=e30]:
+        - generic [ref=e31]:
+          - generic [ref=e32]: Work
+          - generic [ref=e33]:
+            - button "Home" [ref=e34]:
+              - generic:
+                - img
+              - generic [ref=e35]: Home
+            - button "Jobs" [ref=e36]:
+              - generic:
+                - img
+              - generic [ref=e37]: Jobs
+            - button "Quotes" [ref=e38]:
+              - generic:
+                - img
+              - generic [ref=e39]: Quotes
+            - button "Profit Calculator" [ref=e40]:
+              - generic:
+                - img
+              - generic [ref=e41]: Profit Calculator
+            - button "Follow-ups" [ref=e42]:
+              - generic:
+                - img
+              - generic [ref=e43]: Follow-ups
+            - button "Calendar" [ref=e44]:
+              - generic:
+                - img
+              - generic [ref=e45]: Calendar
+        - generic [ref=e46]:
+          - generic [ref=e47]: Customers
+          - generic [ref=e48]:
+            - button "Customers" [ref=e49]:
+              - generic:
+                - img
+              - generic [ref=e50]: Customers
+            - button "Payments" [ref=e51]:
+              - generic:
+                - img
+              - generic [ref=e52]: Payments
+            - button "Email Blast" [ref=e53]:
+              - generic:
+                - img
+              - generic [ref=e54]: Email Blast
+        - generic [ref=e55]:
+          - generic [ref=e56]: Insights
+          - generic [ref=e57]:
+            - button "Reports" [ref=e58]:
+              - generic:
+                - img
+              - generic [ref=e59]: Reports
+            - button "Intel" [ref=e60]:
+              - generic:
+                - img
+              - generic [ref=e61]: Intel
+            - button "Marketing" [ref=e62]:
+              - generic:
+                - img
+              - generic [ref=e63]: Marketing
+            - button "Dyia AI Ask Dyia" [ref=e64]:
+              - generic:
+                - img "Dyia AI"
+              - generic [ref=e65]: Ask Dyia
+      - button "Settings" [ref=e67]:
+        - generic [ref=e68]:
+          - img
+        - generic [ref=e69]: Settings
+    - main [ref=e70]:
+      - generic [ref=e72]:
+        - button "Switch to dark mode" [ref=e73]:
+          - img [ref=e74]
+        - link "Help & Support" [ref=e76] [cursor=pointer]:
+          - /url: /support
+          - img [ref=e77]
+        - button "User menu" [ref=e81]:
+          - generic [ref=e83]: D
+          - img [ref=e84]
+      - generic [ref=e88]:
+        - generic [ref=e89]:
+          - generic [ref=e90]:
+            - heading "Quotes" [level=1] [ref=e91]
+            - paragraph [ref=e92]: 5 estimates total
+          - button "New Quote" [ref=e94]:
+            - img [ref=e95]
+            - text: New Quote
+        - alert [ref=e97]:
+          - generic [ref=e98]: Insight unavailable
+          - generic [ref=e99]: Unauthorized
+        - generic [ref=e100]:
+          - generic [ref=e101]:
+            - img [ref=e102]
+            - textbox "Search by customer..." [ref=e104]
+          - generic [ref=e105]:
+            - button "All (5)" [ref=e106] [cursor=pointer]
+            - button "Draft (1)" [ref=e107] [cursor=pointer]
+            - button "Sent (3)" [ref=e108] [cursor=pointer]
+            - button "Accepted (1)" [ref=e109] [cursor=pointer]
+        - generic [ref=e110]:
+          - generic [ref=e111]:
+            - generic [ref=e112]:
+              - generic [ref=e113]:
+                - heading "Lisa Chen" [level=3] [ref=e114]
+                - paragraph [ref=e115]: Apr 9, 2026
+              - generic [ref=e116]: Sent
+            - generic [ref=e118]: $350 - $450
+            - generic [ref=e119]:
+              - paragraph [ref=e120]: (555) 234-5678
+              - paragraph [ref=e121]: 892 Oak Ave
+            - generic [ref=e122]:
+              - generic [ref=e123]:
+                - button "Accepted" [ref=e124]
+                - button "Declined" [ref=e125]
+                - button "Request Payment" [ref=e126]
+              - generic [ref=e127]:
+                - generic [ref=e128]:
+                  - button "Edit quote" [ref=e129]:
+                    - img [ref=e130]
+                  - button "Link to job" [ref=e132]:
+                    - img [ref=e133]
+                - generic [ref=e136]:
+                  - button "Download PDF" [ref=e137]:
+                    - img [ref=e138]
+                  - button "Delete" [ref=e140]:
+                    - img [ref=e141]
+          - generic [ref=e143]:
+            - generic [ref=e144]:
+              - generic [ref=e145]:
+                - heading "Kevin Park" [level=3] [ref=e146]
+                - paragraph [ref=e147]: Apr 8, 2026
+              - generic [ref=e148]: Draft
+            - generic [ref=e150]: $600 - $800
+            - generic [ref=e151]:
+              - paragraph [ref=e152]: (555) 567-8901
+              - paragraph [ref=e153]: 88 Birch Ln
+            - generic [ref=e154]:
+              - generic [ref=e155]:
+                - button "Mark Sent" [ref=e156]
+                - button "Accepted" [ref=e157]
+              - generic [ref=e158]:
+                - generic [ref=e159]:
+                  - button "Edit quote" [ref=e160]:
+                    - img [ref=e161]
+                  - button "Link to job" [ref=e163]:
+                    - img [ref=e164]
+                - generic [ref=e167]:
+                  - button "Download PDF" [ref=e168]:
+                    - img [ref=e169]
+                  - button "Delete" [ref=e171]:
+                    - img [ref=e172]
+          - generic [ref=e174]:
+            - generic [ref=e175]:
+              - generic [ref=e176]:
+                - heading "Robert Hayes" [level=3] [ref=e177]
+                - paragraph [ref=e178]: Apr 6, 2026
+              - generic [ref=e179]: Sent
+            - generic [ref=e181]: $500 - $700
+            - generic [ref=e182]:
+              - paragraph [ref=e183]: (555) 345-6789
+              - paragraph [ref=e184]: 1420 Elm St
+            - generic [ref=e185]:
+              - generic [ref=e186]:
+                - button "Accepted" [ref=e187]
+                - button "Declined" [ref=e188]
+                - button "Request Payment" [ref=e189]
+              - generic [ref=e190]:
+                - generic [ref=e191]:
+                  - button "Edit quote" [ref=e192]:
+                    - img [ref=e193]
+                  - button "Link to job" [ref=e195]:
+                    - img [ref=e196]
+                - generic [ref=e199]:
+                  - button "Download PDF" [ref=e200]:
+                    - img [ref=e201]
+                  - button "Delete" [ref=e203]:
+                    - img [ref=e204]
+          - generic [ref=e206]:
+            - generic [ref=e207]:
+              - generic [ref=e208]:
+                - heading "Johnson Family" [level=3] [ref=e209]
+                - paragraph [ref=e210]: Apr 4, 2026
+              - generic [ref=e211]: Accepted
+            - generic [ref=e213]: $400 - $500
+            - generic [ref=e214]:
+              - paragraph [ref=e215]: (555) 678-9012
+              - paragraph [ref=e216]: 1200 Maple Dr
+            - generic [ref=e217]:
+              - generic [ref=e218]:
+                - img [ref=e219]
+                - text: Johnson Family
+              - button "Unlink from job" [ref=e222]:
+                - img [ref=e223]
+            - generic [ref=e225]:
+              - button "Request Payment" [ref=e227]
+              - generic [ref=e228]:
+                - button "Edit quote" [ref=e230]:
+                  - img [ref=e231]
+                - generic [ref=e233]:
+                  - button "Download PDF" [ref=e234]:
+                    - img [ref=e235]
+                  - button "Delete" [ref=e237]:
+                    - img [ref=e238]
+          - generic [ref=e240]:
+            - generic [ref=e241]:
+              - generic [ref=e242]:
+                - heading "Amanda Torres" [level=3] [ref=e243]
+                - paragraph [ref=e244]: Apr 1, 2026
+              - generic [ref=e245]: Sent
+            - generic [ref=e247]: $275 - $375
+            - generic [ref=e248]:
+              - paragraph [ref=e249]: (555) 456-7890
+              - paragraph [ref=e250]: 305 Pine Rd
+            - generic [ref=e251]:
+              - generic [ref=e252]:
+                - button "Accepted" [ref=e253]
+                - button "Declined" [ref=e254]
+                - button "Request Payment" [ref=e255]
+              - generic [ref=e256]:
+                - generic [ref=e257]:
+                  - button "Edit quote" [ref=e258]:
+                    - img [ref=e259]
+                  - button "Link to job" [ref=e261]:
+                    - img [ref=e262]
+                - generic [ref=e265]:
+                  - button "Download PDF" [ref=e266]:
+                    - img [ref=e267]
+                  - button "Delete" [ref=e269]:
+                    - img [ref=e270]
+  - alertdialog "Error" [ref=e283]:
+    - generic [ref=e284]:
+      - generic [ref=e286]: ❌
+      - heading "Error" [level=3] [ref=e287]
+      - paragraph [ref=e288]: Failed to update quote status.
+      - button "OK" [ref=e290]

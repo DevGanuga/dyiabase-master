@@ -1,0 +1,829 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - navigation [ref=e6]:
+      - generic [ref=e8]:
+        - link "dyia" [ref=e9] [cursor=pointer]:
+          - /url: /
+          - img "dyia" [ref=e10]
+        - generic [ref=e11]:
+          - link "Dashboard" [ref=e12] [cursor=pointer]:
+            - /url: /app
+          - button "Start Free" [ref=e13]
+    - main [ref=e14]:
+      - generic [ref=e17]:
+        - generic [ref=e18]:
+          - generic [ref=e19]:
+            - generic [ref=e20]: AI-powered business intelligence
+            - generic [ref=e24]: New
+          - heading "Know your real profit." [level=1] [ref=e25]:
+            - text: Know your
+            - text: real profit.
+          - paragraph [ref=e26]: The AI-powered business manager for service pros. Track jobs, build quotes, manage customers, and finally know what you actually take home.
+          - generic [ref=e27]:
+            - button "Start Free — 14 Day Trial" [ref=e28]:
+              - text: Start Free — 14 Day Trial
+              - img [ref=e29]
+            - link "See how it works" [ref=e31] [cursor=pointer]:
+              - /url: "#ai"
+          - generic [ref=e32]:
+            - generic [ref=e33]:
+              - img [ref=e34]
+              - text: 14-day free trial
+            - generic [ref=e36]:
+              - img [ref=e37]
+              - text: Cancel anytime
+            - generic [ref=e39]:
+              - img [ref=e40]
+              - text: Works on any device
+        - generic [ref=e45]:
+          - generic [ref=e52]:
+            - img [ref=e53]
+            - generic [ref=e55]: dyia.io
+          - generic [ref=e56]:
+            - generic [ref=e57]:
+              - img [ref=e60]
+              - img [ref=e63]
+              - img [ref=e66]
+              - img [ref=e69]
+              - img [ref=e72]
+              - img [ref=e75]
+            - generic [ref=e78]:
+              - generic [ref=e79]:
+                - generic [ref=e80]:
+                  - paragraph [ref=e81]: Good morning, Marcus
+                  - paragraph [ref=e82]: 12 jobs this month, $8,640 revenue
+                - generic [ref=e83]:
+                  - generic [ref=e84]:
+                    - img [ref=e85]
+                    - text: Log Job
+                  - generic [ref=e87]: New Quote
+              - generic [ref=e88]:
+                - generic [ref=e89]:
+                  - generic [ref=e90]:
+                    - img [ref=e92]
+                    - generic [ref=e94]:
+                      - paragraph [ref=e95]: Your Day
+                      - paragraph [ref=e96]: Wed, Mar 11
+                  - generic [ref=e97]:
+                    - generic [ref=e98]:
+                      - generic [ref=e99]:
+                        - paragraph [ref=e100]: Revenue
+                        - paragraph [ref=e101]: $520
+                      - generic [ref=e102]:
+                        - paragraph [ref=e103]: Profit
+                        - paragraph [ref=e104]: $354
+                    - generic [ref=e105]:
+                      - img [ref=e107]
+                      - generic [ref=e109]: Mike R.
+                      - generic [ref=e110]: $520
+                - generic [ref=e111]:
+                  - generic [ref=e112]:
+                    - paragraph [ref=e113]: March
+                    - paragraph [ref=e114]: "2026"
+                  - generic [ref=e115]:
+                    - generic [ref=e116]:
+                      - generic [ref=e117]: S
+                      - generic [ref=e118]: M
+                      - generic [ref=e119]: T
+                      - generic [ref=e120]: W
+                      - generic [ref=e121]: T
+                      - generic [ref=e122]: F
+                      - generic [ref=e123]: S
+                    - generic [ref=e124]:
+                      - generic [ref=e125]: "1"
+                      - generic [ref=e126]: "2"
+                      - generic [ref=e127]: "3"
+                      - generic [ref=e128]: "4"
+                      - generic [ref=e129]: "5"
+                      - generic [ref=e130]: "6"
+                      - generic [ref=e131]: "7"
+                      - generic [ref=e132]: "8"
+                      - generic [ref=e133]: "9"
+                      - generic [ref=e134]: "10"
+                      - generic [ref=e135]: "11"
+                      - generic [ref=e136]: "12"
+                      - generic [ref=e137]: "13"
+                      - generic [ref=e138]: "14"
+                      - generic [ref=e139]: "15"
+                      - generic [ref=e140]: "16"
+                      - generic [ref=e141]: "17"
+                      - generic [ref=e142]: "18"
+                      - generic [ref=e143]: "19"
+                      - generic [ref=e144]: "20"
+                      - generic [ref=e145]: "21"
+                      - generic [ref=e146]: "22"
+                      - generic [ref=e147]: "23"
+                      - generic [ref=e148]: "24"
+                      - generic [ref=e149]: "25"
+                      - generic [ref=e150]: "26"
+                      - generic [ref=e151]: "27"
+                      - generic [ref=e152]: "28"
+                      - generic [ref=e153]: "29"
+                      - generic [ref=e154]: "30"
+                      - generic [ref=e155]: "31"
+              - generic [ref=e156]:
+                - generic [ref=e157]:
+                  - paragraph [ref=e158]: Quotes
+                  - paragraph [ref=e159]: "5"
+                  - paragraph [ref=e160]: $3,200
+                - generic [ref=e161]:
+                  - paragraph [ref=e162]: Follow-ups
+                  - paragraph [ref=e163]: "3"
+                  - paragraph [ref=e164]: Pending
+                - generic [ref=e165]:
+                  - paragraph [ref=e166]: Jobs
+                  - paragraph [ref=e167]: "12"
+                  - paragraph [ref=e168]: $8,640
+                - generic [ref=e169]:
+                  - paragraph [ref=e170]: Take Home
+                  - paragraph [ref=e171]: $4,120
+                  - paragraph [ref=e172]: After 30% tax
+              - generic [ref=e173]:
+                - paragraph [ref=e174]: Needs Your Attention
+                - generic [ref=e175]:
+                  - img [ref=e176]
+                  - generic [ref=e178]:
+                    - paragraph [ref=e179]: 3 follow-ups need attention
+                    - paragraph [ref=e180]: Following up within 48hrs has 3x conversion
+                  - img [ref=e181]
+                - generic [ref=e183]:
+                  - img [ref=e184]
+                  - generic [ref=e186]:
+                    - paragraph [ref=e187]: 2 days without expenses logged
+                    - paragraph [ref=e188]: Log expenses to see your real profit
+                  - img [ref=e189]
+                - generic [ref=e191]:
+                  - img [ref=e192]
+                  - generic [ref=e194]:
+                    - paragraph [ref=e195]: 5 pending quotes
+                    - paragraph [ref=e196]: $3,200 total value
+                  - img [ref=e197]
+              - generic [ref=e199]:
+                - generic [ref=e200]:
+                  - paragraph [ref=e201]: Do it with Dyia
+                  - generic [ref=e202]: Pro
+                - generic [ref=e203]:
+                  - generic [ref=e204]:
+                    - img [ref=e206]
+                    - paragraph [ref=e208]: Log a job
+                  - generic [ref=e209]:
+                    - img [ref=e211]
+                    - paragraph [ref=e213]: Create quote
+                  - generic [ref=e214]:
+                    - img [ref=e216]
+                    - paragraph [ref=e218]: Log expense
+                  - generic [ref=e219]:
+                    - img [ref=e221]
+                    - paragraph [ref=e223]: Summary
+              - generic [ref=e225]:
+                - generic [ref=e226]:
+                  - paragraph [ref=e227]: Monthly Goal
+                  - paragraph [ref=e228]: $8,640 of $12,000
+                - generic [ref=e229]: 74%
+              - paragraph [ref=e235]: Hot tub removals average $485 profit — 40% more than general hauling. Worth focusing your ads there.
+              - generic [ref=e236]:
+                - generic [ref=e237]:
+                  - generic [ref=e238]:
+                    - paragraph [ref=e239]: Recent Jobs
+                    - generic [ref=e240]: View all
+                  - generic [ref=e241]:
+                    - generic [ref=e242]:
+                      - generic [ref=e243]:
+                        - img [ref=e245]
+                        - generic [ref=e247]:
+                          - paragraph [ref=e248]: Mike R.
+                          - paragraph [ref=e249]: Today
+                      - generic [ref=e250]: $520
+                    - generic [ref=e251]:
+                      - generic [ref=e252]:
+                        - img [ref=e254]
+                        - generic [ref=e256]:
+                          - paragraph [ref=e257]: Sarah K.
+                          - paragraph [ref=e258]: Yesterday
+                      - generic [ref=e259]: $280
+                    - generic [ref=e260]:
+                      - generic [ref=e261]:
+                        - img [ref=e263]
+                        - generic [ref=e265]:
+                          - paragraph [ref=e266]: Tom L.
+                          - paragraph [ref=e267]: Mar 9
+                      - generic [ref=e268]: $1,200
+                - generic [ref=e269]:
+                  - generic [ref=e270]:
+                    - paragraph [ref=e271]: Recent Quotes
+                    - generic [ref=e272]: View all
+                  - generic [ref=e273]:
+                    - generic [ref=e274]:
+                      - generic [ref=e275]:
+                        - img [ref=e277]
+                        - generic [ref=e279]:
+                          - paragraph [ref=e280]: James W.
+                          - text: sent
+                      - generic [ref=e281]: $800
+                    - generic [ref=e282]:
+                      - generic [ref=e283]:
+                        - img [ref=e285]
+                        - generic [ref=e287]:
+                          - paragraph [ref=e288]: Linda M.
+                          - text: draft
+                      - generic [ref=e289]: $1,400
+                    - generic [ref=e290]:
+                      - generic [ref=e291]:
+                        - img [ref=e293]
+                        - generic [ref=e295]:
+                          - paragraph [ref=e296]: Alex P.
+                          - text: accepted
+                      - generic [ref=e297]: $1,000
+      - generic [ref=e300]:
+        - generic [ref=e301]:
+          - paragraph [ref=e302]: 30 sec
+          - paragraph [ref=e303]: Average time to log a job
+          - paragraph [ref=e304]: From your truck
+        - generic [ref=e305]:
+          - paragraph [ref=e306]: 100%
+          - paragraph [ref=e307]: Profit visibility
+          - paragraph [ref=e308]: Every dollar tracked
+        - generic [ref=e309]:
+          - paragraph [ref=e310]: 2 min
+          - paragraph [ref=e311]: Setup to first job
+          - paragraph [ref=e312]: No training needed
+        - generic [ref=e313]:
+          - paragraph [ref=e314]: $0
+          - paragraph [ref=e315]: To start your trial
+          - paragraph [ref=e316]: 14 days free
+      - generic [ref=e318]:
+        - generic [ref=e319]:
+          - paragraph [ref=e320]: The problem
+          - heading "Sound familiar?" [level=2] [ref=e321]
+          - paragraph [ref=e322]: Every service business owner has been here. You're not alone.
+        - generic [ref=e323]:
+          - generic [ref=e324]:
+            - generic [ref=e325]: 😰
+            - heading "\"Great day... I think?\"" [level=3] [ref=e326]
+            - paragraph [ref=e327]: Made $600 today. But after gas, dump fees, paying my helper — I genuinely don't know what I kept. The money just... disappears.
+          - generic [ref=e328]:
+            - generic [ref=e329]: 📝
+            - heading "\"Tax time is chaos\"" [level=3] [ref=e330]
+            - paragraph [ref=e331]: Receipts in the glovebox, notes on my phone, random texts to myself. Every April I spend a weekend piecing together what I owe.
+          - generic [ref=e332]:
+            - generic [ref=e333]: 🤷
+            - heading "\"Did I quote that right?\"" [level=3] [ref=e334]
+            - paragraph [ref=e335]: Quoted a job for $400. After expenses, I made $12/hour. I need to know BEFORE I quote, not three weeks later.
+          - generic [ref=e336]:
+            - generic [ref=e337]: 💸
+            - heading "\"Software costs more than I make\"" [level=3] [ref=e338]
+            - paragraph [ref=e339]: Looked at Jobber — $349/month?! I just need to track jobs and know my profit. Not route optimization for a fleet I don't have.
+        - generic [ref=e340]:
+          - paragraph [ref=e341]: dyia fixes all of this — for less than a tank of gas.
+          - button "See for yourself" [ref=e342]:
+            - text: See for yourself
+            - img [ref=e343]
+      - generic [ref=e347]:
+        - generic [ref=e348]:
+          - paragraph [ref=e349]: How it works
+          - heading "Three taps. Real numbers." [level=2] [ref=e350]
+          - paragraph [ref=e351]: Log jobs from your truck in 30 seconds.
+        - generic [ref=e352]:
+          - generic [ref=e354]:
+            - generic [ref=e355]: "01"
+            - img [ref=e357]
+            - heading "Log the job" [level=3] [ref=e359]
+            - paragraph [ref=e360]: Customer, revenue, expenses — or just tell Dyia in plain English. "Logged $350 for Mike, $40 dump fee." That's it.
+          - generic [ref=e362]:
+            - generic [ref=e363]: "02"
+            - img [ref=e365]
+            - heading "See real profit" [level=3] [ref=e367]
+            - paragraph [ref=e368]: Revenue minus gas, dump fees, labor, materials — everything. Instantly know what actually hit your pocket.
+          - generic [ref=e370]:
+            - generic [ref=e371]: "03"
+            - img [ref=e373]
+            - heading "Grow smarter" [level=3] [ref=e375]
+            - paragraph [ref=e376]: Track customers, send quotes, follow up automatically. Dyia learns your business and helps you price, plan, and profit more.
+      - generic [ref=e379]:
+        - generic [ref=e380]:
+          - paragraph [ref=e381]: The full platform
+          - heading "Everything you need to run your business" [level=2] [ref=e382]
+          - paragraph [ref=e383]: Not just tracking — a complete business operating system built for one-truck operators and growing teams alike.
+        - generic [ref=e384]:
+          - generic [ref=e385]:
+            - img [ref=e387]
+            - heading "Job Tracking & Profit Calculator" [level=3] [ref=e389]
+            - paragraph [ref=e390]: Log every job in seconds with revenue, gas, dump fees, labor, materials, and dumpster costs. See your actual take-home pay instantly — not just gross revenue. Split expenses across multi-customer jobs automatically.
+            - generic [ref=e391]:
+              - generic [ref=e392]: Per-job profit breakdown
+              - generic [ref=e393]: Multi-customer splitting
+              - generic [ref=e394]: Lead source tracking
+          - generic [ref=e395]:
+            - img [ref=e397]
+            - heading "Professional Quote Builder" [level=3] [ref=e399]
+            - paragraph [ref=e400]: Create branded PDF quotes with your logo, volume-based pricing, specialty surcharges, and photo attachments. Send to customers and track status through accepted, declined, or expired. Auto-creates follow-ups.
+            - generic [ref=e401]:
+              - generic [ref=e402]: Branded PDF export
+              - generic [ref=e403]: Photo attachments
+              - generic [ref=e404]: Auto follow-up creation
+          - generic [ref=e405]:
+            - img [ref=e407]
+            - heading "Customer Database & CRM" [level=3] [ref=e409]
+            - paragraph [ref=e410]: Build a real customer database. Store contact info, notes, and tags. See each customer's lifetime value, job history, and quote history. Auto-fill customer details when creating jobs or quotes.
+            - generic [ref=e411]:
+              - generic [ref=e412]: Lifetime value tracking
+              - generic [ref=e413]: Job & quote history
+              - generic [ref=e414]: Smart autocomplete
+          - generic [ref=e415]:
+            - img [ref=e417]
+            - heading "Follow-Up Pipeline" [level=3] [ref=e419]
+            - paragraph [ref=e420]: Never lose a lead. Quotes automatically create follow-ups with hot, warm, and cold priority scoring. Drag-and-drop Kanban board to track contacted, snoozed, converted, and lost. Convert directly to a job with one click.
+            - generic [ref=e421]:
+              - generic [ref=e422]: Auto-priority scoring
+              - generic [ref=e423]: Kanban drag & drop
+              - generic [ref=e424]: One-click conversion
+        - generic [ref=e425]:
+          - generic [ref=e426]:
+            - generic [ref=e427]: 🧾
+            - heading "Tax Set-Aside" [level=3] [ref=e428]
+            - paragraph [ref=e429]: Adjustable percentage automatically calculated on every job. Know exactly what to save for April.
+          - generic [ref=e430]:
+            - generic [ref=e431]: 💳
+            - heading "Fixed Expenses" [level=3] [ref=e432]
+            - paragraph [ref=e433]: Track monthly overhead — insurance, truck payment, tools, software. See true net profit.
+          - generic [ref=e434]:
+            - generic [ref=e435]: 🎯
+            - heading "Monthly Goals" [level=3] [ref=e436]
+            - paragraph [ref=e437]: Set revenue targets. Visual progress tracking on your dashboard with weekly breakdowns.
+          - generic [ref=e438]:
+            - generic [ref=e439]: 📊
+            - heading "Reports & Analytics" [level=3] [ref=e440]
+            - paragraph [ref=e441]: Revenue by source, expense breakdowns, monthly trends, and performance metrics.
+          - generic [ref=e442]:
+            - generic [ref=e443]: PRO
+            - generic [ref=e444]: 📧
+            - heading "Email Blasts" [level=3] [ref=e445]
+            - paragraph [ref=e446]: Send targeted emails to your customer list. Connect Gmail or Outlook. Track campaigns.
+          - generic [ref=e447]:
+            - generic [ref=e448]: ⭐
+            - heading "Review Requests" [level=3] [ref=e449]
+            - paragraph [ref=e450]: Request Google, Yelp, or Facebook reviews after completed jobs with one-tap messages.
+          - generic [ref=e451]:
+            - generic [ref=e452]: PRO
+            - generic [ref=e453]: 📈
+            - heading "Marketing ROI" [level=3] [ref=e454]
+            - paragraph [ref=e455]: Log ad spend by channel. See which marketing actually brings profitable customers.
+          - generic [ref=e456]:
+            - generic [ref=e457]: 📥
+            - heading "Data Export" [level=3] [ref=e458]
+            - paragraph [ref=e459]: Download all jobs, quotes, and customer data as CSV. Your data is always yours.
+      - generic [ref=e461]:
+        - generic [ref=e462]:
+          - generic [ref=e463]: Pro Feature
+          - heading "Meet Dyia" [level=2] [ref=e464]
+          - paragraph [ref=e465]: Your AI business partner. Not a chatbot that answers questions — an assistant that actually does things.
+        - generic [ref=e466]:
+          - generic [ref=e467]:
+            - generic [ref=e468]:
+              - img "dyia" [ref=e469]
+              - generic [ref=e470]:
+                - heading "Dyia" [level=3] [ref=e471]
+                - paragraph [ref=e472]: Always ready to help
+            - generic [ref=e473]:
+              - paragraph [ref=e476]: What should I charge for a hot tub removal?
+              - generic [ref=e477]:
+                - img "dyia" [ref=e478]
+                - generic [ref=e479]:
+                  - paragraph [ref=e480]: Based on your last 6 hot tub jobs, you've averaged $485 with a 71% margin. The lowest was $380 (ground level), highest $650 (stairs + disconnect).
+                  - generic [ref=e481]:
+                    - paragraph [ref=e482]: Suggested range
+                    - paragraph [ref=e483]: $450 – $550
+                    - paragraph [ref=e484]: Adjust up for stairs, electrical disconnect, or heavy models.
+              - paragraph [ref=e487]: Log a job — Sarah, couch removal, $280, $35 dump fee
+              - generic [ref=e488]:
+                - img "dyia" [ref=e489]
+                - generic [ref=e490]:
+                  - paragraph [ref=e491]: "\"Got it. Here's the breakdown:\""
+                  - generic [ref=e492]:
+                    - generic [ref=e493]:
+                      - generic [ref=e494]: Customer
+                      - generic [ref=e495]: Sarah
+                    - generic [ref=e496]:
+                      - generic [ref=e497]: Revenue
+                      - generic [ref=e498]: $280
+                    - generic [ref=e499]:
+                      - generic [ref=e500]: Expenses
+                      - generic [ref=e501]: "-$35"
+                    - generic [ref=e502]:
+                      - generic [ref=e503]: Net Profit
+                      - generic [ref=e504]: $245
+                  - generic [ref=e505]:
+                    - button "✓ Save" [ref=e506]
+                    - button "Edit" [ref=e507]
+          - generic [ref=e508]:
+            - generic [ref=e509]:
+              - generic [ref=e510]: 💬
+              - generic [ref=e511]:
+                - heading "Natural language" [level=4] [ref=e512]
+                - paragraph [ref=e513]: Just describe what happened. "Did a basement cleanout for Mike, $400, two dump runs." Dyia extracts every detail.
+            - generic [ref=e514]:
+              - generic [ref=e515]: 💰
+              - generic [ref=e516]:
+                - heading "Smart pricing" [level=4] [ref=e517]
+                - paragraph [ref=e518]: Ask what to charge. Dyia analyzes YOUR past jobs by type, size, and difficulty to suggest the right price.
+            - generic [ref=e519]:
+              - generic [ref=e520]: 📊
+              - generic [ref=e521]:
+                - heading "Instant insights" [level=4] [ref=e522]
+                - paragraph [ref=e523]: "\"How am I doing this month?\" — get real answers with revenue, profit margins, and comparisons to last month."
+            - generic [ref=e524]:
+              - generic [ref=e525]: 📈
+              - generic [ref=e526]:
+                - heading "Revenue forecasting" [level=4] [ref=e527]
+                - paragraph [ref=e528]: Predict what you'll make based on your booking patterns, seasonal trends, and historical data.
+            - generic [ref=e529]:
+              - generic [ref=e530]: 🔔
+              - generic [ref=e531]:
+                - heading "Follow-up alerts" [level=4] [ref=e532]
+                - paragraph [ref=e533]: Dyia monitors your quote pipeline and flags leads going cold before you lose them.
+            - generic [ref=e534]:
+              - generic [ref=e535]: 📋
+              - generic [ref=e536]:
+                - heading "Quote generation" [level=4] [ref=e537]
+                - paragraph [ref=e538]: Describe the job in a message and Dyia generates a professional quote you can send as PDF.
+      - generic [ref=e540]:
+        - generic [ref=e541]:
+          - heading "Built for your business" [level=2] [ref=e542]
+          - paragraph [ref=e543]: Starting with junk removal. More industries coming soon.
+        - generic [ref=e544]:
+          - button "Live 🚛 Junk Removal" [ref=e545]:
+            - generic [ref=e546]: Live
+            - generic [ref=e547]: 🚛
+            - heading "Junk Removal" [level=3] [ref=e548]
+          - button "Coming soon 🌿 Lawn Care" [ref=e549] [cursor=pointer]:
+            - generic [ref=e550]: Coming soon
+            - generic [ref=e551]: 🌿
+            - heading "Lawn Care" [level=3] [ref=e552]
+          - button "Coming soon 🏠 Cleaning" [ref=e553] [cursor=pointer]:
+            - generic [ref=e554]: Coming soon
+            - generic [ref=e555]: 🏠
+            - heading "Cleaning" [level=3] [ref=e556]
+          - button "Coming soon 📦 Moving" [ref=e557] [cursor=pointer]:
+            - generic [ref=e558]: Coming soon
+            - generic [ref=e559]: 📦
+            - heading "Moving" [level=3] [ref=e560]
+          - button "Coming soon 🔧 Handyman" [ref=e561] [cursor=pointer]:
+            - generic [ref=e562]: Coming soon
+            - generic [ref=e563]: 🔧
+            - heading "Handyman" [level=3] [ref=e564]
+          - button "Coming soon 🧹 Pressure Wash" [ref=e565] [cursor=pointer]:
+            - generic [ref=e566]: Coming soon
+            - generic [ref=e567]: 🧹
+            - heading "Pressure Wash" [level=3] [ref=e568]
+        - generic [ref=e571]:
+          - paragraph [ref=e572]: Want dyia for Lawn Care? Join the waitlist.
+          - generic [ref=e573]:
+            - textbox "you@email.com" [ref=e574]
+            - button "Notify me" [ref=e575]
+      - generic [ref=e578]:
+        - generic [ref=e579]:
+          - heading "You don't need Jobber." [level=2] [ref=e580]
+          - paragraph [ref=e581]: Enterprise software for enterprise problems. You need an American-built tool designed for how you actually work — billed in USD, no currency headaches.
+        - table [ref=e584]:
+          - rowgroup [ref=e585]:
+            - row "Feature Jobber Housecall dyia" [ref=e586]:
+              - columnheader "Feature" [ref=e587]
+              - columnheader "Jobber" [ref=e588]
+              - columnheader "Housecall" [ref=e589]
+              - columnheader "dyia" [ref=e590]
+          - rowgroup [ref=e591]:
+            - row "Starting price $349/mo $65/mo $19.99/mo" [ref=e592]:
+              - cell "Starting price" [ref=e593]
+              - cell "$349/mo" [ref=e594]
+              - cell "$65/mo" [ref=e595]
+              - cell "$19.99/mo" [ref=e596]
+            - row "Job tracking ✓ ✓ ✓" [ref=e597]:
+              - cell "Job tracking" [ref=e598]
+              - cell "✓" [ref=e599]
+              - cell "✓" [ref=e600]
+              - cell "✓" [ref=e601]
+            - row "Quote builder ✓ ✓ ✓" [ref=e602]:
+              - cell "Quote builder" [ref=e603]
+              - cell "✓" [ref=e604]
+              - cell "✓" [ref=e605]
+              - cell "✓" [ref=e606]
+            - row "Customer CRM ✓ ✓ ✓" [ref=e607]:
+              - cell "Customer CRM" [ref=e608]
+              - cell "✓" [ref=e609]
+              - cell "✓" [ref=e610]
+              - cell "✓" [ref=e611]
+            - row "Tax set-aside — — ✓" [ref=e612]:
+              - cell "Tax set-aside" [ref=e613]
+              - cell "—" [ref=e614]
+              - cell "—" [ref=e615]
+              - cell "✓" [ref=e616]
+            - row "AI assistant — — ✓" [ref=e617]:
+              - cell "AI assistant" [ref=e618]
+              - cell "—" [ref=e619]
+              - cell "—" [ref=e620]
+              - cell "✓" [ref=e621]
+            - row "Smart pricing — — ✓" [ref=e622]:
+              - cell "Smart pricing" [ref=e623]
+              - cell "—" [ref=e624]
+              - cell "—" [ref=e625]
+              - cell "✓" [ref=e626]
+            - row "Revenue forecasting — — ✓" [ref=e627]:
+              - cell "Revenue forecasting" [ref=e628]
+              - cell "—" [ref=e629]
+              - cell "—" [ref=e630]
+              - cell "✓" [ref=e631]
+            - row "Email blasts ✓ — ✓" [ref=e632]:
+              - cell "Email blasts" [ref=e633]
+              - cell "✓" [ref=e634]
+              - cell "—" [ref=e635]
+              - cell "✓" [ref=e636]
+            - row "Based in Canada USA USA" [ref=e637]:
+              - cell "Based in" [ref=e638]
+              - cell "Canada" [ref=e639]
+              - cell "USA" [ref=e640]
+              - cell "USA" [ref=e641]
+            - row "Billing currency CAD USD USD" [ref=e642]:
+              - cell "Billing currency" [ref=e643]
+              - cell "CAD" [ref=e644]
+              - cell "USD" [ref=e645]
+              - cell "USD" [ref=e646]
+            - row "Setup time Hours 30 min 2 min" [ref=e647]:
+              - cell "Setup time" [ref=e648]
+              - cell "Hours" [ref=e649]
+              - cell "30 min" [ref=e650]
+              - cell "2 min" [ref=e651]
+      - generic [ref=e655]:
+        - generic [ref=e656]:
+          - img [ref=e657]
+          - text: Dyia Intel
+        - heading "How does your business stack up?" [level=2] [ref=e659]
+        - paragraph [ref=e660]: Get a free competitive intelligence report powered by live web research. See your local rank, review gaps, keyword opportunities, and how you compare to every competitor in your area.
+        - link "Get your free report" [ref=e662] [cursor=pointer]:
+          - /url: /intel
+          - text: Get your free report
+          - img [ref=e663]
+        - generic [ref=e665]:
+          - generic [ref=e666]:
+            - img [ref=e667]
+            - text: 100% free scan
+          - generic [ref=e669]:
+            - img [ref=e670]
+            - text: Real competitor data
+          - generic [ref=e672]:
+            - img [ref=e673]
+            - text: No credit card needed
+      - generic [ref=e676]:
+        - generic [ref=e677]:
+          - paragraph [ref=e678]: Simple, honest pricing
+          - heading "Less than a tank of gas." [level=2] [ref=e679]
+          - paragraph [ref=e680]: Every plan starts with a 14-day free Pro trial. No hidden fees, no contracts, cancel anytime.
+        - paragraph [ref=e681]: American company · All prices in USD · Secure payments via Stripe
+        - generic [ref=e683]:
+          - button "Monthly" [ref=e684]
+          - button "Annual Save 17%" [ref=e685]:
+            - text: Annual
+            - generic [ref=e686]: Save 17%
+        - generic [ref=e687]:
+          - generic [ref=e688]:
+            - generic [ref=e689]:
+              - heading "Basic" [level=3] [ref=e690]
+              - paragraph [ref=e691]: Everything you need for day-to-day operations
+            - generic [ref=e692]:
+              - generic [ref=e693]: $19.99
+              - generic [ref=e694]: /mo
+            - paragraph [ref=e695]: Billed monthly
+            - generic [ref=e696]:
+              - paragraph [ref=e697]: Core features
+              - list [ref=e698]:
+                - listitem [ref=e699]:
+                  - img [ref=e700]
+                  - generic [ref=e702]:
+                    - text: Unlimited job tracking
+                    - paragraph [ref=e703]: Log every job with full expense breakdown
+                - listitem [ref=e704]:
+                  - img [ref=e705]
+                  - generic [ref=e707]:
+                    - text: Profit dashboard
+                    - paragraph [ref=e708]: Real-time revenue, expenses, and take-home
+                - listitem [ref=e709]:
+                  - img [ref=e710]
+                  - generic [ref=e712]:
+                    - text: Quote builder + PDF export
+                    - paragraph [ref=e713]: Branded quotes with your logo and photos
+                - listitem [ref=e714]:
+                  - img [ref=e715]
+                  - generic [ref=e717]:
+                    - text: Customer database & CRM
+                    - paragraph [ref=e718]: Contact info, lifetime value, job history
+                - listitem [ref=e719]:
+                  - img [ref=e720]
+                  - generic [ref=e722]:
+                    - text: Follow-up pipeline
+                    - paragraph [ref=e723]: Kanban board with hot/warm/cold scoring
+                - listitem [ref=e724]:
+                  - img [ref=e725]
+                  - generic [ref=e727]:
+                    - text: Tax set-aside calculator
+                    - paragraph [ref=e728]: Auto-calculated on every job
+                - listitem [ref=e729]:
+                  - img [ref=e730]
+                  - generic [ref=e732]:
+                    - text: Fixed expense tracking
+                    - paragraph [ref=e733]: Insurance, truck payment, overhead
+                - listitem [ref=e734]:
+                  - img [ref=e735]
+                  - generic [ref=e737]:
+                    - text: Review requests
+                    - paragraph [ref=e738]: One-tap Google, Yelp, Facebook reviews
+                - listitem [ref=e739]:
+                  - img [ref=e740]
+                  - generic [ref=e742]:
+                    - text: Lead source analytics
+                    - paragraph [ref=e743]: See which marketing channels work
+                - listitem [ref=e744]:
+                  - img [ref=e745]
+                  - generic [ref=e747]:
+                    - text: CSV data export
+                    - paragraph [ref=e748]: Your data is always yours
+            - button "Get Basic" [ref=e750]
+          - generic [ref=e751]:
+            - generic [ref=e752]: MOST POPULAR
+            - generic [ref=e753]:
+              - generic [ref=e754]:
+                - img "dyia" [ref=e755]
+                - heading "Pro" [level=3] [ref=e756]
+              - paragraph [ref=e757]: Basic + AI assistant, email campaigns, and marketing tools
+            - generic [ref=e758]:
+              - generic [ref=e759]: $29.99
+              - generic [ref=e760]: /mo
+            - paragraph [ref=e761]: Billed monthly
+            - generic [ref=e762]:
+              - paragraph [ref=e763]: Everything in Basic, plus
+              - list [ref=e764]:
+                - listitem [ref=e765]:
+                  - img [ref=e766]
+                  - generic [ref=e768]:
+                    - text: Dyia AI Assistant
+                    - paragraph [ref=e769]: Your AI business partner — logs jobs, creates quotes, gives insights
+                - listitem [ref=e770]:
+                  - img [ref=e771]
+                  - generic [ref=e773]:
+                    - text: Natural language job logging
+                    - paragraph [ref=e774]: "\"$350 for Mike, $40 dump fee\" — Dyia handles the rest"
+                - listitem [ref=e775]:
+                  - img [ref=e776]
+                  - generic [ref=e778]:
+                    - text: AI-powered price suggestions
+                    - paragraph [ref=e779]: Based on YOUR past jobs by type and difficulty
+                - listitem [ref=e780]:
+                  - img [ref=e781]
+                  - generic [ref=e783]:
+                    - text: Revenue forecasting
+                    - paragraph [ref=e784]: Predict monthly revenue with confidence scoring
+                - listitem [ref=e785]:
+                  - img [ref=e786]
+                  - generic [ref=e788]:
+                    - text: Follow-up risk alerts
+                    - paragraph [ref=e789]: Flags leads going cold before you lose them
+                - listitem [ref=e790]:
+                  - img [ref=e791]
+                  - generic [ref=e793]:
+                    - text: Mass email campaigns
+                    - paragraph [ref=e794]: Send via Gmail or Outlook to your customer list
+                - listitem [ref=e795]:
+                  - img [ref=e796]
+                  - generic [ref=e798]:
+                    - text: Marketing ROI tracking
+                    - paragraph [ref=e799]: See cost per lead by channel — Google, Yelp, Facebook
+                - listitem [ref=e800]:
+                  - img [ref=e801]
+                  - generic [ref=e803]:
+                    - text: Weekly AI business insights
+                    - paragraph [ref=e804]: Performance emails with trends and recommendations
+                - listitem [ref=e805]:
+                  - img [ref=e806]
+                  - generic [ref=e808]:
+                    - text: Priority support
+                    - paragraph [ref=e809]: Faster response times from our team
+            - generic [ref=e810]:
+              - button "Start 14-Day Free Trial" [ref=e811]
+              - paragraph [ref=e812]: Card required · Cancel anytime during trial
+        - generic [ref=e813]:
+          - generic [ref=e814]:
+            - generic [ref=e815]: 🛡️
+            - text: 14-day money-back guarantee
+          - generic [ref=e816]:
+            - generic [ref=e817]: 🔒
+            - text: Secured by Stripe
+          - generic [ref=e818]:
+            - generic [ref=e819]: 📥
+            - text: Export your data anytime
+          - generic [ref=e820]:
+            - generic [ref=e821]: 🚫
+            - text: No contracts or lock-in
+      - generic [ref=e824]:
+        - generic [ref=e825]:
+          - paragraph [ref=e826]: FAQ
+          - heading "Got questions?" [level=2] [ref=e827]
+          - paragraph [ref=e828]: Everything you need to know before getting started.
+        - generic [ref=e829]:
+          - button "Is the free trial actually free?" [ref=e831]:
+            - generic [ref=e832]: Is the free trial actually free?
+            - img [ref=e833]
+          - button "What's the difference between Basic and Pro?" [ref=e836]:
+            - generic [ref=e837]: What's the difference between Basic and Pro?
+            - img [ref=e838]
+          - button "Can I use dyia on my phone?" [ref=e841]:
+            - generic [ref=e842]: Can I use dyia on my phone?
+            - img [ref=e843]
+          - button "How is this different from a spreadsheet?" [ref=e846]:
+            - generic [ref=e847]: How is this different from a spreadsheet?
+            - img [ref=e848]
+          - button "How is this different from Jobber or Housecall Pro?" [ref=e851]:
+            - generic [ref=e852]: How is this different from Jobber or Housecall Pro?
+            - img [ref=e853]
+          - button "Can I manage my customers in dyia?" [ref=e856]:
+            - generic [ref=e857]: Can I manage my customers in dyia?
+            - img [ref=e858]
+          - button "How do email campaigns work?" [ref=e861]:
+            - generic [ref=e862]: How do email campaigns work?
+            - img [ref=e863]
+          - button "What if I want to cancel?" [ref=e866]:
+            - generic [ref=e867]: What if I want to cancel?
+            - img [ref=e868]
+          - button "Is my data safe?" [ref=e871]:
+            - generic [ref=e872]: Is my data safe?
+            - img [ref=e873]
+          - button "Do you offer refunds?" [ref=e876]:
+            - generic [ref=e877]: Do you offer refunds?
+            - img [ref=e878]
+        - paragraph [ref=e881]:
+          - text: Still have questions?
+          - link "Visit our Help Center" [ref=e882] [cursor=pointer]:
+            - /url: /support
+          - text: or email
+          - link "dyia.io.app@gmail.com" [ref=e883] [cursor=pointer]:
+            - /url: mailto:dyia.io.app@gmail.com
+      - generic [ref=e888]:
+        - heading "Stop guessing. Start knowing." [level=2] [ref=e890]:
+          - text: Stop guessing.
+          - text: Start knowing.
+        - paragraph [ref=e891]: Join service pros who finally know what they take home. 2 minutes to set up. 30 seconds to log your first job.
+        - button "Start Free Trial" [ref=e892]:
+          - text: Start Free Trial
+          - img [ref=e893]
+        - generic [ref=e895]:
+          - generic [ref=e896]: 14 days free
+          - generic [ref=e897]: Cancel anytime
+    - contentinfo [ref=e898]:
+      - generic [ref=e899]:
+        - generic [ref=e900]:
+          - generic [ref=e901]:
+            - img "dyia" [ref=e903]
+            - paragraph [ref=e904]: Your day, decoded. The AI-powered business manager for service professionals.
+            - paragraph [ref=e905]: Proudly American-based · All prices in USD
+          - generic [ref=e906]:
+            - heading "Product" [level=4] [ref=e907]
+            - list [ref=e908]:
+              - listitem [ref=e909]:
+                - link "Features" [ref=e910] [cursor=pointer]:
+                  - /url: "#features"
+              - listitem [ref=e911]:
+                - link "Dyia AI" [ref=e912] [cursor=pointer]:
+                  - /url: "#ai"
+              - listitem [ref=e913]:
+                - link "Pricing" [ref=e914] [cursor=pointer]:
+                  - /url: "#pricing"
+              - listitem [ref=e915]:
+                - link "FAQ" [ref=e916] [cursor=pointer]:
+                  - /url: "#faq"
+          - generic [ref=e917]:
+            - heading "Company" [level=4] [ref=e918]
+            - list [ref=e919]:
+              - listitem [ref=e920]:
+                - link "Support" [ref=e921] [cursor=pointer]:
+                  - /url: /support
+              - listitem [ref=e922]:
+                - link "Privacy Policy" [ref=e923] [cursor=pointer]:
+                  - /url: /privacy
+              - listitem [ref=e924]:
+                - link "Terms of Service" [ref=e925] [cursor=pointer]:
+                  - /url: /terms
+          - generic [ref=e926]:
+            - heading "Get Started" [level=4] [ref=e927]
+            - list [ref=e928]:
+              - listitem [ref=e929]:
+                - link "Create Account" [ref=e930] [cursor=pointer]:
+                  - /url: /sign-up
+              - listitem [ref=e931]:
+                - link "Sign In" [ref=e932] [cursor=pointer]:
+                  - /url: /sign-in
+              - listitem [ref=e933]:
+                - link "Dashboard" [ref=e934] [cursor=pointer]:
+                  - /url: /app
+        - generic [ref=e935]:
+          - paragraph [ref=e936]: © 2026 dyia. All rights reserved.
+          - paragraph [ref=e937]: Built with care for service businesses everywhere.
+  - button "Open Next.js Dev Tools" [ref=e943] [cursor=pointer]:
+    - img [ref=e944]
+  - alert [ref=e947]

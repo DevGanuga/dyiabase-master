@@ -178,7 +178,10 @@ export function QuoteBuilder({ quotes, setQuotes, userId, selectedJob, editingQu
 
   // Load all templates and default on mount; apply default template initially
   useEffect(() => {
-    if (!userId || templateLoaded) return
+    if (!userId || templateLoaded || userId.startsWith('demo')) {
+      setTemplateLoaded(true)
+      return
+    }
     const loadTemplates = async () => {
       try {
         const { data, error } = await supabase
