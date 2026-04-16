@@ -95,6 +95,7 @@ export async function POST(request: NextRequest) {
         radius_miles: radius,
         source: 'public_page',
         openai_response_id: openaiResponseId,
+        verified_data: (verifiedTarget || verifiedCompetitors.length > 0) ? { target: verifiedTarget, competitors: verifiedCompetitors } : null,
       })
       .select('id')
       .single()

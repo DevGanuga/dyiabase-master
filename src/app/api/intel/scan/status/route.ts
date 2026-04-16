@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
 
   const { data: scan } = await supabase
     .from('dyia_intel_scans')
-    .select('id, openai_response_id, scan_data, research_sources, research_report, action_plan, email, business_name')
+    .select('id, openai_response_id, scan_data, research_sources, research_report, action_plan, verified_data, email, business_name')
     .eq('id', scanId)
     .single()
 
@@ -82,8 +82,29 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ status: 'failed', error: result.error })
   }
 
-  // Store results
+  // Overwrite model's numbers with Places API verified data
   const { scanData, researchSources, researchReport } = result.result
+  if (scan.verified_data) {
+    const vd = scan.verified_data as { target?: { reviewCount?: number; rating?: number; name?: string }; competitors?: Array<{ name: string; reviewCount: number; rating: number; address?: string }> }
+    if (vd.target && typeof vd.target.reviewCount === 'number') {
+      scanData.review_count_mine = vd.target.reviewCount
+    }
+    if (vd.competitors && vd.competitors.length > 0) {
+      const sorted = [...vd.competitors].sort((a, b) => b.reviewCount - a.reviewCount)
+      scanData.review_count_leader = sorted[0].reviewCount
+      scanData.review_gap = Math.max(0, scanData.review_count_leader - scanData.review_count_mine)
+      scanData.top_competitors = sorted.slice(0, 5).map((comp, i) => ({
+        name: comp.name,
+        reviews: comp.reviewCount,
+        estimated_ad_spend: scanData.top_competitors[i]?.estimated_ad_spend || 0,
+        rank: i + 1,
+      }))
+      scanData.total_competitors = Math.max(scanData.total_competitors, sorted.length)
+      scanData.gap_scores.reviews_pct = scanData.review_count_leader > 0
+        ? Math.min(100, Math.round((scanData.review_count_mine / scanData.review_count_leader) * 100))
+        : 100
+    }
+  }
   await supabase
     .from('dyia_intel_scans')
     .update({
