@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { startResearch } from '@/lib/intel/agent'
+import { scanLocalMarket } from '@/lib/intel/places'
 import { INTEL_INDUSTRIES, INTEL_RADIUS_OPTIONS } from '@/types/database'
 
 function getSupabase() {
@@ -62,7 +63,19 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Start the deep research (returns OpenAI response ID instantly)
+    // Get verified business data from Google Places API
+    let verifiedTarget = null
+    let verifiedCompetitors: Awaited<ReturnType<typeof scanLocalMarket>>['competitors'] = []
+    try {
+      const locationLabel = [city, state].filter(Boolean).join(', ') || ''
+      const placesResult = await scanLocalMarket(businessName, industry, locationLabel, zipCode)
+      verifiedTarget = placesResult.target
+      verifiedCompetitors = placesResult.competitors
+    } catch (placesErr) {
+      console.error('Places API lookup failed (continuing without verified data):', placesErr)
+    }
+
+    // Start the deep research with verified data as context
     const openaiResponseId = await startResearch({
       businessName,
       websiteUrl,
@@ -76,6 +89,8 @@ export async function POST(request: NextRequest) {
       mainServices: Array.isArray(mainServices) ? mainServices : undefined,
       yearsInBusiness: yearsInBusiness || undefined,
       teamSize: teamSize || undefined,
+      verifiedTarget,
+      verifiedCompetitors,
     })
 
     // Reuse pending row or create new one

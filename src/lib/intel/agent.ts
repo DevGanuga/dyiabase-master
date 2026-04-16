@@ -9,6 +9,7 @@
 
 import OpenAI from 'openai'
 import type { IntelResearchSource, IntelScanData } from '@/types/database'
+import type { PlaceBusiness } from '@/lib/intel/places'
 
 const INTEL_MODEL = 'o4-mini-deep-research'
 
@@ -45,6 +46,8 @@ export interface IntelAgentInput {
   mainServices?: string[]
   yearsInBusiness?: number
   teamSize?: number
+  verifiedTarget?: PlaceBusiness | null
+  verifiedCompetitors?: PlaceBusiness[]
 }
 
 export interface IntelAgentResult {
@@ -373,3 +376,6 @@ function normalizeScanData(raw: unknown): IntelScanData {
     target_zip_codes: zips,
   }
 }
+
+
+
