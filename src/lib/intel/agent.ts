@@ -71,7 +71,13 @@ PART 1 — NARRATIVE RESEARCH REPORT (in markdown):
 Write a comprehensive, analytical report that a business owner would find genuinely valuable. Include:
 
 ## Executive Summary
-A 3-4 sentence overview of the business's competitive position, biggest threats, and top opportunity.
+Write a compelling 3-4 paragraph executive summary that covers:
+- **Current Market Position**: Where the business stands in the competitive landscape (rank, review count vs competitors)
+- **Key Competitive Gaps**: The most critical areas where competitors are outperforming (reviews, keywords, ads, GBP)
+- **Biggest Opportunity**: The single highest-impact action that could improve competitive position
+- **Strategic Recommendation**: A clear, specific 30-day action plan
+
+Use specific numbers and data points. Make it actionable and business-focused.
 
 ## Market Overview
 - Total number of competitors found in the service area
@@ -376,6 +382,7 @@ function normalizeScanData(raw: unknown): IntelScanData {
     target_zip_codes: zips,
   }
 }
+
 
 
 

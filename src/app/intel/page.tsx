@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
+import ReactMarkdown from 'react-markdown'
 import { PublicHeader } from '@/components/PublicHeader'
 import { INTEL_INDUSTRIES, INTEL_RADIUS_OPTIONS } from '@/types/database'
 import type { IntelScanData, IntelActionStep, IntelResearchSource } from '@/types/database'
@@ -78,7 +79,7 @@ export default function IntelPage() {
     if (stage !== 'loading') return
     const t = setTimeout(() => { setLoadingError('Research is taking longer than expected. Your report may still complete — check your email or refresh this page with ?scan_id=' + (scanId || '')); setStage('form') }, 600_000)
     return () => clearTimeout(t)
-  }, [stage])
+  }, [stage, scanId])
 
   function handleFormSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -321,15 +322,28 @@ export default function IntelPage() {
             return (
               <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl overflow-hidden mb-8">
                 <div className="p-6 sm:p-8">
-                  <div className="flex items-center gap-3 mb-4">
+                  <div className="flex items-center gap-3 mb-6">
                     <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center"><svg className="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg></div>
                     <div><h3 className="text-lg font-semibold text-white">Research Report</h3><p className="text-xs text-slate-400">AI-generated competitive analysis with verified data and citations</p></div>
                   </div>
-                  <div className="prose prose-invert prose-sm max-w-none prose-headings:text-white prose-headings:font-semibold prose-h2:text-lg prose-h2:mt-6 prose-h2:mb-3 prose-p:text-slate-300 prose-strong:text-white prose-li:text-slate-300 prose-a:text-purple-400" dangerouslySetInnerHTML={{ __html: previewText.replace(/\n/g, '<br>').replace(/^## (.*$)/gm, '<h2>$1</h2>').replace(/^### (.*$)/gm, '<h3>$1</h3>').replace(/^- (.*$)/gm, '<li>$1</li>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" target="_blank" rel="noreferrer">$1</a>') }} />
+                  <div className="prose prose-invert prose-sm max-w-none prose-headings:text-white prose-headings:font-bold prose-h2:text-xl prose-h2:mt-8 prose-h2:mb-4 prose-h2:pb-2 prose-h2:border-b prose-h2:border-slate-700/50 prose-h3:text-base prose-h3:mt-5 prose-h3:mb-2 prose-p:text-slate-300 prose-p:leading-relaxed prose-p:mb-4 prose-strong:text-white prose-strong:font-semibold prose-ul:my-3 prose-li:text-slate-300 prose-li:my-1.5 prose-a:text-purple-400 prose-a:no-underline hover:prose-a:text-purple-300 prose-a:transition-colors">
+                    <ReactMarkdown
+                      components={{
+                        a: ({ node, ...props }) => (
+                          <a {...props} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 border-b border-purple-400/30 hover:border-purple-400/60">
+                            {props.children}
+                            <svg className="w-3 h-3 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                          </a>
+                        ),
+                      }}
+                    >
+                      {previewText}
+                    </ReactMarkdown>
+                  </div>
                 </div>
                 <div className="relative">
-                  <div className="h-32 bg-gradient-to-b from-transparent to-slate-900/95" />
-                  <div className="absolute inset-x-0 bottom-0 p-6 text-center">
+                  <div className="h-40 bg-gradient-to-b from-transparent via-slate-900/80 to-slate-900" />
+                  <div className="absolute inset-x-0 bottom-0 p-6 text-center bg-slate-900/95">
                     <p className="text-sm text-slate-400 mb-2">Full report includes: Competitor Deep Dive, Review Analysis, Keyword Gap Analysis, GBP Audit, Ad Landscape, and Opportunity Assessment</p>
                     <p className="text-xs text-purple-400 font-medium">Included in the $27 action plan below</p>
                   </div>
