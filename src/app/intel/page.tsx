@@ -79,7 +79,7 @@ export default function IntelPage() {
     if (stage !== 'loading') return
     // Safety timeout: 25 minutes (deep research can take 15-20 minutes)
     const t = setTimeout(() => {
-      setLoadingError('Research is taking longer than usual. We'll email your report to ' + email + ' when it's ready.')
+      setLoadingError(`Research is taking longer than usual. We'll email your report to ${email} when it's ready.`)
       setStage('form')
     }, 1_500_000) // 25 minutes
     return () => clearTimeout(t)
@@ -129,7 +129,7 @@ export default function IntelPage() {
         }
         if (sd.status === 'failed') throw new Error(sd.error || 'Research failed')
       }
-      throw new Error('Research is taking longer than usual. We'll email your report when it's ready.')
+      throw new Error("Research is taking longer than usual. We'll email your report when it's ready.")
     } catch (err) { setLoadingError(err instanceof Error ? err.message : 'Something went wrong.'); setStage('form') }
   }
 
@@ -247,7 +247,7 @@ export default function IntelPage() {
             })}
           </div>
           {pollCount > 40 && <p className="text-center text-xs text-slate-500 mt-6">Still analyzing... verifying competitor data and review counts.</p>}
-          {pollCount > 120 && <p className="text-center text-xs text-amber-400 mt-2">Taking longer than usual. We'll email you when it's ready — feel free to close this page.</p>}
+          {pollCount > 120 && <p className="text-center text-xs text-amber-400 mt-2">Taking longer than usual. We&apos;ll email you when it&apos;s ready — feel free to close this page.</p>}
         </div>
       )}
 
