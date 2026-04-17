@@ -79,11 +79,11 @@ export default function IntelPage() {
     if (stage !== 'loading') return
     // Safety timeout: 25 minutes (deep research can take 15-20 minutes)
     const t = setTimeout(() => {
-      setLoadingError('Research is taking longer than expected. Your report may still complete — check your email or refresh this page with ?scan_id=' + (scanId || ''))
+      setLoadingError('Research is taking longer than usual. We'll email your report to ' + email + ' when it's ready.')
       setStage('form')
     }, 1_500_000) // 25 minutes
     return () => clearTimeout(t)
-  }, [stage, scanId])
+  }, [stage, scanId, email])
 
   function handleFormSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -129,7 +129,7 @@ export default function IntelPage() {
         }
         if (sd.status === 'failed') throw new Error(sd.error || 'Research failed')
       }
-      throw new Error('Research is taking longer than expected. Check your email or refresh this page with ?scan_id=' + data.scanId)
+      throw new Error('Research is taking longer than usual. We'll email your report when it's ready.')
     } catch (err) { setLoadingError(err instanceof Error ? err.message : 'Something went wrong.'); setStage('form') }
   }
 
@@ -246,8 +246,8 @@ export default function IntelPage() {
               )
             })}
           </div>
-          {pollCount > 10 && <p className="text-center text-xs text-slate-500 mt-6">Still analyzing... AI deep research verifies every data point for accuracy.</p>}
-          {pollCount > 60 && <p className="text-center text-xs text-amber-400 mt-2">Taking longer than usual. You'll receive an email when complete, or check back with your scan_id.</p>}
+          {pollCount > 40 && <p className="text-center text-xs text-slate-500 mt-6">Still analyzing... verifying competitor data and review counts.</p>}
+          {pollCount > 120 && <p className="text-center text-xs text-amber-400 mt-2">Taking longer than usual. We'll email you when it's ready — feel free to close this page.</p>}
         </div>
       )}
 
