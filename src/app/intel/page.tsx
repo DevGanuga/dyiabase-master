@@ -77,7 +77,11 @@ export default function IntelPage() {
 
   useEffect(() => {
     if (stage !== 'loading') return
-    const t = setTimeout(() => { setLoadingError('Research is taking longer than expected. Your report may still complete — check your email or refresh this page with ?scan_id=' + (scanId || '')); setStage('form') }, 600_000)
+    // Safety timeout: 25 minutes (deep research can take 15-20 minutes)
+    const t = setTimeout(() => {
+      setLoadingError('Research is taking longer than expected. Your report may still complete — check your email or refresh this page with ?scan_id=' + (scanId || ''))
+      setStage('form')
+    }, 1_500_000) // 25 minutes
     return () => clearTimeout(t)
   }, [stage, scanId])
 
@@ -112,7 +116,8 @@ export default function IntelPage() {
         setResearchReport(data.researchReport || null)
         setActionPlanPreview(data.actionPlanPreview || null); setStage('report'); return
       }
-      const deadline = Date.now() + 600_000
+      // Poll for up to 20 minutes (deep research typically takes 5-15 minutes)
+      const deadline = Date.now() + 1_200_000 // 20 minutes
       while (Date.now() < deadline) {
         await new Promise(r => setTimeout(r, 3000)); setPollCount(p => p + 1)
         const sr = await fetch(`/api/intel/scan/status?scanId=${data.scanId}`)
@@ -124,7 +129,7 @@ export default function IntelPage() {
         }
         if (sd.status === 'failed') throw new Error(sd.error || 'Research failed')
       }
-      throw new Error('Research is taking longer than expected.')
+      throw new Error('Research is taking longer than expected. Check your email or refresh this page with ?scan_id=' + data.scanId)
     } catch (err) { setLoadingError(err instanceof Error ? err.message : 'Something went wrong.'); setStage('form') }
   }
 
@@ -185,7 +190,7 @@ export default function IntelPage() {
             <p className="text-center text-xs text-slate-500">Free. No credit card required.</p>
           </form>
           <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 mt-8 text-xs text-slate-500">
-            {['AI-powered deep research', 'Real competitor data', 'Results in 1-3 minutes'].map((t, i) => (
+            {['AI-powered deep research', 'Real competitor data', 'Results in 5-15 minutes'].map((t, i) => (
               <span key={i} className="flex items-center gap-1.5"><svg className="w-3.5 h-3.5 text-purple-400/60" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>{t}</span>
             ))}
           </div>
@@ -226,7 +231,7 @@ export default function IntelPage() {
           <div className="text-center mb-10">
             <div className="w-16 h-16 bg-purple-500/10 border border-purple-500/20 rounded-2xl flex items-center justify-center mx-auto mb-5"><div className="w-8 h-8 border-[3px] border-purple-500/30 border-t-purple-500 rounded-full animate-spin" /></div>
             <h2 className="text-xl font-bold text-white mb-1">Researching {businessName}</h2>
-            <p className="text-sm text-slate-400">Deep research usually takes 1-3 minutes</p>
+            <p className="text-sm text-slate-400">Deep research takes 5-15 minutes for accurate data</p>
           </div>
           <div className="space-y-2.5">
             {RESEARCH_STEPS.map((label, i) => {
@@ -241,7 +246,8 @@ export default function IntelPage() {
               )
             })}
           </div>
-          {pollCount > 5 && <p className="text-center text-xs text-slate-500 mt-6">Still working... deep research takes time for accurate data.</p>}
+          {pollCount > 10 && <p className="text-center text-xs text-slate-500 mt-6">Still analyzing... AI deep research verifies every data point for accuracy.</p>}
+          {pollCount > 60 && <p className="text-center text-xs text-amber-400 mt-2">Taking longer than usual. You'll receive an email when complete, or check back with your scan_id.</p>}
         </div>
       )}
 

@@ -117,6 +117,9 @@ export async function GET(request: NextRequest) {
   // Send free report email
   if (scan.email && isResendConfigured()) {
     const baseUrl = getBaseUrl()
+    console.log(`[Intel] Sending report email to: ${scan.email}`)
+    console.log(`[Intel] Report URL: ${baseUrl}/intel?scan_id=${scanId}`)
+
     sendEmail(
       scan.email,
       `Your ${scan.business_name} Competitive Report — Dyia Intel`,
@@ -130,7 +133,30 @@ export async function GET(request: NextRequest) {
         reportUrl: `${baseUrl}/intel?scan_id=${scanId}`,
       }),
       'intel_free_report',
-    ).catch(err => console.error('Failed to send free Intel report email:', err))
+    )
+      .then(result => {
+        if (result.success) {
+          console.log(`[Intel] Email sent successfully to ${scan.email}, message ID: ${result.messageId}`)
+        } else {
+          console.error(`[Intel] Email failed to send to ${scan.email}:`, result.error)
+        }
+      })
+      .catch(err => {
+        console.error('[Intel] Failed to send free Intel report email:', err)
+        console.error('[Intel] Error details:', {
+          email: scan.email,
+          scanId,
+          businessName: scan.business_name,
+          error: err instanceof Error ? err.message : String(err)
+        })
+      })
+  } else {
+    if (!scan.email) {
+      console.warn(`[Intel] No email address for scan ${scanId}`)
+    }
+    if (!isResendConfigured()) {
+      console.warn('[Intel] Resend not configured, skipping email send')
+    }
   }
 
   // Generate 2 preview steps and persist them as the action_plan for this scan
