@@ -32,22 +32,34 @@ export function Settings({ settings, setSettings, userId, showSuccess, userProfi
   const hookSub = useSubscription()
   const clerk = useClerk()
 
-  // Prefer userProfile-derived subscription data (handles demo mode correctly)
-  const subscription = userProfile ? {
-    ...hookSub,
-    tier: (userProfile.subscription_status === 'trialing' ? 'trial'
-      : ['active', 'trialing'].includes(userProfile.subscription_status) ? 'pro'
-        : 'basic') as 'basic' | 'trial' | 'pro',
-    isPro: ['active', 'trialing'].includes(userProfile.subscription_status),
-    status: userProfile.subscription_status,
-    plan: (userProfile.subscription_plan || null) as 'monthly' | 'annual' | null,
-    daysRemaining: userProfile.subscription_ends_at
-      ? Math.max(0, Math.ceil((new Date(userProfile.subscription_ends_at).getTime() - Date.now()) / 86400000))
-      : 0,
-    aiCredits: userProfile.ai_credits_balance || 0,
-    canUseAI: ['active', 'trialing'].includes(userProfile.subscription_status) || (userProfile.ai_credits_balance || 0) > 0,
-    isLoading: false,
-  } : hookSub
+  // Prefer userProfile-derived subscription data (handles demo mode correctly).
+  // Distinguish the UI "tier" (basic/trial/pro) from the underlying "planTier"
+  // (what the user actually pays for: basic or pro) so Basic subscribers are
+  // never displayed as "Pro" (BUG-002/022).
+  const subscription = userProfile ? (() => {
+    const status = userProfile.subscription_status
+    const hasActiveSub = ['active', 'trialing'].includes(status)
+    const productTier: 'basic' | 'pro' = userProfile.subscription_tier === 'pro' ? 'pro' : 'basic'
+    const uiTier: 'basic' | 'trial' | 'pro' =
+      status === 'trialing' ? 'trial'
+        : status === 'active' ? productTier
+          : 'basic'
+    return {
+      ...hookSub,
+      tier: uiTier,
+      planTier: productTier,
+      isPro: hasActiveSub,
+      status,
+      plan: (userProfile.subscription_plan || null) as 'monthly' | 'annual' | null,
+      daysRemaining: userProfile.subscription_ends_at
+        ? Math.max(0, Math.ceil((new Date(userProfile.subscription_ends_at).getTime() - Date.now()) / 86400000))
+        : 0,
+      trialConsumed: !!userProfile.trial_consumed_at,
+      aiCredits: userProfile.ai_credits_balance || 0,
+      canUseAI: hasActiveSub || (userProfile.ai_credits_balance || 0) > 0,
+      isLoading: false,
+    }
+  })() : hookSub
   const isAdminAccount = !!userProfile?.is_admin || ['admin', 'super_admin'].includes(userProfile?.role || '')
   const [businessName, setBusinessName] = useState(settings.businessInfo.name)
   const [businessPhone, setBusinessPhone] = useState(settings.businessInfo.phone)
@@ -238,6 +250,19 @@ export function Settings({ settings, setSettings, userId, showSuccess, userProfi
   useEffect(() => {
     if (initialTab) setActiveTab(initialTab)
   }, [initialTab])
+
+  // When navigated to the Account tab from an "Upgrade to Pro" CTA, scroll the
+  // Subscription card into view (BUG-024).
+  useEffect(() => {
+    if (activeTab !== 'account') return
+    const el = document.getElementById('subscription')
+    if (!el) return
+    // Delay one frame so the tab's content mounts before we scroll.
+    const id = window.requestAnimationFrame(() => {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
+    return () => window.cancelAnimationFrame(id)
+  }, [activeTab])
 
   const tabIcons: Record<string, React.ReactNode> = {
     business: (
@@ -687,7 +712,7 @@ export function Settings({ settings, setSettings, userId, showSuccess, userProfi
         </div>
 
         {/* Subscription Card */}
-        <div className="app-card mb-6">
+        <div id="subscription" className="app-card mb-6 scroll-mt-24">
           <div className="flex items-center gap-3 mb-5">
             <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center shrink-0">
               <svg className="w-5 h-5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -708,8 +733,34 @@ export function Settings({ settings, setSettings, userId, showSuccess, userProfi
           ) : (
             <>
               {/* Current Plan Display */}
+              {(() => {
+                // Plan label strategy (BUG-002/022):
+                // - No sub:              FREE badge
+                // - Trial of Pro:        PRO badge + "Free Trial" pill, "full Pro access" copy
+                // - Paid Basic:          BASIC badge, "Basic plan" copy
+                // - Paid Pro:            PRO badge + plan pill
+                const uiTier = subscription.tier
+                const productTier = (subscription as { planTier?: 'basic' | 'pro' }).planTier ?? 'pro'
+                const isTrial = uiTier === 'trial'
+                const isPaidBasic = uiTier === 'basic' && ['active', 'past_due'].includes(subscription.status || '') && !!subscription.plan
+                const isPaidPro = uiTier === 'pro'
+                const showOrange = isTrial || isPaidPro
+                const badgeLabel = isTrial ? 'PRO' : isPaidBasic ? 'BASIC' : isPaidPro ? 'PRO' : 'FREE'
+                const bodyCopy =
+                  isAdminAccount
+                    ? 'Admin accounts have full Pro access and are never billed through Stripe.'
+                  : isTrial
+                    ? (productTier === 'basic'
+                        ? 'You currently have Pro access during your free trial. When the trial ends, your card will be charged for the Basic plan you selected at checkout.'
+                        : 'You have full Pro access. Your card will be charged when the free trial ends.')
+                  : isPaidPro
+                    ? 'Full access to all features including AI assistant, reports, and marketing tools.'
+                  : isPaidBasic
+                    ? 'Basic plan — job & quote tracking, calendar, customers, and payments. Upgrade to Pro for AI assistant, advanced reports, and email blasts.'
+                  : 'Upgrade to Pro for AI assistant, advanced reports, marketing tools, and email blasts.'
+                return (
               <div className={`p-4 rounded-xl border mb-5 ${
-                subscription.tier === 'pro' || subscription.tier === 'trial'
+                showOrange
                   ? 'bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-950/20 dark:to-amber-950/20 border-orange-200/50 dark:border-orange-800/30'
                   : 'bg-[var(--color-bg-subtle)] border-[var(--color-border)]'
               }`}>
@@ -717,32 +768,24 @@ export function Settings({ settings, setSettings, userId, showSuccess, userProfi
                   <div className="flex-1">
                     <div className="flex items-center gap-2.5 mb-1.5">
                       <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${
-                        subscription.tier === 'pro' || subscription.tier === 'trial'
-                          ? 'bg-orange-500/15 text-orange-600 dark:text-orange-400' 
+                        showOrange
+                          ? 'bg-orange-500/15 text-orange-600 dark:text-orange-400'
                           : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
                       }`}>
-                        {subscription.tier === 'pro' || subscription.tier === 'trial' ? 'PRO' : 'FREE'}
+                        {badgeLabel}
                       </span>
-                      {subscription.tier === 'trial' && (
+                      {isTrial && (
                         <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-200 dark:border-emerald-800 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 uppercase">
-                          Free Trial
+                          Free Trial{productTier === 'basic' ? ' (Basic plan)' : ''}
                         </span>
                       )}
-                      {subscription.tier === 'pro' && subscription.plan && (
+                      {(isPaidPro || isPaidBasic) && subscription.plan && (
                         <span className="px-2 py-0.5 rounded-full bg-[var(--color-bg-card)] border border-[var(--color-border)] text-[10px] font-semibold text-[var(--color-text-muted)] uppercase">
                           {subscription.plan === 'annual' ? 'Annual Plan' : 'Monthly Plan'}
                         </span>
                       )}
                     </div>
-                    <p className="text-sm text-[var(--color-text-secondary)]">
-                      {isAdminAccount
-                        ? 'Admin accounts have full Pro access and are never billed through Stripe.'
-                        : subscription.tier === 'trial'
-                        ? 'You have full Pro access. Your card will be charged when the free trial ends.'
-                        : subscription.tier === 'pro' 
-                          ? 'Full access to all features including AI assistant, reports, and marketing tools.'
-                          : 'Basic access. Upgrade to Pro for AI assistant, advanced reports, marketing tools, and email blasts.'}
-                    </p>
+                    <p className="text-sm text-[var(--color-text-secondary)]">{bodyCopy}</p>
                     {subscription.tier === 'trial' && (
                       <div className="mt-3">
                         <div className="flex items-center justify-between mb-1">
@@ -768,6 +811,8 @@ export function Settings({ settings, setSettings, userId, showSuccess, userProfi
                   )}
                 </div>
               </div>
+                )
+              })()}
 
               {/* Trial user: manage billing (card already on file) */}
               {subscription.tier === 'trial' && !isDemoMode && !isAdminAccount && (

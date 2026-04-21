@@ -517,7 +517,9 @@
 }
 
 .modal-overlay {
-  @apply fixed inset-0 z-50 flex items-center justify-center p-4;
+  /* BUG-016: overflow-y-auto ensures the user can still scroll to reach a
+     panel that's taller than the viewport on small screens. */
+  @apply fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto;
   background: var(--color-overlay);
   -webkit-backdrop-filter: blur(4px);
   backdrop-filter: blur(4px);
@@ -525,7 +527,9 @@
 }
 
 .modal-panel {
-  @apply relative w-full max-w-md rounded-2xl p-6 sm:p-8;
+  /* BUG-016: cap height and scroll inside so the Convert-to-Job popup is
+     fully reachable even when the underlying page has many quotes. */
+  @apply relative w-full max-w-md rounded-2xl p-6 sm:p-8 max-h-[90vh] overflow-y-auto;
   background: var(--color-bg-card);
   border: 1px solid var(--color-border);
   box-shadow: var(--shadow-xl);

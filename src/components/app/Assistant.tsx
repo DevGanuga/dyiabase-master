@@ -14,6 +14,12 @@ interface AssistantProps {
   initialPrompt?: string | null
   /** Called after the initial prompt has been sent so the parent can clear it. */
   onPromptConsumed?: () => void
+  /**
+   * Called whenever an AI tool mutates jobs/quotes/customers data (either via
+   * a non-pending success result or after a successful confirm). The parent
+   * should refetch grids so new items appear without a manual refresh (BUG-026).
+   */
+  onAppDataChanged?: () => void
 }
 
 export interface ToolResult {
@@ -79,7 +85,7 @@ interface QuickAction {
   icon?: string
 }
 
-export function Assistant({ userId, showSuccess, initialPrompt, onPromptConsumed }: AssistantProps) {
+export function Assistant({ userId, showSuccess, initialPrompt, onPromptConsumed, onAppDataChanged }: AssistantProps) {
   const [threads, setThreads] = useState<Thread[]>([])
   const [currentThreadId, setCurrentThreadId] = useState<string | null>(null)
   const [messages, setMessages] = useState<Message[]>([WELCOME_MESSAGE])
@@ -215,12 +221,15 @@ export function Assistant({ userId, showSuccess, initialPrompt, onPromptConsumed
     fetchQuickActions()
   }, [quickActionsFetched])
 
-  // Load messages when thread changes (e.g. user selects a different conversation)
+  // Load messages when thread changes (e.g. user selects a different conversation).
+  // Also clears any stale pending action/preview so it doesn't bleed into the
+  // newly-opened thread (BUG-029).
   useEffect(() => {
     const loadMessages = async () => {
       if (!currentThreadId) {
         setMessages([WELCOME_MESSAGE])
         setLastResponseId(null)
+        setPendingAction(null)
         return
       }
 
@@ -229,6 +238,9 @@ export function Assistant({ userId, showSuccess, initialPrompt, onPromptConsumed
         skipThreadLoadRef.current = false
         return
       }
+
+      // Reset preview when switching threads so a stale job/quote card doesn't carry over.
+      setPendingAction(null)
 
       setIsLoading(true)
       try {
@@ -262,10 +274,14 @@ export function Assistant({ userId, showSuccess, initialPrompt, onPromptConsumed
     setMessages([WELCOME_MESSAGE])
     setInputValue('')
     setLastResponseId(null)
+    // Clear any preview card from the previous thread (BUG-029).
+    setPendingAction(null)
     inputRef.current?.focus()
   }, [])
 
   const handleSelectThread = useCallback((threadId: string) => {
+    // Clear preview before switching threads so the load effect sees a clean slate.
+    setPendingAction(null)
     setCurrentThreadId(threadId)
     setShowThreads(false)
   }, [])
@@ -538,6 +554,10 @@ export function Assistant({ userId, showSuccess, initialPrompt, onPromptConsumed
         } else if (successActions.length > 1) {
           showSuccess(`${successActions.length} actions completed!`)
         }
+        // Notify parent to refetch grids so newly-mutated data (update_job,
+        // convert_quote_to_job, update_follow_up_status, batch_*) is visible
+        // without requiring a manual refresh (BUG-026).
+        onAppDataChanged?.()
       }
     } catch (error) {
       console.error('Error sending message:', error)
@@ -639,6 +659,9 @@ export function Assistant({ userId, showSuccess, initialPrompt, onPromptConsumed
       // Clear the pending action
       setPendingAction(null)
       showSuccess('Job saved!')
+      // Tell the parent to refetch jobs so the new row appears in the grid
+      // immediately (BUG-026).
+      onAppDataChanged?.()
 
       // Refresh thread list
       const threadsResponse = await fetch('/api/threads')
@@ -716,6 +739,9 @@ export function Assistant({ userId, showSuccess, initialPrompt, onPromptConsumed
       // Clear the pending action
       setPendingAction(null)
       showSuccess(downloadPdf ? 'Quote saved & PDF downloaded!' : 'Quote saved!')
+      // Tell the parent to refetch quotes so the new row appears in the grid
+      // immediately (BUG-026).
+      onAppDataChanged?.()
 
       // Refresh thread list
       const threadsResponse = await fetch('/api/threads')

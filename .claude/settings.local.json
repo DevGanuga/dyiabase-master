@@ -3,7 +3,8 @@
     "allow": [
       "Bash(npx @playwright/mcp@latest:*)",
       "Bash(npm run lint:*)",
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "WebFetch(domain:docs.stripe.com)"
     ]
   },
   "enabledMcpjsonServers": [

@@ -31,9 +31,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
-    if (!user.stripe_connect_account_id || !user.stripe_connect_charges_enabled) {
+    // BUG-030: surface which specific onboarding step is incomplete so the
+    // user can fix it in the Payments tab rather than seeing a generic error.
+    if (!user.stripe_connect_account_id) {
       return NextResponse.json(
-        { error: 'Complete Stripe setup before requesting payments.' },
+        { error: 'Stripe is not yet connected. Go to Payments and click "Connect with Stripe" to finish onboarding.' },
+        { status: 400 }
+      )
+    }
+    if (!user.stripe_connect_charges_enabled) {
+      return NextResponse.json(
+        { error: 'Stripe onboarding is incomplete — charges are not yet enabled. Open the Payments tab to finish the required steps in Stripe.' },
         { status: 400 }
       )
     }

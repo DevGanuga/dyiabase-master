@@ -200,16 +200,31 @@ async function handleCheckoutComplete(stripe: Stripe, supabase: any, session: St
 
   const subscriptionTier = session.metadata?.subscription_tier || determineTierFromPriceId(subscription.items.data[0]?.price)
 
+  // Build update payload. Mark trial_consumed_at the first time we see a trialing
+  // status for this user so the "Try Pro free" banner is never shown again (BUG-022).
+  const updatePayload: Record<string, unknown> = {
+    stripe_customer_id: customerId,
+    stripe_subscription_id: subscriptionId,
+    subscription_status: ourStatus,
+    subscription_plan: plan,
+    subscription_tier: subscriptionTier,
+    subscription_ends_at: periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
+  }
+  if (ourStatus === 'trialing' || subscription.trial_end) {
+    // Only set when not already populated — preserve original trial start time.
+    const { data: existing } = await supabase
+      .from('dyia_users')
+      .select('trial_consumed_at')
+      .eq('id', dyiaUserId)
+      .maybeSingle()
+    if (!existing?.trial_consumed_at) {
+      updatePayload.trial_consumed_at = new Date().toISOString()
+    }
+  }
+
   const { error } = await supabase
     .from('dyia_users')
-    .update({
-      stripe_customer_id: customerId,
-      stripe_subscription_id: subscriptionId,
-      subscription_status: ourStatus,
-      subscription_plan: plan,
-      subscription_tier: subscriptionTier,
-      subscription_ends_at: periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
-    })
+    .update(updatePayload)
     .eq('id', dyiaUserId)
 
   if (error) {
@@ -256,12 +271,16 @@ async function handleSubscriptionUpdate(supabase: any, subscription: Stripe.Subs
   }
   
   // Use type assertion for subscription properties
-  const sub = subscription as unknown as { 
-    items: { data: Array<{ price?: { recurring?: { interval?: string } } }> }
-    current_period_end?: number 
+  const sub = subscription as unknown as {
+    items: { data: Array<{ id?: string; price?: { id?: string; recurring?: { interval?: string } } }> }
+    current_period_end?: number
+    trial_end?: number | null
   }
   const plan = sub.items.data[0]?.price?.recurring?.interval === 'year' ? 'annual' : 'monthly'
   const periodEnd = sub.current_period_end
+  // Refresh product tier on every subscription update so plan changes in the
+  // Stripe customer portal (e.g. switching from Basic to Pro) propagate.
+  const subscriptionTier = determineTierFromPriceId(sub.items.data[0]?.price)
 
   let ourStatus: string = 'inactive'
   if (status === 'active') ourStatus = 'active'
@@ -269,13 +288,28 @@ async function handleSubscriptionUpdate(supabase: any, subscription: Stripe.Subs
   else if (status === 'past_due') ourStatus = 'past_due'
   else if (status === 'canceled') ourStatus = 'canceled'
 
+  const updatePayload: Record<string, unknown> = {
+    subscription_status: ourStatus,
+    subscription_plan: plan,
+    subscription_tier: subscriptionTier,
+    subscription_ends_at: periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
+  }
+  // Mark trial as consumed the first time we observe it. Once set, we never
+  // clear it so "Try Pro free" stays hidden even after the trial ends.
+  if (ourStatus === 'trialing' || sub.trial_end) {
+    const { data: existing } = await supabase
+      .from('dyia_users')
+      .select('trial_consumed_at')
+      .eq('stripe_customer_id', customerId)
+      .maybeSingle()
+    if (!existing?.trial_consumed_at) {
+      updatePayload.trial_consumed_at = new Date().toISOString()
+    }
+  }
+
   const { error } = await supabase
     .from('dyia_users')
-    .update({
-      subscription_status: ourStatus,
-      subscription_plan: plan,
-      subscription_ends_at: periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
-    })
+    .update(updatePayload)
     .eq('stripe_customer_id', customerId)
 
   if (error) {

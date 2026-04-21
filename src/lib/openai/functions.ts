@@ -335,13 +335,13 @@ export const DYIA_TOOLS: FunctionTool[] = [
   {
     type: 'function',
     name: 'update_follow_up_status',
-    description: 'Update the status of a follow-up (mark as contacted, converted, lost, or snoozed). Use when user mentions contacting a customer, closing a deal, or losing a lead.',
+    description: 'Update the status of a follow-up (mark as contacted, converted, lost, or snoozed). Use when user mentions contacting a customer, closing a deal, or losing a lead. The follow_up_id is the UUID returned by get_pending_follow_ups (not a quote id). Pass empty string for notes or snooze_until when they do not apply.',
     parameters: {
       type: 'object',
       properties: {
         follow_up_id: {
           type: 'string',
-          description: 'ID of the follow-up to update'
+          description: 'UUID of the follow-up to update (NOT a quote id). Get this from get_pending_follow_ups.'
         },
         status: {
           type: 'string',
@@ -350,11 +350,11 @@ export const DYIA_TOOLS: FunctionTool[] = [
         },
         notes: {
           type: 'string',
-          description: 'Notes about the follow-up interaction'
+          description: 'Notes about the follow-up interaction. Pass empty string if not applicable.'
         },
         snooze_until: {
           type: 'string',
-          description: 'If status is snoozed, the date to follow up again (YYYY-MM-DD)'
+          description: 'Required only when status is "snoozed": date to follow up again (YYYY-MM-DD). Pass empty string otherwise.'
         }
       },
       required: ['follow_up_id', 'status', 'notes', 'snooze_until'],
@@ -365,21 +365,21 @@ export const DYIA_TOOLS: FunctionTool[] = [
   {
     type: 'function',
     name: 'convert_quote_to_job',
-    description: 'Convert an accepted quote into a logged job. Use when a customer has agreed to a quote and the user wants to create a job from it.',
+    description: 'Convert an accepted quote into a logged job. Use when a customer has agreed to a quote and the user wants to create a job from it. The quote_id is the UUID of the quote (NOT a follow-up id). If get_pending_follow_ups returned a follow-up, use the `quoteId` field from that response, not the follow-up `id`. When revenue is -1 or date is empty, sensible defaults are used (estimate midpoint, today).',
     parameters: {
       type: 'object',
       properties: {
         quote_id: {
           type: 'string',
-          description: 'The ID of the quote to convert into a job'
+          description: 'UUID of the quote to convert (NOT a follow-up id). From get_pending_follow_ups response, use the quoteId field.'
         },
         revenue: {
           type: 'number',
-          description: 'Final agreed revenue in dollars. If not provided, uses the average of the quote estimate range.'
+          description: 'Final agreed revenue in dollars. Pass -1 to use the average of the quote estimate range.'
         },
         date: {
           type: 'string',
-          description: 'Job date in YYYY-MM-DD format. Defaults to today.'
+          description: 'Job date in YYYY-MM-DD format. Pass empty string to default to today.'
         }
       },
       required: ['quote_id', 'revenue', 'date'],
@@ -418,6 +418,33 @@ export const DYIA_TOOLS: FunctionTool[] = [
         }
       },
       required: ['include_recent_jobs'],
+      additionalProperties: false
+    },
+    strict: true
+  },
+  {
+    type: 'function',
+    name: 'list_top_jobs',
+    description: 'Return the highest-earning (or highest-profit) individual jobs as a ranked list. Use when the user asks for "top earning jobs", "best jobs", "biggest jobs", "highest revenue jobs", etc. Different from get_performance_stats (which returns aggregates) and get_business_summary (which returns an overview). Always returns a list of per-job rows.',
+    parameters: {
+      type: 'object',
+      properties: {
+        sort_by: {
+          type: 'string',
+          enum: ['revenue', 'profit'],
+          description: 'Whether to rank by gross revenue or net profit.'
+        },
+        period: {
+          type: 'string',
+          enum: ['this_week', 'this_month', 'last_month', 'this_quarter', 'this_year', 'all_time'],
+          description: 'Time period to include. Defaults to all_time.'
+        },
+        limit: {
+          type: 'number',
+          description: 'Maximum number of jobs to return (1-20). Default 5.'
+        }
+      },
+      required: ['sort_by', 'period', 'limit'],
       additionalProperties: false
     },
     strict: true
@@ -554,13 +581,13 @@ export const DYIA_TOOLS: FunctionTool[] = [
   {
     type: 'function',
     name: 'update_job',
-    description: 'Update an existing job record. Use when the user wants to change the revenue, expenses, customer name, date, notes, or other details of an already-logged job. Requires the job_id.',
+    description: 'Update an existing job record. Use when the user wants to change the revenue, expenses, customer name, date, notes, or other details of an already-logged job. Requires the job_id (UUID returned by create_job or get_user_context). For string fields, pass an empty string to leave unchanged. For numeric fields, pass -1 to leave unchanged.',
     parameters: {
       type: 'object',
       properties: {
         job_id: {
           type: 'string',
-          description: 'The ID of the job to update (required)'
+          description: 'The ID of the job to update (required). This is the UUID returned when the job was created.'
         },
         date: {
           type: 'string',
@@ -590,12 +617,28 @@ export const DYIA_TOOLS: FunctionTool[] = [
           type: 'number',
           description: 'Updated dump fee. Use -1 to keep current.'
         },
+        dumpster_rental: {
+          type: 'number',
+          description: 'Updated dumpster rental cost. Use -1 to keep current.'
+        },
+        additional_expense: {
+          type: 'number',
+          description: 'Updated additional/other expense. Use -1 to keep current.'
+        },
+        num_workers: {
+          type: 'number',
+          description: 'Updated number of workers. Use -1 to keep current.'
+        },
+        cost_per_worker: {
+          type: 'number',
+          description: 'Updated cost per worker. Use -1 to keep current.'
+        },
         notes: {
           type: 'string',
           description: 'Updated notes. Leave empty string to keep current.'
         }
       },
-      required: ['job_id', 'date', 'customer_name', 'source', 'revenue', 'labor', 'gas', 'dump_fee', 'notes'],
+      required: ['job_id', 'date', 'customer_name', 'source', 'revenue', 'labor', 'gas', 'dump_fee', 'dumpster_rental', 'additional_expense', 'num_workers', 'cost_per_worker', 'notes'],
       additionalProperties: false
     },
     strict: true
@@ -641,6 +684,7 @@ export type DyiaFunctionName =
   | 'convert_quote_to_job'
   | 'get_business_summary'
   | 'get_user_context'
+  | 'list_top_jobs'
   | 'find_similar_jobs'
   | 'get_revenue_forecast'
   | 'get_follow_up_risk_analysis'

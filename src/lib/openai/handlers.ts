@@ -398,9 +398,12 @@ async function getPendingFollowUps(args: Record<string, unknown>, dyiaUserId: st
 
     return {
       success: true,
-      data: { 
+      data: {
         followUps: limited.map(fu => ({
           id: fu.id,
+          // Expose the underlying quote UUID so the AI can pass it to
+          // convert_quote_to_job without confusing it with the follow-up id (BUG-027).
+          quoteId: fu.quote_id,
           customerId: fu.customer_id,
           customerName: fu.customer?.name || fu.quote?.customer_name,
           phone: fu.customer?.phone || fu.quote?.customer_phone,
@@ -584,8 +587,15 @@ async function updateFollowUpStatus(args: Record<string, unknown>, dyiaUserId: s
   try {
     const followUpId = args.follow_up_id as string
     const status = args.status as string
-    const notes = args.notes as string
-    const snoozeUntil = args.snooze_until as string
+    const notes = ((args.notes as string) || '').trim()
+    const snoozeUntil = ((args.snooze_until as string) || '').trim()
+
+    if (!followUpId) {
+      return { success: false, error: 'Missing follow_up_id', message: 'I need a follow-up id to update. Use get_pending_follow_ups first to retrieve it.' }
+    }
+    if (status === 'snoozed' && !snoozeUntil) {
+      return { success: false, error: 'Missing snooze_until', message: 'To snooze a follow-up I need a follow-up date (YYYY-MM-DD).' }
+    }
 
     const updateData: Record<string, unknown> = {
       status,
@@ -698,25 +708,54 @@ async function updateFollowUpStatus(args: Record<string, unknown>, dyiaUserId: s
 async function convertQuoteToJob(args: Record<string, unknown>, dyiaUserId: string): Promise<HandlerResult> {
   const supabase = getSupabase()
   try {
-    const quoteId = args.quote_id as string
-    const jobDate = (args.date as string) || new Date().toISOString().split('T')[0]
+    const rawQuoteId = (args.quote_id as string) || ''
+    const jobDate = ((args.date as string) || '').trim() || new Date().toISOString().split('T')[0]
 
-    // Fetch the quote
-    const { data: quote, error: quoteError } = await supabase
+    // BUG-027: model sometimes passes a follow-up UUID instead of a quote UUID.
+    // First try to resolve as a quote id; if not found, try resolving via dyia_follow_ups.
+    let quote: Record<string, unknown> | null = null
+    let quoteId = rawQuoteId
+
+    const { data: quoteDirect } = await supabase
       .from('dyia_quotes')
       .select('*')
-      .eq('id', quoteId)
+      .eq('id', rawQuoteId)
       .eq('user_id', dyiaUserId)
-      .single()
-
-    if (quoteError || !quote) {
-      return { success: false, error: 'Quote not found', message: 'Could not find that quote. Please check the ID and try again.' }
+      .maybeSingle()
+    if (quoteDirect) {
+      quote = quoteDirect
+    } else {
+      const { data: viaFollowUp } = await supabase
+        .from('dyia_follow_ups')
+        .select('quote_id')
+        .eq('id', rawQuoteId)
+        .eq('user_id', dyiaUserId)
+        .maybeSingle()
+      if (viaFollowUp?.quote_id) {
+        quoteId = viaFollowUp.quote_id
+        const { data: quoteViaLookup } = await supabase
+          .from('dyia_quotes')
+          .select('*')
+          .eq('id', quoteId)
+          .eq('user_id', dyiaUserId)
+          .maybeSingle()
+        if (quoteViaLookup) quote = quoteViaLookup
+      }
     }
 
-    const avgEstimate = Math.round(((parseFloat(quote.estimate_low) || 0) + (parseFloat(quote.estimate_high) || 0)) / 2)
-    const revenue = (args.revenue as number) || avgEstimate
+    if (!quote) {
+      return { success: false, error: 'Quote not found', message: 'Could not find that quote. Pass the quote UUID (the `quoteId` field from get_pending_follow_ups, not the follow-up `id`).' }
+    }
 
-    const customerId = quote.customer_id || await ensureCustomer(supabase, dyiaUserId, quote.customer_name)
+    const avgEstimate = Math.round(((parseFloat(String(quote.estimate_low)) || 0) + (parseFloat(String(quote.estimate_high)) || 0)) / 2)
+    const rawRevenue = typeof args.revenue === 'number' ? (args.revenue as number) : 0
+    // Accept -1 as an explicit "use default" sentinel and also fall back for 0 or negative values.
+    const revenue = rawRevenue > 0 ? rawRevenue : avgEstimate
+
+    const customerName = String(quote.customer_name || '')
+    const customerId = (quote.customer_id as string | null) || await ensureCustomer(supabase, dyiaUserId, customerName)
+    const source = (quote.source as string | null) || 'Quote'
+    const jobDescription = (quote.job_description as string | null) || null
 
     const { data: job, error: jobError } = await supabase
       .from('dyia_jobs')
@@ -724,8 +763,8 @@ async function convertQuoteToJob(args: Record<string, unknown>, dyiaUserId: stri
         user_id: dyiaUserId,
         customer_id: customerId,
         date: jobDate,
-        customer_name: quote.customer_name,
-        source: quote.source || 'Quote',
+        customer_name: customerName,
+        source,
         revenue,
         labor: 0,
         gas: 0,
@@ -734,7 +773,7 @@ async function convertQuoteToJob(args: Record<string, unknown>, dyiaUserId: stri
         additional_expense: 0,
         num_workers: 1,
         cost_per_worker: 0,
-        notes: quote.job_description || null,
+        notes: jobDescription,
       })
       .select()
       .single()
@@ -756,8 +795,8 @@ async function convertQuoteToJob(args: Record<string, unknown>, dyiaUserId: stri
 
     return {
       success: true,
-      data: { jobId: job.id, quoteId, customer: quote.customer_name, revenue },
-      message: `✅ Quote for ${quote.customer_name} converted to a job!\n\n💰 Revenue: $${revenue.toLocaleString()}\n📅 Date: ${jobDate}\n🔗 Quote is now linked to the new job.`
+      data: { jobId: job.id, quoteId, customer: customerName, revenue },
+      message: `✅ Quote for ${customerName} converted to a job!\n\n💰 Revenue: $${revenue.toLocaleString()}\n📅 Date: ${jobDate}\n🔗 Quote is now linked to the new job.`
     }
   } catch (error) {
     console.error('Error converting quote to job:', error)
@@ -1046,10 +1085,11 @@ async function getUserContext(args: Record<string, unknown>, dyiaUserId: string)
       .eq('is_default', true)
       .single()
 
-    // Get recent jobs
+    // Get recent jobs — include id so the model can reference a job in
+    // follow-up tool calls like update_job (BUG-011).
     const { data: jobs } = await supabase
       .from('dyia_jobs')
-      .select('customer_name, revenue, date, source')
+      .select('id, customer_name, revenue, date, source')
       .eq('user_id', dyiaUserId)
       .order('date', { ascending: false })
       .limit(includeRecentJobs)
@@ -1124,6 +1164,7 @@ async function getUserContext(args: Record<string, unknown>, dyiaUserId: string)
         prices: template.prices
       } : undefined,
       recentJobs: (jobs || []).map(job => ({
+        id: job.id,
         customerName: job.customer_name,
         revenue: parseFloat(job.revenue) || 0,
         date: job.date,
@@ -1824,6 +1865,99 @@ async function getFollowUpRiskAnalysis(args: Record<string, unknown>, dyiaUserId
 // MEMORY HANDLER
 // =============================================
 
+// BUG-028: dedicated tool that returns a ranked list of individual jobs
+// (not aggregates). The legacy `get_performance_stats` / `get_business_summary`
+// paths only returned summary numbers, so the AI couldn't enumerate top jobs.
+async function listTopJobs(args: Record<string, unknown>, dyiaUserId: string): Promise<HandlerResult> {
+  const supabase = getSupabase()
+  try {
+    const sortBy = (args.sort_by as string) === 'profit' ? 'profit' : 'revenue'
+    const period = (args.period as string) || 'all_time'
+    const rawLimit = Number(args.limit ?? 5)
+    const limit = Math.max(1, Math.min(20, Number.isFinite(rawLimit) ? rawLimit : 5))
+
+    // Resolve the date window.
+    const now = new Date()
+    const start = new Date(now)
+    let dateFilterStart: string | null = null
+    if (period === 'this_week') {
+      start.setDate(now.getDate() - now.getDay())
+      dateFilterStart = start.toISOString().split('T')[0]
+    } else if (period === 'this_month') {
+      dateFilterStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0]
+    } else if (period === 'last_month') {
+      dateFilterStart = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().split('T')[0]
+    } else if (period === 'this_quarter') {
+      const q = Math.floor(now.getMonth() / 3)
+      dateFilterStart = new Date(now.getFullYear(), q * 3, 1).toISOString().split('T')[0]
+    } else if (period === 'this_year') {
+      dateFilterStart = new Date(now.getFullYear(), 0, 1).toISOString().split('T')[0]
+    }
+
+    let query = supabase
+      .from('dyia_jobs')
+      .select('id, date, customer_name, source, revenue, labor, gas, dump_fee, dumpster_rental, additional_expense, notes')
+      .eq('user_id', dyiaUserId)
+
+    if (dateFilterStart) query = query.gte('date', dateFilterStart)
+    if (period === 'last_month') {
+      const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0).toISOString().split('T')[0]
+      query = query.lte('date', endOfLastMonth)
+    }
+
+    // Fetch a reasonable pool and sort in-memory so we can sort by profit too.
+    const { data: rows, error } = await query.order('revenue', { ascending: false }).limit(200)
+    if (error) throw error
+
+    const enriched = (rows || []).map(r => {
+      const revenue = parseFloat(r.revenue) || 0
+      const expenses =
+        (parseFloat(r.labor) || 0) +
+        (parseFloat(r.gas) || 0) +
+        (parseFloat(r.dump_fee) || 0) +
+        (parseFloat(r.dumpster_rental) || 0) +
+        (parseFloat(r.additional_expense) || 0)
+      const profit = revenue - expenses
+      return {
+        id: r.id as string,
+        date: r.date as string,
+        customerName: r.customer_name as string,
+        source: (r.source as string) || null,
+        revenue,
+        profit,
+      }
+    })
+
+    enriched.sort((a, b) => sortBy === 'profit' ? b.profit - a.profit : b.revenue - a.revenue)
+    const top = enriched.slice(0, limit)
+
+    if (top.length === 0) {
+      return {
+        success: true,
+        data: { jobs: [], sortBy, period },
+        message: `No jobs found for ${period.replace('_', ' ')}.`
+      }
+    }
+
+    const lines = top.map((j, i) => {
+      const amount = sortBy === 'profit' ? j.profit : j.revenue
+      const prefix = `${i + 1}. **${j.customerName}**`
+      return `${prefix} — $${Math.round(amount).toLocaleString()} • ${new Date(j.date + 'T12:00:00').toLocaleDateString()}`
+    })
+
+    const title = sortBy === 'profit' ? 'Top jobs by profit' : 'Top jobs by revenue'
+    const periodLabel = period === 'all_time' ? 'all time' : period.replace(/_/g, ' ')
+    return {
+      success: true,
+      data: { jobs: top, sortBy, period },
+      message: `🏆 **${title}** (${periodLabel})\n\n${lines.join('\n')}`
+    }
+  } catch (error) {
+    console.error('Error listing top jobs:', error)
+    return { success: false, error: String(error), message: 'Failed to list top jobs. Please try again.' }
+  }
+}
+
 async function updateJob(args: Record<string, unknown>, dyiaUserId: string): Promise<HandlerResult> {
   const supabase = getSupabase()
   try {
@@ -1847,6 +1981,12 @@ async function updateJob(args: Record<string, unknown>, dyiaUserId: string): Pro
     if (typeof args.labor === 'number' && (args.labor as number) >= 0) updates.labor = args.labor
     if (typeof args.gas === 'number' && (args.gas as number) >= 0) updates.gas = args.gas
     if (typeof args.dump_fee === 'number' && (args.dump_fee as number) >= 0) updates.dump_fee = args.dump_fee
+    // Extended fields (BUG-011): previously these were missing, so the AI could
+    // not edit dumpster rental / other expenses / worker info on a just-logged job.
+    if (typeof args.dumpster_rental === 'number' && (args.dumpster_rental as number) >= 0) updates.dumpster_rental = args.dumpster_rental
+    if (typeof args.additional_expense === 'number' && (args.additional_expense as number) >= 0) updates.additional_expense = args.additional_expense
+    if (typeof args.num_workers === 'number' && (args.num_workers as number) >= 0) updates.num_workers = args.num_workers
+    if (typeof args.cost_per_worker === 'number' && (args.cost_per_worker as number) >= 0) updates.cost_per_worker = args.cost_per_worker
     if (args.notes && (args.notes as string) !== '') updates.notes = args.notes
 
     if (Object.keys(updates).length === 0) return { success: true, message: 'No changes to apply. The job remains as-is.' }
@@ -2160,6 +2300,9 @@ export async function handleFunctionCall(
     case 'get_user_context':
       return getUserContext(args, dyiaUserId)
     
+    case 'list_top_jobs':
+      return listTopJobs(args, dyiaUserId)
+
     case 'find_similar_jobs':
       return findSimilarJobs(args, dyiaUserId)
     

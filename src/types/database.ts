@@ -96,7 +96,10 @@ export interface UserProfile {
   stripe_subscription_id?: string | null
   subscription_status: 'active' | 'inactive' | 'canceled' | 'past_due' | 'trialing'
   subscription_plan?: 'monthly' | 'annual' | null
+  subscription_tier?: 'basic' | 'pro' | null
   subscription_ends_at?: string | null
+  /** Timestamp of when the user first consumed their Pro free trial. Null = never trialed. */
+  trial_consumed_at?: string | null
   ai_credits_balance: number
   ai_credits_used_lifetime: number
   is_admin: boolean
@@ -592,6 +595,8 @@ export interface UserContext {
   }
   defaultPriceTemplate?: AppPriceTemplate
   recentJobs: Array<{
+    /** Job UUID — exposed so the AI can pass it to update_job (BUG-011). */
+    id: string
     customerName: string
     revenue: number
     date: string

@@ -36,7 +36,7 @@ const STATUS_CONFIG: Record<QuoteStatus, { label: string; color: string; bg: str
 
 const REVIEW_PLATFORMS = ['Google', 'Yelp', 'Facebook'] as const
 
-export function Quotes({ quotes, setQuotes, jobs, setJobs, userId, settings, onCreateQuote, onEditQuote, showSuccess, onOpenDyiaWithPrompt, isPro = true }: QuotesProps) {
+export function Quotes({ quotes, setQuotes, jobs, setJobs, userId, settings, onCreateQuote, onEditQuote, showSuccess, onOpenDyiaWithPrompt, isPro = false }: QuotesProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<QuoteStatus | 'all'>('all')
   const [linkingQuoteId, setLinkingQuoteId] = useState<string | null>(null)
@@ -286,33 +286,82 @@ export function Quotes({ quotes, setQuotes, jobs, setJobs, userId, settings, onC
     )
   }
 
+  // BUG-030: The original implementation wrapped fetch + clipboard in a single
+  // try/catch. `navigator.clipboard.writeText` throws on insecure contexts
+  // (http://), inside sandboxed iframes, when the page lacks focus, or when
+  // permissions are denied — which the user then saw as the very misleading
+  // "Failed to create payment link" toast even though the link was created
+  // successfully on the server. Separate the two operations and degrade
+  // gracefully if only clipboard fails.
   const requestQuotePayment = async (quote: AppQuote) => {
+    let data: {
+      shareUrl?: string
+      amountCents?: number
+      paymentId?: string
+      error?: string
+    } | null = null
     try {
       const res = await fetch('/api/payments/request', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ quoteId: quote.id }),
       })
-      const data = await res.json()
+      data = await res.json().catch(() => null)
       if (!res.ok) {
-        await alert({ title: 'Payment setup', message: data.error || 'Could not create payment link.', variant: 'warning' })
+        await alert({
+          title: 'Payment setup',
+          message: data?.error || 'Could not create payment link. Please verify Stripe is connected in the Payments tab.',
+          variant: 'warning',
+        })
         return
       }
-
-      await navigator.clipboard.writeText(data.shareUrl)
-
-      const requestedAt = new Date().toISOString()
-      setQuotes(quotes.map(q => q.id === quote.id ? {
-        ...q,
-        paymentStatus: 'pending',
-        paymentAmountCents: data.amountCents ?? q.paymentAmountCents ?? Math.round(q.total * 100),
-        paymentRequestedAt: requestedAt,
-        paymentLastRequestId: data.paymentId ?? q.paymentLastRequestId,
-      } : q))
-      showSuccess('Payment link copied to clipboard')
     } catch (error) {
       console.error('Error requesting quote payment:', error)
-      await alert({ title: 'Error', message: 'Failed to create payment link.', variant: 'error' })
+      await alert({
+        title: 'Error',
+        message: 'Could not reach the payment service. Please check your connection and try again.',
+        variant: 'error',
+      })
+      return
+    }
+
+    const shareUrl = data?.shareUrl
+    if (!shareUrl) {
+      await alert({ title: 'Error', message: 'Payment link was created but no URL was returned. Please try again.', variant: 'error' })
+      return
+    }
+
+    // Update local state immediately so the user sees the pending status even
+    // if clipboard access fails.
+    const requestedAt = new Date().toISOString()
+    setQuotes(quotes.map(q => q.id === quote.id ? {
+      ...q,
+      paymentStatus: 'pending',
+      paymentAmountCents: data?.amountCents ?? q.paymentAmountCents ?? Math.round(q.total * 100),
+      paymentRequestedAt: requestedAt,
+      paymentLastRequestId: data?.paymentId ?? q.paymentLastRequestId,
+    } : q))
+
+    // Best-effort clipboard copy. Any failure surfaces a separate, accurate
+    // message and shows the URL so the user can copy it manually.
+    let copied = false
+    try {
+      if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(shareUrl)
+        copied = true
+      }
+    } catch (clipboardErr) {
+      console.warn('Clipboard write failed:', clipboardErr)
+    }
+
+    if (copied) {
+      showSuccess('Payment link copied to clipboard')
+    } else {
+      await alert({
+        title: 'Payment link ready',
+        message: `The payment link was created successfully, but we couldn't copy it automatically. Copy it manually:\n\n${shareUrl}`,
+        variant: 'info',
+      })
     }
   }
 

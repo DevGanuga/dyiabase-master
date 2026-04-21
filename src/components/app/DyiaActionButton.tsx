@@ -57,7 +57,7 @@ export function DyiaActionButton({
     if (variant === 'compact') {
       return (
         <Link
-          href="/app?view=settings"
+          href="/app?view=settings&tab=account#subscription"
           className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium
             text-slate-400 dark:text-slate-500
             bg-slate-100/80 dark:bg-slate-800/50
@@ -77,7 +77,7 @@ export function DyiaActionButton({
     if (variant === 'card') {
       return (
         <Link
-          href="/app?view=settings"
+          href="/app?view=settings&tab=account#subscription"
           className={`group w-full flex items-center gap-3 p-3.5
             bg-slate-50/50 dark:bg-slate-800/30
             border border-dashed border-slate-200 dark:border-slate-700
@@ -109,7 +109,7 @@ export function DyiaActionButton({
     // Default locked
     return (
       <Link
-        href="/app?view=settings"
+        href="/app?view=settings&tab=account#subscription"
         className={`inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium
           text-slate-400 dark:text-slate-500
           bg-slate-100 dark:bg-slate-800/50

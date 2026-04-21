@@ -54,17 +54,21 @@ export async function POST(req: NextRequest) {
     // 6. Execute the handler
     const result = await handleFunctionCall(actionType, data, clerkUserId)
 
-    // 7. Generate appropriate success message
+    // 7. Generate appropriate success message. Include the resource UUID in a
+    //    machine-parseable suffix so follow-up AI turns can reference it when
+    //    calling update_job / convert_quote_to_job (BUG-011).
     let successMessage = result.message
     if (result.success) {
       if (actionType === 'create_job') {
         const profit = result.data?.profit as number || 0
         const customer = result.data?.customer || 'customer'
-        successMessage = `Job saved for ${customer}! Your profit is $${profit.toLocaleString()}.`
+        const jobId = (result.data?.jobId as string) || ''
+        successMessage = `Job saved for ${customer}! Your profit is $${profit.toLocaleString()}.${jobId ? ` (job_id: ${jobId})` : ''}`
       } else if (actionType === 'generate_quote') {
         const customer = result.data?.customer || 'customer'
         const estimate = result.data?.estimate || ''
-        successMessage = `Quote created for ${customer} at ${estimate}. A follow-up has been scheduled.`
+        const quoteId = (result.data?.quoteId as string) || ''
+        successMessage = `Quote created for ${customer} at ${estimate}. A follow-up has been scheduled.${quoteId ? ` (quote_id: ${quoteId})` : ''}`
       }
     }
 

@@ -50,7 +50,7 @@ interface TempExpenses {
 
 const MARKETING_SOURCES = ['Google', 'Facebook', 'Referral', 'Repeat Customer', 'Yelp', 'Craigslist', 'Instagram', 'Nextdoor', 'Thumbtack', 'HomeAdvisor', 'Website', 'Other']
 
-export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth, setSelectedMonth, settings, showSuccess, onOpenDyiaWithPrompt, isPro = true, initialCloseDayDate, onCloseDayDateConsumed, initialDraftDate, initialDraftStatus, onDraftConsumed }: JobsProps) {
+export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth, setSelectedMonth, settings, showSuccess, onOpenDyiaWithPrompt, isPro = false, initialCloseDayDate, onCloseDayDateConsumed, initialDraftDate, initialDraftStatus, onDraftConsumed }: JobsProps) {
   const [editingJob, setEditingJob] = useState<AppJob | 'new' | null>(null)
   const [tempCustomers, setTempCustomers] = useState<TempCustomer[]>([])
   const [tempExpenses, setTempExpenses] = useState<TempExpenses>({ labor: 0, gas: 0, dumpFee: 0, dumpsterRental: 0, additional: 0 })
@@ -442,7 +442,26 @@ export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth,
 
   const updateCustomer = (index: number, field: keyof TempCustomer, value: string | number) => {
     const updated = [...tempCustomers]
-    updated[index] = { ...updated[index], [field]: value }
+    const current = updated[index]
+    // BUG-025: when the user changes (or clears) the customer name off a
+    // previously-matched customer, wipe the pre-populated contact info so the
+    // form doesn't silently attribute old contacts to a new customer.
+    if (field === 'name') {
+      const newName = String(value)
+      const previousMatch = findByName(current.name || '')
+      const newMatch = findByName(newName)
+      const nameChanged = (current.name || '').trim().toLowerCase() !== newName.trim().toLowerCase()
+      const shouldClearContact = nameChanged && !!previousMatch && !newMatch
+      if (shouldClearContact) {
+        updated[index] = { ...current, name: newName, phone: '', email: '' }
+        // Also clear the shared tempAddress field if it was populated from a
+        // matched customer (only when the cleared row is the first/primary one).
+        if (index === 0) setTempAddress('')
+        setTempCustomers(updated)
+        return
+      }
+    }
+    updated[index] = { ...current, [field]: value }
     setTempCustomers(updated)
   }
 
@@ -1528,7 +1547,11 @@ export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth,
             <select
               value={sourceFilter}
               onChange={(e) => setSourceFilter(e.target.value)}
-              className="app-select !py-2.5 max-w-[150px]"
+              // BUG-015: `!w-auto` + `shrink-0` + capped max-width override the
+              // global `.app-select { w-full }` rule so the dropdown sizes to
+              // its longest option instead of stretching and squeezing the
+              // search input.
+              className="app-select !py-2.5 !w-auto shrink-0 max-w-[150px]"
             >
               <option value="all">All sources</option>
               {stats.sources.map(s => (
@@ -1539,7 +1562,8 @@ export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth,
           <select
             value={sortOrder}
             onChange={(e) => setSortOrder(e.target.value)}
-            className="app-select !py-2.5 min-w-[160px]"
+            // BUG-015: see sourceFilter select above for rationale.
+            className="app-select !py-2.5 !w-auto shrink-0 min-w-[140px] max-w-[180px]"
           >
             <option value="newest">Newest First</option>
             <option value="oldest">Oldest First</option>
@@ -1737,8 +1761,11 @@ export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth,
       </div>
 
       {/* Close day / Log daily expenses modal */}
+      {/* BUG-016: center vertically on all sizes and keep modal inside the
+          viewport. The previous `items-start + pt-12` pushed the panel offscreen
+          when the page was scrolled to the middle of a long Jobs list. */}
       {closeDayDate && (
-        <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-4 pt-12 sm:pt-4 bg-black/50 overflow-y-auto" onClick={() => !closeDaySaving && setCloseDayDate(null)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 overflow-y-auto" onClick={() => !closeDaySaving && setCloseDayDate(null)}>
           <div
             className="bg-[var(--color-bg)] border border-[var(--color-border)] rounded-xl shadow-xl max-w-md w-full max-h-[85vh] sm:max-h-[90vh] overflow-y-auto p-6"
             onClick={(e) => e.stopPropagation()}

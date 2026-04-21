@@ -39,7 +39,7 @@ export function ProFeature({
     return <>{children}</>
   }
 
-  const upgradeUrl = inApp ? '/app?view=settings' : '/#pricing'
+  const upgradeUrl = inApp ? '/app?view=settings&tab=account#subscription' : '/#pricing'
 
   return (
     <div className="relative group">

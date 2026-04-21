@@ -56,7 +56,10 @@ const FEE_FIELDS = [
 const SOURCES = ['Google', 'Facebook', 'Referral', 'Repeat Customer', 'Yelp', 'Craigslist', 'Instagram', 'Nextdoor', 'Thumbtack', 'HomeAdvisor', 'Website', 'Other']
 
 export function QuoteBuilder({ quotes, setQuotes, userId, selectedJob, editingQuote, customerNames = [], onBack, showSuccess, onOpenDyiaWithPrompt, isPro = true, settings }: QuoteBuilderProps) {
-  const { nameList, findByName } = useCustomerAutocomplete(customerNames)
+  const { suggestions: customerSuggestions, findByName } = useCustomerAutocomplete(customerNames)
+  // BUG-021: custom combobox state (replaces the native <datalist> which is
+  // broken on iOS Safari). Mirrors the pattern used in Jobs "Customer Name".
+  const [showNameSuggestions, setShowNameSuggestions] = useState(false)
   const supabase = useMemo(() => createClient(), [])
   const { alert } = useConfirm()
 
@@ -133,9 +136,26 @@ export function QuoteBuilder({ quotes, setQuotes, userId, selectedJob, editingQu
   const [savingTemplate, setSavingTemplate] = useState(false)
 
   const handleCustomerNameChange = useCallback((name: string) => {
-    setCustomer(prev => ({ ...prev, name }))
-    if (name.length > 0) setEditingCustomer(true)
-  }, [])
+    setCustomer(prev => {
+      // BUG-025: if the previously selected name matched a known customer and
+      // the user is now typing a different name, clear the stale contact info
+      // so it doesn't get silently carried over onto a new customer.
+      const previousMatch = findByName(prev.name)
+      const newMatch = findByName(name)
+      const nameChanged = prev.name.trim().toLowerCase() !== name.trim().toLowerCase()
+      const shouldClearContact = nameChanged && !!previousMatch && !newMatch
+      if (shouldClearContact) {
+        return { ...prev, name, phone: '', email: '', address: '' }
+      }
+      return { ...prev, name }
+    })
+    // When the user edits the name field, they're no longer on the compact
+    // "known customer" card view, and until we can re-match, treat as editing.
+    if (name.length > 0) {
+      setEditingCustomer(true)
+      setCustomerFound(false)
+    }
+  }, [findByName])
 
   const selectCustomerSuggestion = useCallback((name: string) => {
     const match = findByName(name)
@@ -624,27 +644,67 @@ export function QuoteBuilder({ quotes, setQuotes, userId, selectedJob, editingQu
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="sm:col-span-2">
-                <label className="app-label">Name *</label>
+              <div className="sm:col-span-2 relative">
+                <label className="app-label" id="qb-name-label">Name *</label>
+                {/*
+                 * BUG-021: Replaced native <datalist> (broken hit-area + missing
+                 * autocomplete on iOS Safari) with a custom combobox listbox —
+                 * same pattern as Log Job "Customer Name" (Jobs.tsx).
+                 */}
                 <input
-                  list="qb-names"
                   type="text"
+                  role="combobox"
+                  autoComplete="off"
+                  aria-labelledby="qb-name-label"
+                  aria-expanded={showNameSuggestions}
+                  aria-controls="qb-name-suggestions"
+                  aria-autocomplete="list"
                   value={customer.name}
                   onChange={(e) => {
                     const val = e.target.value
                     handleCustomerNameChange(val)
-                    if (nameList.some(n => n.toLowerCase() === val.trim().toLowerCase()) && val.length > customer.name.length + 1) {
-                      selectCustomerSuggestion(val)
-                    }
+                    setShowNameSuggestions(val.trim().length >= 1)
                   }}
+                  onFocus={() => { if (customer.name.trim().length >= 1) setShowNameSuggestions(true) }}
+                  onBlur={() => setTimeout(() => setShowNameSuggestions(false), 200)}
                   className="app-input"
                   placeholder="Customer name"
                   required
                   autoFocus
                 />
-                <datalist id="qb-names">
-                  {nameList.map(n => <option key={n} value={n} />)}
-                </datalist>
+                {showNameSuggestions && (() => {
+                  const q = customer.name.trim().toLowerCase()
+                  const filtered = customerSuggestions.filter(c => c.name.toLowerCase().includes(q))
+                  if (filtered.length === 0) return null
+                  return (
+                    <ul
+                      id="qb-name-suggestions"
+                      role="listbox"
+                      className="absolute z-20 left-0 right-0 top-full mt-1 max-h-44 overflow-y-auto rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-card)] shadow-lg py-1"
+                    >
+                      {filtered.slice(0, 8).map(c => (
+                        <li key={c.id} role="option" aria-selected={false}>
+                          <button
+                            type="button"
+                            onMouseDown={(e) => {
+                              // preventDefault so the input doesn't lose focus
+                              // before the click handler reads the selection.
+                              e.preventDefault()
+                              selectCustomerSuggestion(c.name)
+                              setShowNameSuggestions(false)
+                            }}
+                            className="w-full text-left px-3 py-2.5 text-sm hover:bg-[var(--color-bg-subtle)] transition-colors"
+                          >
+                            <div className="font-medium text-[var(--color-text-primary)]">{c.name}</div>
+                            <div className="text-[var(--color-text-faint)] text-xs">
+                              {[c.phone, c.email, c.address].filter(Boolean).join(' · ') || 'No contact info'}
+                            </div>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )
+                })()}
               </div>
               <div>
                 <label className="app-label">Phone</label>

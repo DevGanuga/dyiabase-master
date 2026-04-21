@@ -11,7 +11,7 @@ interface DyiaInsightProps {
   isPro?: boolean
 }
 
-export function DyiaInsight({ context, className = '', isPro = true }: DyiaInsightProps) {
+export function DyiaInsight({ context, className = '', isPro = false }: DyiaInsightProps) {
   const [insight, setInsight] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -72,7 +72,7 @@ export function DyiaInsight({ context, className = '', isPro = true }: DyiaInsig
   if (!isPro) {
     return (
       <Link
-        href="/app?view=settings"
+        href="/app?view=settings&tab=account#subscription"
         className={`flex items-center gap-3 px-4 py-3 bg-slate-50/80 dark:bg-slate-800/30 border border-dashed border-slate-200 dark:border-slate-700 rounded-xl hover:border-orange-300 dark:hover:border-orange-700 transition-all group ${className}`}
       >
         <div className="w-6 h-6 bg-gradient-to-br from-orange-500/20 to-amber-500/20 rounded-md flex items-center justify-center shrink-0">

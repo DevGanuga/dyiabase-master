@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useSubscription } from '@/hooks/useSubscription'
 
 export function TrialBanner() {
-  const { tier, daysRemaining, isCanceled, trialExpired, isLoading } = useSubscription()
+  const { tier, planTier, status, daysRemaining, isCanceled, trialExpired, trialConsumed, isLoading } = useSubscription()
   const [dismissed, setDismissed] = useState(() => {
     if (typeof window === 'undefined') return false
     const stored = sessionStorage.getItem('dyia_trial_banner_dismissed')
@@ -14,15 +14,25 @@ export function TrialBanner() {
   const [hiding, setHiding] = useState(false)
   const [visible, setVisible] = useState(false)
 
+  // Paid Basic (active sub, not trialing, product tier basic) → never show the
+  // "Try Pro free" offer. Also hide if the trial has already been consumed.
+  const isPaidBasic = planTier === 'basic' && status === 'active'
+  const hideForAlreadyUsedTrial = trialConsumed && tier !== 'trial' && !isCanceled && !trialExpired
+  const shouldShow = !isLoading
+    && (tier === 'trial' || tier === 'basic')
+    && !dismissed
+    && !isPaidBasic
+    && !hideForAlreadyUsedTrial
+
   useEffect(() => {
-    if (!isLoading && (tier === 'trial' || tier === 'basic') && !dismissed) {
+    if (shouldShow) {
       const timer = setTimeout(() => setVisible(true), 500)
       return () => clearTimeout(timer)
     }
-  }, [isLoading, tier, dismissed])
+  }, [shouldShow])
 
   if (isLoading || dismissed) return null
-  if (tier !== 'trial' && tier !== 'basic') return null
+  if (!shouldShow) return null
 
   const urgent = tier === 'trial' && daysRemaining <= 2
   const canceledWithTime = isCanceled && daysRemaining > 0
@@ -67,16 +77,20 @@ export function TrialBanner() {
 
   return (
     <div
-      className={`w-full ${bgClass} text-white overflow-hidden transition-all duration-400 ease-in-out ${
-        hiding ? 'max-h-0 opacity-0' : visible ? 'max-h-28 sm:max-h-20 opacity-100' : 'max-h-0 opacity-0'
+      // BUG-018: allow the banner to grow on mobile when the CTA wraps to a
+      // second line so it is never clipped by its own max-height. Kept a
+      // bounded desktop max-height for tidy layout.
+      // BUG-007/017: explicit z-10 keeps the banner below the header dropdown.
+      className={`w-full relative z-10 ${bgClass} text-white overflow-hidden transition-all duration-400 ease-in-out ${
+        hiding ? 'max-h-0 opacity-0' : visible ? 'max-h-40 sm:max-h-20 opacity-100' : 'max-h-0 opacity-0'
       }`}
       style={visible && !hiding ? { animation: 'bannerSlideDown 0.5s cubic-bezier(0.16, 1, 0.3, 1) both' } : undefined}
     >
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-2 sm:py-2.5 flex flex-col sm:flex-row items-center justify-between gap-1.5 sm:gap-2 text-sm font-medium">
-        <span className="flex items-center gap-1.5">{message}</span>
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-2 sm:py-2.5 flex flex-col sm:flex-row items-center justify-center sm:justify-between gap-2 text-sm font-medium text-center sm:text-left">
+        <span className="flex items-center gap-1.5 min-w-0 break-words">{message}</span>
         <div className="flex items-center gap-3">
-          <Link 
-            href="/app?view=settings" 
+          <Link
+            href="/app?view=settings&tab=account#subscription"
             className="inline-flex items-center gap-1.5 px-3 py-1 bg-white/20 hover:bg-white/30 rounded-full text-sm font-semibold transition-colors"
           >
             {ctaLabel}

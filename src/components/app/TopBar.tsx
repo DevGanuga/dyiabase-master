@@ -8,11 +8,14 @@ interface TopBarProps {
   userEmail: string
   userImageUrl?: string
   onLogout: () => void
+  /** UI tier: basic/trial/pro — controls trial messaging. */
   subscriptionTier?: 'basic' | 'trial' | 'pro'
+  /** Product tier: basic/pro — controls plan label on the account chip. */
+  planTier?: 'basic' | 'pro'
   isDemoMode?: boolean
 }
 
-export function TopBar({ userName, userEmail, userImageUrl, onLogout, subscriptionTier = 'basic', isDemoMode }: TopBarProps) {
+export function TopBar({ userName, userEmail, userImageUrl, onLogout, subscriptionTier = 'basic', planTier, isDemoMode }: TopBarProps) {
   const { resolvedTheme, setTheme } = useTheme()
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -32,10 +35,17 @@ export function TopBar({ userName, userEmail, userImageUrl, onLogout, subscripti
   const initials = (userName || userEmail || 'U').charAt(0).toUpperCase()
 
   return (
-    <div className="top-bar flex items-center justify-between h-14 px-4 sm:px-6 lg:px-8 shrink-0 border-b border-[var(--color-border-light)]">
+    // BUG-007/017: `isolate` creates a new stacking context so the account
+    // dropdown (z-[80] below) reliably paints above sibling banners, and
+    // `relative z-40` gives the whole header priority over banners rendered
+    // below it in the flex column.
+    <div className="top-bar relative z-40 isolate flex items-center justify-between h-14 px-4 sm:px-6 lg:px-8 shrink-0 border-b border-[var(--color-border-light)]">
       {/* Left: Logo on mobile (sidebar logo is hidden) */}
       <div className="sm:hidden flex items-center">
-        <img src="/dyia-logo-full.png" alt="dyia" className="h-5 opacity-80 dark:brightness-0 dark:invert" />
+        {/* BUG-020: removed `dark:brightness-0 dark:invert`. The logo asset is
+            already the correct color; the filter was rendering it dark-on-dark
+            (invisible) on mobile dark mode. */}
+        <img src="/dyia-logo-full.png" alt="dyia" className="h-5 opacity-80" />
       </div>
       <div className="hidden sm:block" />
 
@@ -98,7 +108,7 @@ export function TopBar({ userName, userEmail, userImageUrl, onLogout, subscripti
           </button>
 
           {menuOpen && (
-            <div className="absolute right-0 top-full mt-2 w-72 rounded-xl border shadow-xl z-[60] overflow-hidden animate-slide-down"
+            <div className="absolute right-0 top-full mt-2 w-72 rounded-xl border shadow-xl z-[80] overflow-hidden animate-slide-down"
                  style={{ background: 'var(--color-bg-card)', borderColor: 'var(--color-border)' }}>
               {/* User info */}
               <div className="px-4 py-3.5 border-b" style={{ borderColor: 'var(--color-border-light)' }}>
@@ -116,13 +126,26 @@ export function TopBar({ userName, userEmail, userImageUrl, onLogout, subscripti
                     )}
                     <p className="text-xs text-[var(--color-text-muted)] truncate">{userEmail}</p>
                   </div>
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0 ${
-                    subscriptionTier === 'pro' || subscriptionTier === 'trial'
-                      ? 'bg-orange-500/15 text-orange-600 dark:text-orange-400'
-                      : 'bg-[var(--color-bg-subtle)] text-[var(--color-text-faint)]'
-                  }`}>
-                    {subscriptionTier === 'pro' || subscriptionTier === 'trial' ? 'PRO' : 'FREE'}
-                  </span>
+                  {(() => {
+                    // Display the plan the user actually has:
+                    // - Pro trial   → PRO (orange)  (they're using Pro features)
+                    // - Pro paid    → PRO (orange)
+                    // - Basic paid  → BASIC (muted) — they have an active sub but not Pro
+                    // - No sub      → FREE (muted)
+                    const hasActive = subscriptionTier === 'pro' || subscriptionTier === 'trial'
+                    const showPro = subscriptionTier === 'trial' || (hasActive && planTier !== 'basic')
+                    const showBasic = hasActive && planTier === 'basic'
+                    const label = showPro ? 'PRO' : showBasic ? 'BASIC' : 'FREE'
+                    return (
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0 ${
+                        showPro
+                          ? 'bg-orange-500/15 text-orange-600 dark:text-orange-400'
+                          : 'bg-[var(--color-bg-subtle)] text-[var(--color-text-faint)]'
+                      }`}>
+                        {label}
+                      </span>
+                    )
+                  })()}
                 </div>
               </div>
 
