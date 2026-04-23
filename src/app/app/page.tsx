@@ -94,20 +94,7 @@ function AppPageContent() {
   const viewParam = (viewParamRaw && VALID_VIEWS.includes(viewParamRaw as View)) ? (viewParamRaw as View) : null
   const planParam = searchParams.get('plan') as 'monthly' | 'annual' | null
   const sessionIdParam = searchParams.get('session_id')
-  const tabParamRaw = searchParams.get('tab')
-  const VALID_SETTINGS_TABS = ['business', 'financial', 'expenses', 'templates', 'account'] as const
-  const tabParam = (tabParamRaw && VALID_SETTINGS_TABS.includes(tabParamRaw as typeof VALID_SETTINGS_TABS[number]))
-    ? (tabParamRaw as typeof VALID_SETTINGS_TABS[number])
-    : null
   const [currentView, setCurrentViewState] = useState<View>(viewParam ?? 'dashboard')
-
-  // Sync ?tab=... into settingsInitialTab when navigating to settings view via
-  // a deep-link (e.g. "Upgrade to Pro" CTAs → ?view=settings&tab=account, BUG-024).
-  useEffect(() => {
-    if (viewParam === 'settings' && tabParam) {
-      setSettingsInitialTab(tabParam)
-    }
-  }, [viewParam, tabParam])
 
   // Keep currentView in sync when URL changes (e.g., browser back/forward).
   // Any missing or invalid view param resets to dashboard so /app and /app?view= always show Home when view is not a valid panel.
@@ -160,7 +147,7 @@ function AppPageContent() {
   const [hasViewedAssistant, setHasViewedAssistant] = useState(false)
   const [hasNewIntel, setHasNewIntel] = useState(false)
   const [checkoutLoading, setCheckoutLoading] = useState(false)
-  const [settingsInitialTab, setSettingsInitialTab] = useState<'business' | 'financial' | 'expenses' | 'templates' | 'account' | null>(null)
+  const [settingsInitialTab, setSettingsInitialTab] = useState<'business' | 'templates' | null>(null)
   const [verifyingCheckout, setVerifyingCheckout] = useState(false)
   const checkoutTriggeredRef = useRef(false)
   const verifyAttemptedRef = useRef(false)
@@ -591,14 +578,6 @@ function AppPageContent() {
   const subEndsAt = userProfile?.subscription_ends_at ? new Date(userProfile.subscription_ends_at) : null
   const canceledWithTimeLeft = subStatus === 'canceled' && subEndsAt !== null && subEndsAt.getTime() > Date.now()
   const isPro = isAdmin || ['active', 'trialing'].includes(subStatus) || canceledWithTimeLeft
-  // Product tier (BUG-022/023/024): what the user actually pays for.
-  // Admins are always treated as Pro; otherwise read subscription_tier from the DB row.
-  const planTier: 'basic' | 'pro' = isAdmin
-    ? 'pro'
-    : (userProfile?.subscription_tier === 'pro' ? 'pro' : userProfile?.subscription_tier === 'basic' ? 'basic' : (isPro ? 'pro' : 'basic'))
-  // A user has pro-feature access only when they both have active billing AND their plan tier is Pro
-  // (or they're on the Pro free trial). This is the flag that gates AI insights, reports extras, etc.
-  const hasProAccess = isAdmin || planTier === 'pro' || subStatus === 'trialing'
   const hasActiveSubscription = !!userProfile && (isAdmin || ['active', 'trialing', 'past_due'].includes(subStatus) || canceledWithTimeLeft)
   const hasHadSubscription = !!userProfile?.stripe_customer_id || !!userProfile?.stripe_subscription_id
   const neverSubscribed = !loading && !isDemoMode && !!userProfile && !hasActiveSubscription && !hasHadSubscription
@@ -748,7 +727,7 @@ function AppPageContent() {
             onNavigate={(view) => setCurrentView(view as View)}
             pendingFollowUps={pendingFollowUpsCount}
             fixedMonthlyExpenses={fixedMonthlyExpenses}
-            isPro={hasProAccess}
+            isPro={isPro}
             taxPercentage={settings.taxPercentage}
             launchpadItems={launchpadItems}
             showLaunchpad={showLaunchpadOnDashboard}
@@ -774,7 +753,6 @@ function AppPageContent() {
             setSelectedMonth={setSelectedMonth}
             settings={settings}
             showSuccess={showSuccess}
-            isPro={hasProAccess}
             initialCloseDayDate={closeDayDateFromDashboard}
             onCloseDayDateConsumed={() => setCloseDayDateFromDashboard(null)}
             initialDraftDate={jobDraftDate}
@@ -794,7 +772,6 @@ function AppPageContent() {
             setJobs={setJobs}
             userId={userProfile?.id || ''}
             settings={settings}
-            isPro={hasProAccess}
             onCreateQuote={(job?: AppJob) => {
               setSelectedJobForQuote(job || null)
               setEditingQuote(null)
@@ -823,7 +800,7 @@ function AppPageContent() {
               setCurrentView('quotes')
             }}
             showSuccess={showSuccess}
-            isPro={hasProAccess}
+            isPro={isPro}
             settings={settings}
             onOpenDyiaWithPrompt={(prompt) => {
               setCurrentView('assistant')
@@ -889,17 +866,17 @@ function AppPageContent() {
             jobs={jobs}
             quotes={quotes}
             fixedMonthlyExpenses={fixedMonthlyExpenses}
-            isPro={hasProAccess}
+            isPro={isPro}
           />
         )
       case 'marketing':
-        return <Marketing showSuccess={showSuccess} isPro={hasProAccess} />
+        return <Marketing showSuccess={showSuccess} isPro={isPro} />
       case 'customers':
         return (
           <Customers
             jobs={jobs}
             quotes={quotes}
-            isPro={hasProAccess}
+            isPro={isPro}
             userId={userProfile?.id || ''}
             onNavigate={(view) => setCurrentView(view as View)}
             onCreateQuote={(job) => { setSelectedJobForQuote(job ?? null); setCurrentView('quoteBuilder') }}
@@ -912,7 +889,7 @@ function AppPageContent() {
           <MassEmail
             jobs={jobs}
             quotes={quotes}
-            isPro={hasProAccess}
+            isPro={isPro}
             showSuccess={showSuccess}
             showError={showError}
           />
@@ -972,12 +949,7 @@ function AppPageContent() {
         hasNewIntel={hasNewIntel}
       />
       
-      {/* BUG-007/017: dropped `overflow-hidden` on <main>. The TopBar account
-          menu is an absolutely-positioned panel; overflow-hidden here was
-          clipping it, which in turn made the menu appear "not tappable" on
-          iOS and allowed the BetaBanner to overlap it on desktop. The inner
-          scroll container below still handles content overflow. */}
-      <main className={`flex-1 flex flex-col ${isDemoMode ? 'pt-16' : ''}`} style={{ animation: 'contentReveal 0.6s cubic-bezier(0.16, 1, 0.3, 1) both' }}>
+      <main className={`flex-1 flex flex-col overflow-hidden ${isDemoMode ? 'pt-16' : ''}`} style={{ animation: 'contentReveal 0.6s cubic-bezier(0.16, 1, 0.3, 1) both' }}>
         {!isDemoMode && !isAdmin && <TrialBanner />}
         <TopBar
           userName={isDemoMode ? 'Demo User' : (user?.firstName || userProfile?.first_name || '')}
@@ -991,7 +963,6 @@ function AppPageContent() {
                   : isPro ? 'pro'
                     : 'basic'
           }
-          planTier={planTier}
           isDemoMode={isDemoMode}
         />
         {!isDemoMode && !isAdmin && <BetaBanner />}
@@ -1005,9 +976,6 @@ function AppPageContent() {
               showSuccess={showSuccess}
               initialPrompt={assistantInitialPrompt}
               onPromptConsumed={() => setAssistantInitialPrompt(null)}
-              onAppDataChanged={() => {
-                if (userProfile?.id) loadData(userProfile.id)
-              }}
             />
           </div>
         )}

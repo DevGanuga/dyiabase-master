@@ -5,13 +5,12 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient, SupabaseClient } from '@supabase/supabase-js'
+import { createClient } from '@supabase/supabase-js'
 import { checkResearch } from '@/lib/intel/agent'
 import { generatePreviewSteps } from '@/lib/intel/action-plan'
 import { sendEmail, isResendConfigured } from '@/lib/resend/client'
 import { intelFreeReportEmail } from '@/lib/resend/templates'
 import { getBaseUrl } from '@/lib/env'
-import type { IntelScanData } from '@/types/database'
 
 function getSupabase() {
   return createClient(
@@ -30,7 +29,7 @@ export async function GET(request: NextRequest) {
 
   const { data: scan } = await supabase
     .from('dyia_intel_scans')
-    .select('id, openai_response_id, scan_data, research_sources, research_report, action_plan, verified_data, email, business_name, report_email_sent_at')
+    .select('id, openai_response_id, scan_data, research_sources, research_report, action_plan, verified_data, email, business_name')
     .eq('id', scanId)
     .single()
 
@@ -38,19 +37,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Scan not found' }, { status: 404 })
   }
 
-  // Already done from a previous poll. If the email still hasn't been
-  // delivered (e.g. serverless was terminated before fire-and-forget
-  // resolved), retry it now so leads always receive their report.
+  // Already done from a previous poll
   if (scan.scan_data) {
-    if (scan.email && !scan.report_email_sent_at && isResendConfigured()) {
-      await deliverReportEmail(supabase, {
-        scanId: scan.id,
-        email: scan.email,
-        businessName: scan.business_name,
-        scanData: scan.scan_data as IntelScanData,
-      })
-    }
-
     const previewSteps = Array.isArray(scan.action_plan)
       ? scan.action_plan.filter((s: { include_in_free_preview?: boolean }) => s.include_in_free_preview)
       : null
@@ -75,23 +63,19 @@ export async function GET(request: NextRequest) {
   }
 
   if ('error' in result) {
-    // Alert owner on failure (await so Vercel doesn't freeze the promise).
+    // Alert owner on failure
     if (isResendConfigured()) {
       const ownerEmail = process.env.SUPPORT_EMAIL || process.env.RESEND_FROM_EMAIL?.match(/<(.+)>/)?.[1]
       if (ownerEmail) {
-        try {
-          await sendEmail(
-            ownerEmail,
-            `[Dyia Intel] Scan failed for ${scan.business_name}`,
-            `<h2>Intel Scan Failure</h2>
-             <p>Deep research failed for <strong>${scan.business_name}</strong>.</p>
-             <p>Lead email: ${scan.email}</p>
-             <p>Error: ${result.error}</p>`,
-            'intel_free_report',
-          )
-        } catch (err) {
-          console.error('[Intel] Failed to send owner failure alert:', err)
-        }
+        sendEmail(
+          ownerEmail,
+          `[Dyia Intel] Scan failed for ${scan.business_name}`,
+          `<h2>Intel Scan Failure</h2>
+           <p>Deep research failed for <strong>${scan.business_name}</strong>.</p>
+           <p>Lead email: ${scan.email}</p>
+           <p>Error: ${result.error}</p>`,
+          'intel_free_report',
+        ).catch(() => {})
       }
     }
 
@@ -130,23 +114,23 @@ export async function GET(request: NextRequest) {
     })
     .eq('id', scanId)
 
-  // Send free report email. MUST be awaited — on Vercel, fire-and-forget
-  // promises get cancelled when the function terminates, which is why
-  // prod users stopped receiving their reports.
+  // Send free report email
   if (scan.email && isResendConfigured()) {
-    await deliverReportEmail(supabase, {
-      scanId,
-      email: scan.email,
-      businessName: scan.business_name,
-      scanData,
-    })
-  } else {
-    if (!scan.email) {
-      console.warn(`[Intel] No email address for scan ${scanId}`)
-    }
-    if (!isResendConfigured()) {
-      console.warn('[Intel] Resend not configured, skipping email send')
-    }
+    const baseUrl = getBaseUrl()
+    sendEmail(
+      scan.email,
+      `Your ${scan.business_name} Competitive Report — Dyia Intel`,
+      intelFreeReportEmail({
+        businessName: scan.business_name,
+        localRank: scanData.local_rank,
+        totalCompetitors: scanData.total_competitors,
+        reviewGap: scanData.review_gap,
+        missingKeywordsCount: scanData.missing_keywords_count,
+        competitorAdSpendAvg: scanData.competitor_ad_spend_avg,
+        reportUrl: `${baseUrl}/intel?scan_id=${scanId}`,
+      }),
+      'intel_free_report',
+    ).catch(err => console.error('Failed to send free Intel report email:', err))
   }
 
   // Generate 2 preview steps and persist them as the action_plan for this scan
@@ -170,55 +154,4 @@ export async function GET(request: NextRequest) {
     researchReport: researchReport || null,
     actionPlanPreview,
   })
-}
-
-interface DeliverEmailArgs {
-  scanId: string
-  email: string
-  businessName: string
-  scanData: IntelScanData
-}
-
-async function deliverReportEmail(
-  supabase: SupabaseClient,
-  { scanId, email, businessName, scanData }: DeliverEmailArgs,
-): Promise<void> {
-  const baseUrl = getBaseUrl()
-  const reportUrl = `${baseUrl}/intel?scan_id=${scanId}`
-  console.log(`[Intel] Sending report email to: ${email} (scan ${scanId})`)
-
-  try {
-    const result = await sendEmail(
-      email,
-      `Your ${businessName} Competitive Report — Dyia Intel`,
-      intelFreeReportEmail({
-        businessName,
-        localRank: scanData.local_rank,
-        totalCompetitors: scanData.total_competitors,
-        reviewGap: scanData.review_gap,
-        missingKeywordsCount: scanData.missing_keywords_count,
-        competitorAdSpendAvg: scanData.competitor_ad_spend_avg,
-        reportUrl,
-      }),
-      'intel_free_report',
-    )
-
-    if (result.success) {
-      console.log(`[Intel] Email sent to ${email}, message ID: ${result.messageId}`)
-      await supabase
-        .from('dyia_intel_scans')
-        .update({ report_email_sent_at: new Date().toISOString() })
-        .eq('id', scanId)
-    } else {
-      console.error(`[Intel] Email failed to send to ${email}:`, result.error)
-    }
-  } catch (err) {
-    console.error('[Intel] Failed to send free Intel report email:', err)
-    console.error('[Intel] Error details:', {
-      email,
-      scanId,
-      businessName,
-      error: err instanceof Error ? err.message : String(err),
-    })
-  }
 }

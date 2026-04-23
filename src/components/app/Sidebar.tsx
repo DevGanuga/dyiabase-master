@@ -373,9 +373,9 @@ export function Sidebar({ currentView, setCurrentView, onLogout, isPro = false, 
         <div className="p-3 border-t border-slate-800 hidden sm:block space-y-1">
           {/* Subscription info */}
           {subscriptionTier === 'trial' && (
-            <Link
-              href="/app?view=settings&tab=account#subscription"
-              className={`w-full block px-3 py-2.5 mb-1 rounded-lg border hover:opacity-90 transition-colors ${
+            <button
+              onClick={() => setCurrentView('settings')}
+              className={`w-full px-3 py-2.5 mb-1 rounded-lg border hover:opacity-90 transition-colors ${
                 subscriptionPlan === null && trialDaysRemaining <= 3
                   ? 'bg-amber-500/10 border-amber-500/20'
                   : 'bg-emerald-500/10 border-emerald-500/20 hover:bg-emerald-500/15'
@@ -397,18 +397,18 @@ export function Sidebar({ currentView, setCurrentView, onLogout, isPro = false, 
                   />
                 </div>
               </div>
-            </Link>
+            </button>
           )}
           {subscriptionTier === 'basic' && (
-            <Link
-              href="/app?view=settings&tab=account#subscription"
+            <button
+              onClick={() => setCurrentView('settings')}
               className="w-full flex items-center gap-2 px-3 py-2 mb-1 rounded-lg bg-orange-500/10 border border-orange-500/20 text-orange-400 hover:bg-orange-500/15 transition-colors"
             >
               <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
               </svg>
               <span className="sidebar-text text-xs font-medium truncate">Upgrade to Pro</span>
-            </Link>
+            </button>
           )}
 
           {/* Settings */}
