@@ -42,6 +42,7 @@ export async function POST(request: NextRequest) {
       payment_method_types: ['card'],
       line_items: [{ price: priceId, quantity: 1 }],
       customer_email: email,
+      allow_promotion_codes: true,
       success_url: `${baseUrl}/report?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/intel?scan_id=${scanId}&cancelled=true`,
       metadata: {
