@@ -1086,12 +1086,16 @@ async function getUserContext(args: Record<string, unknown>, dyiaUserId: string)
       .single()
 
     // Get recent jobs — include id so the model can reference a job in
-    // follow-up tool calls like update_job (BUG-011).
+    // follow-up tool calls like update_job (BUG-011). Order by `created_at`
+    // (BUG-011 round 2) instead of `date` so a brand-new job logged today
+    // is always at the top of the list, even when the user has many other
+    // same-day jobs. Without the tiebreaker the new job could land mid-list
+    // and the model would misidentify which row to update.
     const { data: jobs } = await supabase
       .from('dyia_jobs')
-      .select('id, customer_name, revenue, date, source')
+      .select('id, customer_name, revenue, date, source, created_at')
       .eq('user_id', dyiaUserId)
-      .order('date', { ascending: false })
+      .order('created_at', { ascending: false })
       .limit(includeRecentJobs)
 
     // Load cross-thread memories

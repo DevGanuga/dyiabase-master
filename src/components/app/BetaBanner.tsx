@@ -33,7 +33,7 @@ export function BetaBanner() {
       // BUG-007/017: keep the banner below the header's stacking context so the
       // TopBar account dropdown is never occluded by this banner.
       className={`relative z-10 border-b border-orange-500/20 bg-gradient-to-r from-orange-500/8 via-amber-500/6 to-orange-500/8 overflow-hidden transition-all duration-300 ${
-        hiding ? 'max-h-0 opacity-0' : visible ? 'max-h-40 opacity-100' : 'max-h-0 opacity-0'
+        hiding ? 'max-h-0 opacity-0' : visible ? 'max-h-60 lg:max-h-40 opacity-100' : 'max-h-0 opacity-0'
       }`}
     >
       <button

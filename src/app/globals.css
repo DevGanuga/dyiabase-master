@@ -1109,11 +1109,17 @@
   }
   100% {
     opacity: 1;
-    transform: translateY(0);
+    transform: none;
   }
 }
 
-/* View transition - smoother page changes */
+/* View transition - smoother page changes.
+   BUG-016: end the keyframe with `transform: none` (not `translateX(0)`).
+   Any non-`none` transform on an ancestor turns it into the containing
+   block for descendant `position: fixed` elements (per CSS spec), which
+   caused our centered modals (Log Daily Expenses, Convert to Job, every
+   `.modal-overlay`) to position relative to the scrolled content wrapper
+   instead of the viewport, landing offscreen on long lists. */
 @keyframes viewEnter {
   0% {
     opacity: 0;
@@ -1121,7 +1127,7 @@
   }
   100% {
     opacity: 1;
-    transform: translateX(0);
+    transform: none;
   }
 }
 
@@ -1283,17 +1289,24 @@
   }
 }
 
+/* BUG-018: previous keyframe pinned `max-height` to 80px at 100%, which (with
+   `animation-fill-mode: both`) won out over Tailwind's `max-h-60` after the
+   animation finished and clipped multi-line banner content on narrow mobile
+   viewports. The end keyframe now expands to 16rem (~256px) — enough to fit
+   a stacked title + CTA + dismiss row on phones — and the `from-/to-` ramp
+   uses opacity only so the slide-in still feels right without trapping the
+   final height. */
 @keyframes bannerSlideDown {
   0% {
     max-height: 0;
     opacity: 0;
   }
   60% {
-    max-height: 60px;
+    max-height: 8rem;
     opacity: 0.7;
   }
   100% {
-    max-height: 80px;
+    max-height: 16rem;
     opacity: 1;
   }
 }

@@ -77,10 +77,34 @@ export async function POST(req: NextRequest) {
     }
 
     // 4. Parse request
-    const { message, conversationId, previousResponseId, fileUrl, fileName, fileType, extractedContent } = await req.json()
+    const { message, conversationId, previousResponseId, fileUrl, fileName, fileType, extractedContent, lastConfirmed } = await req.json()
 
     if (!message || typeof message !== 'string') {
       return NextResponse.json({ error: 'Message is required' }, { status: 400 })
+    }
+
+    // BUG-011 / AI-003 (round 2): build a context preamble describing the
+    // most recent confirmed action (job or quote) so the model has access to
+    // the new id without depending on the OpenAI Responses API thread (which
+    // never receives the confirm-route output) and without needing a
+    // get_user_context round-trip. The client-side `Assistant.tsx` sets
+    // `lastConfirmed` once after a confirm and then clears it, so this only
+    // affects the very next turn.
+    let confirmedContextPreamble = ''
+    if (lastConfirmed && typeof lastConfirmed === 'object') {
+      const lc = lastConfirmed as { jobId?: string; quoteId?: string; customerName?: string; date?: string }
+      if (lc.jobId) {
+        confirmedContextPreamble =
+          `[CONTEXT] The user has just saved a job. Use job_id="${lc.jobId}" directly when calling update_job — do NOT call get_user_context first.` +
+          (lc.customerName ? ` Customer: ${lc.customerName}.` : '') +
+          (lc.date ? ` Date: ${lc.date}.` : '') +
+          `\n\n`
+      } else if (lc.quoteId) {
+        confirmedContextPreamble =
+          `[CONTEXT] The user has just saved a quote. Use quote_id="${lc.quoteId}" directly when calling convert_quote_to_job, send_quote, or update_follow_up_status — do NOT call get_user_context first.` +
+          (lc.customerName ? ` Customer: ${lc.customerName}.` : '') +
+          `\n\n`
+      }
     }
 
     // Budget guardrail: reject if daily spend cap is exceeded
@@ -92,21 +116,23 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Build input based on file type
-    let input: unknown = message
+    // Build input based on file type. The confirmedContextPreamble (if any)
+    // is prepended in every variant so the model sees the just-saved id
+    // before reading the user's message.
+    let input: unknown = `${confirmedContextPreamble}${message}`
 
     if (fileUrl && fileType === 'image') {
       // For images, use the Responses API multi-part input with vision
       input = [
-        { type: 'input_text', text: message },
+        { type: 'input_text', text: `${confirmedContextPreamble}${message}` },
         { type: 'input_image', image_url: fileUrl },
       ]
     } else if (fileUrl && extractedContent) {
       // For text/CSV files where we extracted content server-side
-      input = `${message}\n\n--- File: ${fileName || 'file'} ---\n${extractedContent}`
+      input = `${confirmedContextPreamble}${message}\n\n--- File: ${fileName || 'file'} ---\n${extractedContent}`
     } else if (fileUrl) {
       // Fallback for PDFs/spreadsheets where we can't extract content yet
-      input = `${message}\n\n[User attached a file: ${fileName || 'file'} (${fileType || 'unknown type'}) — ${fileUrl}]`
+      input = `${confirmedContextPreamble}${message}\n\n[User attached a file: ${fileName || 'file'} (${fileType || 'unknown type'}) — ${fileUrl}]`
     }
 
     // 5. Non-streaming request helper for tool-calling loop

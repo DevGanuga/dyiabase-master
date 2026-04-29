@@ -27,6 +27,7 @@ export default function PublicPaymentPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [checkoutLoading, setCheckoutLoading] = useState(false)
+  const [verifying, setVerifying] = useState(false)
 
   const formattedAmount = useMemo(
     () => formatCurrency((payment?.amountCents || 0) / 100),
@@ -48,6 +49,50 @@ export default function PublicPaymentPage() {
     }
 
     load()
+  }, [params.token, searchParams])
+
+  // BUG-031 (round 2): defensive client-side reconciliation. After Stripe
+  // redirects the customer back to ?checkout=success&session_id=..., poke
+  // the verify endpoint so the merchant's quote/job updates immediately
+  // even if the webhook is delayed or misconfigured. Re-fetches the
+  // payment after a successful reconcile so this page also flips to the
+  // "Paid" confirmation state.
+  useEffect(() => {
+    const checkout = searchParams.get('checkout')
+    const sessionId = searchParams.get('session_id')
+    if (checkout !== 'success' || !sessionId) return
+    let cancelled = false
+    setVerifying(true)
+    ;(async () => {
+      try {
+        const res = await fetch(`/api/payments/public/${params.token}/verify`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId }),
+        })
+        const data = await res.json().catch(() => ({}))
+        if (cancelled) return
+        if (res.ok && (data.status === 'paid' || data.alreadyReconciled)) {
+          // Refresh the payment record so the UI flips to the paid state.
+          try {
+            const refresh = await fetch(`/api/payments/public/${params.token}`)
+            const refreshed = await refresh.json()
+            if (!cancelled && refresh.ok) setPayment(refreshed)
+          } catch {
+            /* non-fatal — webhook will still flip the state on next reload */
+          }
+        }
+      } catch (err) {
+        if (!cancelled) {
+          console.warn('Payment verification failed (non-fatal):', err)
+        }
+      } finally {
+        if (!cancelled) setVerifying(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
   }, [params.token, searchParams])
 
   const startCheckout = async () => {
@@ -130,12 +175,19 @@ export default function PublicPaymentPage() {
 
           {alreadyPaid ? (
             <div className="mt-6 rounded-xl border border-green-200 dark:border-green-800/40 bg-green-50 dark:bg-green-950/20 p-4 text-center">
-              <p className="text-sm font-medium text-green-700 dark:text-green-300">This payment has already been completed.</p>
+              <p className="text-sm font-medium text-green-700 dark:text-green-300">This payment has been received. Thank you!</p>
               {payment.paidAt && (
                 <p className="mt-1 text-xs text-green-700/80 dark:text-green-300/80">
                   Paid on {new Date(payment.paidAt).toLocaleString()}
                 </p>
               )}
+            </div>
+          ) : verifying ? (
+            <div className="mt-6 rounded-xl border border-orange-200 dark:border-orange-800/40 bg-orange-50 dark:bg-orange-950/20 p-4 text-center">
+              <div className="inline-flex items-center gap-2 text-sm font-medium text-orange-700 dark:text-orange-300">
+                <span className="w-4 h-4 border-2 border-orange-500/40 border-t-orange-500 rounded-full animate-spin" />
+                Confirming your payment...
+              </div>
             </div>
           ) : (
             <button

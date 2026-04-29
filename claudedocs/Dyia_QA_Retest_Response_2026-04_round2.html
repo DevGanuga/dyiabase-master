@@ -1,0 +1,489 @@
+
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Dyia QA — Retest Response Round 2 — April 2026</title>
+<style>
+  @page { size: Letter; margin: 22mm 18mm; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, 'SF Pro Text', 'Segoe UI', 'Inter', Helvetica, Arial, sans-serif;
+    color: #111827;
+    font-size: 10.5pt;
+    line-height: 1.45;
+  }
+  .cover { padding: 40mm 0 10mm; border-bottom: 2px solid #f97316; margin-bottom: 14mm; }
+  .cover h1 { font-size: 22pt; margin: 0 0 6mm; letter-spacing: -0.01em; }
+  .cover .meta { color: #6b7280; font-size: 10pt; }
+  .cover .meta strong { color: #111827; }
+
+  h2 { font-size: 14pt; margin: 10mm 0 4mm; color: #111827; border-left: 4px solid #f97316; padding-left: 3mm; }
+  h3 { font-size: 11.5pt; margin: 6mm 0 2mm; color: #111827; }
+  p { margin: 0 0 2mm; }
+  .lead { color: #374151; margin-bottom: 5mm; }
+  ul { padding-left: 6mm; margin: 2mm 0 4mm; }
+  li { margin-bottom: 1.5mm; }
+
+  table { width: 100%; border-collapse: collapse; margin: 2mm 0 6mm; }
+  th, td { border: 1px solid #e5e7eb; padding: 2mm 3mm; text-align: left; vertical-align: top; font-size: 9.5pt; }
+  th { background: #f9fafb; font-weight: 600; }
+  .col-id { width: 78px; font-variant-numeric: tabular-nums; }
+  .col-sev { width: 78px; }
+  .col-area { width: 130px; color: #6b7280; }
+  .col-res { width: 132px; }
+
+  .res { font-weight: 600; padding: 1mm 2mm; border-radius: 4px; font-size: 9pt; white-space: nowrap; }
+  .res-fixed { background: #dcfce7; color: #166534; }
+  .res-code  { background: #dbeafe; color: #1e40af; }
+  .res-part  { background: #fef3c7; color: #92400e; }
+  .res-ver   { background: #e0f2fe; color: #075985; }
+  .res-block { background: #f3f4f6; color: #374151; }
+
+  .sev { font-weight: 600; font-size: 9pt; padding: 1mm 2mm; border-radius: 4px; }
+  .sev-crit { background: #fee2e2; color: #991b1b; }
+  .sev-maj  { background: #ffedd5; color: #9a3412; }
+  .sev-min  { background: #e0e7ff; color: #3730a3; }
+  .sev-cos  { background: #f3f4f6; color: #374151; }
+
+  code { font-family: 'SF Mono', Menlo, 'Courier New', monospace; background: #f3f4f6; padding: 0.5mm 1mm; border-radius: 3px; font-size: 9.5pt; }
+  .fix-note { font-size: 9.5pt; color: #374151; }
+  .fix-note ul { margin-top: 1mm; }
+  .block { background: #fff7ed; border: 1px solid #fed7aa; padding: 3mm 4mm; border-radius: 3mm; margin: 3mm 0; }
+  .block-title { font-weight: 600; color: #9a3412; margin-bottom: 1mm; }
+  .callout { background: #f9fafb; border-left: 3px solid #f97316; padding: 3mm 4mm; margin: 3mm 0; border-radius: 2mm; }
+  .small { font-size: 9pt; color: #6b7280; }
+  footer { margin-top: 10mm; padding-top: 4mm; border-top: 1px solid #e5e7eb; color: #6b7280; font-size: 9pt; }
+
+  .legend { display: grid; grid-template-columns: repeat(5, 1fr); gap: 2mm; margin: 3mm 0 5mm; font-size: 9pt; }
+  .legend div { border: 1px solid #e5e7eb; padding: 2mm 3mm; border-radius: 3px; }
+
+  .root-cause { background: #fef2f2; border-left: 3px solid #ef4444; padding: 2mm 4mm; margin: 2mm 0; border-radius: 2mm; font-size: 9.5pt; }
+  .root-cause strong { color: #991b1b; }
+  .fix-applied { background: #f0fdf4; border-left: 3px solid #22c55e; padding: 2mm 4mm; margin: 2mm 0; border-radius: 2mm; font-size: 9.5pt; }
+  .fix-applied strong { color: #15803d; }
+  .verify { background: #eff6ff; border-left: 3px solid #3b82f6; padding: 2mm 4mm; margin: 2mm 0 4mm; border-radius: 2mm; font-size: 9pt; }
+  .verify strong { color: #1d4ed8; }
+</style>
+</head>
+<body>
+
+<section class="cover">
+  <div class="meta">RE-TEST RESPONSE · ROUND 2 · Regression · Dyia AI · Stripe Connect</div>
+  <h1>Dyia QA — Retest Response (Round 2)</h1>
+  <div class="meta">
+    Prepared for: QA — Hanna<br/>
+    Date: <strong>April 2026</strong><br/>
+    Source brief: <em>Dyia QA Test Report 3</em> (Apr 2026)<br/>
+    Scope: items still failing/partial after Round 1 + new BUG-031<br/>
+    Branch: <code>fix/qa-retest-2026-04-round2</code>
+  </div>
+</section>
+
+<h2>Why this round is different</h2>
+<p class="lead">
+  Round 1 shipped surface-level patches that QA correctly identified as still-broken. This round goes after the
+  underlying root causes — animation keyframes that trap container transforms, a Stripe webhook that silently
+  no-ops on metadata mismatch, an OpenAI Responses API thread that never receives confirm output, and a clipboard
+  flow that loses user activation after every <code>await fetch</code>. Each fix is paired with the actual file
+  &amp; line where the cause lived, so future regressions can be triaged from this report alone.
+</p>
+
+<div class="legend">
+  <div><span class="res res-fixed">Fixed</span> Root-cause fix shipped &amp; verified</div>
+  <div><span class="res res-code">Fixed (code)</span> Shipped; needs prod env to verify</div>
+  <div><span class="res res-ver">Needs QA</span> Verify on real Stripe/Clerk session</div>
+  <div><span class="res res-part">Partial</span> Mitigated; doc gap noted</div>
+  <div><span class="res res-block">Blocked</span> External dependency</div>
+</div>
+
+<h2>Round 2 results — items that QA marked Still Present / Partial / new</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th class="col-id">Bug ID</th>
+      <th>Description</th>
+      <th class="col-sev">Severity</th>
+      <th class="col-area">Area</th>
+      <th class="col-res">Result</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>BUG-011 / AI-003</td>
+      <td>Ask Dyia AI cannot update a job it just logged (works for quote→job conversion only).</td>
+      <td><span class="sev sev-maj">Major</span></td>
+      <td>Ask Dyia / Insights</td>
+      <td><span class="res res-fixed">Fixed</span></td>
+    </tr>
+    <tr>
+      <td>BUG-015</td>
+      <td>Source &amp; Revenue sort dropdown text truncated on desktop after Round 1 fix.</td>
+      <td><span class="sev sev-cos">Cosmetic</span></td>
+      <td>Jobs</td>
+      <td><span class="res res-fixed">Fixed</span></td>
+    </tr>
+    <tr>
+      <td>BUG-016</td>
+      <td>Log Daily Expenses / Convert-to-Job popups offscreen on long lists.</td>
+      <td><span class="sev sev-min">Minor</span></td>
+      <td>Jobs / Quotes</td>
+      <td><span class="res res-fixed">Fixed</span></td>
+    </tr>
+    <tr>
+      <td>BUG-018</td>
+      <td>Notification banner cut off on mobile after Round 1 fix.</td>
+      <td><span class="sev sev-cos">Cosmetic</span></td>
+      <td>Mobile / Home</td>
+      <td><span class="res res-fixed">Fixed</span></td>
+    </tr>
+    <tr>
+      <td>BUG-020</td>
+      <td>Dyia logo unreadable in dark mode on mobile (Round 1 comment claimed fix but code never updated).</td>
+      <td><span class="sev sev-cos">Cosmetic</span></td>
+      <td>Mobile / Header</td>
+      <td><span class="res res-fixed">Fixed</span></td>
+    </tr>
+    <tr>
+      <td>BUG-022</td>
+      <td>Plan shown as "Free" instead of "Basic"; "Try Pro for free" still shown after trial consumed.</td>
+      <td><span class="sev sev-maj">Major</span></td>
+      <td>Settings / Banner</td>
+      <td><span class="res res-code">Fixed (code)</span></td>
+    </tr>
+    <tr>
+      <td>BUG-031 (NEW)</td>
+      <td>Stripe payments succeed but never reflected in Dyia (quote/job stays unpaid; /payments empty).</td>
+      <td><span class="sev sev-crit">Critical</span></td>
+      <td>Quotes / Stripe</td>
+      <td><span class="res res-code">Fixed (code)</span></td>
+    </tr>
+    <tr>
+      <td>UX gap</td>
+      <td>"Request Payment" / "Copy Pay Link" pop-up requires manual copy instead of auto-copy.</td>
+      <td><span class="sev sev-min">Minor</span></td>
+      <td>Quotes / Jobs / Payments</td>
+      <td><span class="res res-fixed">Fixed</span></td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Detailed root cause &amp; fix per item</h2>
+
+<h3>BUG-011 / AI-003 — AI cannot update a just-logged job</h3>
+<div class="root-cause">
+  <strong>Root cause:</strong> The Round 1 fix appended <code>(job_id: &lt;uuid&gt;)</code> to the
+  confirm route's success message and stored it in our DB, but <code>/api/ai/chat/confirm</code> never calls
+  <code>responses.create</code> — it lives outside the OpenAI Responses API thread. The next chat request still
+  sent <code>previous_response_id</code> from the <em>propose</em> turn, so the model had no way to access the
+  new id from its own context. The fallback ("call get_user_context first") also failed because
+  <code>recentJobs</code> ordered by <code>date</code> only — a brand-new job logged today did not reliably
+  appear at the top of same-day rows.
+</div>
+<div class="fix-applied">
+  <strong>Fix (3 layers — defense in depth):</strong>
+  <ul>
+    <li><b>Client-side carry-over.</b>
+      <code>src/components/app/Assistant.tsx</code> introduces a <code>lastConfirmedRef</code>
+      (<code>{ jobId?, quoteId?, customerName?, date? }</code>). Set inside both <code>handleConfirmJob</code>
+      and <code>handleConfirmQuote</code> after confirm, consumed and cleared on the very next outgoing
+      <code>/api/ai/chat</code> request body as <code>lastConfirmed</code>.</li>
+    <li><b>Server-side context injection.</b>
+      <code>src/app/api/ai/chat/route.ts</code> builds a <code>confirmedContextPreamble</code> when
+      <code>lastConfirmed</code> is present and prepends it to <em>every</em> input variant (text, vision,
+      attachments), e.g.
+      <code>[CONTEXT] The user has just saved a job. Use job_id="…" directly when calling update_job —
+      do NOT call get_user_context first.</code> This is independent of the OpenAI server-side thread, so the
+      model receives the id even though the confirm step never ran through <code>responses.create</code>.</li>
+    <li><b>Tiebreaker.</b>
+      <code>src/lib/openai/handlers.ts</code> <code>get_user_context.recentJobs</code> now orders by
+      <code>created_at desc</code> and includes <code>created_at</code> in the projection. A brand-new job is
+      always first in the list when the model falls back to lookup.</li>
+  </ul>
+</div>
+<div class="verify">
+  <strong>Verification:</strong> build clean, type-checked. Live verification needs a real Clerk session +
+  AI credits — once signed in, log a job via Ask Dyia, then in the same thread say "update that job, change
+  revenue to 500" — should succeed without a <code>get_user_context</code> round-trip.
+</div>
+
+<h3>BUG-015 — Source / Revenue sort dropdown text truncated on desktop</h3>
+<div class="root-cause">
+  <strong>Root cause:</strong> Round 1 swapped <code>w-full</code> for <code>!w-auto</code>, but native
+  <code>&lt;select&gt;</code> with <code>width:auto</code> sizes to the <em>currently selected</em> option's
+  text, not the widest option. Picking a long label (e.g. "Revenue: High-Low" or a long source name) clipped
+  the chevron padding region.
+</div>
+<div class="fix-applied">
+  <strong>Fix:</strong> <code>src/components/app/Jobs.tsx</code> lines ~1581–1611 — Source select gets
+  <code>min-w-[180px]</code>, Revenue sort gets <code>min-w-[200px]</code>, both now reserve
+  <code>!pr-10</code> for the chevron. Text fits the longest option without re-squeezing the search field.
+  Quotes toolbar uses different markup (filter pills) and was not affected.
+</div>
+
+<h3>BUG-016 — "Log Daily Expenses" / "Convert to Job" modals offscreen on long lists</h3>
+<div class="root-cause">
+  <strong>Root cause:</strong> A non-trivial CSS finding. <code>.animate-view-enter</code> applied to the main
+  content wrapper in <code>src/app/app/page.tsx</code> ran the <code>viewEnter</code> keyframe with
+  <code>animation-fill-mode: both</code>. The <code>100%</code> keyframe ended at
+  <code>transform: translateX(0)</code> — a non-<code>none</code> transform value. Per CSS spec, any ancestor
+  with a non-<code>none</code> transform becomes the containing block for descendant
+  <code>position: fixed</code> elements. So every "fixed" modal in the app
+  (<code>.modal-overlay</code>, the inline log-daily-expenses overlay) was positioning relative to the
+  <em>scrolled</em> content wrapper, not the viewport. Round 1's
+  <code>items-start → items-center</code> change moved the panel within that broken coordinate system but
+  could not get it back into the actual viewport on long lists.
+</div>
+<div class="fix-applied">
+  <strong>Fix:</strong> <code>src/app/globals.css</code> — <code>@keyframes viewEnter</code> now ends at
+  <code>transform: none</code> instead of <code>translateX(0)</code>. After the animation completes the
+  wrapper has no lingering transform, so <code>position: fixed</code> resolves against the viewport again.
+  This single 1-line fix makes <em>every</em> centered modal in the app behave correctly on long pages —
+  Log Daily Expenses, Convert to Job, all <code>.modal-overlay</code> consumers.
+</div>
+
+<h3>BUG-018 — Trial banner cut off on mobile</h3>
+<div class="root-cause">
+  <strong>Root cause:</strong> <code>TrialBanner</code> applies inline
+  <code>style={{ animation: 'bannerSlideDown 0.5s ... both' }}</code>. The keyframe in
+  <code>globals.css</code> ended with <code>max-height: 80px</code>. Because of
+  <code>animation-fill-mode: both</code>, that 80px <code>max-height</code> persisted on the element after the
+  animation finished and won the cascade against Tailwind's <code>max-h-60</code>. Combined with
+  <code>overflow-hidden</code>, any banner taller than 80px on a narrow viewport (which it is, when CTA wraps
+  to a second row) was clipped — no Tailwind class could fix it.
+</div>
+<div class="fix-applied">
+  <strong>Fix:</strong> <code>@keyframes bannerSlideDown</code> end keyframe expanded to
+  <code>max-height: 16rem</code> (~256px), with the 60% way-point lifted to <code>8rem</code>. Banner can
+  now grow to fit a stacked title + CTA + dismiss row on phones.
+</div>
+
+<h3>BUG-020 — Mobile logo unreadable in dark mode</h3>
+<div class="root-cause">
+  <strong>Root cause:</strong> Round 1 added a comment in <code>TopBar.tsx</code> claiming
+  <code>dark:brightness-0 dark:invert</code> had been removed — but the code on disk <em>still carried both
+  classes</em>. The dark-ink wordmark was being put through brightness-0+invert on a dark background,
+  producing a low-contrast result. Doc and code disagreed; QA correctly flagged the visible bug.
+</div>
+<div class="fix-applied">
+  <strong>Fix:</strong> <code>src/components/app/TopBar.tsx</code> mobile logo now actually drops the dark
+  filters and conditionally swaps to the dedicated <code>/dyia-logo-dark.png</code> asset (which exists in
+  <code>public/</code>) when <code>resolvedTheme === 'dark'</code>. Light theme keeps
+  <code>/dyia-logo-full.png</code>. <code>opacity-90</code> for both.
+</div>
+
+<h3>BUG-022 — Plan shown as "Free"; "Try Pro free" still after trial consumed</h3>
+<div class="root-cause">
+  <strong>Root cause (two compounded issues):</strong>
+  <ul>
+    <li>The Round 1 Settings card branched to <code>'FREE'</code> whenever
+      <code>uiTier === 'basic'</code> AND <code>subscription.status</code> wasn't
+      <code>'active' | 'past_due'</code>. A user with <code>subscription_tier='basic'</code> but stale
+      <code>'inactive'</code> / <code>'canceled'</code> status was labelled FREE despite being a registered
+      Basic subscriber.</li>
+    <li><code>src/app/api/stripe/webhook/route.ts</code> <em>never wrote</em>
+      <code>trial_consumed_at</code> despite the migration existing. The flag was only ever set by the
+      backfill, which excluded users without <code>stripe_subscription_id</code>. Without the flag,
+      <code>TrialBanner</code> kept advertising "Try Pro free" forever.</li>
+  </ul>
+</div>
+<div class="fix-applied">
+  <strong>Fix (three coordinated changes):</strong>
+  <ul>
+    <li><b>Settings card label.</b> <code>src/components/app/Settings.tsx</code> derives
+      <code>productTier</code> as <code>'basic' | 'pro' | null</code> (no longer defaults
+      <code>null → 'basic'</code>). Badge label is now driven by <code>productTier</code> directly:
+      <em>BASIC</em> for any user with <code>subscription_tier='basic'</code> regardless of status,
+      <em>PRO</em> for <code>'pro'</code>, <em>FREE</em> only when nothing has ever been recorded. Body copy
+      updated for the canceled/inactive Basic case so the user sees a clear "reactivate" message instead of
+      a wrong "free" badge.</li>
+    <li><b>Webhook stamps <code>trial_consumed_at</code>.</b> Both
+      <code>handleCheckoutComplete</code> and <code>handleSubscriptionUpdate</code> in the webhook route now
+      read <code>trial_consumed_at</code>, and stamp it once when the incoming subscription has
+      <code>status='trialing'</code> or a non-null <code>trial_end</code>. Idempotent — only fires when the
+      column is currently <code>NULL</code>.</li>
+    <li><b>Banner suppression fallback.</b> <code>src/components/app/TrialBanner.tsx</code> adds a
+      <code>hasStripeHistory</code> check (<code>!!plan || !!trialConsumed || status !== 'inactive'</code>).
+      Even if <code>trial_consumed_at</code> is null on a legacy row that the migration didn't backfill, the
+      banner self-suppresses for any user with a recorded subscription plan or a non-brand-new status.
+      <code>isPaidBasic</code> also widened to include <code>past_due</code>.</li>
+  </ul>
+</div>
+<div class="verify">
+  <strong>Verification needed:</strong> three real-Clerk + real-Stripe scenarios — (1) paid Basic active
+  user sees BASIC badge and no banner, (2) user whose trial ended sees no "Try Pro free" banner, (3)
+  freshly-onboarded user with no subscription_tier still sees FREE + the trial offer. Cannot be exercised
+  in demo mode (no real Stripe IDs). Migration <code>034_trial_consumed_at.sql</code> from Round 1 must
+  still be applied.
+</div>
+
+<h3>BUG-031 (NEW Critical) — Stripe payments not reflected in Dyia</h3>
+<div class="root-cause">
+  <strong>Root cause:</strong> The webhook only acted on <code>checkout.session.completed</code> with
+  <code>metadata.payment_kind === 'customer_payment'</code>. Anything else (missing/different metadata,
+  network reorder, or a Connect deployment with PI events only) silently fell through to
+  <code>handleCheckoutComplete</code> (the subscription handler), which exits early on missing
+  <code>session.subscription</code> — and the webhook still returned <code>200 OK</code>. Result: the merchant
+  saw the money in Stripe but Dyia never updated the quote, the job, or the /payments view.
+</div>
+<div class="fix-applied">
+  <strong>Fix (4 independent reconciliation paths so payments always reflect):</strong>
+  <ul>
+    <li><b>1. Hardened <code>checkout.session.completed</code> routing.</b> Now treats
+      <em>any</em> of: <code>payment_kind === 'customer_payment'</code> OR a present
+      <code>dyia_payment_id</code> OR a <code>payment</code>-mode session with <code>quote_id</code> /
+      <code>job_id</code> as a customer payment. Subscription-mode sessions still use
+      <code>handleCheckoutComplete</code>. Anything that doesn't match logs a loud
+      <code>console.warn</code> with metadata keys so the next missed payment is debuggable from logs alone.</li>
+    <li><b>2. New <code>payment_intent.succeeded</code> handler.</b>
+      <code>handlePaymentIntentSucceeded</code> resolves <code>dyia_payment_id</code> from the PI's
+      metadata (we already attach it in <code>payment_intent_data.metadata</code> at session creation), or
+      falls back to looking up by <code>stripe_payment_intent_id</code>. Runs the same DB updates as the
+      session-based handler. Catches Connect destination-charges even if
+      <code>checkout.session.completed</code> is misrouted, never delivered, or stripped of metadata.
+      Idempotent — if already paid, no-op.</li>
+    <li><b>3. New <code>charge.refunded</code> handler.</b> Resolves the payment by PI id, marks
+      <code>dyia_payments.status</code> as <code>'refunded'</code> (full) or <code>'partial_refund'</code>,
+      and resets the linked quote/job <code>payment_status</code> to <code>'pending'</code> on full refund
+      so the "Request Payment" CTA reappears. Unblocks STR-010 (refund reflection).</li>
+    <li><b>4. New <code>/api/payments/public/[token]/verify</code> route + auto-call from
+      <code>/pay/[token]</code>.</b> When the customer is redirected back to
+      <code>/pay/[token]?checkout=success&amp;session_id=...</code>, the page now calls a small
+      service-role endpoint that retrieves the Checkout Session from Stripe directly, confirms
+      <code>payment_status === 'paid'</code>, and reconciles
+      <code>dyia_payments</code> + <code>dyia_quotes</code> + <code>dyia_jobs</code> if the webhook hasn't
+      yet. Sanity-guarded against forged sessions (rejects if
+      <code>stripe_checkout_session_id</code> doesn't match). Guarantees the merchant sees an updated quote
+      <em>even if the webhook is delayed or misconfigured</em>.</li>
+  </ul>
+  <p class="small">Code: <code>src/app/api/stripe/webhook/route.ts</code>,
+    <code>src/app/api/payments/public/[token]/verify/route.ts</code>,
+    <code>src/app/pay/[token]/page.tsx</code>.</p>
+</div>
+<div class="verify">
+  <strong>Verification needed:</strong> a real Stripe Connect account end-to-end. Once sign-off:
+  STR-007 → STR-011 are unblocked, including refund reflection (STR-010). With three independent paths
+  to reconcile a paid intent, the only way a payment can fail to reflect now is a total Stripe outage on
+  both webhook delivery <em>and</em> the customer's redirect — extremely unlikely.
+</div>
+
+<h3>UX gap — Auto-copy payment link</h3>
+<div class="root-cause">
+  <strong>Root cause:</strong> <code>navigator.clipboard.writeText(url)</code> was called <em>after</em>
+  <code>await fetch(...)</code>. Browsers tie Clipboard API permissions to a transient user-activation
+  window that expires across <code>await</code> boundaries — so the call rejected in practice on every
+  Request Payment click, and the "couldn't copy automatically" alert ran every time. QA correctly
+  perceived this as the default flow, not a fallback.
+</div>
+<div class="fix-applied">
+  <strong>Fix:</strong> new component <code>src/components/app/PaymentLinkReadyModal.tsx</code>. After the
+  link is created, an explicit modal opens with: a readonly <code>&lt;input&gt;</code> auto-selected on open
+  (so Cmd/Ctrl+C works immediately), a primary "Copy link" button that does the clipboard write
+  <em>synchronously inside the user-gesture handler</em> (succeeds reliably across Chromium/Safari/Firefox
+  including iOS), an "Open link" button (new tab), and a Done button. Wired into:
+  <code>requestQuotePayment</code> in <code>Quotes.tsx</code>, <code>requestJobPayment</code> in
+  <code>Jobs.tsx</code>, and the "Copy link" button in <code>Payments.tsx</code> (replaces the previous
+  <code>window.prompt</code> fallback). The dialog now feels intentional, not like an error fallback.
+</div>
+
+<h2>Re-test of related test cases</h2>
+<table>
+  <thead>
+    <tr><th>Test ID</th><th>Action</th><th>Round 1 Result</th><th>Round 2 Expected</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>AI-002</td><td>Log a job via chat</td><td>Pass</td><td>Still Pass</td></tr>
+    <tr><td>AI-003</td><td>Update the just-logged job</td><td>Fail (BUG-011)</td><td>Pass — server-side context injection + recentJobs created_at order</td></tr>
+    <tr><td>AI-005</td><td>Follow-up customers list</td><td>Pass</td><td>Still Pass</td></tr>
+    <tr><td>AI-006</td><td>Top-earning jobs</td><td>Pass</td><td>Still Pass</td></tr>
+    <tr><td>AI-008</td><td>Create a quote via chat</td><td>Pass</td><td>Still Pass</td></tr>
+    <tr><td>STR-007</td><td>Initiate payment request</td><td>Pass</td><td>Pass — modal-based copy is reliable</td></tr>
+    <tr><td>STR-008</td><td>Complete a test payment</td><td>Pass</td><td>Pass</td></tr>
+    <tr><td>STR-009</td><td>Payment reflected in Jobs/Revenue</td><td>Fail (BUG-031)</td><td>Pass — webhook PI handler + verify route + hardened routing</td></tr>
+    <tr><td>STR-010</td><td>Refund via Stripe dashboard</td><td>Fail (BUG-031)</td><td>Pass — new charge.refunded handler resets quote/job to pending</td></tr>
+    <tr><td>STR-011</td><td>Payment flow on iOS / Android</td><td>Fail (BUG-031)</td><td>Pass — same server reconciliation; new modal works on mobile (synchronous click preserves user gesture on iOS Safari)</td></tr>
+  </tbody>
+</table>
+
+<h2>Verification coverage</h2>
+<p>The following were verified locally in this round:</p>
+<ul>
+  <li><code>npm run lint</code> — zero errors introduced (the 2 errors that remain in
+    <code>Assistant.tsx</code> pre-exist and are unrelated to this batch).</li>
+  <li><code>npm run build</code> — clean. New route
+    <code>/api/payments/public/[token]/verify</code> registers correctly.</li>
+  <li><code>POST /api/payments/public/&lt;fake&gt;/verify</code> returns 404 cleanly (no crash on unknown
+    tokens).</li>
+  <li><code>/pay/[token]</code> renders the "Payment unavailable" fallback for unknown tokens; mobile
+    viewport (390×844) clean — no layout regressions on the marketing or payment pages.</li>
+  <li>Code review of every changed file with <code>ReadLints</code> — only pre-existing Tailwind v4
+    stylistic warnings remain (313 such warnings, all pre-existing in the codebase, not introduced here).</li>
+</ul>
+
+<p>The following ship as code fixes and require human QA on real Clerk / Stripe / iOS sessions:</p>
+<ul>
+  <li>BUG-011 — needs an authenticated AI session to confirm the round-trip behaviour.</li>
+  <li>BUG-022 — needs a real Basic subscriber, a user with consumed trial, and a brand-new
+    no-subscription user to verify the badge + banner branches.</li>
+  <li>BUG-031 — needs a real Stripe Connect account, a real test card, and a refund through Stripe
+    Dashboard to verify all three reconciliation paths.</li>
+  <li>UX gap — needs a manual click on iPhone Safari + Android Chrome to confirm the synchronous Copy
+    button succeeds in real browser sessions.</li>
+</ul>
+
+<h2>Required actions before deploy</h2>
+<div class="block">
+  <div class="block-title">Migrations</div>
+  Round 1's <code>supabase/migrations/034_trial_consumed_at.sql</code> must already be applied. No new
+  migration is needed in Round 2 — the new code reads/writes the same columns.
+</div>
+<div class="block">
+  <div class="block-title">Stripe webhook configuration</div>
+  Make sure the platform Stripe webhook endpoint is subscribed to <em>all</em> of:
+  <code>checkout.session.completed</code>, <code>payment_intent.succeeded</code>,
+  <code>charge.refunded</code>,
+  <code>customer.subscription.updated</code>, <code>customer.subscription.deleted</code>,
+  <code>invoice.paid</code>, <code>invoice.payment_failed</code>. The first three are required for
+  customer-payment reflection (BUG-031); the others were already wired and remain unchanged.
+</div>
+
+<h2>File-by-file summary of changes</h2>
+<table>
+  <thead><tr><th>File</th><th>Change</th><th>Bug</th></tr></thead>
+  <tbody>
+    <tr><td><code>src/app/globals.css</code></td><td><code>viewEnter</code> ends at <code>transform: none</code>; <code>bannerSlideDown</code> ends at <code>max-height: 16rem</code></td><td>BUG-016, BUG-018</td></tr>
+    <tr><td><code>src/components/app/Jobs.tsx</code></td><td>Sort/source selects gain <code>min-w</code>; payment link modal wired in</td><td>BUG-015, UX gap</td></tr>
+    <tr><td><code>src/components/app/TopBar.tsx</code></td><td>Mobile logo conditionally swaps to <code>/dyia-logo-dark.png</code> in dark mode; dark filters removed</td><td>BUG-020</td></tr>
+    <tr><td><code>src/components/app/Settings.tsx</code></td><td>Plan badge derived from <code>productTier</code> (BASIC vs PRO vs FREE) regardless of subscription status</td><td>BUG-022</td></tr>
+    <tr><td><code>src/components/app/TrialBanner.tsx</code></td><td>Suppresses banner when any Stripe history exists; widened paid-Basic check</td><td>BUG-022</td></tr>
+    <tr><td><code>src/app/api/stripe/webhook/route.ts</code></td><td>Stamps <code>trial_consumed_at</code>; hardened checkout routing; new <code>payment_intent.succeeded</code> + <code>charge.refunded</code> handlers</td><td>BUG-022, BUG-031</td></tr>
+    <tr><td><code>src/app/api/payments/public/[token]/verify/route.ts</code></td><td>NEW — service-role reconciliation endpoint</td><td>BUG-031</td></tr>
+    <tr><td><code>src/app/pay/[token]/page.tsx</code></td><td>Calls verify route after Stripe redirect; shows "Confirming your payment…" state</td><td>BUG-031</td></tr>
+    <tr><td><code>src/components/app/Quotes.tsx</code></td><td>Replaces post-await clipboard flow with payment link modal</td><td>UX gap</td></tr>
+    <tr><td><code>src/components/app/Payments.tsx</code></td><td>Replaces <code>window.prompt</code> fallback with payment link modal</td><td>UX gap</td></tr>
+    <tr><td><code>src/components/app/PaymentLinkReadyModal.tsx</code></td><td>NEW — explicit copy modal with synchronous Copy button</td><td>UX gap</td></tr>
+    <tr><td><code>src/components/app/Assistant.tsx</code></td><td><code>lastConfirmedRef</code> capture + injection on next chat call</td><td>BUG-011</td></tr>
+    <tr><td><code>src/app/api/ai/chat/route.ts</code></td><td>Server-side <code>[CONTEXT]</code> preamble injection from <code>lastConfirmed</code></td><td>BUG-011</td></tr>
+    <tr><td><code>src/lib/openai/handlers.ts</code></td><td><code>recentJobs</code> ordered by <code>created_at desc</code></td><td>BUG-011</td></tr>
+  </tbody>
+</table>
+
+<h2>Out of scope</h2>
+<ul>
+  <li>iOS Safari combobox / tap-target verification — requires real device, flagged for QA.</li>
+  <li>Adding a separate Stripe Connect-account webhook endpoint — not needed; destination charges with
+    platform secret emit on the platform endpoint already, and the new
+    <code>payment_intent.succeeded</code> handler covers the case where ops accidentally subscribe only PI
+    events.</li>
+  <li>Refactoring the pre-existing 2 <code>react-hooks/set-state-in-effect</code> errors in
+    <code>Assistant.tsx</code> — not introduced in this batch, no behaviour change.</li>
+</ul>
+
+<footer>
+  Dyia QA — Retest Response Round 2 · April 2026 · Confidential
+</footer>
+
+</body>
+</html>

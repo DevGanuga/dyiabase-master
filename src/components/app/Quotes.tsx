@@ -10,6 +10,7 @@ import { useConfirm } from '@/components/providers/ConfirmProvider'
 import { ensureCustomer } from '@/lib/customers'
 import { DyiaActionButton, DYIA_PROMPTS } from './DyiaActionButton'
 import { DyiaInsight } from './DyiaInsight'
+import { PaymentLinkReadyModal } from './PaymentLinkReadyModal'
 
 interface QuotesProps {
   quotes: AppQuote[]
@@ -46,6 +47,10 @@ export function Quotes({ quotes, setQuotes, jobs, setJobs, userId, settings, onC
   const [reviewHistory, setReviewHistory] = useState<{ platform: string; requestedAt: string }[]>([])
   const [convertingQuote, setConvertingQuote] = useState<AppQuote | null>(null)
   const [convertDate, setConvertDate] = useState(formatLocalDateInput())
+  // BUG-031 UX (round 2): show the payment link in a deliberate dialog with
+  // a synchronous Copy button instead of trying (and failing) to copy after
+  // an `await fetch(...)`.
+  const [paymentLinkModal, setPaymentLinkModal] = useState<{ url: string; customerName?: string } | null>(null)
 
   const supabase = createClient()
   const { confirm, alert } = useConfirm()
@@ -286,13 +291,14 @@ export function Quotes({ quotes, setQuotes, jobs, setJobs, userId, settings, onC
     )
   }
 
-  // BUG-030: The original implementation wrapped fetch + clipboard in a single
-  // try/catch. `navigator.clipboard.writeText` throws on insecure contexts
-  // (http://), inside sandboxed iframes, when the page lacks focus, or when
-  // permissions are denied — which the user then saw as the very misleading
-  // "Failed to create payment link" toast even though the link was created
-  // successfully on the server. Separate the two operations and degrade
-  // gracefully if only clipboard fails.
+  // BUG-030 + BUG-031 UX (round 2): create the payment link, then open a
+  // dedicated modal that shows the URL and offers a synchronous Copy button.
+  // The previous implementation tried to copy AFTER the await — losing the
+  // user's transient activation gesture and triggering the manual-copy
+  // fallback in practice every time. The new flow is intentional: we never
+  // pretend to auto-copy; instead the modal makes the copy obvious and the
+  // click-to-copy works reliably because the browser still considers it
+  // user-initiated.
   const requestQuotePayment = async (quote: AppQuote) => {
     let data: {
       shareUrl?: string
@@ -331,8 +337,7 @@ export function Quotes({ quotes, setQuotes, jobs, setJobs, userId, settings, onC
       return
     }
 
-    // Update local state immediately so the user sees the pending status even
-    // if clipboard access fails.
+    // Update local state immediately so the row reflects pending status.
     const requestedAt = new Date().toISOString()
     setQuotes(quotes.map(q => q.id === quote.id ? {
       ...q,
@@ -342,27 +347,7 @@ export function Quotes({ quotes, setQuotes, jobs, setJobs, userId, settings, onC
       paymentLastRequestId: data?.paymentId ?? q.paymentLastRequestId,
     } : q))
 
-    // Best-effort clipboard copy. Any failure surfaces a separate, accurate
-    // message and shows the URL so the user can copy it manually.
-    let copied = false
-    try {
-      if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(shareUrl)
-        copied = true
-      }
-    } catch (clipboardErr) {
-      console.warn('Clipboard write failed:', clipboardErr)
-    }
-
-    if (copied) {
-      showSuccess('Payment link copied to clipboard')
-    } else {
-      await alert({
-        title: 'Payment link ready',
-        message: `The payment link was created successfully, but we couldn't copy it automatically. Copy it manually:\n\n${shareUrl}`,
-        variant: 'info',
-      })
-    }
+    setPaymentLinkModal({ url: shareUrl, customerName: quote.customer.name })
   }
 
   // Empty state
@@ -709,6 +694,15 @@ export function Quotes({ quotes, setQuotes, jobs, setJobs, userId, settings, onC
           </p>
         </div>
       )}
+
+      {/* Payment link ready modal — explicit copy UX (BUG-031 round 2) */}
+      <PaymentLinkReadyModal
+        open={!!paymentLinkModal}
+        url={paymentLinkModal?.url || null}
+        title="Payment link ready"
+        description={paymentLinkModal?.customerName ? `Send this link to ${paymentLinkModal.customerName} to collect payment.` : undefined}
+        onClose={() => setPaymentLinkModal(null)}
+      />
 
       {/* Convert to Job modal with date picker */}
       {convertingQuote && (

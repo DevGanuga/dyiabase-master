@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useSubscription } from '@/hooks/useSubscription'
 
 export function TrialBanner() {
-  const { tier, planTier, status, daysRemaining, isCanceled, trialExpired, trialConsumed, isLoading } = useSubscription()
+  const { tier, planTier, status, daysRemaining, isCanceled, trialExpired, trialConsumed, plan, isLoading } = useSubscription()
   const [dismissed, setDismissed] = useState(() => {
     if (typeof window === 'undefined') return false
     const stored = sessionStorage.getItem('dyia_trial_banner_dismissed')
@@ -14,15 +14,29 @@ export function TrialBanner() {
   const [hiding, setHiding] = useState(false)
   const [visible, setVisible] = useState(false)
 
-  // Paid Basic (active sub, not trialing, product tier basic) → never show the
-  // "Try Pro free" offer. Also hide if the trial has already been consumed.
-  const isPaidBasic = planTier === 'basic' && status === 'active'
-  const hideForAlreadyUsedTrial = trialConsumed && tier !== 'trial' && !isCanceled && !trialExpired
+  // Paid Basic (active or past_due sub, not trialing, product tier basic) →
+  // never show the "Try Pro free" offer. Previous fix only checked `'active'`
+  // which still showed the banner for paid Basic users in dunning.
+  const isPaidBasic = planTier === 'basic' && (status === 'active' || status === 'past_due')
+
+  // BUG-022 (round 2): defense-in-depth suppression. Even if `trial_consumed_at`
+  // is null on a legacy row that the migration didn't backfill, we should
+  // never re-offer the trial when there's any other signal that the user
+  // already engaged with Stripe billing — e.g. they have a `subscription_plan`
+  // recorded (set by `handleCheckoutComplete` on first checkout) or their
+  // status is anything other than the brand-new-account `'inactive'`. Without
+  // this fallback, QA still sees "Try Pro for free" reappear after a
+  // canceled or expired trial.
+  const hasStripeHistory = !!plan || !!trialConsumed || (status !== null && status !== 'inactive')
+
   const shouldShow = !isLoading
     && (tier === 'trial' || tier === 'basic')
     && !dismissed
     && !isPaidBasic
-    && !hideForAlreadyUsedTrial
+    // Trial is currently running → keep showing trial countdown banner.
+    // Anything else where the user has a billing history → suppress the
+    // "try pro free" offer entirely.
+    && !(hasStripeHistory && tier !== 'trial')
 
   useEffect(() => {
     if (shouldShow) {
@@ -82,7 +96,7 @@ export function TrialBanner() {
       // bounded desktop max-height for tidy layout.
       // BUG-007/017: explicit z-10 keeps the banner below the header dropdown.
       className={`w-full relative z-10 ${bgClass} text-white overflow-hidden transition-all duration-400 ease-in-out ${
-        hiding ? 'max-h-0 opacity-0' : visible ? 'max-h-40 sm:max-h-20 opacity-100' : 'max-h-0 opacity-0'
+        hiding ? 'max-h-0 opacity-0' : visible ? 'max-h-60 sm:max-h-20 opacity-100' : 'max-h-0 opacity-0'
       }`}
       style={visible && !hiding ? { animation: 'bannerSlideDown 0.5s cubic-bezier(0.16, 1, 0.3, 1) both' } : undefined}
     >

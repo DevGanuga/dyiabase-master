@@ -96,7 +96,9 @@ export interface UserProfile {
   stripe_subscription_id?: string | null
   subscription_status: 'active' | 'inactive' | 'canceled' | 'past_due' | 'trialing'
   subscription_plan?: 'monthly' | 'annual' | null
+  subscription_tier?: 'basic' | 'pro' | null
   subscription_ends_at?: string | null
+  trial_consumed_at?: string | null
   ai_credits_balance: number
   ai_credits_used_lifetime: number
   is_admin: boolean

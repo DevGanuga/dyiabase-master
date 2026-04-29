@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { formatCurrency } from '@/lib/utils'
 import type { AppPaymentRecord, AppSettings, UserProfile } from '@/types/database'
+import { PaymentLinkReadyModal } from './PaymentLinkReadyModal'
 
 interface PaymentsProps {
   userProfile: UserProfile | null
@@ -43,6 +44,9 @@ export function Payments({ userProfile, settings, showSuccess, onOpenSettings }:
   })
   const [payments, setPayments] = useState<AppPaymentRecord[]>([])
   const [actionLoading, setActionLoading] = useState<'onboarding' | 'dashboard' | 'refresh' | null>(null)
+  // BUG-031 UX (round 2): replace `window.prompt` fallback with the same
+  // dedicated modal used elsewhere — synchronous click → reliable copy.
+  const [paymentLinkModal, setPaymentLinkModal] = useState<{ url: string; customerName?: string } | null>(null)
 
   const businessReady = Boolean(
     settings.businessInfo.name?.trim() &&
@@ -295,9 +299,9 @@ export function Payments({ userProfile, settings, showSuccess, onOpenSettings }:
                       </div>
                       <div className="flex flex-wrap gap-2">
                         <button
-                          onClick={async () => {
-                            await navigator.clipboard.writeText(`${window.location.origin}/pay/${payment.publicToken}`)
-                            showSuccess('Payment link copied.')
+                          onClick={() => {
+                            const url = `${window.location.origin}/pay/${payment.publicToken}`
+                            setPaymentLinkModal({ url, customerName: payment.customerName || undefined })
                           }}
                           className="app-btn-secondary text-sm"
                         >
@@ -365,6 +369,15 @@ export function Payments({ userProfile, settings, showSuccess, onOpenSettings }:
           </div>
         </div>
       </div>
+
+      {/* Payment link ready modal — explicit copy UX (BUG-031 round 2) */}
+      <PaymentLinkReadyModal
+        open={!!paymentLinkModal}
+        url={paymentLinkModal?.url || null}
+        title="Payment link"
+        description={paymentLinkModal?.customerName ? `Send this link to ${paymentLinkModal.customerName} to collect payment.` : 'Share this link with your customer to collect payment.'}
+        onClose={() => setPaymentLinkModal(null)}
+      />
     </div>
   )
 }

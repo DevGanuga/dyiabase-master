@@ -95,6 +95,14 @@ export function Assistant({ userId, showSuccess, initialPrompt, onPromptConsumed
   const [isSending, setIsSending] = useState(false)
   const [showThreads, setShowThreads] = useState(false)
   const [lastResponseId, setLastResponseId] = useState<string | null>(null) // For stateful conversation
+  // BUG-011 / AI-003 (round 2): the previous fix appended "(job_id: <uuid>)"
+  // to the confirm success message and saved it to our DB, but the OpenAI
+  // Responses API chain was never updated — the next chat call sent
+  // `previous_response_id` of the *propose* turn, so the model never had
+  // access to the new id from its own context. Carry the just-confirmed
+  // job/quote id on a ref and inject it into the very next outgoing chat
+  // request as a hidden `[CONTEXT]` line, then clear it after one use.
+  const lastConfirmedRef = useRef<{ jobId?: string; quoteId?: string; customerName?: string; date?: string } | null>(null)
   
   // Dynamic quick actions fetched from API
   const [quickActions, setQuickActions] = useState<QuickAction[]>(DEFAULT_QUICK_ACTIONS)
@@ -461,6 +469,15 @@ export function Assistant({ userId, showSuccess, initialPrompt, onPromptConsumed
       setAttachmentContent(null)
     }
 
+    // BUG-011 / AI-003 (round 2): consume the just-confirmed reference (if
+    // any) and clear it. The server will inject this as a `[CONTEXT]` line
+    // in front of the user's message so the model has the new id available
+    // for `update_job` / `convert_quote_to_job` without a get_user_context
+    // round-trip and without depending on the (out-of-band) confirm step
+    // making it into the OpenAI Responses API thread.
+    const lastConfirmed = lastConfirmedRef.current
+    lastConfirmedRef.current = null
+
     try {
       const response = await fetch('/api/ai/chat', {
         method: 'POST',
@@ -469,6 +486,7 @@ export function Assistant({ userId, showSuccess, initialPrompt, onPromptConsumed
           message: content || '(see attached file)',
           conversationId: currentThreadId,
           previousResponseId: lastResponseId,
+          ...(lastConfirmed && { lastConfirmed }),
           ...(urlToSend && {
             fileUrl: urlToSend,
             fileName: nameToSend || 'file',
@@ -646,6 +664,20 @@ export function Assistant({ userId, showSuccess, initialPrompt, onPromptConsumed
         setCurrentThreadId(result.threadId)
       }
 
+      // BUG-011 / AI-003 (round 2): stash the new job_id so the very next AI
+      // request can reference it via injected context, even though the
+      // confirm step doesn't run through `responses.create` and so cannot
+      // extend the OpenAI server-side thread.
+      const newJobId = (result?.data?.jobId as string | undefined)
+        || (result?.toolResults?.[0]?.data?.jobId as string | undefined)
+      if (newJobId) {
+        lastConfirmedRef.current = {
+          jobId: newJobId,
+          customerName: jobData.customerName,
+          date: jobData.date,
+        }
+      }
+
       // Add confirmation message
       const confirmMessage: Message = {
         id: `confirm-${Date.now()}`,
@@ -724,6 +756,19 @@ export function Assistant({ userId, showSuccess, initialPrompt, onPromptConsumed
       if (result.threadId && !currentThreadId) {
         skipThreadLoadRef.current = true
         setCurrentThreadId(result.threadId)
+      }
+
+      // BUG-011 / AI-003 (round 2): same reasoning as handleConfirmJob —
+      // stash the new quote_id so the next AI turn can reference it (e.g.
+      // "convert that quote to a job") without having to call
+      // get_user_context first.
+      const newQuoteId = (result?.data?.quoteId as string | undefined)
+        || (result?.toolResults?.[0]?.data?.quoteId as string | undefined)
+      if (newQuoteId) {
+        lastConfirmedRef.current = {
+          quoteId: newQuoteId,
+          customerName: quoteData.customerName,
+        }
       }
 
       // Add confirmation message

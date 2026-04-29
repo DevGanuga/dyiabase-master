@@ -40,12 +40,19 @@ export function TopBar({ userName, userEmail, userImageUrl, onLogout, subscripti
     // `relative z-40` gives the whole header priority over banners rendered
     // below it in the flex column.
     <div className="top-bar relative z-40 isolate flex items-center justify-between h-14 px-4 sm:px-6 lg:px-8 shrink-0 border-b border-[var(--color-border-light)]">
-      {/* Left: Logo on mobile (sidebar logo is hidden) */}
+      {/* Left: Logo on mobile (sidebar logo is hidden).
+          BUG-020: the previous attempt left `dark:brightness-0 dark:invert`
+          on the <img>, which forced the dark-ink wordmark through an invert
+          pipeline that produced unreadable, washed-out text against the dark
+          surface. Swap to the dedicated `/dyia-logo-dark.png` asset (light
+          wordmark on transparent background) when the resolved theme is
+          dark; use the standard logo otherwise. No CSS filter needed. */}
       <div className="sm:hidden flex items-center">
-        {/* BUG-020: removed `dark:brightness-0 dark:invert`. The logo asset is
-            already the correct color; the filter was rendering it dark-on-dark
-            (invisible) on mobile dark mode. */}
-        <img src="/dyia-logo-full.png" alt="dyia" className="h-5 opacity-80" />
+        <img
+          src={resolvedTheme === 'dark' ? '/dyia-logo-dark.png' : '/dyia-logo-full.png'}
+          alt="dyia"
+          className="h-5 opacity-90"
+        />
       </div>
       <div className="hidden sm:block" />
 
@@ -132,9 +139,8 @@ export function TopBar({ userName, userEmail, userImageUrl, onLogout, subscripti
                     // - Pro paid    → PRO (orange)
                     // - Basic paid  → BASIC (muted) — they have an active sub but not Pro
                     // - No sub      → FREE (muted)
-                    const hasActive = subscriptionTier === 'pro' || subscriptionTier === 'trial'
-                    const showPro = subscriptionTier === 'trial' || (hasActive && planTier !== 'basic')
-                    const showBasic = hasActive && planTier === 'basic'
+                    const showPro = subscriptionTier === 'trial' || subscriptionTier === 'pro'
+                    const showBasic = subscriptionTier === 'basic'
                     const label = showPro ? 'PRO' : showBasic ? 'BASIC' : 'FREE'
                     return (
                       <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0 ${

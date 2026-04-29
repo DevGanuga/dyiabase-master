@@ -36,13 +36,22 @@ export function Settings({ settings, setSettings, userId, showSuccess, userProfi
   // Distinguish the UI "tier" (basic/trial/pro) from the underlying "planTier"
   // (what the user actually pays for: basic or pro) so Basic subscribers are
   // never displayed as "Pro" (BUG-002/022).
+  //
+  // BUG-022 (round 2): `productTier` previously defaulted any `null`
+  // `subscription_tier` to `'basic'`, which then collided with the badge
+  // logic below to mislabel never-subscribed users as Basic. Distinguish
+  // "no record" (`null` -> truly Free) from "registered Basic" (`'basic'`)
+  // and "Pro" (`'pro'`) explicitly. `productTier === null` is the only path
+  // that should ever render the FREE badge.
   const subscription = userProfile ? (() => {
     const status = userProfile.subscription_status
     const hasActiveSub = ['active', 'trialing'].includes(status)
-    const productTier: 'basic' | 'pro' = userProfile.subscription_tier === 'pro' ? 'pro' : 'basic'
+    const rawTier = userProfile.subscription_tier
+    const productTier: 'basic' | 'pro' | null =
+      rawTier === 'pro' ? 'pro' : rawTier === 'basic' ? 'basic' : null
     const uiTier: 'basic' | 'trial' | 'pro' =
       status === 'trialing' ? 'trial'
-        : status === 'active' ? productTier
+        : status === 'active' ? (productTier === 'pro' ? 'pro' : 'basic')
           : 'basic'
     return {
       ...hookSub,
@@ -58,6 +67,7 @@ export function Settings({ settings, setSettings, userId, showSuccess, userProfi
       aiCredits: userProfile.ai_credits_balance || 0,
       canUseAI: hasActiveSub || (userProfile.ai_credits_balance || 0) > 0,
       isLoading: false,
+      hasStripeSub: !!userProfile.stripe_subscription_id,
     }
   })() : hookSub
   const isAdminAccount = !!userProfile?.is_admin || ['admin', 'super_admin'].includes(userProfile?.role || '')
@@ -734,18 +744,29 @@ export function Settings({ settings, setSettings, userId, showSuccess, userProfi
             <>
               {/* Current Plan Display */}
               {(() => {
-                // Plan label strategy (BUG-002/022):
-                // - No sub:              FREE badge
-                // - Trial of Pro:        PRO badge + "Free Trial" pill, "full Pro access" copy
-                // - Paid Basic:          BASIC badge, "Basic plan" copy
-                // - Paid Pro:            PRO badge + plan pill
+                // Plan label strategy (BUG-002/022 round 2):
+                // - Truly free (no `subscription_tier` recorded):  FREE
+                // - Trial of any tier:                              PRO badge + "Free Trial"
+                // - subscription_tier === 'basic' (any status):    BASIC
+                // - subscription_tier === 'pro' (any status):      PRO
+                //
+                // The fix: render the badge from `productTier` (the DB value)
+                // not `uiTier`, so a Basic plan with status `inactive` /
+                // `canceled` still shows BASIC instead of regressing to FREE
+                // (which was QA's complaint).
                 const uiTier = subscription.tier
-                const productTier = (subscription as { planTier?: 'basic' | 'pro' }).planTier ?? 'pro'
+                const productTier = (subscription as { planTier?: 'basic' | 'pro' | null }).planTier ?? null
                 const isTrial = uiTier === 'trial'
-                const isPaidBasic = uiTier === 'basic' && ['active', 'past_due'].includes(subscription.status || '') && !!subscription.plan
-                const isPaidPro = uiTier === 'pro'
+                const isRegisteredBasic = productTier === 'basic'
+                const isRegisteredPro = productTier === 'pro'
+                const isPaidBasic = isRegisteredBasic && ['active', 'past_due', 'trialing'].includes(subscription.status || '')
+                const isPaidPro = isRegisteredPro && ['active', 'past_due', 'trialing'].includes(subscription.status || '')
                 const showOrange = isTrial || isPaidPro
-                const badgeLabel = isTrial ? 'PRO' : isPaidBasic ? 'BASIC' : isPaidPro ? 'PRO' : 'FREE'
+                const badgeLabel =
+                  isTrial ? 'PRO'
+                  : isRegisteredPro ? 'PRO'
+                  : isRegisteredBasic ? 'BASIC'
+                  : 'FREE'
                 const bodyCopy =
                   isAdminAccount
                     ? 'Admin accounts have full Pro access and are never billed through Stripe.'
@@ -757,6 +778,10 @@ export function Settings({ settings, setSettings, userId, showSuccess, userProfi
                     ? 'Full access to all features including AI assistant, reports, and marketing tools.'
                   : isPaidBasic
                     ? 'Basic plan — job & quote tracking, calendar, customers, and payments. Upgrade to Pro for AI assistant, advanced reports, and email blasts.'
+                  : isRegisteredBasic
+                    ? 'Basic plan — your subscription is currently inactive. Reactivate to keep using job & quote tracking, calendar, customers, and payments.'
+                  : isRegisteredPro
+                    ? 'Pro plan — your subscription is currently inactive. Reactivate to restore AI assistant, advanced reports, and marketing tools.'
                   : 'Upgrade to Pro for AI assistant, advanced reports, marketing tools, and email blasts.'
                 return (
               <div className={`p-4 rounded-xl border mb-5 ${

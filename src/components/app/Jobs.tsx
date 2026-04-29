@@ -10,6 +10,7 @@ import { useCustomerAutocomplete } from '@/hooks/useCustomerAutocomplete'
 import { DyiaInsight } from './DyiaInsight'
 import { ensureCustomer } from '@/lib/customers'
 import { DyiaActionButton, DYIA_PROMPTS } from './DyiaActionButton'
+import { PaymentLinkReadyModal } from './PaymentLinkReadyModal'
 
 const REVIEW_PLATFORMS = ['Google', 'Yelp', 'Facebook'] as const
 
@@ -75,6 +76,8 @@ export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth,
   const [emailConnection, setEmailConnection] = useState<{ id: string; provider: string; email: string } | null>(null)
   const [showExpenseDetails, setShowExpenseDetails] = useState(false)
   const [closeDayDate, setCloseDayDate] = useState<string | null>(null)
+  // BUG-031 UX (round 2): explicit copy modal for "Request Payment".
+  const [paymentLinkModal, setPaymentLinkModal] = useState<{ url: string; customerName?: string } | null>(null)
   const [closeDayExpenses, setCloseDayExpenses] = useState({ labor: 0, gas: 0, dumpFee: 0, dumpsterRental: 0, additional: 0 })
   const [closeDayOtherLabel, setCloseDayOtherLabel] = useState('')
   const [closeDaySaving, setCloseDaySaving] = useState(false)
@@ -765,21 +768,28 @@ export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth,
     }
   }
 
+  // BUG-031 UX (round 2): create the payment link, then open the dedicated
+  // PaymentLinkReadyModal which provides a synchronous Copy button. Avoids
+  // the post-await clipboard-permission failure that QA was hitting on
+  // every Request Payment click.
   const requestJobPayment = async (job: AppJob) => {
+    let shareUrl: string | undefined
     try {
       const res = await fetch('/api/payments/request', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ jobId: job.id }),
       })
-      const data = await res.json()
+      const data = await res.json().catch(() => ({}))
       if (!res.ok) {
         await alert({ title: 'Payment setup', message: data.error || 'Could not create payment link.', variant: 'warning' })
         return
       }
-
-      await navigator.clipboard.writeText(data.shareUrl)
-
+      shareUrl = data.shareUrl as string | undefined
+      if (!shareUrl) {
+        await alert({ title: 'Error', message: 'Payment link was created but no URL was returned. Please try again.', variant: 'error' })
+        return
+      }
       const requestedAt = new Date().toISOString()
       setJobs(jobs.map(j => j.id === job.id ? {
         ...j,
@@ -788,11 +798,13 @@ export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth,
         paymentRequestedAt: requestedAt,
         paymentLastRequestId: data.paymentId ?? j.paymentLastRequestId,
       } : j))
-      showSuccess('Payment link copied to clipboard')
     } catch (error) {
       console.error('Error requesting job payment:', error)
-      await alert({ title: 'Error', message: 'Failed to create payment link.', variant: 'error' })
+      await alert({ title: 'Error', message: 'Could not reach the payment service. Please check your connection and try again.', variant: 'error' })
+      return
     }
+
+    setPaymentLinkModal({ url: shareUrl, customerName: job.customerName || undefined })
   }
 
   // === LIVE PROFIT CALCULATIONS ===
@@ -1547,11 +1559,13 @@ export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth,
             <select
               value={sourceFilter}
               onChange={(e) => setSourceFilter(e.target.value)}
-              // BUG-015: `!w-auto` + `shrink-0` + capped max-width override the
-              // global `.app-select { w-full }` rule so the dropdown sizes to
-              // its longest option instead of stretching and squeezing the
-              // search input.
-              className="app-select !py-2.5 !w-auto shrink-0 max-w-[150px]"
+              /* BUG-015: native <select> with `w-auto` sizes to the SELECTED
+                 option's text width, not the widest option, so longer source
+                 names rendered truncated. Use an explicit min-width that fits
+                 the longest known label ("All sources" / typical source names)
+                 plus the chevron padding. `pr-10` reserves space for the
+                 chevron icon so the label never overlaps it. */
+              className="app-select !py-2.5 !pr-10 !w-auto shrink-0 min-w-[180px]"
             >
               <option value="all">All sources</option>
               {stats.sources.map(s => (
@@ -1562,8 +1576,10 @@ export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth,
           <select
             value={sortOrder}
             onChange={(e) => setSortOrder(e.target.value)}
-            // BUG-015: see sourceFilter select above for rationale.
-            className="app-select !py-2.5 !w-auto shrink-0 min-w-[140px] max-w-[180px]"
+            /* BUG-015: min-width sized to fit the longest sort label
+               ("Revenue: High-Low") plus chevron padding so text never
+               truncates on desktop. */
+            className="app-select !py-2.5 !pr-10 !w-auto shrink-0 min-w-[200px]"
           >
             <option value="newest">Newest First</option>
             <option value="oldest">Oldest First</option>
@@ -1759,6 +1775,15 @@ export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth,
           </div>
         )}
       </div>
+
+      {/* Payment link ready modal — explicit copy UX (BUG-031 round 2) */}
+      <PaymentLinkReadyModal
+        open={!!paymentLinkModal}
+        url={paymentLinkModal?.url || null}
+        title="Payment link ready"
+        description={paymentLinkModal?.customerName ? `Send this link to ${paymentLinkModal.customerName} to collect payment.` : undefined}
+        onClose={() => setPaymentLinkModal(null)}
+      />
 
       {/* Close day / Log daily expenses modal */}
       {/* BUG-016: center vertically on all sizes and keep modal inside the
