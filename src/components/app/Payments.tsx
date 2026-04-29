@@ -29,6 +29,7 @@ const STATUS_STYLES: Record<string, string> = {
   failed: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
   expired: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
   refunded: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
+  partial_refund: 'bg-purple-100/70 text-purple-700 dark:bg-purple-900/20 dark:text-purple-300',
 }
 
 export function Payments({ userProfile, settings, showSuccess, onOpenSettings }: PaymentsProps) {

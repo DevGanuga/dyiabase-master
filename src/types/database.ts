@@ -28,7 +28,7 @@ export interface Job {
 
 export type QuoteStatus = 'draft' | 'sent' | 'accepted' | 'declined' | 'expired' | 'completed'
 export type PaymentRequestStatus = 'not_requested' | 'pending' | 'paid' | 'failed' | 'expired' | 'refunded'
-export type PaymentRecordStatus = 'pending' | 'checkout_created' | 'paid' | 'failed' | 'expired' | 'refunded'
+export type PaymentRecordStatus = 'pending' | 'checkout_created' | 'paid' | 'failed' | 'expired' | 'refunded' | 'partial_refund'
 
 export interface Quote {
   id: string
