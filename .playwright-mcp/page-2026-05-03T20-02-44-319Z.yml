@@ -1,0 +1,253 @@
+- generic [active] [ref=e1]:
+  - button "Open Next.js Dev Tools" [ref=e263] [cursor=pointer]:
+    - img [ref=e264]
+  - alert [ref=e2]
+  - generic [ref=e3]:
+    - generic [ref=e4]:
+      - text: Demo Mode — Sample data only, nothing is saved.
+      - button "Exit" [ref=e5]
+    - complementary [ref=e6]:
+      - link "dyia Beta" [ref=e8] [cursor=pointer]:
+        - /url: /
+        - img "dyia" [ref=e9]
+        - generic [ref=e10]: Beta
+      - button "Create new item" [ref=e12]:
+        - generic [ref=e13]:
+          - img
+          - generic [ref=e14]: Create
+        - generic [ref=e15]:
+          - img
+      - navigation [ref=e16]:
+        - generic [ref=e17]:
+          - generic [ref=e18]: Work
+          - generic [ref=e19]:
+            - button "Home" [ref=e20]:
+              - generic:
+                - img
+              - generic [ref=e21]: Home
+            - button "Jobs" [ref=e22]:
+              - generic:
+                - img
+              - generic [ref=e23]: Jobs
+            - button "Quotes" [ref=e24]:
+              - generic:
+                - img
+              - generic [ref=e25]: Quotes
+            - button "Profit Calculator" [ref=e26]:
+              - generic:
+                - img
+              - generic [ref=e27]: Profit Calculator
+            - button "Follow-ups" [ref=e28]:
+              - generic:
+                - img
+              - generic [ref=e29]: Follow-ups
+            - button "Calendar" [ref=e30]:
+              - generic:
+                - img
+              - generic [ref=e31]: Calendar
+        - generic [ref=e32]:
+          - generic [ref=e33]: Customers
+          - generic [ref=e34]:
+            - button "Customers" [ref=e35]:
+              - generic:
+                - img
+              - generic [ref=e36]: Customers
+            - button "Payments" [ref=e37]:
+              - generic:
+                - img
+              - generic [ref=e38]: Payments
+            - button "Email Blast" [ref=e39]:
+              - generic:
+                - img
+              - generic [ref=e40]: Email Blast
+        - generic [ref=e41]:
+          - generic [ref=e42]: Insights
+          - generic [ref=e43]:
+            - button "Reports" [ref=e44]:
+              - generic:
+                - img
+              - generic [ref=e45]: Reports
+            - button "Intel" [ref=e46]:
+              - generic:
+                - img
+              - generic [ref=e47]: Intel
+            - button "Marketing" [ref=e48]:
+              - generic:
+                - img
+              - generic [ref=e49]: Marketing
+            - button "Dyia AI Ask Dyia" [ref=e50]:
+              - generic:
+                - img "Dyia AI"
+              - generic [ref=e51]: Ask Dyia
+      - button "Settings" [ref=e53]:
+        - generic [ref=e54]:
+          - img
+        - generic [ref=e55]: Settings
+    - main [ref=e56]:
+      - generic [ref=e58]:
+        - button "Switch to dark mode" [ref=e59]:
+          - img [ref=e60]
+        - link "Help & Support" [ref=e62] [cursor=pointer]:
+          - /url: /support
+          - img [ref=e63]
+        - button "User menu" [ref=e67]:
+          - generic [ref=e69]: D
+          - img [ref=e70]
+      - generic [ref=e74]:
+        - generic [ref=e75]:
+          - generic [ref=e76]:
+            - heading "Quotes" [level=1] [ref=e77]
+            - paragraph [ref=e78]: 5 estimates total
+          - generic [ref=e79]:
+            - button "Quote with Dyia" [ref=e80]:
+              - generic [ref=e81]: Quote with Dyia
+            - button "New Quote" [ref=e82]:
+              - img [ref=e83]
+              - text: New Quote
+        - generic [ref=e85]:
+          - img [ref=e268]
+          - paragraph [ref=e270]: Profit margin is 62% this month — well above the 35% baseline. Consider reinvesting the surplus into one paid Yelp lead campaign; your Yelp jobs convert at 3.2× the rate of cold leads.
+          - generic [ref=e271]:
+            - button "Refresh insight" [ref=e272]:
+              - img [ref=e273]
+            - button "Dismiss insight" [ref=e275]:
+              - img [ref=e276]
+        - generic [ref=e86]:
+          - generic [ref=e87]:
+            - img [ref=e88]
+            - textbox "Search by customer..." [ref=e90]
+          - generic [ref=e91]:
+            - button "All (5)" [ref=e92] [cursor=pointer]
+            - button "Draft (1)" [ref=e93] [cursor=pointer]
+            - button "Sent (3)" [ref=e94] [cursor=pointer]
+            - button "Accepted (1)" [ref=e95] [cursor=pointer]
+        - generic [ref=e96]:
+          - generic [ref=e97]:
+            - generic [ref=e98]:
+              - generic [ref=e99]:
+                - heading "Lisa Chen" [level=3] [ref=e100]
+                - paragraph [ref=e101]: May 2, 2026
+              - generic [ref=e102]: Sent
+            - generic [ref=e104]: $350 - $450
+            - generic [ref=e105]:
+              - paragraph [ref=e106]: (555) 234-5678
+              - paragraph [ref=e107]: 892 Oak Ave
+            - generic [ref=e108]:
+              - generic [ref=e109]:
+                - button "Accepted" [ref=e110]
+                - button "Declined" [ref=e111]
+                - button "Request Payment" [ref=e112]
+              - generic [ref=e113]:
+                - generic [ref=e114]:
+                  - button "Edit quote" [ref=e115]:
+                    - img [ref=e116]
+                  - button "Link to job" [ref=e118]:
+                    - img [ref=e119]
+                - generic [ref=e122]:
+                  - button "Download PDF" [ref=e123]:
+                    - img [ref=e124]
+                  - button "Delete" [ref=e126]:
+                    - img [ref=e127]
+          - generic [ref=e129]:
+            - generic [ref=e130]:
+              - generic [ref=e131]:
+                - heading "Kevin Park" [level=3] [ref=e132]
+                - paragraph [ref=e133]: May 1, 2026
+              - generic [ref=e134]: Draft
+            - generic [ref=e136]: $600 - $800
+            - generic [ref=e137]:
+              - paragraph [ref=e138]: (555) 567-8901
+              - paragraph [ref=e139]: 88 Birch Ln
+            - generic [ref=e140]:
+              - generic [ref=e141]:
+                - button "Mark Sent" [ref=e142]
+                - button "Accepted" [ref=e143]
+              - generic [ref=e144]:
+                - generic [ref=e145]:
+                  - button "Edit quote" [ref=e146]:
+                    - img [ref=e147]
+                  - button "Link to job" [ref=e149]:
+                    - img [ref=e150]
+                - generic [ref=e153]:
+                  - button "Download PDF" [ref=e154]:
+                    - img [ref=e155]
+                  - button "Delete" [ref=e157]:
+                    - img [ref=e158]
+          - generic [ref=e160]:
+            - generic [ref=e161]:
+              - generic [ref=e162]:
+                - heading "Robert Hayes" [level=3] [ref=e163]
+                - paragraph [ref=e164]: Apr 29, 2026
+              - generic [ref=e165]: Sent
+            - generic [ref=e167]: $500 - $700
+            - generic [ref=e168]:
+              - paragraph [ref=e169]: (555) 345-6789
+              - paragraph [ref=e170]: 1420 Elm St
+            - generic [ref=e171]:
+              - generic [ref=e172]:
+                - button "Accepted" [ref=e173]
+                - button "Declined" [ref=e174]
+                - button "Request Payment" [ref=e175]
+              - generic [ref=e176]:
+                - generic [ref=e177]:
+                  - button "Edit quote" [ref=e178]:
+                    - img [ref=e179]
+                  - button "Link to job" [ref=e181]:
+                    - img [ref=e182]
+                - generic [ref=e185]:
+                  - button "Download PDF" [ref=e186]:
+                    - img [ref=e187]
+                  - button "Delete" [ref=e189]:
+                    - img [ref=e190]
+          - generic [ref=e192]:
+            - generic [ref=e193]:
+              - generic [ref=e194]:
+                - heading "Johnson Family" [level=3] [ref=e195]
+                - paragraph [ref=e196]: Apr 27, 2026
+              - generic [ref=e197]: Accepted
+            - generic [ref=e199]: $400 - $500
+            - generic [ref=e200]:
+              - paragraph [ref=e201]: (555) 678-9012
+              - paragraph [ref=e202]: 1200 Maple Dr
+            - generic [ref=e203]:
+              - generic [ref=e204]:
+                - img [ref=e205]
+                - text: Johnson Family
+              - button "Unlink from job" [ref=e208]:
+                - img [ref=e209]
+            - generic [ref=e211]:
+              - button "Request Payment" [ref=e213]
+              - generic [ref=e214]:
+                - button "Edit quote" [ref=e216]:
+                  - img [ref=e217]
+                - generic [ref=e219]:
+                  - button "Download PDF" [ref=e220]:
+                    - img [ref=e221]
+                  - button "Delete" [ref=e223]:
+                    - img [ref=e224]
+          - generic [ref=e226]:
+            - generic [ref=e227]:
+              - generic [ref=e228]:
+                - heading "Amanda Torres" [level=3] [ref=e229]
+                - paragraph [ref=e230]: Apr 24, 2026
+              - generic [ref=e231]: Sent
+            - generic [ref=e233]: $275 - $375
+            - generic [ref=e234]:
+              - paragraph [ref=e235]: (555) 456-7890
+              - paragraph [ref=e236]: 305 Pine Rd
+            - generic [ref=e237]:
+              - generic [ref=e238]:
+                - button "Accepted" [ref=e239]
+                - button "Declined" [ref=e240]
+                - button "Request Payment" [ref=e241]
+              - generic [ref=e242]:
+                - generic [ref=e243]:
+                  - button "Edit quote" [ref=e244]:
+                    - img [ref=e245]
+                  - button "Link to job" [ref=e247]:
+                    - img [ref=e248]
+                - generic [ref=e251]:
+                  - button "Download PDF" [ref=e252]:
+                    - img [ref=e253]
+                  - button "Delete" [ref=e255]:
+                    - img [ref=e256]

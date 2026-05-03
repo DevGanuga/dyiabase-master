@@ -1,0 +1,247 @@
+- generic [active] [ref=e1]:
+  - button "Open Next.js Dev Tools" [ref=e12] [cursor=pointer]:
+    - img [ref=e13]
+  - alert [ref=e16]
+  - generic [ref=e17]:
+    - generic [ref=e18]:
+      - text: Demo Mode — Sample data only, nothing is saved.
+      - button "Exit" [ref=e19]
+    - complementary [ref=e20]:
+      - link "dyia Beta" [ref=e22] [cursor=pointer]:
+        - /url: /
+        - img "dyia" [ref=e23]
+        - generic [ref=e24]: Beta
+      - button "Create new item" [ref=e26]:
+        - generic [ref=e27]:
+          - img
+          - generic [ref=e28]: Create
+        - generic [ref=e29]:
+          - img
+      - navigation [ref=e30]:
+        - generic [ref=e31]:
+          - generic [ref=e32]: Work
+          - generic [ref=e33]:
+            - button "Home" [ref=e34]:
+              - generic:
+                - img
+              - generic [ref=e35]: Home
+            - button "Jobs" [ref=e36]:
+              - generic:
+                - img
+              - generic [ref=e37]: Jobs
+            - button "Quotes" [ref=e38]:
+              - generic:
+                - img
+              - generic [ref=e39]: Quotes
+            - button "Profit Calculator" [ref=e40]:
+              - generic:
+                - img
+              - generic [ref=e41]: Profit Calculator
+            - button "Follow-ups" [ref=e42]:
+              - generic:
+                - img
+              - generic [ref=e43]: Follow-ups
+            - button "Calendar" [ref=e44]:
+              - generic:
+                - img
+              - generic [ref=e45]: Calendar
+        - generic [ref=e46]:
+          - generic [ref=e47]: Customers
+          - generic [ref=e48]:
+            - button "Customers" [ref=e49]:
+              - generic:
+                - img
+              - generic [ref=e50]: Customers
+            - button "Payments" [ref=e51]:
+              - generic:
+                - img
+              - generic [ref=e52]: Payments
+            - button "Email Blast" [ref=e53]:
+              - generic:
+                - img
+              - generic [ref=e54]: Email Blast
+        - generic [ref=e55]:
+          - generic [ref=e56]: Insights
+          - generic [ref=e57]:
+            - button "Reports" [ref=e58]:
+              - generic:
+                - img
+              - generic [ref=e59]: Reports
+            - button "Intel" [ref=e60]:
+              - generic:
+                - img
+              - generic [ref=e61]: Intel
+            - button "Marketing" [ref=e62]:
+              - generic:
+                - img
+              - generic [ref=e63]: Marketing
+            - button "Dyia AI Ask Dyia" [ref=e64]:
+              - generic:
+                - img "Dyia AI"
+              - generic [ref=e65]: Ask Dyia
+      - button "Settings" [ref=e67]:
+        - generic [ref=e68]:
+          - img
+        - generic [ref=e69]: Settings
+    - main [ref=e70]:
+      - generic [ref=e72]:
+        - button "Switch to dark mode" [ref=e73]:
+          - img [ref=e74]
+        - link "Help & Support" [ref=e76] [cursor=pointer]:
+          - /url: /support
+          - img [ref=e77]
+        - button "User menu" [ref=e81]:
+          - generic [ref=e83]: D
+          - img [ref=e84]
+      - generic [ref=e88]:
+        - generic [ref=e89]:
+          - generic [ref=e90]:
+            - heading "Quotes" [level=1] [ref=e91]
+            - paragraph [ref=e92]: 5 estimates total
+          - button "New Quote" [ref=e94]:
+            - img [ref=e95]
+            - text: New Quote
+        - link "Unlock AI insights with Dyia Pro PRO" [ref=e97] [cursor=pointer]:
+          - /url: /app?view=settings&tab=account#subscription
+          - img [ref=e99]
+          - paragraph [ref=e101]: Unlock AI insights with Dyia Pro
+          - generic [ref=e102]: PRO
+        - generic [ref=e103]:
+          - generic [ref=e104]:
+            - img [ref=e105]
+            - textbox "Search by customer..." [ref=e107]
+          - generic [ref=e108]:
+            - button "All (5)" [ref=e109] [cursor=pointer]
+            - button "Draft (1)" [ref=e110] [cursor=pointer]
+            - button "Sent (3)" [ref=e111] [cursor=pointer]
+            - button "Accepted (1)" [ref=e112] [cursor=pointer]
+        - generic [ref=e113]:
+          - generic [ref=e114]:
+            - generic [ref=e115]:
+              - generic [ref=e116]:
+                - heading "Lisa Chen" [level=3] [ref=e117]
+                - paragraph [ref=e118]: May 2, 2026
+              - generic [ref=e119]: Sent
+            - generic [ref=e121]: $350 - $450
+            - generic [ref=e122]:
+              - paragraph [ref=e123]: (555) 234-5678
+              - paragraph [ref=e124]: 892 Oak Ave
+            - generic [ref=e125]:
+              - generic [ref=e126]:
+                - button "Accepted" [ref=e127]
+                - button "Declined" [ref=e128]
+                - button "Request Payment" [ref=e129]
+              - generic [ref=e130]:
+                - generic [ref=e131]:
+                  - button "Edit quote" [ref=e132]:
+                    - img [ref=e133]
+                  - button "Link to job" [ref=e135]:
+                    - img [ref=e136]
+                - generic [ref=e139]:
+                  - button "Download PDF" [ref=e140]:
+                    - img [ref=e141]
+                  - button "Delete" [ref=e143]:
+                    - img [ref=e144]
+          - generic [ref=e146]:
+            - generic [ref=e147]:
+              - generic [ref=e148]:
+                - heading "Kevin Park" [level=3] [ref=e149]
+                - paragraph [ref=e150]: May 1, 2026
+              - generic [ref=e151]: Draft
+            - generic [ref=e153]: $600 - $800
+            - generic [ref=e154]:
+              - paragraph [ref=e155]: (555) 567-8901
+              - paragraph [ref=e156]: 88 Birch Ln
+            - generic [ref=e157]:
+              - generic [ref=e158]:
+                - button "Mark Sent" [ref=e159]
+                - button "Accepted" [ref=e160]
+              - generic [ref=e161]:
+                - generic [ref=e162]:
+                  - button "Edit quote" [ref=e163]:
+                    - img [ref=e164]
+                  - button "Link to job" [ref=e166]:
+                    - img [ref=e167]
+                - generic [ref=e170]:
+                  - button "Download PDF" [ref=e171]:
+                    - img [ref=e172]
+                  - button "Delete" [ref=e174]:
+                    - img [ref=e175]
+          - generic [ref=e177]:
+            - generic [ref=e178]:
+              - generic [ref=e179]:
+                - heading "Robert Hayes" [level=3] [ref=e180]
+                - paragraph [ref=e181]: Apr 29, 2026
+              - generic [ref=e182]: Sent
+            - generic [ref=e184]: $500 - $700
+            - generic [ref=e185]:
+              - paragraph [ref=e186]: (555) 345-6789
+              - paragraph [ref=e187]: 1420 Elm St
+            - generic [ref=e188]:
+              - generic [ref=e189]:
+                - button "Accepted" [ref=e190]
+                - button "Declined" [ref=e191]
+                - button "Request Payment" [ref=e192]
+              - generic [ref=e193]:
+                - generic [ref=e194]:
+                  - button "Edit quote" [ref=e195]:
+                    - img [ref=e196]
+                  - button "Link to job" [ref=e198]:
+                    - img [ref=e199]
+                - generic [ref=e202]:
+                  - button "Download PDF" [ref=e203]:
+                    - img [ref=e204]
+                  - button "Delete" [ref=e206]:
+                    - img [ref=e207]
+          - generic [ref=e209]:
+            - generic [ref=e210]:
+              - generic [ref=e211]:
+                - heading "Johnson Family" [level=3] [ref=e212]
+                - paragraph [ref=e213]: Apr 27, 2026
+              - generic [ref=e214]: Accepted
+            - generic [ref=e216]: $400 - $500
+            - generic [ref=e217]:
+              - paragraph [ref=e218]: (555) 678-9012
+              - paragraph [ref=e219]: 1200 Maple Dr
+            - generic [ref=e220]:
+              - generic [ref=e221]:
+                - img [ref=e222]
+                - text: Johnson Family
+              - button "Unlink from job" [ref=e225]:
+                - img [ref=e226]
+            - generic [ref=e228]:
+              - button "Request Payment" [ref=e230]
+              - generic [ref=e231]:
+                - button "Edit quote" [ref=e233]:
+                  - img [ref=e234]
+                - generic [ref=e236]:
+                  - button "Download PDF" [ref=e237]:
+                    - img [ref=e238]
+                  - button "Delete" [ref=e240]:
+                    - img [ref=e241]
+          - generic [ref=e243]:
+            - generic [ref=e244]:
+              - generic [ref=e245]:
+                - heading "Amanda Torres" [level=3] [ref=e246]
+                - paragraph [ref=e247]: Apr 24, 2026
+              - generic [ref=e248]: Sent
+            - generic [ref=e250]: $275 - $375
+            - generic [ref=e251]:
+              - paragraph [ref=e252]: (555) 456-7890
+              - paragraph [ref=e253]: 305 Pine Rd
+            - generic [ref=e254]:
+              - generic [ref=e255]:
+                - button "Accepted" [ref=e256]
+                - button "Declined" [ref=e257]
+                - button "Request Payment" [ref=e258]
+              - generic [ref=e259]:
+                - generic [ref=e260]:
+                  - button "Edit quote" [ref=e261]:
+                    - img [ref=e262]
+                  - button "Link to job" [ref=e264]:
+                    - img [ref=e265]
+                - generic [ref=e268]:
+                  - button "Download PDF" [ref=e269]:
+                    - img [ref=e270]
+                  - button "Delete" [ref=e272]:
+                    - img [ref=e273]

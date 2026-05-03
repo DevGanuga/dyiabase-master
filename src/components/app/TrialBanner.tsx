@@ -5,7 +5,18 @@ import Link from 'next/link'
 import { useSubscription } from '@/hooks/useSubscription'
 
 export function TrialBanner() {
-  const { tier, planTier, status, daysRemaining, isCanceled, trialExpired, trialConsumed, plan, isLoading } = useSubscription()
+  const {
+    tier,
+    productTier,
+    status,
+    daysRemaining,
+    isCanceled,
+    isInDunning,
+    dunningGraceDaysLeft,
+    trialExpired,
+    hasStripeHistory,
+    isLoading,
+  } = useSubscription()
   const [dismissed, setDismissed] = useState(() => {
     if (typeof window === 'undefined') return false
     const stored = sessionStorage.getItem('dyia_trial_banner_dismissed')
@@ -14,29 +25,28 @@ export function TrialBanner() {
   const [hiding, setHiding] = useState(false)
   const [visible, setVisible] = useState(false)
 
-  // Paid Basic (active or past_due sub, not trialing, product tier basic) →
-  // never show the "Try Pro free" offer. Previous fix only checked `'active'`
-  // which still showed the banner for paid Basic users in dunning.
-  const isPaidBasic = planTier === 'basic' && (status === 'active' || status === 'past_due')
+  // Round 4 (BUG-022): a user with any Stripe history must NEVER see the
+  // "Try Pro free" offer again. computeSubscriptionState already calculates
+  // `hasStripeHistory` — paid plans, consumed trials, or any non-inactive
+  // status all flip it true. Trial countdown still renders during a live
+  // trial because `tier === 'trial'` short-circuits.
+  const isPaidPlan =
+    productTier !== null && (status === 'active' || status === 'past_due')
 
-  // BUG-022 (round 2): defense-in-depth suppression. Even if `trial_consumed_at`
-  // is null on a legacy row that the migration didn't backfill, we should
-  // never re-offer the trial when there's any other signal that the user
-  // already engaged with Stripe billing — e.g. they have a `subscription_plan`
-  // recorded (set by `handleCheckoutComplete` on first checkout) or their
-  // status is anything other than the brand-new-account `'inactive'`. Without
-  // this fallback, QA still sees "Try Pro for free" reappear after a
-  // canceled or expired trial.
-  const hasStripeHistory = !!plan || !!trialConsumed || (status !== null && status !== 'inactive')
+  // Dunning banner takes priority over the trial-offer banner — show it
+  // for any past_due subscription (Basic or Pro) until they recover or the
+  // grace window expires.
+  const showDunning = isInDunning && !dismissed
 
-  const shouldShow = !isLoading
-    && (tier === 'trial' || tier === 'basic')
-    && !dismissed
-    && !isPaidBasic
-    // Trial is currently running → keep showing trial countdown banner.
-    // Anything else where the user has a billing history → suppress the
-    // "try pro free" offer entirely.
-    && !(hasStripeHistory && tier !== 'trial')
+  const shouldShow =
+    showDunning ||
+    (!isLoading &&
+      (tier === 'trial' || tier === 'basic') &&
+      !dismissed &&
+      !isPaidPlan &&
+      // Trial is currently running → keep showing trial countdown banner.
+      // Otherwise, any prior Stripe engagement → suppress the upsell.
+      !(hasStripeHistory && tier !== 'trial'))
 
   useEffect(() => {
     if (shouldShow) {
@@ -59,20 +69,26 @@ export function TrialBanner() {
     }, 400)
   }
 
-  const bgClass = trialExpired
-    ? 'bg-red-500'
-    : canceledWithTime
-      ? 'bg-gradient-to-r from-amber-500 to-orange-500'
-      : urgent
-        ? 'bg-gradient-to-r from-amber-500 to-orange-500'
-        : tier === 'trial'
-          ? 'bg-gradient-to-r from-emerald-500 to-teal-500'
-          : 'bg-gradient-to-r from-orange-500 to-amber-500'
+  const bgClass =
+    showDunning
+      ? 'bg-gradient-to-r from-red-500 to-orange-500'
+      : trialExpired
+        ? 'bg-red-500'
+        : canceledWithTime
+          ? 'bg-gradient-to-r from-amber-500 to-orange-500'
+          : urgent
+            ? 'bg-gradient-to-r from-amber-500 to-orange-500'
+            : tier === 'trial'
+              ? 'bg-gradient-to-r from-emerald-500 to-teal-500'
+              : 'bg-gradient-to-r from-orange-500 to-amber-500'
 
   let message: string
   let ctaLabel: string
 
-  if (trialExpired) {
+  if (showDunning) {
+    message = `Payment failed — your access continues for ${dunningGraceDaysLeft} more day${dunningGraceDaysLeft !== 1 ? 's' : ''}. Update your card to avoid an interruption.`
+    ctaLabel = 'Update Payment'
+  } else if (trialExpired) {
     message = 'Your free trial has ended — upgrade to keep using Pro features'
     ctaLabel = 'Upgrade Now'
   } else if (canceledWithTime) {
@@ -112,7 +128,7 @@ export function TrialBanner() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
           </Link>
-          {!trialExpired && (
+          {!trialExpired && !showDunning && (
             <button
               onClick={handleDismiss}
               className="hover:opacity-70 transition-opacity p-0.5"

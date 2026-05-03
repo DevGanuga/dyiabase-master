@@ -1,0 +1,409 @@
+- generic [active] [ref=e1]:
+  - button "Open Next.js Dev Tools" [ref=e12] [cursor=pointer]:
+    - img [ref=e13]
+  - alert [ref=e16]
+  - generic [ref=e17]:
+    - generic [ref=e18]:
+      - text: Demo Mode — Sample data only, nothing is saved.
+      - button "Exit" [ref=e19]
+    - complementary [ref=e20]:
+      - link "dyia Beta" [ref=e22] [cursor=pointer]:
+        - /url: /
+        - img "dyia" [ref=e23]
+        - generic [ref=e24]: Beta
+      - button "Create new item" [ref=e26]:
+        - generic [ref=e27]:
+          - img
+          - generic [ref=e28]: Create
+        - generic [ref=e29]:
+          - img
+      - navigation [ref=e30]:
+        - generic [ref=e31]:
+          - generic [ref=e32]: Work
+          - generic [ref=e33]:
+            - button "Home" [ref=e34]:
+              - generic:
+                - img
+              - generic [ref=e35]: Home
+            - button "Jobs" [ref=e36]:
+              - generic:
+                - img
+              - generic [ref=e37]: Jobs
+            - button "Quotes" [ref=e38]:
+              - generic:
+                - img
+              - generic [ref=e39]: Quotes
+            - button "Profit Calculator" [ref=e40]:
+              - generic:
+                - img
+              - generic [ref=e41]: Profit Calculator
+            - button "Follow-ups" [ref=e42]:
+              - generic:
+                - img
+              - generic [ref=e43]: Follow-ups
+            - button "Calendar" [ref=e44]:
+              - generic:
+                - img
+              - generic [ref=e45]: Calendar
+        - generic [ref=e46]:
+          - generic [ref=e47]: Customers
+          - generic [ref=e48]:
+            - button "Customers" [ref=e49]:
+              - generic:
+                - img
+              - generic [ref=e50]: Customers
+            - button "Payments" [ref=e51]:
+              - generic:
+                - img
+              - generic [ref=e52]: Payments
+            - button "Email Blast" [ref=e53]:
+              - generic:
+                - img
+              - generic [ref=e54]: Email Blast
+        - generic [ref=e55]:
+          - generic [ref=e56]: Insights
+          - generic [ref=e57]:
+            - button "Reports" [ref=e58]:
+              - generic:
+                - img
+              - generic [ref=e59]: Reports
+            - button "Intel" [ref=e60]:
+              - generic:
+                - img
+              - generic [ref=e61]: Intel
+            - button "Marketing" [ref=e62]:
+              - generic:
+                - img
+              - generic [ref=e63]: Marketing
+            - button "Dyia AI Ask Dyia" [ref=e64]:
+              - generic:
+                - img "Dyia AI"
+              - generic [ref=e65]: Ask Dyia
+      - button "Settings" [ref=e67]:
+        - generic [ref=e68]:
+          - img
+        - generic [ref=e69]: Settings
+    - main [ref=e70]:
+      - generic [ref=e72]:
+        - button "Switch to dark mode" [ref=e73]:
+          - img [ref=e74]
+        - link "Help & Support" [ref=e76] [cursor=pointer]:
+          - /url: /support
+          - img [ref=e77]
+        - button "User menu" [ref=e81]:
+          - generic [ref=e83]: D
+          - img [ref=e84]
+      - generic [ref=e88]:
+        - generic [ref=e89]:
+          - generic [ref=e90]:
+            - heading "Good afternoon, Demo User" [level=1] [ref=e91]
+            - paragraph [ref=e92]: 1 job today worth $450
+          - generic [ref=e93]:
+            - button "Log Job" [ref=e94]:
+              - img [ref=e95]
+              - text: Log Job
+            - button "New Quote" [ref=e97]:
+              - img [ref=e98]
+              - text: New Quote
+        - alert [ref=e100]:
+          - paragraph [ref=e101]: Insight unavailable
+          - paragraph [ref=e102]: Unauthorized
+        - generic [ref=e103]:
+          - generic [ref=e104]:
+            - generic [ref=e105]:
+              - generic [ref=e106]:
+                - img [ref=e108]
+                - generic [ref=e110]:
+                  - heading "Your Day" [level=3] [ref=e111]
+                  - paragraph [ref=e112]: Sunday, May 3
+              - button "View in calendar" [ref=e113]
+            - generic [ref=e114]:
+              - generic [ref=e115]:
+                - generic [ref=e116]:
+                  - paragraph [ref=e117]: Revenue
+                  - paragraph [ref=e118]: $450
+                - generic [ref=e119]:
+                  - paragraph [ref=e120]: Profit
+                  - paragraph [ref=e121]: $280
+              - generic [ref=e122]:
+                - paragraph [ref=e123]: 1 job today
+                - button "Johnson Family $450" [ref=e124]:
+                  - img [ref=e126]
+                  - generic [ref=e128]: Johnson Family
+                  - generic [ref=e129]: $450
+              - generic [ref=e131]:
+                - img [ref=e133]
+                - generic [ref=e135]:
+                  - paragraph [ref=e136]: Day closed out
+                  - paragraph [ref=e137]: $450 rev · $280 profit
+                - button "Edit" [ref=e138]
+          - generic [ref=e139]:
+            - generic [ref=e140]:
+              - generic [ref=e141]:
+                - img [ref=e143]
+                - generic [ref=e145]:
+                  - heading "Calendar" [level=3] [ref=e146]
+                  - paragraph [ref=e147]: 3 jobs · $1,525
+              - button "Full view" [ref=e148]
+            - generic [ref=e149]:
+              - button [ref=e150]:
+                - img [ref=e151]
+              - button "May 2026" [ref=e153]
+              - button [ref=e154]:
+                - img [ref=e155]
+            - generic [ref=e157]:
+              - generic [ref=e158]: Su
+              - generic [ref=e159]: Mo
+              - generic [ref=e160]: Tu
+              - generic [ref=e161]: We
+              - generic [ref=e162]: Th
+              - generic [ref=e163]: Fr
+              - generic [ref=e164]: Sa
+            - generic [ref=e165]:
+              - button "26" [ref=e166] [cursor=pointer]:
+                - generic [ref=e167]: "26"
+              - button "27" [ref=e168] [cursor=pointer]:
+                - generic [ref=e169]: "27"
+              - button "28" [ref=e170] [cursor=pointer]:
+                - generic [ref=e171]: "28"
+              - button "29" [ref=e172] [cursor=pointer]:
+                - generic [ref=e173]: "29"
+              - button "30" [ref=e176] [cursor=pointer]:
+                - generic [ref=e177]: "30"
+              - button "1" [ref=e180] [cursor=pointer]:
+                - generic [ref=e181]: "1"
+              - button "2" [ref=e184] [cursor=pointer]:
+                - generic [ref=e185]: "2"
+              - button "3" [ref=e188]:
+                - generic [ref=e189]: "3"
+              - button "4" [ref=e192] [cursor=pointer]:
+                - generic [ref=e193]: "4"
+              - button "5" [ref=e194] [cursor=pointer]:
+                - generic [ref=e195]: "5"
+              - button "6" [ref=e196] [cursor=pointer]:
+                - generic [ref=e197]: "6"
+              - button "7" [ref=e198] [cursor=pointer]:
+                - generic [ref=e199]: "7"
+              - button "8" [ref=e200] [cursor=pointer]:
+                - generic [ref=e201]: "8"
+              - button "9" [ref=e202] [cursor=pointer]:
+                - generic [ref=e203]: "9"
+              - button "10" [ref=e204] [cursor=pointer]:
+                - generic [ref=e205]: "10"
+              - button "11" [ref=e206] [cursor=pointer]:
+                - generic [ref=e207]: "11"
+              - button "12" [ref=e208] [cursor=pointer]:
+                - generic [ref=e209]: "12"
+              - button "13" [ref=e210] [cursor=pointer]:
+                - generic [ref=e211]: "13"
+              - button "14" [ref=e212] [cursor=pointer]:
+                - generic [ref=e213]: "14"
+              - button "15" [ref=e214] [cursor=pointer]:
+                - generic [ref=e215]: "15"
+              - button "16" [ref=e216] [cursor=pointer]:
+                - generic [ref=e217]: "16"
+              - button "17" [ref=e218] [cursor=pointer]:
+                - generic [ref=e219]: "17"
+              - button "18" [ref=e220] [cursor=pointer]:
+                - generic [ref=e221]: "18"
+              - button "19" [ref=e222] [cursor=pointer]:
+                - generic [ref=e223]: "19"
+              - button "20" [ref=e224] [cursor=pointer]:
+                - generic [ref=e225]: "20"
+              - button "21" [ref=e226] [cursor=pointer]:
+                - generic [ref=e227]: "21"
+              - button "22" [ref=e228] [cursor=pointer]:
+                - generic [ref=e229]: "22"
+              - button "23" [ref=e230] [cursor=pointer]:
+                - generic [ref=e231]: "23"
+              - button "24" [ref=e232] [cursor=pointer]:
+                - generic [ref=e233]: "24"
+              - button "25" [ref=e234] [cursor=pointer]:
+                - generic [ref=e235]: "25"
+              - button "26" [ref=e236] [cursor=pointer]:
+                - generic [ref=e237]: "26"
+              - button "27" [ref=e238] [cursor=pointer]:
+                - generic [ref=e239]: "27"
+              - button "28" [ref=e240] [cursor=pointer]:
+                - generic [ref=e241]: "28"
+              - button "29" [ref=e242] [cursor=pointer]:
+                - generic [ref=e243]: "29"
+              - button "30" [ref=e244] [cursor=pointer]:
+                - generic [ref=e245]: "30"
+              - button "31" [ref=e246] [cursor=pointer]:
+                - generic [ref=e247]: "31"
+              - button "1" [ref=e248] [cursor=pointer]:
+                - generic [ref=e249]: "1"
+              - button "2" [ref=e250] [cursor=pointer]:
+                - generic [ref=e251]: "2"
+              - button "3" [ref=e252] [cursor=pointer]:
+                - generic [ref=e253]: "3"
+              - button "4" [ref=e254] [cursor=pointer]:
+                - generic [ref=e255]: "4"
+              - button "5" [ref=e256] [cursor=pointer]:
+                - generic [ref=e257]: "5"
+              - button "6" [ref=e258] [cursor=pointer]:
+                - generic [ref=e259]: "6"
+        - generic [ref=e260]:
+          - button "Quotes 4 $2,025" [ref=e261]:
+            - paragraph [ref=e262]: Quotes
+            - paragraph [ref=e263]: "4"
+            - paragraph [ref=e264]: $2,025
+          - button "Follow-ups 0 Pending" [ref=e265]:
+            - paragraph [ref=e266]: Follow-ups
+            - paragraph [ref=e267]: "0"
+            - paragraph [ref=e268]: Pending
+          - button "Jobs This Month 3 $1,525" [ref=e269]:
+            - paragraph [ref=e270]: Jobs This Month
+            - paragraph [ref=e271]: "3"
+            - paragraph [ref=e272]: $1,525
+          - generic [ref=e273]:
+            - paragraph [ref=e274]: Take Home
+            - paragraph [ref=e275]: $539
+            - paragraph [ref=e276]: After 30% tax
+        - generic [ref=e277]:
+          - heading "Needs Your Attention" [level=2] [ref=e278]
+          - generic [ref=e279]:
+            - button "1 job today $450 expected revenue" [ref=e280]:
+              - img [ref=e282]
+              - generic [ref=e284]:
+                - paragraph [ref=e285]: 1 job today
+                - paragraph [ref=e286]: $450 expected revenue
+              - img [ref=e287]
+            - button "4 pending quotes $2,025 total value" [ref=e289]:
+              - img [ref=e291]
+              - generic [ref=e293]:
+                - paragraph [ref=e294]: 4 pending quotes
+                - paragraph [ref=e295]: $2,025 total value
+              - img [ref=e296]
+            - button "19% to your monthly goal $6,475 to go" [ref=e298]:
+              - img [ref=e300]
+              - generic [ref=e302]:
+                - paragraph [ref=e303]: 19% to your monthly goal
+                - paragraph [ref=e304]: $6,475 to go
+              - img [ref=e305]
+        - generic [ref=e307]:
+          - heading "Do it with Dyia" [level=2] [ref=e309]
+          - generic [ref=e310]:
+            - button "Log a job Revenue, expenses & details" [ref=e311]:
+              - img [ref=e313]
+              - generic [ref=e315]:
+                - paragraph [ref=e316]: Log a job
+                - paragraph [ref=e317]: Revenue, expenses & details
+              - img [ref=e318]
+            - button "Create a quote Professional estimate" [ref=e320]:
+              - img [ref=e322]
+              - generic [ref=e324]:
+                - paragraph [ref=e325]: Create a quote
+                - paragraph [ref=e326]: Professional estimate
+              - img [ref=e327]
+            - button "Log expense Track a business cost" [ref=e329]:
+              - img [ref=e331]
+              - generic [ref=e333]:
+                - paragraph [ref=e334]: Log expense
+                - paragraph [ref=e335]: Track a business cost
+              - img [ref=e336]
+            - button "Business summary Revenue, profit & trends" [ref=e338]:
+              - img [ref=e340]
+              - generic [ref=e342]:
+                - paragraph [ref=e343]: Business summary
+                - paragraph [ref=e344]: Revenue, profit & trends
+              - img [ref=e345]
+        - generic [ref=e348]:
+          - generic [ref=e349]:
+            - heading "Monthly Goal" [level=3] [ref=e350]
+            - paragraph [ref=e351]: $1,525 of $8,000
+          - generic [ref=e352]: 19%
+        - generic [ref=e355]:
+          - generic [ref=e356]:
+            - generic [ref=e357]:
+              - img [ref=e359]
+              - heading "Revenue Forecast" [level=3] [ref=e361]
+              - generic [ref=e362]: Pro
+            - generic [ref=e363]: Early estimate
+          - generic [ref=e364]:
+            - generic [ref=e365]: $6,358
+            - generic [ref=e366]: projected this month
+          - generic [ref=e369]:
+            - generic [ref=e370]: $1,525 earned so far
+            - generic [ref=e371]: 28 days left
+          - button "Ask Dyia for detailed forecast →" [ref=e372]
+        - group [ref=e373]:
+          - generic "Monthly Breakdown" [ref=e374] [cursor=pointer]:
+            - generic [ref=e375]: Monthly Breakdown
+            - img [ref=e376]
+        - generic [ref=e378]:
+          - generic [ref=e379]:
+            - generic [ref=e380]:
+              - heading "Recent Jobs" [level=2] [ref=e381]
+              - button "View all" [ref=e382]
+            - generic [ref=e383]:
+              - generic [ref=e384] [cursor=pointer]:
+                - generic [ref=e385]:
+                  - img [ref=e387]
+                  - generic [ref=e389]:
+                    - paragraph [ref=e390]: Johnson Family
+                    - paragraph [ref=e391]: May 3
+                - generic [ref=e392]: $450
+              - generic [ref=e393] [cursor=pointer]:
+                - generic [ref=e394]:
+                  - img [ref=e396]
+                  - generic [ref=e398]:
+                    - paragraph [ref=e399]: Mike's Restaurant
+                    - paragraph [ref=e400]: May 2
+                - generic [ref=e401]: $800
+              - generic [ref=e402] [cursor=pointer]:
+                - generic [ref=e403]:
+                  - img [ref=e405]
+                  - generic [ref=e407]:
+                    - paragraph [ref=e408]: Sarah Miller
+                    - paragraph [ref=e409]: May 1
+                - generic [ref=e410]: $275
+              - generic [ref=e411] [cursor=pointer]:
+                - generic [ref=e412]:
+                  - img [ref=e414]
+                  - generic [ref=e416]:
+                    - paragraph [ref=e417]: Downtown Office Co
+                    - paragraph [ref=e418]: Apr 30
+                - generic [ref=e419]: $1,200
+          - generic [ref=e420]:
+            - generic [ref=e421]:
+              - heading "Recent Quotes" [level=2] [ref=e422]
+              - button "View all" [ref=e423]
+            - generic [ref=e424]:
+              - generic [ref=e425] [cursor=pointer]:
+                - generic [ref=e426]:
+                  - img [ref=e428]
+                  - generic [ref=e430]:
+                    - paragraph [ref=e431]: Lisa Chen
+                    - generic [ref=e432]:
+                      - generic [ref=e433]: May 2
+                      - generic [ref=e434]: sent
+                - generic [ref=e435]: $400
+              - generic [ref=e436] [cursor=pointer]:
+                - generic [ref=e437]:
+                  - img [ref=e439]
+                  - generic [ref=e441]:
+                    - paragraph [ref=e442]: Kevin Park
+                    - generic [ref=e443]:
+                      - generic [ref=e444]: May 1
+                      - generic [ref=e445]: draft
+                - generic [ref=e446]: $700
+              - generic [ref=e447] [cursor=pointer]:
+                - generic [ref=e448]:
+                  - img [ref=e450]
+                  - generic [ref=e452]:
+                    - paragraph [ref=e453]: Robert Hayes
+                    - generic [ref=e454]:
+                      - generic [ref=e455]: Apr 29
+                      - generic [ref=e456]: sent
+                - generic [ref=e457]: $600
+              - generic [ref=e458] [cursor=pointer]:
+                - generic [ref=e459]:
+                  - img [ref=e461]
+                  - generic [ref=e463]:
+                    - paragraph [ref=e464]: Johnson Family
+                    - generic [ref=e465]:
+                      - generic [ref=e466]: Apr 27
+                      - generic [ref=e467]: accepted
+                - generic [ref=e468]: $450

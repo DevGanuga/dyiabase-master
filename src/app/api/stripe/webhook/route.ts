@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
 import { sendEmail, isResendConfigured } from '@/lib/resend/client'
-import { subscriptionConfirmedEmail, intelActionPlanEmail } from '@/lib/resend/templates'
+import { subscriptionConfirmedEmail, intelActionPlanEmail, paymentFailedEmail } from '@/lib/resend/templates'
+import { DUNNING_GRACE_DAYS } from '@/lib/subscription'
 import { logWebhookEvent } from '@/lib/admin'
 import { getBaseUrl } from '@/lib/env'
 import { generateActionPlan } from '@/lib/intel/action-plan'
@@ -260,6 +261,8 @@ async function handleCheckoutComplete(stripe: Stripe, supabase: any, session: St
     subscription_plan: plan,
     subscription_tier: subscriptionTier,
     subscription_ends_at: periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
+    // Fresh checkout always clears any prior dunning stamp.
+    payment_failed_at: null,
   }
   if (ourStatus === 'trialing' || subscription.trial_end) {
     const { data: existing } = await supabase
@@ -325,11 +328,12 @@ async function handleSubscriptionUpdate(supabase: any, subscription: Stripe.Subs
 
   // Use type assertion for subscription properties
   const sub = subscription as unknown as {
-    items: { data: Array<{ price?: { recurring?: { interval?: string } } }> }
+    items: { data: Array<{ price?: { id?: string; recurring?: { interval?: string } } }> }
     current_period_end?: number
     trial_end?: number | null
   }
-  const plan = sub.items.data[0]?.price?.recurring?.interval === 'year' ? 'annual' : 'monthly'
+  const priceItem = sub.items.data[0]?.price
+  const plan = priceItem?.recurring?.interval === 'year' ? 'annual' : 'monthly'
   const periodEnd = sub.current_period_end
 
   let ourStatus: string = 'inactive'
@@ -338,9 +342,18 @@ async function handleSubscriptionUpdate(supabase: any, subscription: Stripe.Subs
   else if (status === 'past_due') ourStatus = 'past_due'
   else if (status === 'canceled') ourStatus = 'canceled'
 
+  // Round 4: self-heal stale `subscription_tier` on every Stripe event.
+  // Migration 032 defaulted this column to 'basic' for everyone, so legacy
+  // Pro users (subscribed before the basic plan existed) carry the wrong
+  // tier until their next subscription event. Recomputing it here from the
+  // active price ID closes that gap automatically — no backfill script
+  // required for any user with ongoing Stripe activity.
+  const tierFromPrice = determineTierFromPriceId(priceItem)
+
   const updatePayload: Record<string, unknown> = {
     subscription_status: ourStatus,
     subscription_plan: plan,
+    subscription_tier: tierFromPrice,
     subscription_ends_at: periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
   }
   // First time we ever see this user trialing (or holding a trial_end), or
@@ -349,6 +362,14 @@ async function handleSubscriptionUpdate(supabase: any, subscription: Stripe.Subs
   const looksLikeTrialUsage = ourStatus === 'trialing' || !!sub.trial_end
   if (looksLikeTrialUsage && !user?.trial_consumed_at) {
     updatePayload.trial_consumed_at = new Date().toISOString()
+  }
+
+  // Round 4 (BUG-022): clear the dunning stamp the moment a subscription
+  // returns to `active` or `trialing`. Without this, a customer who fixed
+  // their card would still see the dunning banner until they navigated to
+  // a screen that re-fetched. Idempotent: column-already-null is a no-op.
+  if (ourStatus === 'active' || ourStatus === 'trialing') {
+    updatePayload.payment_failed_at = null
   }
 
   const { error } = await supabase
@@ -392,13 +413,21 @@ async function handleSubscriptionCanceled(supabase: any, subscription: Stripe.Su
   }
 }
 
+// Round 4 (BUG-022): on the first invoice.payment_failed for a customer, stamp
+// `payment_failed_at` so `computeSubscriptionState` can apply the 7-day
+// dunning grace window. We only stamp when the column is currently null —
+// Stripe Smart Retries will fire this webhook 3-4 times during dunning and
+// we must not reset the clock on each retry.
+//
+// We also send the customer an email so they don't have to discover the
+// failed charge by checking their bank app (Hanna's Round 4 finding).
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function handlePaymentFailed(supabase: any, invoice: Stripe.Invoice) {
   const customerId = invoice.customer as string
 
   const { data: user } = await supabase
     .from('dyia_users')
-    .select('is_admin, role')
+    .select('id, email, first_name, is_admin, role, payment_failed_at, subscription_plan')
     .eq('stripe_customer_id', customerId)
     .maybeSingle()
 
@@ -406,14 +435,38 @@ async function handlePaymentFailed(supabase: any, invoice: Stripe.Invoice) {
     return
   }
 
+  const updatePayload: Record<string, unknown> = { subscription_status: 'past_due' }
+  const isFirstFailure = !user?.payment_failed_at
+  if (isFirstFailure) {
+    updatePayload.payment_failed_at = new Date().toISOString()
+  }
+
   const { error } = await supabase
     .from('dyia_users')
-    .update({ subscription_status: 'past_due' })
+    .update(updatePayload)
     .eq('stripe_customer_id', customerId)
 
   if (error) {
     console.error('Error updating payment failed status:', error)
     throw error
+  }
+
+  // Notify the customer once on first failure. Subsequent Smart Retry
+  // failures don't re-email — Stripe handles its own retry cadence and
+  // re-emailing every 2 days during dunning is annoying.
+  if (isFirstFailure && user?.email && isResendConfigured()) {
+    try {
+      const plan = (user.subscription_plan || null) as 'monthly' | 'annual' | null
+      await sendEmail(
+        user.email,
+        'Action needed — your Dyia payment failed',
+        paymentFailedEmail(user.first_name || 'there', DUNNING_GRACE_DAYS, plan),
+        'payment_failed',
+        user.id,
+      )
+    } catch (emailErr) {
+      console.error('Payment failed email send failed:', emailErr)
+    }
   }
 }
 

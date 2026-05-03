@@ -7,6 +7,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient, initSupabaseAuth } from '@/lib/supabase/client'
 import { extractAdditionalExpenseLabel, getRelativeLocalDateInput } from '@/lib/utils'
 import type { AppJob, AppQuote, AppSettings, UserProfile } from '@/types/database'
+import { computeSubscriptionState } from '@/lib/subscription'
 import { Sidebar } from '@/components/app/Sidebar'
 import { Dashboard } from '@/components/app/Dashboard'
 import { Jobs } from '@/components/app/Jobs'
@@ -198,6 +199,8 @@ function AppPageContent() {
           stripe_connect_charges_enabled: false,
           stripe_connect_payouts_enabled: false,
           subscription_status: 'active',
+          subscription_tier: 'pro',
+          subscription_plan: 'monthly',
           ai_credits_balance: 0,
           ai_credits_used_lifetime: 0,
           is_admin: false,
@@ -386,6 +389,45 @@ function AppPageContent() {
     }
   }, [supabase])
 
+  // BUG-011 / BUG-031 (round 4): umbrella refresh so the AI Assistant's
+  // confirm path and the Stripe-payment-success focus path can both bring
+  // grids up to date without a manual page reload. Skips when the user isn't
+  // loaded yet or we're in demo mode (DEMO_JOBS / DEMO_QUOTES are static).
+  const refreshAllData = useCallback(async () => {
+    const uid = userProfile?.id
+    if (!uid || isDemoMode) return
+    try {
+      await loadData(uid)
+    } catch (err) {
+      console.error('Error refreshing data:', err)
+    }
+  }, [userProfile?.id, isDemoMode, loadData])
+
+  // BUG-031 (round 4): when the merchant returns to the Dyia tab after the
+  // customer completed a Stripe payment in another window/device, the
+  // existing grid state was stale until they manually navigated away and
+  // back. Refetch on tab visibility + window focus so the Quotes grid
+  // ("Request Payment" → Paid) and the Payments page ("empty" → populated)
+  // reflect the webhook + verify-route reconciliation immediately.
+  useEffect(() => {
+    if (!userProfile?.id || isDemoMode) return
+    let lastRefreshAt = Date.now()
+    const MIN_REFETCH_INTERVAL_MS = 5_000 // throttle so rapid focus toggling doesn't hammer the DB
+    const onMaybeRefresh = () => {
+      if (document.visibilityState !== 'visible') return
+      const now = Date.now()
+      if (now - lastRefreshAt < MIN_REFETCH_INTERVAL_MS) return
+      lastRefreshAt = now
+      refreshAllData()
+    }
+    document.addEventListener('visibilitychange', onMaybeRefresh)
+    window.addEventListener('focus', onMaybeRefresh)
+    return () => {
+      document.removeEventListener('visibilitychange', onMaybeRefresh)
+      window.removeEventListener('focus', onMaybeRefresh)
+    }
+  }, [userProfile?.id, isDemoMode, refreshAllData])
+
   const refreshCounts = useCallback(async () => {
     const uid = userProfile?.id
     if (!uid) return
@@ -572,13 +614,22 @@ function AppPageContent() {
     await signOut()
   }
 
-  // Subscription gate
-  const isAdmin = !!userProfile?.is_admin || ['admin', 'super_admin'].includes(userProfile?.role || '')
+  // Subscription gate — single source of truth (BUG-022 round 4).
+  // computeSubscriptionState matches useSubscription() exactly so the badge,
+  // banners, ProFeature gates, and DyiaInsight upsell can never disagree
+  // about whether a given user has Pro access.
+  const subState = useMemo(() => computeSubscriptionState(userProfile), [userProfile])
+  const isAdmin = subState.isAdmin
   const subStatus = userProfile?.subscription_status || ''
-  const subEndsAt = userProfile?.subscription_ends_at ? new Date(userProfile.subscription_ends_at) : null
-  const canceledWithTimeLeft = subStatus === 'canceled' && subEndsAt !== null && subEndsAt.getTime() > Date.now()
-  const isPro = isAdmin || ['active', 'trialing'].includes(subStatus) || canceledWithTimeLeft
-  const hasActiveSubscription = !!userProfile && (isAdmin || ['active', 'trialing', 'past_due'].includes(subStatus) || canceledWithTimeLeft)
+  const isPro = subState.isPro
+  // Stay in the app for any user who is in dunning (past_due) — the banner
+  // counts down the grace window. Once the grace window expires the user
+  // remains in the app on Basic-equivalent access until they recover.
+  const hasActiveSubscription = !!userProfile && (
+    isAdmin ||
+    ['active', 'trialing', 'past_due'].includes(subStatus) ||
+    (subState.isCanceled && subState.daysRemaining > 0)
+  )
   const hasHadSubscription = !!userProfile?.stripe_customer_id || !!userProfile?.stripe_subscription_id
   const neverSubscribed = !loading && !isDemoMode && !!userProfile && !hasActiveSubscription && !hasHadSubscription
   const needsSubscription = neverSubscribed
@@ -783,6 +834,11 @@ function AppPageContent() {
               setCurrentView('quoteBuilder')
             }}
             showSuccess={showSuccess}
+            isPro={isPro}
+            onOpenDyiaWithPrompt={(prompt) => {
+              setAssistantInitialPrompt(prompt)
+              setCurrentView('assistant' as View)
+            }}
           />
         )
       case 'quoteBuilder':
@@ -931,18 +987,8 @@ function AppPageContent() {
         setCurrentView={setCurrentView}
         onLogout={handleLogout}
         isPro={isPro}
-        subscriptionTier={
-          isAdmin ? 'pro'
-            : userProfile?.subscription_status === 'trialing' ? 'trial'
-              : canceledWithTimeLeft ? 'trial'
-                : isPro ? 'pro'
-                  : 'basic'
-        }
-        trialDaysRemaining={
-          userProfile?.subscription_ends_at
-            ? Math.max(0, Math.ceil((new Date(userProfile.subscription_ends_at).getTime() - Date.now()) / 86400000))
-            : 0
-        }
+        subscriptionTier={subState.tier}
+        trialDaysRemaining={subState.daysRemaining}
         subscriptionPlan={(userProfile?.subscription_plan || null) as 'monthly' | 'annual' | null}
         isDemoMode={isDemoMode}
         isAdmin={isAdmin}
@@ -956,13 +1002,7 @@ function AppPageContent() {
           userEmail={isDemoMode ? 'demo@dyia.co' : (user?.primaryEmailAddress?.emailAddress || '')}
           userImageUrl={isDemoMode ? undefined : user?.imageUrl}
           onLogout={handleLogout}
-          subscriptionTier={
-            isAdmin ? 'pro'
-              : userProfile?.subscription_status === 'trialing' ? 'trial'
-                : canceledWithTimeLeft ? 'trial'
-                  : isPro ? 'pro'
-                    : 'basic'
-          }
+          subscriptionTier={subState.tier}
           isDemoMode={isDemoMode}
         />
         {!isDemoMode && !isAdmin && <BetaBanner />}
@@ -976,6 +1016,7 @@ function AppPageContent() {
               showSuccess={showSuccess}
               initialPrompt={assistantInitialPrompt}
               onPromptConsumed={() => setAssistantInitialPrompt(null)}
+              onAppDataChanged={refreshAllData}
             />
           </div>
         )}

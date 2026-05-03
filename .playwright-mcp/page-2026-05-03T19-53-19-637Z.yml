@@ -1,0 +1,158 @@
+- generic [ref=e1]:
+  - button "Open Next.js Dev Tools" [ref=e13] [cursor=pointer]:
+    - img [ref=e14]
+  - alert [ref=e7]
+  - generic [ref=e17]:
+    - generic [ref=e18]:
+      - text: Demo Mode — Sample data only, nothing is saved.
+      - button "Exit" [ref=e19]
+    - complementary [ref=e20]:
+      - link "dyia Beta" [ref=e22] [cursor=pointer]:
+        - /url: /
+        - img "dyia" [ref=e23]
+        - generic [ref=e24]: Beta
+      - button "Create new item" [ref=e26]:
+        - generic [ref=e27]:
+          - img
+          - generic [ref=e28]: Create
+        - generic [ref=e29]:
+          - img
+      - navigation [ref=e30]:
+        - generic [ref=e31]:
+          - generic [ref=e32]: Work
+          - generic [ref=e33]:
+            - button "Home" [ref=e34]:
+              - generic:
+                - img
+              - generic [ref=e35]: Home
+            - button "Jobs" [ref=e36]:
+              - generic:
+                - img
+              - generic [ref=e37]: Jobs
+            - button "Quotes" [ref=e38]:
+              - generic:
+                - img
+              - generic [ref=e39]: Quotes
+            - button "Profit Calculator" [ref=e40]:
+              - generic:
+                - img
+              - generic [ref=e41]: Profit Calculator
+            - button "Follow-ups" [ref=e42]:
+              - generic:
+                - img
+              - generic [ref=e43]: Follow-ups
+            - button "Calendar" [ref=e44]:
+              - generic:
+                - img
+              - generic [ref=e45]: Calendar
+        - generic [ref=e46]:
+          - generic [ref=e47]: Customers
+          - generic [ref=e48]:
+            - button "Customers" [ref=e49]:
+              - generic:
+                - img
+              - generic [ref=e50]: Customers
+            - button "Payments" [ref=e51]:
+              - generic:
+                - img
+              - generic [ref=e52]: Payments
+            - button "Email Blast" [ref=e53]:
+              - generic:
+                - img
+              - generic [ref=e54]: Email Blast
+        - generic [ref=e55]:
+          - generic [ref=e56]: Insights
+          - generic [ref=e57]:
+            - button "Reports" [ref=e58]:
+              - generic:
+                - img
+              - generic [ref=e59]: Reports
+            - button "Intel" [ref=e60]:
+              - generic:
+                - img
+              - generic [ref=e61]: Intel
+            - button "Marketing" [ref=e62]:
+              - generic:
+                - img
+              - generic [ref=e63]: Marketing
+            - button "Dyia AI Ask Dyia" [ref=e64]:
+              - generic:
+                - img "Dyia AI"
+              - generic [ref=e65]: Ask Dyia
+      - button "Settings" [ref=e67]:
+        - generic [ref=e68]:
+          - img
+        - generic [ref=e69]: Settings
+    - main [ref=e70]:
+      - generic [ref=e72]:
+        - button "Switch to dark mode" [ref=e73]:
+          - img [ref=e74]
+        - link "Help & Support" [ref=e76] [cursor=pointer]:
+          - /url: /support
+          - img [ref=e77]
+        - button "User menu" [ref=e81]:
+          - generic [ref=e83]: D
+          - img [ref=e84]
+      - generic [ref=e88]:
+        - generic [ref=e90]:
+          - heading "Settings" [level=1] [ref=e91]
+          - paragraph [ref=e92]: Manage your business profile and preferences
+        - generic [ref=e93]:
+          - button "Business" [ref=e94]:
+            - img [ref=e96]
+            - generic [ref=e98]: Business
+          - button "Financial" [ref=e99]:
+            - img [ref=e101]
+            - generic [ref=e103]: Financial
+          - button "Expenses" [ref=e104]:
+            - img [ref=e106]
+            - generic [ref=e108]: Expenses
+          - button "Templates" [ref=e109]:
+            - img [ref=e111]
+            - generic [ref=e113]: Templates
+          - button "Account" [active] [ref=e114]:
+            - img [ref=e116]
+            - generic [ref=e118]: Account
+        - generic [ref=e168]:
+          - generic [ref=e169]:
+            - img [ref=e171]
+            - generic [ref=e173]:
+              - heading "Profile" [level=3] [ref=e174]
+              - paragraph [ref=e175]: Your personal information
+          - generic [ref=e176]:
+            - generic [ref=e178]: D
+            - generic [ref=e179]:
+              - paragraph [ref=e180]: Demo User
+              - paragraph [ref=e181]: demo@dyia.co
+        - generic [ref=e182]:
+          - generic [ref=e183]:
+            - img [ref=e185]
+            - generic [ref=e187]:
+              - heading "Subscription" [level=3] [ref=e188]
+              - paragraph [ref=e189]: Your current plan and billing
+          - generic [ref=e191]:
+            - generic [ref=e192]:
+              - generic [ref=e193]:
+                - generic [ref=e194]: PRO
+                - generic [ref=e195]: Monthly Plan
+              - paragraph [ref=e196]: Full access to all features including AI assistant, reports, and marketing tools.
+            - generic [ref=e197]:
+              - paragraph [ref=e198]: "0"
+              - paragraph [ref=e199]: AI Credits
+        - generic [ref=e200]:
+          - generic [ref=e201]:
+            - img [ref=e203]
+            - generic [ref=e205]:
+              - heading "Customer payments" [level=3] [ref=e206]
+              - paragraph [ref=e207]: Set up Stripe Connect and request payment links for quotes and jobs.
+          - generic [ref=e208]:
+            - generic [ref=e209]: Stripe setup needed
+            - button "Open Payments" [ref=e210]
+        - generic [ref=e211]:
+          - generic [ref=e212]:
+            - img [ref=e214]
+            - generic [ref=e216]:
+              - heading "Data" [level=3] [ref=e217]
+              - paragraph [ref=e218]: Export your business data
+          - button "Export all data (CSV)" [ref=e219]
+          - paragraph [ref=e220]: Download all your jobs, quotes, and customer data as a CSV file.

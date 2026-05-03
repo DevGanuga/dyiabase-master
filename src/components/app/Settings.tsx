@@ -8,6 +8,7 @@ import { FixedExpenses } from './FixedExpenses'
 import { PriceTemplates } from './PriceTemplates'
 import { useConfirm } from '@/components/providers/ConfirmProvider'
 import { useSubscription } from '@/hooks/useSubscription'
+import { computeSubscriptionState } from '@/lib/subscription'
 import { useClerk } from '@clerk/nextjs'
 
 type SettingsTabId = 'business' | 'financial' | 'expenses' | 'templates' | 'account'
@@ -32,44 +33,14 @@ export function Settings({ settings, setSettings, userId, showSuccess, userProfi
   const hookSub = useSubscription()
   const clerk = useClerk()
 
-  // Prefer userProfile-derived subscription data (handles demo mode correctly).
-  // Distinguish the UI "tier" (basic/trial/pro) from the underlying "planTier"
-  // (what the user actually pays for: basic or pro) so Basic subscribers are
-  // never displayed as "Pro" (BUG-002/022).
-  //
-  // BUG-022 (round 2): `productTier` previously defaulted any `null`
-  // `subscription_tier` to `'basic'`, which then collided with the badge
-  // logic below to mislabel never-subscribed users as Basic. Distinguish
-  // "no record" (`null` -> truly Free) from "registered Basic" (`'basic'`)
-  // and "Pro" (`'pro'`) explicitly. `productTier === null` is the only path
-  // that should ever render the FREE badge.
-  const subscription = userProfile ? (() => {
-    const status = userProfile.subscription_status
-    const hasActiveSub = ['active', 'trialing'].includes(status)
-    const rawTier = userProfile.subscription_tier
-    const productTier: 'basic' | 'pro' | null =
-      rawTier === 'pro' ? 'pro' : rawTier === 'basic' ? 'basic' : null
-    const uiTier: 'basic' | 'trial' | 'pro' =
-      status === 'trialing' ? 'trial'
-        : status === 'active' ? (productTier === 'pro' ? 'pro' : 'basic')
-          : 'basic'
-    return {
-      ...hookSub,
-      tier: uiTier,
-      planTier: productTier,
-      isPro: hasActiveSub,
-      status,
-      plan: (userProfile.subscription_plan || null) as 'monthly' | 'annual' | null,
-      daysRemaining: userProfile.subscription_ends_at
-        ? Math.max(0, Math.ceil((new Date(userProfile.subscription_ends_at).getTime() - Date.now()) / 86400000))
-        : 0,
-      trialConsumed: !!userProfile.trial_consumed_at,
-      aiCredits: userProfile.ai_credits_balance || 0,
-      canUseAI: hasActiveSub || (userProfile.ai_credits_balance || 0) > 0,
-      isLoading: false,
-      hasStripeSub: !!userProfile.stripe_subscription_id,
-    }
-  })() : hookSub
+  // Round 4 (BUG-022): use the unified subscription computer when we have a
+  // userProfile (handles demo mode and admin overrides accurately) and fall
+  // back to the live hook value otherwise. Both code paths run the same
+  // `computeSubscriptionState` so the badge, banners, and feature gates
+  // can never disagree about a user's tier.
+  const subscription = userProfile
+    ? { ...computeSubscriptionState(userProfile), isLoading: false }
+    : hookSub
   const isAdminAccount = !!userProfile?.is_admin || ['admin', 'super_admin'].includes(userProfile?.role || '')
   const [businessName, setBusinessName] = useState(settings.businessInfo.name)
   const [businessPhone, setBusinessPhone] = useState(settings.businessInfo.phone)
@@ -754,13 +725,25 @@ export function Settings({ settings, setSettings, userId, showSuccess, userProfi
                 // not `uiTier`, so a Basic plan with status `inactive` /
                 // `canceled` still shows BASIC instead of regressing to FREE
                 // (which was QA's complaint).
+                // Plan label strategy (BUG-022 round 4):
+                //   productTier === null  → never had a subscription → FREE
+                //   tier === 'trial'      → PRO badge + Free Trial chip
+                //   productTier === 'pro' → PRO
+                //   productTier === 'basic' → BASIC (never FREE for a paying user)
+                //
+                // `productTier` comes from computeSubscriptionState; it is the
+                // ONLY field that can render the FREE badge.
                 const uiTier = subscription.tier
-                const productTier = (subscription as { planTier?: 'basic' | 'pro' | null }).planTier ?? null
+                const productTier = subscription.productTier
                 const isTrial = uiTier === 'trial'
                 const isRegisteredBasic = productTier === 'basic'
                 const isRegisteredPro = productTier === 'pro'
-                const isPaidBasic = isRegisteredBasic && ['active', 'past_due', 'trialing'].includes(subscription.status || '')
-                const isPaidPro = isRegisteredPro && ['active', 'past_due', 'trialing'].includes(subscription.status || '')
+                // A user with status 'past_due' is dunning. They still appear
+                // as their paid tier so the badge does not regress to FREE.
+                const PAID_STATUSES = ['active', 'past_due', 'trialing']
+                const isPaidBasic = isRegisteredBasic && PAID_STATUSES.includes(subscription.status || '')
+                const isPaidPro = isRegisteredPro && PAID_STATUSES.includes(subscription.status || '')
+                const isInDunning = subscription.isInDunning
                 const showOrange = isTrial || isPaidPro
                 const badgeLabel =
                   isTrial ? 'PRO'
@@ -770,6 +753,10 @@ export function Settings({ settings, setSettings, userId, showSuccess, userProfi
                 const bodyCopy =
                   isAdminAccount
                     ? 'Admin accounts have full Pro access and are never billed through Stripe.'
+                  : isInDunning && isPaidPro
+                    ? `Your last payment failed. Pro features stay active for ${subscription.dunningGraceDaysLeft} more day${subscription.dunningGraceDaysLeft !== 1 ? 's' : ''} while we retry your card. Update your payment method to avoid an interruption.`
+                  : isInDunning && isPaidBasic
+                    ? `Your last payment failed. Basic access stays active for ${subscription.dunningGraceDaysLeft} more day${subscription.dunningGraceDaysLeft !== 1 ? 's' : ''} while we retry your card. Update your payment method to avoid an interruption.`
                   : isTrial
                     ? (productTier === 'basic'
                         ? 'You currently have Pro access during your free trial. When the trial ends, your card will be charged for the Basic plan you selected at checkout.'

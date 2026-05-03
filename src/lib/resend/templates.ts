@@ -189,6 +189,47 @@ export function followUpReminderEmail(firstName: string, followUps: FollowUpData
   `)
 }
 
+// Payment failed email — sent on Stripe `invoice.payment_failed` so the
+// customer is alerted before Pro features lock at the end of the dunning
+// grace window. Round 4 (BUG-022) gap: previously we set status=past_due
+// silently and the customer's first signal was a charge in their bank app.
+export function paymentFailedEmail(
+  firstName: string,
+  graceDaysLeft: number,
+  plan: 'monthly' | 'annual' | null = null,
+): string {
+  const planLabel = plan === 'annual' ? 'Annual' : plan === 'monthly' ? 'Monthly' : 'Dyia'
+  const dayWord = graceDaysLeft === 1 ? 'day' : 'days'
+  return wrap(`
+    <h1 class="header">We couldn't charge your card</h1>
+    <p class="text">
+      Hi ${firstName}, your last ${planLabel} payment didn't go through. This usually
+      means a bank decline, an expired card, or a temporary hold.
+    </p>
+
+    <div class="card">
+      <p class="subheader">What happens next</p>
+      <p class="text-small">
+        Your access stays active for the next <strong>${graceDaysLeft} ${dayWord}</strong>
+        while we retry your card. If we can't collect payment by then, Pro features
+        will lock until you update your payment method.
+      </p>
+    </div>
+
+    <p class="text">
+      Updating your card takes about 30 seconds and resolves the issue immediately.
+    </p>
+
+    <p style="text-align: center; margin-top: 24px;">
+      <a href="${getBaseUrl()}/app?view=settings&tab=account#subscription" class="btn">Update Payment Method</a>
+    </p>
+
+    <p class="text-small" style="margin-top: 24px;">
+      Already updated your card? You can ignore this email — Stripe will retry automatically.
+    </p>
+  `)
+}
+
 // Subscription confirmed email
 export function subscriptionConfirmedEmail(firstName: string, plan: 'monthly' | 'annual'): string {
   const planLabel = plan === 'annual' ? 'Annual' : 'Monthly'

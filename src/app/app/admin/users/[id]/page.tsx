@@ -13,6 +13,7 @@ interface UserDetail {
   role: string
   subscription_status: string
   subscription_plan: string | null
+  subscription_tier: string | null
   subscription_ends_at: string | null
   stripe_customer_id: string | null
   stripe_subscription_id: string | null
@@ -86,6 +87,47 @@ export default function AdminUserDetailPage({ params }: { params: Promise<{ id: 
     }
   }
 
+  // Admin-driven plan swap. Hits Stripe directly so the webhook then syncs DB.
+  // Used for support tickets like "switch me from Pro monthly to Basic monthly".
+  const switchPlan = async (tier: 'basic' | 'pro', plan: 'monthly' | 'annual') => {
+    if (!user?.stripe_subscription_id) {
+      alert('User has no active Stripe subscription. Use Grant Pro / Grant Trial first.')
+      return
+    }
+    const downgrading = user.subscription_tier === 'pro' && tier === 'basic'
+    const confirmMsg = downgrading
+      ? `Downgrade ${user.email} from Pro to Basic (${plan})?\n\nThis will issue a prorated credit for unused Pro time.`
+      : `Switch ${user.email} to ${tier} (${plan})?`
+    if (!confirm(confirmMsg)) return
+    setSaving(true)
+    try {
+      const res = await fetch('/api/admin/switch-plan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targetUserId: id, tier, plan, prorate: true }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data?.error || 'Failed to switch plan')
+      alert(data.message || 'Plan switched.')
+      const refreshed = await fetch(`/api/admin/users/${id}`).then(r => r.json())
+      setUser(refreshed.user)
+    } catch (err) {
+      console.error(err)
+      alert(err instanceof Error ? err.message : 'Failed to switch plan')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const sendBillingPortal = async () => {
+    if (!user?.stripe_customer_id) {
+      alert('User has no Stripe customer ID — they have not subscribed yet.')
+      return
+    }
+    const portalUrl = `https://dashboard.stripe.com/customers/${user.stripe_customer_id}`
+    window.open(portalUrl, '_blank')
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center">
@@ -156,7 +198,11 @@ export default function AdminUserDetailPage({ params }: { params: Promise<{ id: 
                 <span className="font-medium capitalize">{user.subscription_status || 'inactive'}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-500">Plan</span>
+                <span className="text-slate-500">Tier</span>
+                <span className="font-medium capitalize">{user.subscription_tier || '—'}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Billing</span>
                 <span className="font-medium capitalize">{user.subscription_plan || '—'}</span>
               </div>
               <div className="flex justify-between">
@@ -211,6 +257,47 @@ export default function AdminUserDetailPage({ params }: { params: Promise<{ id: 
                 </button>
               </div>
             </div>
+
+            {/* Plan switch — for support cases like "downgrade me to Basic" */}
+            {user.stripe_subscription_id && (
+              <div className="space-y-2 pt-4 border-t border-slate-800 mt-4">
+                <h4 className="text-xs text-slate-500 mb-2">Switch Plan (live Stripe swap, prorated)</h4>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => switchPlan('basic', 'monthly')}
+                    disabled={saving || (user.subscription_tier === 'basic' && user.subscription_plan === 'monthly')}
+                    className="px-3 py-1.5 bg-blue-500/20 text-blue-400 text-xs font-medium rounded-lg hover:bg-blue-500/30 transition-colors disabled:opacity-30"
+                  >
+                    Basic Monthly
+                  </button>
+                  <button
+                    onClick={() => switchPlan('basic', 'annual')}
+                    disabled={saving || (user.subscription_tier === 'basic' && user.subscription_plan === 'annual')}
+                    className="px-3 py-1.5 bg-blue-500/20 text-blue-400 text-xs font-medium rounded-lg hover:bg-blue-500/30 transition-colors disabled:opacity-30"
+                  >
+                    Basic Annual
+                  </button>
+                  <button
+                    onClick={() => switchPlan('pro', 'monthly')}
+                    disabled={saving || (user.subscription_tier === 'pro' && user.subscription_plan === 'monthly')}
+                    className="px-3 py-1.5 bg-orange-500/20 text-orange-400 text-xs font-medium rounded-lg hover:bg-orange-500/30 transition-colors disabled:opacity-30"
+                  >
+                    Pro Monthly
+                  </button>
+                  <button
+                    onClick={() => switchPlan('pro', 'annual')}
+                    disabled={saving || (user.subscription_tier === 'pro' && user.subscription_plan === 'annual')}
+                    className="px-3 py-1.5 bg-orange-500/20 text-orange-400 text-xs font-medium rounded-lg hover:bg-orange-500/30 transition-colors disabled:opacity-30"
+                  >
+                    Pro Annual
+                  </button>
+                </div>
+                <p className="text-[11px] text-slate-600 mt-2">
+                  Tells the customer to update their card via Settings &rarr; Manage Billing (Stripe portal). Admins cannot change cards directly &mdash;{' '}
+                  <button onClick={sendBillingPortal} className="underline hover:text-orange-400">open in Stripe</button>{' '}to do it manually.
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Usage Stats */}

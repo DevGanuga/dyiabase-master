@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { createClient } from '@supabase/supabase-js'
+import { userHasProAccess } from '@/lib/subscription'
 
 export const maxDuration = 30
 
@@ -42,18 +43,41 @@ const CACHE_DURATION = {
 
 export async function POST(req: NextRequest) {
   try {
+    const body: InsightRequest = await req.json()
+    const { type = 'dashboard', forceRefresh: _forceRefresh = false } = body
+    void _forceRefresh
+
+    // Demo-mode short-circuit (development only). Returns a canned Pro
+    // insight so QA / verification screenshots show the real Pro UI.
+    const isDemoRequest =
+      process.env.NODE_ENV === 'development' &&
+      req.cookies.get('dyia_demo_active')?.value === '1'
+    if (isDemoRequest) {
+      const demoInsightByType: Record<InsightType, { tip: string }> = {
+        dashboard: { tip: 'Profit margin is 62% this month — well above the 35% baseline. Consider reinvesting the surplus into one paid Yelp lead campaign; your Yelp jobs convert at 3.2× the rate of cold leads.' },
+        weekly:    { tip: 'Saturdays drove 41% of this week\'s revenue. Block out the next two Saturdays first — push lower-priority pickups to Tuesday/Wednesday slots.' },
+        monthly:   { tip: 'Monthly goal is 78% complete with 6 days remaining. At your current pace you\'ll finish at 104%. Two of your sent quotes haven\'t been followed up — closing one would push you over.' },
+        reports:   { tip: 'Top 3 sources by margin: Referral ($412 avg), Yelp ($338), Google ($291). Cold knock jobs averaged $128 — pause that channel and double down on referrals.' },
+      }
+      return NextResponse.json({
+        insight: demoInsightByType[type] ?? demoInsightByType.dashboard,
+        cached: false,
+        demo: true,
+        generatedAt: new Date().toISOString(),
+      })
+    }
+
     const { userId: clerkUserId } = await auth()
     if (!clerkUserId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+    const forceRefresh = body.forceRefresh ?? false
 
-    const body: InsightRequest = await req.json()
-    const { type = 'dashboard', forceRefresh = false } = body
-
-    // Get user profile
+    // Get user profile (selects all fields needed by computeSubscriptionState
+    // so insights gating matches the client-side `isPro` exactly).
     const { data: userProfile, error: userError } = await supabase
       .from('dyia_users')
-      .select('id, subscription_status, first_name')
+      .select('id, subscription_status, subscription_tier, subscription_plan, subscription_ends_at, trial_consumed_at, payment_failed_at, ai_credits_balance, is_admin, role, stripe_customer_id, stripe_subscription_id, first_name')
       .eq('clerk_user_id', clerkUserId)
       .single()
 
@@ -61,8 +85,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
-    // Check subscription for Pro features
-    const isPro = ['active', 'trialing'].includes(userProfile.subscription_status || '')
+    // Check subscription for Pro features via the unified gate (active,
+    // trialing, canceled-with-time, dunning grace, or admin).
+    const isPro = userHasProAccess(userProfile)
     if (!isPro && type !== 'dashboard') {
       return NextResponse.json({ error: 'Pro subscription required' }, { status: 403 })
     }

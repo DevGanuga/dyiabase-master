@@ -99,6 +99,8 @@ export interface UserProfile {
   subscription_tier?: 'basic' | 'pro' | null
   subscription_ends_at?: string | null
   trial_consumed_at?: string | null
+  /** First-failure timestamp from Stripe invoice.payment_failed; null when not in dunning. (BUG-022 round 4) */
+  payment_failed_at?: string | null
   ai_credits_balance: number
   ai_credits_used_lifetime: number
   is_admin: boolean

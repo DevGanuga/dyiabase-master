@@ -12,6 +12,7 @@ import {
   MAX_OUTPUT_TOKENS_CHAT,
   MAX_TOOL_ITERATIONS,
 } from '@/lib/openai/guardrails'
+import { userHasProAccess } from '@/lib/subscription'
 
 // Initialize Supabase with service role for server operations
 const supabase = createClient(
@@ -52,10 +53,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // 2. Get user profile and check subscription
+    // 2. Get user profile and check subscription. Select all fields needed
+    //    by computeSubscriptionState so server-side AI gating matches the
+    //    client-side `isPro` exactly (BUG-022 round 4).
     const { data: userProfile, error: userError } = await supabase
       .from('dyia_users')
-      .select('id, subscription_status, ai_credits_balance, ai_credits_used_lifetime')
+      .select('id, subscription_status, subscription_tier, subscription_plan, subscription_ends_at, trial_consumed_at, payment_failed_at, ai_credits_balance, ai_credits_used_lifetime, is_admin, role, stripe_customer_id, stripe_subscription_id')
       .eq('clerk_user_id', clerkUserId)
       .single()
 
@@ -64,9 +67,8 @@ export async function POST(req: NextRequest) {
     }
 
     // 3. Check AI access (Pro users OR users with credits)
-    const isPro = ['active', 'trialing'].includes(userProfile.subscription_status)
+    const isPro = userHasProAccess(userProfile)
     const hasCredits = (userProfile.ai_credits_balance || 0) > 0
-    // When Pro monthly cap is set: check Pro credits used this month (e.g. from dyia_credit_transactions type 'usage') and deny if over cap
     const canUseAI = isPro || hasCredits
 
     if (!canUseAI) {
@@ -154,7 +156,19 @@ export async function POST(req: NextRequest) {
       stream: false,
     }
 
-    if (previousResponseId) {
+    // BUG-011 (round 4): when a confirm just happened, the previous_response_id
+    // points at the *propose* turn — a turn that doesn't know the saved id
+    // exists. In short conversations the [CONTEXT] preamble we prepend is
+    // enough to override the stale thread state, but in long-history sessions
+    // the surrounding context outweighs the preamble and the model falls back
+    // to get_user_context (or worse, invents a UUID). Cleanest fix: when we
+    // have a fresh lastConfirmed, drop previous_response_id for this single
+    // turn so the preamble is the freshest, most authoritative context. We
+    // give up one turn of conversation continuity to gain reliable id
+    // resolution; the cost is acceptable because the user just took a discrete
+    // action ("save this job") and the next turn referring to it doesn't
+    // depend on chat fluff before the save.
+    if (previousResponseId && !confirmedContextPreamble) {
       baseParams.previous_response_id = previousResponseId
     }
 

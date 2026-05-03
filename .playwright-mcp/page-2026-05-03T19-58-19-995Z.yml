@@ -1,0 +1,80 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e3]:
+    - generic [ref=e4]:
+      - generic [ref=e5]: d
+      - heading "dyia admin" [level=1] [ref=e6]
+    - navigation [ref=e7]:
+      - generic [ref=e8]: Dashboard
+      - generic [ref=e9]: Users
+      - generic [ref=e10]: Webhooks
+      - generic [ref=e11]: Back to App
+  - generic [ref=e12]:
+    - generic [ref=e13]: ← Back to Users
+    - generic [ref=e15]:
+      - generic [ref=e16]:
+        - heading "Gerardo Hernandez" [level=2] [ref=e17]
+        - paragraph [ref=e18]: gerardo@junkrunners.example
+        - paragraph [ref=e19]: "ID: a3f9c0e2-…"
+        - paragraph [ref=e20]: "Clerk: user_2yfV…"
+      - button "View as User" [ref=e21] [cursor=pointer]
+    - generic [ref=e22]:
+      - generic [ref=e23]:
+        - heading "Subscription" [level=3] [ref=e24]
+        - generic [ref=e25]:
+          - generic [ref=e26]:
+            - generic [ref=e27]: Status
+            - generic [ref=e28]: active
+          - generic [ref=e29]:
+            - generic [ref=e30]: Tier
+            - generic [ref=e31]: pro
+          - generic [ref=e32]:
+            - generic [ref=e33]: Billing
+            - generic [ref=e34]: monthly
+          - generic [ref=e35]:
+            - generic [ref=e36]: Ends at
+            - generic [ref=e37]: 5/29/2026
+          - generic [ref=e38]:
+            - generic [ref=e39]: Role
+            - generic [ref=e40]: user
+          - generic [ref=e41]:
+            - generic [ref=e42]: Stripe
+            - generic [ref=e43]: View in Stripe
+        - generic [ref=e44]:
+          - heading "Quick Actions" [level=4] [ref=e45]
+          - generic [ref=e46]:
+            - button "Grant Pro" [ref=e47] [cursor=pointer]
+            - button "Grant 14-Day Trial" [ref=e48] [cursor=pointer]
+            - button "Revoke Access" [ref=e49] [cursor=pointer]
+            - button "Make Admin" [ref=e50] [cursor=pointer]
+        - generic [ref=e51]:
+          - heading "Switch Plan (live Stripe swap, prorated)" [level=4] [ref=e52]
+          - generic [ref=e53]:
+            - button "Basic Monthly" [ref=e54] [cursor=pointer]
+            - button "Basic Annual" [ref=e55] [cursor=pointer]
+            - button "Pro Monthly" [ref=e56] [cursor=pointer]
+            - button "Pro Annual" [ref=e57] [cursor=pointer]
+          - paragraph [ref=e58]: Tells the customer to update their card via Settings → Manage Billing (Stripe portal). Admins cannot change cards directly — open in Stripe to do it manually.
+      - generic [ref=e59]:
+        - heading "Usage" [level=3] [ref=e60]
+        - generic [ref=e61]:
+          - generic [ref=e62]:
+            - generic [ref=e63]: Jobs Logged
+            - generic [ref=e64]: "142"
+          - generic [ref=e65]:
+            - generic [ref=e66]: Quotes Created
+            - generic [ref=e67]: "38"
+          - generic [ref=e68]:
+            - generic [ref=e69]: AI Threads
+            - generic [ref=e70]: "21"
+          - generic [ref=e71]:
+            - generic [ref=e72]: Total Revenue Tracked
+            - generic [ref=e73]: $48,950
+          - generic [ref=e74]:
+            - generic [ref=e75]: AI Credits Balance
+            - generic [ref=e76]: "87"
+          - generic [ref=e77]:
+            - generic [ref=e78]: AI Credits Used (Lifetime)
+            - generic [ref=e79]: "213"
+          - generic [ref=e80]:
+            - generic [ref=e81]: Account Created
+            - generic [ref=e82]: 3/14/2025, 9:42 AM

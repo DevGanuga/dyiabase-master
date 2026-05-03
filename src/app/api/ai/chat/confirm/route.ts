@@ -3,6 +3,7 @@ import { auth } from '@clerk/nextjs/server'
 import { createClient } from '@supabase/supabase-js'
 import { handleFunctionCall } from '@/lib/openai/handlers'
 import type { DyiaFunctionName } from '@/lib/openai/functions'
+import { userHasProAccess } from '@/lib/subscription'
 
 // Initialize Supabase with service role for server operations
 const supabase = createClient(
@@ -18,10 +19,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // 2. Get user profile
+    // 2. Get user profile (selects all fields needed by computeSubscriptionState
+    //    so the AI access gate matches the client-side `isPro` exactly).
     const { data: userProfile, error: userError } = await supabase
       .from('dyia_users')
-      .select('id, subscription_status')
+      .select('id, subscription_status, subscription_tier, subscription_plan, subscription_ends_at, trial_consumed_at, payment_failed_at, ai_credits_balance, is_admin, role, stripe_customer_id, stripe_subscription_id')
       .eq('clerk_user_id', clerkUserId)
       .single()
 
@@ -29,9 +31,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
-    // 3. Check AI access (Pro users OR users with credits — same as chat route)
-    const isPro = ['active', 'trialing'].includes(userProfile.subscription_status)
-    if (!isPro) {
+    // 3. Check AI access via the single source of truth — accepts active,
+    //    trialing, canceled-with-time-left, and dunning-grace users.
+    if (!userHasProAccess(userProfile)) {
       return NextResponse.json(
         { error: 'Dyia Pro subscription required. Upgrade to confirm AI actions.', needsUpgrade: true },
         { status: 403 }

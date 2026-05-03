@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { createClient } from '@supabase/supabase-js'
 import { handleFunctionCall } from '@/lib/openai/handlers'
+import { userHasProAccess } from '@/lib/subscription'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -23,7 +24,7 @@ export async function POST(req: NextRequest) {
 
     const { data: userProfile } = await supabase
       .from('dyia_users')
-      .select('id, subscription_status')
+      .select('id, subscription_status, subscription_tier, subscription_plan, subscription_ends_at, trial_consumed_at, payment_failed_at, ai_credits_balance, is_admin, role, stripe_customer_id, stripe_subscription_id')
       .eq('clerk_user_id', clerkUserId)
       .single()
 
@@ -31,8 +32,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
-    const isPro = ['active', 'trialing'].includes(userProfile.subscription_status ?? '')
-    if (!isPro) {
+    if (!userHasProAccess(userProfile)) {
       return NextResponse.json(
         { error: 'AI pricing suggestions are available for Pro subscribers.', needsPro: true },
         { status: 403 }

@@ -161,10 +161,19 @@ function PaymentLinkReadyModalInner({ url, title, description, onClose }: { url:
         )}
 
         <div className="mt-5 flex flex-col sm:flex-row gap-2 sm:justify-end">
+          {/*
+            BUG-031 mobile UX (round 4): "Open link" is hidden on mobile.
+            On phones the merchant's job is to copy the link and send it to
+            their customer — opening the link on the same device that just
+            generated it sends them to an external browser tab with no return
+            path to the Dyia app, which Hanna correctly flagged as broken.
+            On desktop the action is still useful (preview the customer view
+            in another tab), so it stays for sm: and up.
+          */}
           <button
             type="button"
             onClick={handleOpen}
-            className="app-btn-secondary text-sm"
+            className="app-btn-secondary text-sm hidden sm:inline-flex"
           >
             <span className="inline-flex items-center gap-1.5">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

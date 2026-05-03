@@ -1,0 +1,159 @@
+- generic [active] [ref=e1]:
+  - button "Open Next.js Dev Tools" [ref=e12] [cursor=pointer]:
+    - img [ref=e13]
+  - alert [ref=e16]
+  - generic [ref=e17]:
+    - generic [ref=e18]:
+      - text: Demo Mode — Sample data only, nothing is saved.
+      - button "Exit" [ref=e19]
+    - complementary [ref=e20]:
+      - link "dyia Beta" [ref=e22] [cursor=pointer]:
+        - /url: /
+        - img "dyia" [ref=e23]
+        - generic [ref=e24]: Beta
+      - button "Create new item" [ref=e26]:
+        - generic [ref=e27]:
+          - img
+          - generic [ref=e28]: Create
+        - generic [ref=e29]:
+          - img
+      - navigation [ref=e30]:
+        - generic [ref=e31]:
+          - generic [ref=e32]: Work
+          - generic [ref=e33]:
+            - button "Home" [ref=e34]:
+              - generic:
+                - img
+              - generic [ref=e35]: Home
+            - button "Jobs" [ref=e36]:
+              - generic:
+                - img
+              - generic [ref=e37]: Jobs
+            - button "Quotes" [ref=e38]:
+              - generic:
+                - img
+              - generic [ref=e39]: Quotes
+            - button "Profit Calculator" [ref=e40]:
+              - generic:
+                - img
+              - generic [ref=e41]: Profit Calculator
+            - button "Follow-ups" [ref=e42]:
+              - generic:
+                - img
+              - generic [ref=e43]: Follow-ups
+            - button "Calendar" [ref=e44]:
+              - generic:
+                - img
+              - generic [ref=e45]: Calendar
+        - generic [ref=e46]:
+          - generic [ref=e47]: Customers
+          - generic [ref=e48]:
+            - button "Customers" [ref=e49]:
+              - generic:
+                - img
+              - generic [ref=e50]: Customers
+            - button "Payments" [ref=e51]:
+              - generic:
+                - img
+              - generic [ref=e52]: Payments
+            - button "Email Blast" [ref=e53]:
+              - generic:
+                - img
+              - generic [ref=e54]: Email Blast
+        - generic [ref=e55]:
+          - generic [ref=e56]: Insights
+          - generic [ref=e57]:
+            - button "Reports" [ref=e58]:
+              - generic:
+                - img
+              - generic [ref=e59]: Reports
+            - button "Intel" [ref=e60]:
+              - generic:
+                - img
+              - generic [ref=e61]: Intel
+            - button "Marketing" [ref=e62]:
+              - generic:
+                - img
+              - generic [ref=e63]: Marketing
+            - button "Dyia AI Ask Dyia" [ref=e64]:
+              - generic:
+                - img "Dyia AI"
+              - generic [ref=e65]: Ask Dyia
+      - button "Settings" [ref=e67]:
+        - generic [ref=e68]:
+          - img
+        - generic [ref=e69]: Settings
+    - main [ref=e70]:
+      - generic [ref=e72]:
+        - button "Switch to dark mode" [ref=e73]:
+          - img [ref=e74]
+        - link "Help & Support" [ref=e76] [cursor=pointer]:
+          - /url: /support
+          - img [ref=e77]
+        - button "User menu" [ref=e81]:
+          - generic [ref=e83]: D
+          - img [ref=e84]
+      - generic [ref=e88]:
+        - generic [ref=e90]:
+          - heading "Settings" [level=1] [ref=e91]
+          - paragraph [ref=e92]: Manage your business profile and preferences
+        - generic [ref=e93]:
+          - button "Business" [ref=e94]:
+            - img [ref=e96]
+            - generic [ref=e98]: Business
+          - button "Financial" [ref=e99]:
+            - img [ref=e101]
+            - generic [ref=e103]: Financial
+          - button "Expenses" [ref=e104]:
+            - img [ref=e106]
+            - generic [ref=e108]: Expenses
+          - button "Templates" [ref=e109]:
+            - img [ref=e111]
+            - generic [ref=e113]: Templates
+          - button "Account" [ref=e114]:
+            - img [ref=e116]
+            - generic [ref=e118]: Account
+        - generic [ref=e119]:
+          - generic [ref=e120]:
+            - img [ref=e122]
+            - generic [ref=e124]:
+              - heading "Business Information" [level=3] [ref=e125]
+              - paragraph [ref=e126]: This appears on your quotes
+          - generic [ref=e127]:
+            - generic [ref=e128]:
+              - generic [ref=e129]: Business Name
+              - textbox "Your Junk Removal Co." [ref=e130]: Demo Junk Co
+            - generic [ref=e131]:
+              - generic [ref=e132]:
+                - generic [ref=e133]: Phone Number
+                - textbox "(555) 123-4567" [ref=e134]
+              - generic [ref=e135]:
+                - generic [ref=e136]: Email
+                - textbox "info@company.com" [ref=e137]: demo@dyia.co
+            - generic [ref=e138]:
+              - generic [ref=e139]: Address
+              - textbox "123 Main St, City, State" [ref=e140]: 123 Demo Street
+            - generic [ref=e141]:
+              - generic [ref=e142]: Review link (for completed jobs)
+              - textbox "https://g.page/your-business/review" [ref=e143]
+              - paragraph [ref=e144]: Used for copy-paste review requests on completed quotes.
+            - generic [ref=e145]:
+              - generic [ref=e146]:
+                - generic [ref=e147]: Review link — Google
+                - textbox "https://g.page/..." [ref=e148]
+              - generic [ref=e149]:
+                - generic [ref=e150]: Review link — Yelp
+                - textbox "https://yelp.com/..." [ref=e151]
+              - generic [ref=e152]:
+                - generic [ref=e153]: Review link — Facebook
+                - textbox "https://facebook.com/..." [ref=e154]
+            - paragraph [ref=e155]: Optional. When set, the selected platform in the review modal uses this link.
+            - generic [ref=e156]:
+              - generic [ref=e157]: Business Logo
+              - paragraph [ref=e158]: Upload a logo to display on your quotes (max 2MB)
+              - generic [ref=e160] [cursor=pointer]:
+                - img [ref=e161]
+                - generic [ref=e163]: Click to upload logo
+        - button "Save Settings" [ref=e165]:
+          - img [ref=e166]
+          - text: Save Settings

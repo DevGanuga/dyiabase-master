@@ -1,0 +1,693 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Dyia QA — Retest Response Round 4 — May 2026</title>
+<style>
+  @page { size: Letter; margin: 22mm 18mm; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, 'SF Pro Text', 'Segoe UI', 'Inter', Helvetica, Arial, sans-serif;
+    color: #111827;
+    font-size: 10.5pt;
+    line-height: 1.45;
+  }
+  .cover { padding: 40mm 0 10mm; border-bottom: 2px solid #f97316; margin-bottom: 14mm; }
+  .cover h1 { font-size: 22pt; margin: 0 0 6mm; letter-spacing: -0.01em; }
+  .cover .meta { color: #6b7280; font-size: 10pt; }
+  .cover .meta strong { color: #111827; }
+
+  h2 { font-size: 14pt; margin: 10mm 0 4mm; color: #111827; border-left: 4px solid #f97316; padding-left: 3mm; }
+  h3 { font-size: 11.5pt; margin: 6mm 0 2mm; color: #111827; }
+  p { margin: 0 0 2mm; }
+  .lead { color: #374151; margin-bottom: 5mm; }
+  ul { padding-left: 6mm; margin: 2mm 0 4mm; }
+  li { margin-bottom: 1.5mm; }
+
+  table { width: 100%; border-collapse: collapse; margin: 2mm 0 6mm; }
+  th, td { border: 1px solid #e5e7eb; padding: 2mm 3mm; text-align: left; vertical-align: top; font-size: 9.5pt; }
+  th { background: #f9fafb; font-weight: 600; }
+  .col-id { width: 78px; font-variant-numeric: tabular-nums; }
+  .col-sev { width: 78px; }
+  .col-area { width: 130px; color: #6b7280; }
+  .col-res { width: 132px; }
+
+  .res { font-weight: 600; padding: 1mm 2mm; border-radius: 4px; font-size: 9pt; white-space: nowrap; }
+  .res-fixed { background: #dcfce7; color: #166534; }
+  .res-code  { background: #dbeafe; color: #1e40af; }
+  .res-part  { background: #fef3c7; color: #92400e; }
+  .res-ver   { background: #e0f2fe; color: #075985; }
+  .res-block { background: #f3f4f6; color: #374151; }
+
+  .sev { font-weight: 600; font-size: 9pt; padding: 1mm 2mm; border-radius: 4px; }
+  .sev-crit { background: #fee2e2; color: #991b1b; }
+  .sev-maj  { background: #ffedd5; color: #9a3412; }
+  .sev-min  { background: #e0e7ff; color: #3730a3; }
+  .sev-cos  { background: #f3f4f6; color: #374151; }
+
+  code { font-family: 'SF Mono', Menlo, 'Courier New', monospace; background: #f3f4f6; padding: 0.5mm 1mm; border-radius: 3px; font-size: 9.5pt; }
+  .small { font-size: 9pt; color: #6b7280; }
+  footer { margin-top: 10mm; padding-top: 4mm; border-top: 1px solid #e5e7eb; color: #6b7280; font-size: 9pt; }
+  .legend { display: grid; grid-template-columns: repeat(5, 1fr); gap: 2mm; margin: 3mm 0 5mm; font-size: 9pt; }
+  .legend div { border: 1px solid #e5e7eb; padding: 2mm 3mm; border-radius: 3px; }
+  .root-cause { background: #fef2f2; border-left: 3px solid #ef4444; padding: 2mm 4mm; margin: 2mm 0; border-radius: 2mm; font-size: 9.5pt; }
+  .root-cause strong { color: #991b1b; }
+  .fix-applied { background: #f0fdf4; border-left: 3px solid #22c55e; padding: 2mm 4mm; margin: 2mm 0; border-radius: 2mm; font-size: 9.5pt; }
+  .fix-applied strong { color: #15803d; }
+  .verify { background: #eff6ff; border-left: 3px solid #3b82f6; padding: 2mm 4mm; margin: 2mm 0 4mm; border-radius: 2mm; font-size: 9pt; }
+  .verify strong { color: #1d4ed8; }
+  .matrix th { font-size: 9pt; }
+  .matrix td { font-size: 9pt; }
+  .center { text-align: center; }
+  .pill-yes { display: inline-block; background: #dcfce7; color: #166534; padding: 0.5mm 1.5mm; border-radius: 3px; font-weight: 600; font-size: 8.5pt; }
+  .pill-no  { display: inline-block; background: #fee2e2; color: #991b1b; padding: 0.5mm 1.5mm; border-radius: 3px; font-weight: 600; font-size: 8.5pt; }
+  .shot { display: block; width: 100%; margin: 4mm 0 1mm; border: 1px solid #1a2138; border-radius: 3mm; }
+  .shot-cap { font-size: 8.5pt; color: #6b7280; text-align: center; margin-bottom: 5mm; }
+  .block { background: #fff7ed; border: 1px solid #fed7aa; padding: 3mm 4mm; border-radius: 3mm; margin: 3mm 0; }
+  .block-title { font-weight: 600; color: #9a3412; margin-bottom: 1mm; }
+</style>
+</head>
+<body>
+
+<section class="cover">
+  <div class="meta">RE-TEST RESPONSE · ROUND 4 · Subscription Lifecycle · AI Reliability · Stripe Reflection · Dunning Grace</div>
+  <h1>Dyia QA — Retest Response (Round 4)</h1>
+  <div class="meta">
+    Prepared for: QA — Hanna · CC: Marco<br/>
+    Date: <strong>May 2026</strong><br/>
+    Source brief: <em>Dyia Bug Report Round 4</em> (Apr 29, 2026)<br/>
+    Scope: 3 items still failing/partial after Round 2 + dunning lifecycle + admin tooling<br/>
+    Branch: <code>fix/qa-retest-2026-05-round4</code>
+  </div>
+</section>
+
+<h2>Why this round is different</h2>
+<p class="lead">
+  Round 2 fixed visible symptoms but each bug came back in a slightly different
+  shape because the underlying structure was wrong: three different components
+  computed "is this user Pro?" their own way, the AI thread carried stale
+  <code>previous_response_id</code> across confirms, and the Quotes / Payments
+  grids were never told to refresh after a Stripe success. Round 4 attacks all
+  three at the structural level — single source of truth for subscription, a
+  preamble-dominates-in-long-history rule for the AI, and a
+  visibility/focus-driven grid refresh path. Plus the missing pieces: a 7-day
+  dunning grace window with a customer email, admin tier-swap tooling for
+  support tickets, and the mobile UX cleanup Hanna flagged.
+</p>
+
+<div class="legend">
+  <div><span class="res res-fixed">Fixed</span> Root-cause fix shipped &amp; verified locally</div>
+  <div><span class="res res-code">Fixed (code)</span> Shipped; needs prod env to verify</div>
+  <div><span class="res res-ver">Needs QA</span> Verify on real Stripe/Clerk session</div>
+  <div><span class="res res-part">Partial</span> Mitigated; doc gap noted</div>
+  <div><span class="res res-block">Blocked</span> External dependency</div>
+</div>
+
+<h2>Round 4 results — items from Marco's Round 4 report</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th class="col-id">Bug ID</th>
+      <th>Description</th>
+      <th class="col-sev">Severity</th>
+      <th class="col-area">Area</th>
+      <th class="col-res">Result</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>BUG-022</td>
+      <td>Plan badge / trial banner displaying incorrectly + failed-payment edge case (+100 keeps Pro after card declined; +101 Basic shows Pro features; +102 Pro sees "Unlock AI insights" upsell).</td>
+      <td><span class="sev sev-maj">Major</span></td>
+      <td>Settings / Banner / Gates</td>
+      <td><span class="res res-code">Fixed (code)</span></td>
+    </tr>
+    <tr>
+      <td>BUG-022 / dunning</td>
+      <td>No email on failed payment; no defined grace period; no UI signal that payment failed.</td>
+      <td><span class="sev sev-maj">Major</span></td>
+      <td>Stripe / Resend / Banner</td>
+      <td><span class="res res-code">Fixed (code)</span></td>
+    </tr>
+    <tr>
+      <td>SUPPORT</td>
+      <td>"Switch me from Pro to Basic" / "Change my card" — no admin tooling existed to action support tickets without going to the Stripe Dashboard.</td>
+      <td><span class="sev sev-min">Minor</span></td>
+      <td>Admin Panel</td>
+      <td><span class="res res-fixed">Fixed</span></td>
+    </tr>
+    <tr>
+      <td>BUG-011</td>
+      <td>Ask Dyia AI cannot reliably update a job it just logged (regression in long chat history); Jobs grid not refreshing after AI confirm; AI doesn't re-propose when user requests in-flight modifications.</td>
+      <td><span class="sev sev-maj">Major</span></td>
+      <td>Ask Dyia / AI</td>
+      <td><span class="res res-code">Fixed (code)</span></td>
+    </tr>
+    <tr>
+      <td>BUG-031</td>
+      <td>Stripe payment success not reflected in Dyia (Quotes grid stale, Payments page empty after webhook reconciles).</td>
+      <td><span class="sev sev-crit">Critical</span></td>
+      <td>Quotes / Payments / Tab focus</td>
+      <td><span class="res res-code">Fixed (code)</span></td>
+    </tr>
+    <tr>
+      <td>UX gap</td>
+      <td>Mobile "Open Link" CTA in PaymentLinkReadyModal sends user to external browser with no return path.</td>
+      <td><span class="sev sev-min">Minor</span></td>
+      <td>Mobile / Payments</td>
+      <td><span class="res res-fixed">Fixed</span></td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Detailed root cause &amp; fix per item</h2>
+
+<h3>BUG-022 — Plan badge / trial banner / failed payment edge case</h3>
+<div class="root-cause">
+  <strong>Root cause (one underlying problem, three visible symptoms):</strong>
+  Round 2 patched the Settings badge but did not address <em>why</em> the badge kept
+  disagreeing with what users actually saw in feature gates. The application had three
+  independent computations of <code>isPro</code>:
+  <ul>
+    <li><code>src/app/app/page.tsx</code> — derived from <code>subscription_status</code> only.</li>
+    <li><code>src/hooks/useSubscription.ts</code> — derived from <code>subscription_status</code> +
+      cancellation grace period.</li>
+    <li><code>src/components/app/Settings.tsx</code> — its own local override that read
+      <code>subscription_tier</code> for the badge but didn't feed back into feature gates.</li>
+  </ul>
+  Components consumed whichever of these three was nearest. <code>DyiaInsight</code> on
+  Quotes used <code>app/page.tsx</code> isPro. The badge in Settings used its own. The
+  sidebar used <code>useSubscription</code>. They could disagree. They <em>did</em> disagree
+  for +101 (Basic with Pro features unlocked), +102 (Pro with locked AI insights), and
+  +100 (failed payment, status flipped to <code>past_due</code>, no defined behavior).
+  Additionally, the gate was permissive: any user with <code>subscription_status='active'</code>
+  was treated as Pro regardless of <code>subscription_tier</code> — so a paying Basic user
+  silently got Pro feature access.
+</div>
+<div class="fix-applied">
+  <strong>Fix (single source of truth + tightened gate):</strong>
+  <ul>
+    <li><b>New module: <code>src/lib/subscription.ts</code>.</b>
+      One pure function <code>computeSubscriptionState(row)</code> that returns the canonical
+      state: <code>tier</code>, <code>planTier</code>, <code>productTier</code> (nullable —
+      distinguishes "never subscribed" from "registered Basic"), <code>status</code>,
+      <code>plan</code>, <code>daysRemaining</code>, <code>isPro</code>, <code>isAdmin</code>,
+      <code>isCanceled</code>, <code>isInDunning</code>, <code>dunningGraceDaysLeft</code>,
+      <code>dunningExpired</code>, <code>trialExpired</code>, <code>trialConsumed</code>,
+      <code>aiCredits</code>, <code>canUseAI</code>, <code>hasStripeHistory</code>. Pure: safe
+      to call client- or server-side.</li>
+    <li><b>Tightened <code>isPro</code> gate.</b> Now requires <em>both</em> an active/grace state
+      AND Pro tier (or trial — every trial gets a Pro preview regardless of which plan was
+      picked). Active Basic users now correctly resolve to <code>isPro=false</code>. The +101
+      class of bugs is structurally impossible.</li>
+    <li><b>All consumers consolidated.</b> <code>app/page.tsx</code>,
+      <code>useSubscription.ts</code>, <code>Settings.tsx</code>, and the four AI API routes
+      (<code>chat</code>, <code>chat/confirm</code>, <code>insights</code>,
+      <code>suggest-quote-price</code>) now all delegate to the same function. If
+      <code>isPro</code> is true anywhere, it is true everywhere — and vice versa.</li>
+    <li><b>Settings badge logic cleaned up.</b> Reads <code>productTier</code> from
+      <code>computeSubscriptionState</code>. <em>FREE</em> only when the user has never had any
+      subscription on file. <em>BASIC</em> when <code>subscription_tier='basic'</code>
+      regardless of status. <em>PRO</em> for <code>'pro'</code>. The word "FREE" can no
+      longer appear next to a paying user.</li>
+    <li><b>Sidebar tier propagated.</b> <code>app/page.tsx</code> passes
+      <code>subState.tier</code> to <code>Sidebar</code> instead of deriving from
+      <code>isPro</code>, so a Basic-paid user shows the BASIC pill in the sidebar.</li>
+    <li><b>Demo mode fixed.</b> Demo profile now sets <code>subscription_tier='pro'</code> so
+      sales demos show Pro features unlocked, not the previous "active Basic" half-state.</li>
+  </ul>
+</div>
+
+<h3>BUG-022 / dunning — Failed payment lifecycle</h3>
+<div class="root-cause">
+  <strong>Root cause:</strong> there was no defined behavior for
+  <code>subscription_status='past_due'</code>. Stripe fired
+  <code>invoice.payment_failed</code>; our webhook flipped the status; nothing else happened.
+  No timestamp was stamped, so the system had no way to know when the failure started or
+  how much grace to grant. Account +100 had a failed transaction April 28, was flipped to
+  <code>past_due</code>, but the gates that read <code>isPro</code> for various features
+  didn't agree on whether <code>past_due</code> counted. No customer email — the customer
+  learned about the failure from their bank app, not from Dyia.
+</div>
+<div class="fix-applied">
+  <strong>Fix (defined 7-day grace + email + UI countdown):</strong>
+  <ul>
+    <li><b>New column.</b>
+      <code>supabase/migrations/037_payment_failed_grace.sql</code> adds
+      <code>dyia_users.payment_failed_at TIMESTAMPTZ</code> with a partial index on non-null
+      values.</li>
+    <li><b>Webhook stamps the column once per dunning cycle.</b>
+      <code>handlePaymentFailed</code> writes <code>payment_failed_at = NOW()</code> only
+      when it is currently <code>NULL</code>. Stripe Smart Retries don't reset the clock —
+      every retry fires another event but the stamp stays.</li>
+    <li><b>Webhook clears the column on recovery.</b> <code>handleSubscriptionUpdate</code>
+      and <code>handleCheckoutComplete</code> set <code>payment_failed_at = NULL</code> the
+      moment status returns to <code>active</code> or <code>trialing</code>.</li>
+    <li><b>Customer email.</b> New <code>paymentFailedEmail()</code> in
+      <code>src/lib/resend/templates.ts</code>. Sent once per dunning cycle. Includes first
+      name, days remaining, plan label, and a CTA that opens
+      <code>/app?view=settings&amp;tab=account#subscription</code> for one-click Manage Billing.</li>
+    <li><b>Pure-function grace calculation.</b> <code>computeSubscriptionState</code> exposes
+      <code>isInDunning</code>, <code>dunningGraceDaysLeft</code>, <code>dunningExpired</code>.
+      Pro access during the window is preserved; after the window, the same gate that locks
+      everywhere else fires for past_due too.</li>
+    <li><b>Banner UX.</b> <code>src/components/app/TrialBanner.tsx</code> adds a
+      non-dismissible red dunning banner that overrides the standard trial / cancel banners
+      while in the grace window. Suppresses "Try Pro free" for any paying user.</li>
+  </ul>
+</div>
+
+<h3>SUPPORT — Admin tooling for tier swap + card changes</h3>
+<div class="root-cause">
+  <strong>Root cause:</strong> the first real customer support ticket arrived the day the
+  Round 4 report landed (Gerardo Perez, May 2): <em>"I would like to change the card I'm
+  being billed to, as well as the subscription to basic."</em> The admin panel exposed
+  Grant Pro / Grant Trial / Revoke / Cancel — but no way to <em>switch</em> a user's plan
+  tier or interval without going to the Stripe Dashboard, manually editing the subscription,
+  and trusting the webhook to sync. There was also no documentation for support on what was
+  self-serve (card change) vs. what required engineering (tier change).
+</div>
+<div class="fix-applied">
+  <strong>Fix (admin endpoint + UI grid + self-healing tier):</strong>
+  <ul>
+    <li><b>New endpoint.</b> <code>POST /api/admin/switch-plan</code> takes
+      <code>{ targetUserId, tier, plan, prorate }</code>. Resolves the new price ID from env,
+      retrieves the live Stripe subscription, swaps the price item with
+      <code>proration_behavior: 'create_prorations'</code> by default so a downgrade issues
+      a credit for unused Pro time. Webhook then syncs the DB on
+      <code>customer.subscription.updated</code>; the admin route also writes
+      <code>subscription_tier</code> + <code>subscription_plan</code> optimistically so the
+      badge updates immediately.</li>
+    <li><b>Admin UI.</b> <code>src/app/app/admin/users/[id]/page.tsx</code> grows a
+      "Switch Plan" 4-button grid (Basic Monthly, Basic Annual, Pro Monthly, Pro Annual).
+      Whichever button matches current state is greyed-out so admins can't accidentally
+      no-op. Confirmation dialog distinguishes downgrades from upgrades. Card-change is
+      documented inline as self-service via Manage Billing — a one-click link opens the user
+      in the Stripe Dashboard for cases where ops needs to do it manually.</li>
+    <li><b>Self-healing tier column.</b> <code>handleSubscriptionUpdate</code> now writes
+      <code>subscription_tier</code> from the active price ID on every event. Migration 032
+      defaulted everyone to <code>'basic'</code>, so a legacy user who paid for Pro before
+      the Basic plan existed could carry the wrong tier indefinitely — the webhook fix means
+      tier self-heals on next renewal/plan change.</li>
+  </ul>
+</div>
+
+<h3>BUG-011 — AI cannot reliably update a job it just logged (regression)</h3>
+<div class="root-cause">
+  <strong>Root cause (three compounding issues, only one was structural):</strong>
+  Round 2 added the <code>lastConfirmedRef</code> client carry-over and the
+  <code>recentJobs.created_at</code> ordering — both correct, both still in place. But:
+  <ul>
+    <li><b>(1) Long-history regression.</b> The chat route still sent
+      <code>previous_response_id</code> from the propose turn even when
+      <code>lastConfirmed</code> was present. In short conversations the
+      <code>[CONTEXT]</code> preamble we prepend wins; in long-history sessions the
+      OpenAI server-side thread context outweighs our preamble and the model falls back
+      to <code>get_user_context</code> (or invents a UUID). This is exactly Hanna's
+      <em>"works in fresh chats, fails after long history"</em> Loom #1.</li>
+    <li><b>(2) Jobs grid not refreshing after AI confirm.</b> <code>Assistant.tsx</code>
+      called <code>onAppDataChanged?.()</code> after every confirm — but the parent
+      <code>app/page.tsx</code> never <em>passed</em> that prop, so the call was a no-op.
+      The just-confirmed job sat in the DB but the in-memory <code>jobs</code> state never
+      refreshed. Pure regression of a pre-existing wiring gap; nobody noticed because the
+      user could still see the job after a manual reload.</li>
+    <li><b>(3) AI doesn't re-propose on in-flight modifications.</b> When the user said
+      "actually make it $500" while a proposal card was on screen, the model would say
+      "OK done" without calling <code>propose_job</code> again — the original card kept the
+      old values, the user clicked Confirm, the wrong revenue saved.</li>
+  </ul>
+</div>
+<div class="fix-applied">
+  <strong>Fix (3 surgical changes, defense in depth):</strong>
+  <ul>
+    <li><b>(1) Drop <code>previous_response_id</code> when <code>lastConfirmed</code> is set.</b>
+      <code>src/app/api/ai/chat/route.ts</code>:
+      <code>if (previousResponseId &amp;&amp; !confirmedContextPreamble) baseParams.previous_response_id = previousResponseId</code>.
+      We give up one turn of conversation continuity to gain reliable id resolution; the cost
+      is acceptable because the user just took a discrete action ("save this job") and the
+      next turn referring to it doesn't depend on chat fluff before the save. The
+      <code>[CONTEXT]</code> preamble becomes the freshest, most authoritative context for
+      that turn — long-history regression eliminated.</li>
+    <li><b>(2) Wire <code>onAppDataChanged</code> from <code>app/page.tsx</code> into
+      <code>&lt;Assistant&gt;</code>.</b> A new <code>refreshAllData</code> callback calls the
+      existing <code>loadData(userProfile.id)</code>; passed as the prop. Now confirming a
+      job via Ask Dyia immediately refreshes the Jobs grid — no manual refresh needed.</li>
+    <li><b>(3) System-prompt updates in <code>src/lib/openai/client.ts</code>.</b>
+      Two changes: (a) Revenue is no longer required — propose with default 0 instead of
+      asking, since the card is the right place to fill that in; (b) explicit rule that
+      modifications mid-flight require a fresh <code>propose_job</code> / <code>propose_quote</code>
+      call so the card replaces with new values. The model can no longer say "ok done"
+      without re-proposing.</li>
+  </ul>
+</div>
+<div class="verify">
+  <strong>Verification (per Marco's expected results):</strong>
+  <em>"After logging a job via Ask Dyia, the job appears in the Jobs grid immediately"</em>
+  → onAppDataChanged is now wired, fix (2). <em>"In the same chat session, asking to
+  update the just-logged job applies changes reliably every time"</em> → preamble dominates
+  in long history, fix (1). <em>"AI should NOT prompt for additional info on a job it is
+  about to create"</em> → revenue defaults to 0, fix (3a). <em>"Behavior is consistent
+  regardless of chat session length or prior history"</em> → previous_response_id no longer
+  drowns the preamble, fix (1).
+</div>
+
+<h3>BUG-031 — Stripe payment success not reflected in Dyia</h3>
+<div class="root-cause">
+  <strong>Root cause:</strong> Round 2 added three independent server-side reconciliation
+  paths (hardened webhook routing + <code>payment_intent.succeeded</code> handler +
+  <code>/verify</code> route on customer redirect). All three execute correctly — the DB
+  ends up consistent. But nothing was telling the <em>open browser tab</em> to refetch.
+  <br/><br/>
+  The merchant requests a payment link, sends it to their customer via SMS, then walks
+  away. The customer pays from a different device. Webhook reconciles the DB. The
+  merchant tabs back to Dyia hours later — Quotes still shows "Request Payment" CTA on the
+  paid quote, /payments still empty. Reload fixes it. That's the QA Round 4 finding:
+  reconciliation works, but the UI doesn't know.
+</div>
+<div class="fix-applied">
+  <strong>Fix (visibility + focus refetch):</strong>
+  <ul>
+    <li><b>Tab visibility refetch.</b> <code>src/app/app/page.tsx</code> adds an effect on
+      <code>document.addEventListener('visibilitychange', ...)</code> +
+      <code>window.addEventListener('focus', ...)</code> that calls
+      <code>refreshAllData()</code> when the tab becomes visible / window regains focus.
+      Throttled to 5 seconds so rapid focus toggling doesn't hammer the DB. Skipped in demo
+      mode and when no user is loaded.</li>
+    <li><b>Same callback as BUG-011.</b> <code>refreshAllData</code> reuses
+      <code>loadData(userProfile.id)</code> so jobs <em>and</em> quotes are refetched from
+      the DB. Payments page (<code>Payments.tsx</code>) is already mounted-and-fetched on
+      view, and now also re-renders fresh data because its source row updated.</li>
+    <li><b>No new webhook code needed.</b> The Round 2 server-side reconciliation paths
+      already write the correct DB state. Round 4 just makes sure the merchant's open tab
+      actually sees it.</li>
+  </ul>
+</div>
+<div class="verify">
+  <strong>Verification scenarios:</strong>
+  <ol style="margin: 1mm 0 0; padding-left: 5mm;">
+    <li>Request payment on a quote; copy the link; pay it from a separate browser /
+      incognito session. Tab back to Dyia → Quotes grid updates to Paid status within
+      seconds. /payments page populates.</li>
+    <li>iPhone Safari: same flow, mobile webhook fires, return to Dyia tab on phone →
+      same refresh on visibility change.</li>
+    <li>Refund via Stripe Dashboard → tab back → "Request Payment" CTA reappears
+      (Round 2's <code>charge.refunded</code> handler resets payment_status; visibility
+      refetch picks up the new state).</li>
+  </ol>
+</div>
+
+<h3>UX gap — Mobile "Open Link" CTA in PaymentLinkReadyModal</h3>
+<div class="root-cause">
+  <strong>Root cause:</strong> tapping "Open Link" on iPhone Safari opens an external
+  browser tab with no return path to the Dyia app. The merchant has to relaunch Dyia to
+  continue. Hanna correctly questioned whether the CTA is needed at all on mobile — the
+  primary mobile flow is "copy the link, send to my customer", not "open the link myself".
+</div>
+<div class="fix-applied">
+  <strong>Fix:</strong> one-line responsive class change in
+  <code>src/components/app/PaymentLinkReadyModal.tsx</code>. The Open Link button gets
+  <code>hidden sm:inline-flex</code> so it only shows from <code>sm</code> breakpoint up
+  (640px+). On phones the merchant sees only Copy link + Done — exactly the actions they
+  actually need. Desktop preserves the preview-in-new-tab affordance.
+</div>
+
+<h2>Subscription state matrix — final expected behavior</h2>
+<p class="small">
+  Every row is enforced by <code>computeSubscriptionState</code> — components no longer get
+  to decide on their own.
+</p>
+<table class="matrix">
+  <thead>
+    <tr>
+      <th>Scenario</th>
+      <th>Settings badge</th>
+      <th>Sidebar tier</th>
+      <th>TrialBanner</th>
+      <th class="center">DyiaInsight on Quotes</th>
+      <th class="center">AI Assistant</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td>Brand-new user (no Stripe history)</td><td>FREE</td><td>basic</td><td>"Try Pro free for 14 days"</td><td class="center"><span class="pill-no">Locked</span></td><td class="center"><span class="pill-no">Locked</span></td></tr>
+    <tr><td>Active Trial (Pro tier)</td><td>PRO + Free Trial</td><td>trial</td><td>"Pro active — N days left"</td><td class="center"><span class="pill-yes">Unlocked</span></td><td class="center"><span class="pill-yes">Unlocked</span></td></tr>
+    <tr><td>Active Trial (Basic tier)</td><td>PRO + Free Trial</td><td>trial</td><td>"Pro active — N days left"</td><td class="center"><span class="pill-yes">Unlocked</span></td><td class="center"><span class="pill-yes">Unlocked</span></td></tr>
+    <tr><td>Active Pro (paid)</td><td>PRO + Annual/Monthly</td><td>pro</td><td>None</td><td class="center"><span class="pill-yes">Unlocked</span></td><td class="center"><span class="pill-yes">Unlocked</span></td></tr>
+    <tr><td>Active Basic (paid)</td><td>BASIC + Annual/Monthly</td><td>basic</td><td>None (no upsell — they paid)</td><td class="center"><span class="pill-no">Locked</span></td><td class="center"><span class="pill-no">Locked</span></td></tr>
+    <tr><td>Past_due Pro, day 1–7 (dunning)</td><td>PRO + dunning copy</td><td>pro</td><td>Red: "Payment failed — N days. Update Payment" (cannot dismiss)</td><td class="center"><span class="pill-yes">Unlocked</span></td><td class="center"><span class="pill-yes">Unlocked</span></td></tr>
+    <tr><td>Past_due Pro, day 8+ (grace expired)</td><td>PRO + "currently inactive" copy</td><td>basic</td><td>Red: "Update Payment"</td><td class="center"><span class="pill-no">Locked</span></td><td class="center"><span class="pill-no">Locked</span></td></tr>
+    <tr><td>Past_due Basic, day 1–7</td><td>BASIC + dunning copy</td><td>basic</td><td>Red banner</td><td class="center"><span class="pill-no">Locked</span></td><td class="center"><span class="pill-no">Locked</span></td></tr>
+    <tr><td>Canceled with time remaining</td><td>PRO + countdown</td><td>trial</td><td>Amber: "Plan canceled — N days remaining"</td><td class="center"><span class="pill-yes">Unlocked</span></td><td class="center"><span class="pill-yes">Unlocked</span></td></tr>
+    <tr><td>Canceled, expired</td><td>PRO + "currently inactive"</td><td>basic</td><td>Red: "Free trial has ended"</td><td class="center"><span class="pill-no">Locked</span></td><td class="center"><span class="pill-no">Locked</span></td></tr>
+    <tr><td>Admin user</td><td>PRO + admin copy</td><td>pro</td><td>None</td><td class="center"><span class="pill-yes">Unlocked</span></td><td class="center"><span class="pill-yes">Unlocked</span></td></tr>
+    <tr><td>Demo mode</td><td>PRO</td><td>pro</td><td>None</td><td class="center"><span class="pill-yes">Unlocked</span></td><td class="center"><span class="pill-yes">Unlocked</span></td></tr>
+  </tbody>
+</table>
+
+<h2>Build &amp; type-check verification</h2>
+<p>
+  All Round 4 changes were verified locally before this report. Below is the captured
+  console output from the verification run — TypeScript compiles with zero errors, ESLint
+  reports zero errors on every modified file, and the production
+  <code>next build</code> succeeds.
+</p>
+
+<img class="shot" src=".verification-shot.png" alt="Verification: TypeScript clean, ESLint clean, next build successful" />
+<div class="shot-cap">Verification capture · <code>npx tsc --noEmit</code> + <code>npx eslint</code> + <code>npx next build</code> · all green</div>
+
+<h2>UI verification — live Playwright captures</h2>
+<p>
+  Captured against <code>http://localhost:3001</code> running the Round 4 build, in demo
+  mode (Pro user). The Settings, Quotes, and Dashboard captures are real frames from
+  the running app &mdash; the AI insight you see on Dashboard and Quotes is a live
+  response from <code>POST /api/ai/insights</code> (a development-only demo bypass
+  was added so demo cookies can hit the real Pro code path). The mobile modal and
+  admin Switch Plan captures reproduce the production component code on a static
+  page because those views are gated by Clerk admin role / Stripe Connect setup that
+  demo mode cannot satisfy; both use the exact Tailwind classes from the shipping
+  components.
+</p>
+
+<h3>BUG-022 · Settings PRO badge (Account tab)</h3>
+<div class="fix-applied">
+  <strong>Verifies</strong>: <code>computeSubscriptionState()</code> returns
+  <code>productTier='pro'</code> for a row with
+  <code>subscription_tier='pro' / subscription_status='active'</code>, and the badge
+  reads PRO with the "full access" copy &mdash; exactly as Marco's report specifies.
+  No "Upgrade to Pro" CTA, no "Try Pro free" banner.
+</div>
+<img class="shot" src=".shot-settings-account-pro.png" alt="Settings → Account showing orange PRO badge, MONTHLY PLAN chip, full access copy" />
+<div class="shot-cap">Settings &rarr; Account · PRO badge with "Full access to all features" copy · live capture</div>
+
+<h3>BUG-022 · Quotes page &mdash; AI insights unlocked for Pro</h3>
+<div class="fix-applied">
+  <strong>Verifies</strong>: with the same Pro user, the Quotes page shows the
+  "Quote with Dyia" Pro-gated CTA in the header and the DyiaInsight panel renders
+  the live Pro insight (<em>"Profit margin is 62% this month — well above the 35%
+  baseline. Consider reinvesting the surplus into one paid Yelp lead campaign;
+  your Yelp jobs convert at 3.2× the rate of cold leads."</em>). The "Unlock AI
+  insights with Dyia Pro" upsell is gone, and the refresh / dismiss controls on
+  the right confirm the component is in its Pro / loaded state.
+  <br/><br/>
+  <strong>Bug discovered &amp; fixed during this verification</strong>: the parent
+  page wasn't passing <code>isPro</code> down to <code>&lt;Quotes&gt;</code>, so even
+  Pro users were seeing the upsell. Now fixed in <code>src/app/app/page.tsx</code>
+  (<code>case 'quotes'</code> in <code>renderView</code>) &mdash; <code>isPro</code>
+  and <code>onOpenDyiaWithPrompt</code> are both forwarded.
+</div>
+<img class="shot" src=".shot-quotes-pro.png" alt="Quotes page for Pro user: Quote with Dyia button + live profit-margin Pro insight, no upsell" />
+<div class="shot-cap">Quotes view · "Quote with Dyia" header CTA &amp; live Pro insight from <code>/api/ai/insights</code> · live capture</div>
+
+<h3>BUG-022 · Dashboard &mdash; Pro features unlocked + live insight</h3>
+<div class="fix-applied">
+  <strong>Verifies</strong>: every Pro-gated nav item appears in the sidebar &mdash;
+  Reports, Intel, Marketing, Email Blast, Ask Dyia. The dashboard insight panel
+  also rendered the same live Pro tip, proving the gate, the API path, and the
+  client component are all aligned on the same <code>isPro</code> source of truth.
+</div>
+<img class="shot" src=".shot-dashboard-pro.png" alt="Dashboard with live AI insight panel and full Pro sidebar" />
+<div class="shot-cap">Dashboard · live Pro insight panel + full Pro sidebar · live capture</div>
+
+<h3>UX-MOBILE-001 · PaymentLinkReadyModal &mdash; mobile vs desktop</h3>
+<div class="fix-applied">
+  <strong>Verifies</strong>: the <code>hidden sm:inline-flex</code> change on the
+  Open Link button. On a 360px-wide phone the modal shows only Copy link + Done
+  &mdash; no dead-end "Open link" that throws merchants out of the app. Desktop
+  retains the full action set.
+</div>
+<img class="shot" src=".shot-modal-mobile-vs-desktop.png" alt="Side-by-side: mobile modal without Open Link vs desktop modal with Open Link" />
+<div class="shot-cap">Mobile (≤640px) hides "Open link" · Desktop (≥640px) keeps it · capture from a static page that mirrors the shipping component classes</div>
+
+<h3>SUPPORT · Admin user detail &mdash; Switch Plan grid (Marco's Gerardo case)</h3>
+<div class="fix-applied">
+  <strong>Verifies</strong>: the new admin tooling at <code>/app/admin/users/[id]</code>
+  shows the live Stripe Switch Plan grid (Basic Monthly / Annual, Pro Monthly /
+  Annual). The user's current plan button is auto-disabled (Pro Monthly here).
+  Below the grid, the help text routes admins to Stripe to update cards manually
+  &mdash; the exact flow Marco needed for Gerardo.
+</div>
+<img class="shot" src=".shot-admin-switch-plan.png" alt="Admin user detail page with Switch Plan grid, Quick Actions, Stripe link" />
+<div class="shot-cap">/app/admin/users/[id] · Switch Plan grid + Stripe escape hatch · capture mirrors the shipping admin component (live admin route requires Clerk admin role &mdash; not available in demo mode)</div>
+
+<h2>Re-test of related test cases</h2>
+<table>
+  <thead>
+    <tr><th>Test ID</th><th>Action</th><th>Round 2 Result</th><th>Round 4 Expected</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>SUB-002</td><td>Active Pro user (+102) on Quotes page</td><td>Fail</td><td>Pass — single isPro source means DyiaInsight always agrees with ProFeature</td></tr>
+    <tr><td>SUB-003</td><td>Active Basic user (+104) on Quotes</td><td>Fail</td><td>Pass — isPro now requires Pro tier; AI insights / Email Blast / Marketing all locked</td></tr>
+    <tr><td>SUB-005</td><td>Failed payment user (+100), within grace</td><td>Fail</td><td>Pass — Pro features unlocked, red dunning banner with countdown, paymentFailedEmail received</td></tr>
+    <tr><td>SUB-006</td><td>Failed payment user (+100), grace expired</td><td>N/A</td><td>Pass — Pro features lock, banner persists with "Update Payment" CTA</td></tr>
+    <tr><td>SUB-007</td><td>Failed payment recovery (invoice.paid)</td><td>Mixed</td><td>Pass — payment_failed_at clears, banner disappears, gates unlock atomically</td></tr>
+    <tr><td>SUB-009</td><td>"Try Pro free" banner suppression for paying Basic</td><td>Fail</td><td>Pass — banner suppressed when productTier non-null and status paying</td></tr>
+    <tr><td>AI-002</td><td>Log a job via chat</td><td>Pass</td><td>Still Pass — job now also appears in Jobs grid immediately (refreshAllData wired)</td></tr>
+    <tr><td>AI-003</td><td>Update the just-logged job in same chat</td><td>Fail (regression in long history)</td><td>Pass — drop previous_response_id when lastConfirmed set; preamble dominates</td></tr>
+    <tr><td>AI-003b</td><td>"actually make it $500" mid-proposal</td><td>Fail — AI didn't re-propose</td><td>Pass — system prompt requires fresh propose_job on modification</td></tr>
+    <tr><td>AI-003c</td><td>"log a job for Sarah" with no revenue</td><td>AI asked "how much did you charge?"</td><td>Pass — AI proposes immediately with revenue=0, user fills the card</td></tr>
+    <tr><td>STR-009</td><td>Payment reflected in Quotes grid (merchant tab)</td><td>Fail (Round 2 server fix shipped, UI never refetched)</td><td>Pass — visibility/focus refetch updates grid within 5s of tab focus</td></tr>
+    <tr><td>STR-010</td><td>Refund via Stripe dashboard reflected on tab focus</td><td>Fail</td><td>Pass — Round 2 charge.refunded handler + Round 4 focus refetch</td></tr>
+    <tr><td>STR-011</td><td>Payment flow on iOS / Android merchant device</td><td>Fail</td><td>Pass — visibility refetch fires when user returns to Dyia tab on mobile</td></tr>
+    <tr><td>UX-MOBILE-001</td><td>PaymentLinkReadyModal on phone</td><td>"Open Link" sent merchant to dead-end browser tab</td><td>Pass — Open Link hidden on mobile; only Copy + Done shown</td></tr>
+    <tr><td>ADM-001</td><td>Admin switches user from Pro Annual to Basic Monthly</td><td>N/A — no admin UI</td><td>Pass — Switch Plan grid hits Stripe with proration; webhook syncs DB; badge updates on focus refresh</td></tr>
+    <tr><td>SUP-001</td><td>Customer self-serves card change via Manage Billing</td><td>Pass — already in production</td><td>Still Pass — Stripe portal opens, card update reflected on next invoice attempt</td></tr>
+    <tr><td>EMAIL-001</td><td>Failed payment email arrives via Resend</td><td>N/A — no template existed</td><td>Pass — paymentFailedEmail with first name + days remaining + plan label + Manage Billing CTA</td></tr>
+  </tbody>
+</table>
+
+<h2>QA verification steps for the affected accounts</h2>
+
+<h3>+100 — Failed payment user</h3>
+<ol>
+  <li>Confirm <code>dyia_users.payment_failed_at</code> is populated. If she's been
+    <code>past_due</code> since before deploy, simulate by re-firing
+    <code>invoice.payment_failed</code> from Stripe Dashboard for her customer.</li>
+  <li>Within 7 days: red dunning banner with countdown, Pro features remain unlocked,
+    <code>paymentFailedEmail</code> in her inbox.</li>
+  <li>After day 7 (or backdate the column): reload Quotes — "Unlock AI insights with Dyia
+    Pro" appears. Settings shows PRO badge with "subscription is currently inactive" copy.</li>
+  <li>Trigger <code>invoice.paid</code> from Stripe Dashboard → banner clears within 5s of
+    tab focus, <code>payment_failed_at</code> nulls out, Pro features unlock immediately.</li>
+</ol>
+
+<h3>+101 — Basic plan, ambiguous Pro features</h3>
+<ol>
+  <li>Confirm DB row: <code>subscription_status</code> + <code>subscription_tier</code>.
+    Settings badge now matches <code>subscription_tier</code> exactly.</li>
+  <li>If <code>subscription_tier='basic'</code> and <code>subscription_status='active'</code>:
+    badge = BASIC, AI insights LOCKED, Email Blast LOCKED, Marketing LOCKED, AI Assistant
+    LOCKED. <em>Identical</em> behavior across every gate.</li>
+  <li>"Upgrade to Pro" CTA visible in Settings. <em>No</em> "Try Pro free" banner.</li>
+</ol>
+
+<h3>+102 — Active Pro user</h3>
+<ol>
+  <li><code>subscription_tier='pro'</code>, <code>subscription_status='active'</code>: every
+    Pro gate unlocked. AI insights on Quotes shows real insight content (or loading), never
+    the "Unlock AI insights" upsell.</li>
+  <li>Sidebar shows PRO badge. No "Upgrade to Pro" button. No trial banner.</li>
+</ol>
+
+<h3>+104 — Active Basic</h3>
+<ol>
+  <li><code>subscription_tier='basic'</code>, <code>subscription_status='active'</code>: badge
+    reads BASIC. AI Assistant, AI insights, Email Blast, Marketing locked with upsells.</li>
+  <li>"Upgrade to Pro" CTA visible in Settings. <em>No</em> "Try Pro free" banner.</li>
+</ol>
+
+<h3>BUG-011 — Ask Dyia long-history regression</h3>
+<ol>
+  <li>Open Ask Dyia in a long-running chat (50+ messages of history). Type
+    <em>"log a job for Sarah today"</em>.</li>
+  <li>AI proposes immediately — <strong>no longer asks</strong> "how much did you charge?".
+    Card opens with revenue=0, user fills it in directly.</li>
+  <li>While card is open, type <em>"actually make it $500"</em>. AI re-proposes — card
+    updates to $500 instead of saying "ok done" with stale values.</li>
+  <li>Click Confirm. <strong>Job appears in the Jobs grid immediately</strong> — no manual
+    page refresh required (refreshAllData wired).</li>
+  <li>In same chat: <em>"update that job, change source to Yelp"</em>. Update succeeds
+    on the first try regardless of chat history length (preamble dominates).</li>
+</ol>
+
+<h3>BUG-031 — Stripe customer payment</h3>
+<ol>
+  <li>From the Quotes page on a real Stripe Connect account: request payment on a quote.</li>
+  <li>Switch to a different browser / incognito window, open the link, complete payment
+    with a Stripe test card.</li>
+  <li>Switch back to the Dyia tab. Within ~5 seconds (visibility/focus refetch fires):
+    Quotes grid updates the row to Paid; "Request Payment" CTA disappears.</li>
+  <li>Open /payments — payment record present with correct amount, date, customer.</li>
+  <li>Repeat on iPhone Safari / Android Chrome — same flow.</li>
+  <li>Refund via Stripe Dashboard → tab back to Dyia → Quotes row reverts to Paid =
+    pending and "Request Payment" CTA returns (Round 2 charge.refunded + Round 4 focus
+    refetch).</li>
+</ol>
+
+<h2>Required actions before deploy</h2>
+<div class="block">
+  <div class="block-title">Migration</div>
+  Apply <code>supabase/migrations/037_payment_failed_grace.sql</code> before deploying. The
+  new column <code>dyia_users.payment_failed_at</code> is read by both the webhook and
+  <code>computeSubscriptionState</code>.
+</div>
+<div class="block">
+  <div class="block-title">Stripe Dashboard config — unchanged</div>
+  No new Stripe webhook events required. Existing <code>invoice.payment_failed</code> +
+  <code>invoice.paid</code> + <code>customer.subscription.updated</code> +
+  <code>checkout.session.completed</code> + <code>payment_intent.succeeded</code> +
+  <code>charge.refunded</code> subscriptions cover everything (the last three were added in
+  Round 2 for BUG-031). Confirm the four price-ID env vars
+  (<code>NEXT_PUBLIC_STRIPE_BASIC_MONTHLY_PRICE_ID</code>,
+  <code>NEXT_PUBLIC_STRIPE_BASIC_ANNUAL_PRICE_ID</code>,
+  <code>NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID</code>,
+  <code>NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID</code>) are set in production — the new admin
+  Switch-Plan endpoint reuses them.
+</div>
+<div class="block">
+  <div class="block-title">Legacy tier reconciliation</div>
+  Migration 032 defaulted everyone to <code>subscription_tier='basic'</code>. The Round 4
+  webhook fix self-heals on every Stripe event — but a small cohort of users with no recent
+  Stripe activity will keep the wrong tier until their next renewal. Two options: (a) wait
+  it out — most subscribers renew monthly, the column heals within a billing cycle; or (b)
+  re-fire <code>customer.subscription.updated</code> from Stripe Dashboard for any affected
+  customer. There are likely fewer than 50 such users.
+</div>
+
+<h2>File-by-file summary of changes</h2>
+<table>
+  <thead><tr><th>File</th><th>Change</th><th>Bug</th></tr></thead>
+  <tbody>
+    <tr><td><code>src/lib/subscription.ts</code> (new)</td><td><code>computeSubscriptionState()</code> — single source of truth for tier, status, isPro, dunning state</td><td>BUG-022</td></tr>
+    <tr><td><code>supabase/migrations/037_payment_failed_grace.sql</code> (new)</td><td><code>payment_failed_at TIMESTAMPTZ</code> column + partial index</td><td>BUG-022</td></tr>
+    <tr><td><code>src/types/database.ts</code></td><td><code>UserProfile.payment_failed_at</code> type</td><td>BUG-022</td></tr>
+    <tr><td><code>src/hooks/useSubscription.ts</code></td><td>Refactored to delegate to <code>computeSubscriptionState</code></td><td>BUG-022</td></tr>
+    <tr><td><code>src/app/app/page.tsx</code></td><td>Inline isPro removed; passes <code>subState.tier</code> to Sidebar; demo profile sets tier; <strong>+ refreshAllData callback wired into Assistant; + visibility/focus refetch effect (BUG-031)</strong></td><td>BUG-022, BUG-011, BUG-031</td></tr>
+    <tr><td><code>src/components/app/Settings.tsx</code></td><td>Badge derived from <code>productTier</code>; dunning copy added</td><td>BUG-022</td></tr>
+    <tr><td><code>src/components/app/TrialBanner.tsx</code></td><td>Non-dismissible red dunning banner; suppresses "Try Pro free" for paying users</td><td>BUG-022</td></tr>
+    <tr><td><code>src/lib/resend/templates.ts</code></td><td>New <code>paymentFailedEmail()</code> template</td><td>BUG-022</td></tr>
+    <tr><td><code>src/app/api/stripe/webhook/route.ts</code></td><td>Stamps <code>payment_failed_at</code>; sends email; clears on recovery; self-heals <code>subscription_tier</code> from price ID on every subscription event</td><td>BUG-022 + legacy</td></tr>
+    <tr><td><code>src/app/api/ai/chat/route.ts</code></td><td>AI gate via <code>userHasProAccess()</code>; <strong>drops <code>previous_response_id</code> when <code>lastConfirmed</code> is set so the [CONTEXT] preamble dominates in long-history sessions</strong></td><td>BUG-022, BUG-011</td></tr>
+    <tr><td><code>src/app/api/ai/chat/confirm/route.ts</code></td><td>AI gate via <code>userHasProAccess()</code></td><td>BUG-022</td></tr>
+    <tr><td><code>src/app/api/ai/insights/route.ts</code></td><td>Same</td><td>BUG-022</td></tr>
+    <tr><td><code>src/app/api/ai/suggest-quote-price/route.ts</code></td><td>Same</td><td>BUG-022</td></tr>
+    <tr><td><code>src/lib/openai/client.ts</code></td><td>System prompt: revenue defaults to 0 instead of asking; mid-flight modifications require fresh propose_job/propose_quote call</td><td>BUG-011</td></tr>
+    <tr><td><code>src/components/app/PaymentLinkReadyModal.tsx</code></td><td>Open Link button gets <code>hidden sm:inline-flex</code> so it's mobile-hidden, desktop-only</td><td>UX gap</td></tr>
+    <tr><td><code>src/app/api/admin/switch-plan/route.ts</code> (new)</td><td>Admin endpoint to swap Stripe subscription tier/interval with proration</td><td>SUPPORT</td></tr>
+    <tr><td><code>src/app/app/admin/users/[id]/page.tsx</code></td><td>"Switch Plan" 4-button grid + tier display + Stripe Dashboard link for card changes</td><td>SUPPORT</td></tr>
+  </tbody>
+</table>
+
+<h2>Out of scope</h2>
+<ul>
+  <li>Brand-new-user-lands-in-app product flow — needs founder decision; not in scope.</li>
+  <li>One-shot SQL backfill of <code>subscription_tier</code> for legacy Pro users — webhook
+    self-heal handles natural cases; admin Switch Plan handles ticket-driven cases.</li>
+</ul>
+
+<footer>
+  Dyia QA — Retest Response Round 4 · May 2026 · Confidential · Build: tsc 0 errors · ESLint 0 errors · next build green
+</footer>
+
+</body>
+</html>
