@@ -14,11 +14,20 @@ export type ResourcePaymentStatus =
   | 'refunded'
 
 export function getStripe() {
-  if (!process.env.STRIPE_SECRET_KEY) {
+  const key = process.env.STRIPE_SECRET_KEY
+  if (!key) {
     throw new Error('STRIPE_SECRET_KEY is not set')
   }
-
-  return new Stripe(process.env.STRIPE_SECRET_KEY)
+  // Fail fast if the secret key looks like a webhook signing secret (whsec_…).
+  // Without this guard, every Stripe call would fail with "Invalid API Key"
+  // which routes surface as opaque 500s. Common ops misconfiguration.
+  if (!key.startsWith('sk_') && !key.startsWith('rk_')) {
+    throw new Error(
+      'STRIPE_SECRET_KEY is misconfigured: value does not start with sk_ or rk_. ' +
+      'Set the API secret (sk_test_… / sk_live_…), not the webhook signing secret (whsec_…).'
+    )
+  }
+  return new Stripe(key)
 }
 
 export function getSupabaseAdmin() {

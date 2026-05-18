@@ -403,23 +403,42 @@ function AppPageContent() {
     }
   }, [userProfile?.id, isDemoMode, loadData])
 
-  // BUG-031 (round 4): when the merchant returns to the Dyia tab after the
+  // BUG-031 (round 5): when the merchant returns to the Dyia tab after the
   // customer completed a Stripe payment in another window/device, the
   // existing grid state was stale until they manually navigated away and
-  // back. Refetch on tab visibility + window focus so the Quotes grid
-  // ("Request Payment" → Paid) and the Payments page ("empty" → populated)
-  // reflect the webhook + verify-route reconciliation immediately.
+  // back. Two-step refresh:
+  //   1. Call /api/payments/sync-pending so any payment stuck in `pending`
+  //      because the webhook was misconfigured / silent gets reconciled
+  //      against the authoritative Stripe state.
+  //   2. Refetch local grids so the merchant sees the up-to-date status.
+  // Also runs once on mount (when userProfile resolves) so a hard navigation
+  // into /app catches up on anything that completed while the tab was closed.
   useEffect(() => {
     if (!userProfile?.id || isDemoMode) return
-    let lastRefreshAt = Date.now()
-    const MIN_REFETCH_INTERVAL_MS = 5_000 // throttle so rapid focus toggling doesn't hammer the DB
+
+    let lastRefreshAt = 0
+    const MIN_REFETCH_INTERVAL_MS = 5_000
+
+    const reconcileThenRefresh = async () => {
+      try {
+        await fetch('/api/payments/sync-pending', { method: 'POST' })
+      } catch {
+        // sync-pending is best-effort; the local refresh below still runs.
+      }
+      await refreshAllData()
+    }
+
     const onMaybeRefresh = () => {
       if (document.visibilityState !== 'visible') return
       const now = Date.now()
       if (now - lastRefreshAt < MIN_REFETCH_INTERVAL_MS) return
       lastRefreshAt = now
-      refreshAllData()
+      void reconcileThenRefresh()
     }
+
+    void reconcileThenRefresh()
+    lastRefreshAt = Date.now()
+
     document.addEventListener('visibilitychange', onMaybeRefresh)
     window.addEventListener('focus', onMaybeRefresh)
     return () => {
@@ -620,26 +639,10 @@ function AppPageContent() {
   // about whether a given user has Pro access.
   const subState = useMemo(() => computeSubscriptionState(userProfile), [userProfile])
   const isAdmin = subState.isAdmin
-  const subStatus = userProfile?.subscription_status || ''
   const isPro = subState.isPro
-  // Stay in the app for any user who is in dunning (past_due) — the banner
-  // counts down the grace window. Once the grace window expires the user
-  // remains in the app on Basic-equivalent access until they recover.
-  const hasActiveSubscription = !!userProfile && (
-    isAdmin ||
-    ['active', 'trialing', 'past_due'].includes(subStatus) ||
-    (subState.isCanceled && subState.daysRemaining > 0)
-  )
-  const hasHadSubscription = !!userProfile?.stripe_customer_id || !!userProfile?.stripe_subscription_id
-  const neverSubscribed = !loading && !isDemoMode && !!userProfile && !hasActiveSubscription && !hasHadSubscription
-  const needsSubscription = neverSubscribed
-
-  // Redirect only users who never started a trial to pricing
-  useEffect(() => {
-    if (needsSubscription && !planParam && !checkoutLoading && !checkoutTriggeredRef.current && !sessionIdParam && !verifyingCheckout) {
-      window.location.href = '/#pricing'
-    }
-  }, [needsSubscription, planParam, checkoutLoading, sessionIdParam, verifyingCheckout])
+  // Brand-new users with no Stripe history now land in the app on the Free/Basic
+  // experience (row 1 of QA_SUBSCRIPTION_STATE_MATRIX). TrialBanner handles the
+  // upsell — no forced redirect to the marketing pricing section.
 
   // Only redirect to onboarding if user hasn't completed it AND has no data yet
   // Users who've already been using the app (have jobs/quotes) don't need onboarding
@@ -647,15 +650,17 @@ function AppPageContent() {
   const needsOnboarding = !loading && !isDemoMode && !!userProfile && !settings.onboardingCompleted && !settings.onboardingSkipped && !hasExistingData
 
   // Redirect to onboarding for new users (after loading completes)
-  // Skip if checkout is in progress, session is being verified, or user hasn't subscribed yet
+  // Skip if checkout is in progress or session is being verified.
+  // Brand-new users (neverSubscribed) now also get onboarding — they land in the
+  // app on the Free/Basic tier and the onboarding step captures business info.
   useEffect(() => {
-    if (needsOnboarding && !checkoutLoading && !checkoutTriggeredRef.current && !needsSubscription && !verifyingCheckout && !sessionIdParam) {
-      const returnUrl = viewParam && viewParam !== 'dashboard' 
-        ? `/app?view=${viewParam}` 
+    if (needsOnboarding && !checkoutLoading && !checkoutTriggeredRef.current && !verifyingCheckout && !sessionIdParam) {
+      const returnUrl = viewParam && viewParam !== 'dashboard'
+        ? `/app?view=${viewParam}`
         : '/app'
       router.push(`/app/onboarding?returnUrl=${encodeURIComponent(returnUrl)}`)
     }
-  }, [needsOnboarding, router, viewParam, checkoutLoading, needsSubscription, verifyingCheckout, sessionIdParam])
+  }, [needsOnboarding, router, viewParam, checkoutLoading, verifyingCheckout, sessionIdParam])
 
   const handleReopenOnboarding = () => {
     router.push('/app/onboarding?redo=true')
@@ -671,7 +676,7 @@ function AppPageContent() {
         />
         <div className="w-8 h-8 border-2 border-orange-500/30 border-t-orange-500 rounded-full animate-spin mx-auto mb-4" />
         <p className="text-sm text-slate-500 font-medium">
-          {verifyingCheckout ? 'Activating your subscription...' : checkoutLoading ? 'Redirecting to checkout...' : (needsSubscription && !planParam) ? 'Redirecting to plans...' : needsOnboarding ? 'Setting up your account...' : 'Loading...'}
+          {verifyingCheckout ? 'Activating your subscription...' : checkoutLoading ? 'Redirecting to checkout...' : needsOnboarding ? 'Setting up your account...' : 'Loading...'}
         </p>
       </div>
     </div>
@@ -689,11 +694,6 @@ function AppPageContent() {
 
   // Show loading while redirecting to Stripe checkout
   if (checkoutLoading) {
-    return loadingOrRedirecting
-  }
-
-  // Show loading while redirecting unsubscribed users to pricing
-  if (needsSubscription && !planParam) {
     return loadingOrRedirecting
   }
 
@@ -804,6 +804,11 @@ function AppPageContent() {
             setSelectedMonth={setSelectedMonth}
             settings={settings}
             showSuccess={showSuccess}
+            isPro={isPro}
+            onOpenDyiaWithPrompt={(prompt) => {
+              setAssistantInitialPrompt(prompt)
+              setCurrentView('assistant' as View)
+            }}
             initialCloseDayDate={closeDayDateFromDashboard}
             onCloseDayDateConsumed={() => setCloseDayDateFromDashboard(null)}
             initialDraftDate={jobDraftDate}

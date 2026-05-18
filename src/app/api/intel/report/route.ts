@@ -10,7 +10,12 @@ import { createClient } from '@supabase/supabase-js'
 import { generateActionPlan } from '@/lib/intel/action-plan'
 
 function getStripe() {
-  return new Stripe(process.env.STRIPE_SECRET_KEY!)
+  const key = process.env.STRIPE_SECRET_KEY
+  if (!key) throw new Error('STRIPE_SECRET_KEY is not set')
+  if (!key.startsWith('sk_') && !key.startsWith('rk_')) {
+    throw new Error('STRIPE_SECRET_KEY is misconfigured: expected sk_… or rk_…, not whsec_….')
+  }
+  return new Stripe(key)
 }
 
 function getSupabase() {

@@ -14,10 +14,21 @@ const BILLABLE_SUBSCRIPTION_STATUSES = new Set<Stripe.Subscription.Status>([
 ])
 
 function getStripe() {
-  if (!process.env.STRIPE_SECRET_KEY) {
+  const key = process.env.STRIPE_SECRET_KEY
+  if (!key) {
     throw new Error('STRIPE_SECRET_KEY is not set')
   }
-  return new Stripe(process.env.STRIPE_SECRET_KEY)
+  // Fail fast with a clear message if the secret key looks like a webhook
+  // signing secret (whsec_…) — every Stripe API call would otherwise fail with
+  // "Invalid API Key" and bubble up as a generic 500. Catches the env-swap
+  // misconfiguration that previously hid as opaque "Upgrade to Pro" errors.
+  if (!key.startsWith('sk_') && !key.startsWith('rk_')) {
+    throw new Error(
+      'STRIPE_SECRET_KEY is misconfigured: value does not start with sk_ or rk_. ' +
+      'Check that the API secret (sk_test_… / sk_live_…) is set, not the webhook signing secret (whsec_…).'
+    )
+  }
+  return new Stripe(key)
 }
 
 function getSupabase() {

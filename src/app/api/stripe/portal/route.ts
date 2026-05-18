@@ -5,8 +5,15 @@ import { createClient } from '@supabase/supabase-js'
 import { getBaseUrl } from '@/lib/env'
 
 function getStripe() {
-  if (!process.env.STRIPE_SECRET_KEY) throw new Error('STRIPE_SECRET_KEY not set')
-  return new Stripe(process.env.STRIPE_SECRET_KEY)
+  const key = process.env.STRIPE_SECRET_KEY
+  if (!key) throw new Error('STRIPE_SECRET_KEY not set')
+  if (!key.startsWith('sk_') && !key.startsWith('rk_')) {
+    throw new Error(
+      'STRIPE_SECRET_KEY is misconfigured: value does not start with sk_ or rk_. ' +
+      'Check that the API secret is set, not the webhook signing secret (whsec_…).'
+    )
+  }
+  return new Stripe(key)
 }
 
 function getSupabase() {

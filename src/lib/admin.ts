@@ -12,10 +12,14 @@ function getSupabaseAdmin() {
 }
 
 function getStripe() {
-  if (!process.env.STRIPE_SECRET_KEY) {
+  const key = process.env.STRIPE_SECRET_KEY
+  if (!key) {
     throw new Error('STRIPE_SECRET_KEY is not set')
   }
-  return new Stripe(process.env.STRIPE_SECRET_KEY)
+  if (!key.startsWith('sk_') && !key.startsWith('rk_')) {
+    throw new Error('STRIPE_SECRET_KEY is misconfigured: expected sk_… or rk_…, not whsec_….')
+  }
+  return new Stripe(key)
 }
 
 /**

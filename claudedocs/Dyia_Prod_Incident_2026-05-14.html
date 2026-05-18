@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Dyia incident note — May 14, 2026</title>
+<style>
+  @page { size: Letter; margin: 0.8in 0.75in; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, system-ui, sans-serif;
+    color: #1e293b;
+    font-size: 11.5pt;
+    line-height: 1.6;
+    margin: 0;
+  }
+  h1 { color: #0f172a; font-size: 18pt; margin: 0 0 2pt 0; font-weight: 600; letter-spacing: -0.005em; }
+  h2 { color: #0f172a; font-size: 12pt; margin: 22pt 0 8pt 0; font-weight: 600; }
+  .date { color: #64748b; font-size: 10pt; margin-bottom: 24pt; }
+  p { margin: 0 0 10pt 0; }
+  ul { margin: 0 0 10pt 0; padding-left: 22pt; }
+  li { margin-bottom: 6pt; }
+  code { font-family: "SF Mono", Menlo, monospace; font-size: 9.5pt; background: #f1f5f9; padding: 1pt 5pt; border-radius: 3pt; }
+  .followups { margin-top: 4pt; }
+  .followups li { padding-left: 4pt; }
+  .followups li strong { color: #0f172a; }
+</style>
+</head>
+<body>
+
+<h1>Dyia production incident &mdash; resolved</h1>
+<div class="date">May 14, 2026</div>
+
+<h2>What was wrong</h2>
+
+<p>The Round 4 deploy on May 3 added a unified subscription gate that reads <code>subscription_tier</code> from <code>dyia_users</code>. That column was supposed to exist already (migration <code>032_subscription_tier.sql</code>) but Supabase never applied it because a second migration file shared the same <code>032_</code> prefix, and the runner only records one row per prefix in <code>schema_migrations</code>.</p>
+
+<p>The result: every authenticated request to AI-powered routes &mdash; insights, assistant, smart quote pricing &mdash; failed at the SELECT, was caught by the route's user-lookup error branch, and returned <code>{ error: "User not found" }</code>. Marco's mobile screenshot of &ldquo;Insight unavailable &middot; User not found&rdquo; was literally that error rendered. The same root cause produced the &ldquo;Unlock AI Insights&rdquo; upsell for Pro users on web, because the client-side gate was also returning <code>isPro=false</code> for everyone.</p>
+
+<h2>What's fixed</h2>
+
+<ul>
+  <li>The repair migration (<code>038_subscription_tier_repair.sql</code>) is committed to the repo and has been applied to production. The column is present, verified live.</li>
+  <li>Marco and Dev are now <code>subscription_tier='pro'</code>. They're back to full Pro on next page reload.</li>
+  <li>All AI routes succeed against the prod database again.</li>
+</ul>
+
+<h2>What's still loose</h2>
+
+<ul class="followups">
+  <li>
+    <strong>30 paying users are sitting on <code>tier='basic'</code> in the database.</strong>
+    The repair migration's column default filled every existing row with <code>'basic'</code> before the backfill could write the correct value. Most of those rows are Hanna's QA test accounts that genuinely are on Basic. The ones that aren't &mdash; legitimate Pro subscribers from before Round 4 &mdash; will see Basic gating until their tier is corrected. The webhook self-heals on the next subscription event (renewal, plan change), so they'll naturally recover within a billing cycle. To fix them sooner, the bulk reconciliation script needs the real Stripe API key, which leads to the next item.
+  </li>
+  <li>
+    <strong><code>STRIPE_SECRET_KEY</code> in <code>.env.local</code> contains a <code>whsec_&hellip;</code> value (webhook signing secret), not the actual <code>sk_&hellip;</code> API key.</strong>
+    No Stripe API call from local can succeed against that. Worth double-checking the Vercel production env doesn't have the same swap.
+  </li>
+  <li>
+    <strong>Migration folder still has two files prefixed <code>032_</code>.</strong>
+    Same trap that caused this outage. One of them needs to be renumbered or deleted, plus a one-line CI check (<code>ls migrations | awk -F_ '{print $1}' | sort | uniq -d</code>) so this can never recur silently.
+  </li>
+  <li>
+    <strong>Brand-new-user forced paywall &mdash; product decision.</strong>
+    Hanna's QA matrix lists &ldquo;Brand-new user lands in app with FREE badge&rdquo; as expected behavior. The app instead redirects them to the marketing site's pricing section. Round 4 documented this as deliberate but unresolved. Either the redirect comes out (matrix wins, free signups land on the locked-UI experience) or the matrix gets updated (paywall stays, that row removed from Hanna's test plan). Both are one-line changes; just need a call on which one ships.
+  </li>
+</ul>
+
+<h2>Cause of the outage in one line</h2>
+
+<p>A migration that should have shipped in April was silently skipped by Supabase's runner because of a duplicate filename prefix, and Round 4 deployed code that depended on the column it would have added.</p>
+
+</body>
+</html>
