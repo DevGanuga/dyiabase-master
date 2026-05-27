@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import type { InsightResult } from '@/app/api/ai/insights/route'
+import { useAuthedFetch, type AuthedFetchResult } from '@/hooks/useAuthedFetch'
 
 type InsightType = 'dashboard' | 'weekly' | 'monthly' | 'reports'
 
@@ -17,9 +18,18 @@ interface InsightState {
   insight: InsightResult | null
   loading: boolean
   refreshing: boolean
-  error: string | null
+  /**
+   * UI error state. We deliberately do NOT store raw API error strings here —
+   * only a friendly enum the component knows how to render. Raw messages are
+   * logged for telemetry but never shown to the user (BUG-INSIGHT-401).
+   */
+  error: 'soft' | null
   generatedAt: string | null
+  /** Auth failed even after a token refresh. Component hides itself silently. */
+  unauthenticated: boolean
 }
+
+type InsightApiData = { insight: InsightResult; generatedAt?: string }
 
 function timeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime()
@@ -31,87 +41,152 @@ function timeAgo(dateStr: string): string {
   return `${Math.floor(hrs / 24)}d ago`
 }
 
+interface RefreshButtonProps {
+  onClick: () => void
+  refreshing: boolean
+  size?: 'sm' | 'md'
+}
+
+/**
+ * Extracted to module scope so React doesn't see a "new component each render"
+ * (react-hooks/static-components) — and so its identity is stable for memo.
+ */
+function RefreshButton({ onClick, refreshing, size = 'sm' }: RefreshButtonProps) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={refreshing}
+      className={`${size === 'md' ? 'p-2' : 'p-1.5'} text-slate-400 hover:text-orange-500 hover:bg-orange-100/50 dark:hover:bg-orange-900/20 rounded-lg transition-all disabled:opacity-50`}
+      title="Refresh insight"
+    >
+      <svg
+        className={`${size === 'md' ? 'w-5 h-5' : 'w-4 h-4'} ${refreshing ? 'animate-spin' : ''}`}
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+        />
+      </svg>
+    </button>
+  )
+}
+
 export function AIInsights({ type, className = '', compact = false }: AIInsightsProps) {
+  const { ready, authedFetch } = useAuthedFetch({ defaultTimeoutMs: INSIGHT_REQUEST_TIMEOUT_MS })
   const [state, setState] = useState<InsightState>({
     insight: null,
     loading: true,
     refreshing: false,
     error: null,
     generatedAt: null,
+    unauthenticated: false,
   })
 
-  const fetchInsight = useCallback(async (forceRefresh = false) => {
-    const isRefresh = forceRefresh && state.insight !== null
+  /**
+   * Apply API result → component state. Always called AFTER an `await`, so it
+   * never triggers `react-hooks/set-state-in-effect` (no sync setState during
+   * an effect body).
+   */
+  const applyResult = useCallback(
+    (result: AuthedFetchResult<InsightApiData>) => {
+      if (result.ok) {
+        if (!result.data.insight) {
+          console.warn('[AIInsights] response missing insight payload')
+          setState(prev => ({ ...prev, loading: false, refreshing: false, error: 'soft' }))
+          return
+        }
+        setState({
+          insight: result.data.insight,
+          loading: false,
+          refreshing: false,
+          error: null,
+          generatedAt: result.data.generatedAt ?? null,
+          unauthenticated: false,
+        })
+        return
+      }
+
+      if (result.kind === 'unauthenticated') {
+        // Real customers should never see a red "Unauthorized" box on the
+        // dashboard. Hide the card silently — they're either mid-session
+        // refresh or the SDK is still hydrating; either way it's not
+        // actionable for them.
+        console.warn('[AIInsights] auth not available after refresh, hiding card')
+        setState(prev => ({
+          ...prev,
+          loading: false,
+          refreshing: false,
+          error: null,
+          unauthenticated: true,
+        }))
+        return
+      }
+
+      console.warn('[AIInsights] request failed', { status: result.status, message: result.message })
+      setState(prev => ({ ...prev, loading: false, refreshing: false, error: 'soft' }))
+    },
+    []
+  )
+
+  /**
+   * Manual refresh (button click). Synchronous setState here is fine — it's a
+   * user event handler, not an effect body.
+   */
+  const handleRefresh = useCallback(async () => {
+    if (!ready) return
     setState(prev => ({
       ...prev,
-      ...(isRefresh ? { refreshing: true } : { loading: true }),
+      ...(prev.insight !== null ? { refreshing: true } : { loading: true }),
       error: null,
+      unauthenticated: false,
     }))
+    const result = await authedFetch<InsightApiData>('/api/ai/insights', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type, forceRefresh: true }),
+    })
+    applyResult(result)
+  }, [applyResult, authedFetch, ready, type])
 
-    const controller = new AbortController()
-    const timeoutId = window.setTimeout(() => controller.abort(), INSIGHT_REQUEST_TIMEOUT_MS)
-
-    try {
-      const response = await fetch('/api/ai/insights', {
+  // Initial fetch effect. Uses a cancellation token instead of synchronous
+  // setState so we never trip `react-hooks/set-state-in-effect`. The initial
+  // state already has `loading: true`, so no toggle is needed at fetch start.
+  const lastFetchTokenRef = useRef(0)
+  useEffect(() => {
+    if (!ready) return
+    const token = ++lastFetchTokenRef.current
+    void (async () => {
+      const result = await authedFetch<InsightApiData>('/api/ai/insights', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type, forceRefresh }),
-        signal: controller.signal,
+        body: JSON.stringify({ type, forceRefresh: false }),
       })
+      // Skip stale responses if the effect re-ran (type or auth changed) while
+      // the previous request was still in flight.
+      if (lastFetchTokenRef.current !== token) return
+      applyResult(result)
+    })()
+  }, [ready, type, authedFetch, applyResult])
 
-      const data = await response.json().catch(() => ({}))
-      if (!response.ok) {
-        throw new Error(typeof data.error === 'string' ? data.error : 'Failed to fetch insights')
-      }
+  if (state.unauthenticated) return null
 
-      if (!data.insight) {
-        throw new Error('No insight in response')
-      }
-      setState({
-        insight: data.insight,
-        loading: false,
-        refreshing: false,
-        error: null,
-        generatedAt: data.generatedAt,
-      })
-    } catch (err) {
-      const message =
-        err instanceof DOMException && err.name === 'AbortError'
-          ? 'Insight request timed out'
-          : err instanceof Error
-            ? err.message
-            : 'Failed to load insights'
-      setState(prev => ({
-        ...prev,
-        loading: false,
-        refreshing: false,
-        error: message,
-      }))
-    } finally {
-      window.clearTimeout(timeoutId)
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [type])
-
-  useEffect(() => {
-    fetchInsight()
-  }, [fetchInsight])
-
-  if (state.error) {
+  if (state.error === 'soft') {
     const box =
-      'rounded-xl border border-red-200/80 dark:border-red-900/40 bg-red-50/80 dark:bg-red-950/20 px-4 py-3 text-sm text-red-800 dark:text-red-200'
-    if (compact) {
-      return (
-        <div className={`${box} ${className}`} role="alert">
-          <p className="font-medium">Insight unavailable</p>
-          <p className="mt-1 text-red-700/90 dark:text-red-300/90">{state.error}</p>
-        </div>
-      )
-    }
+      'rounded-xl border border-slate-200/80 dark:border-slate-700/50 bg-slate-50/80 dark:bg-slate-900/30 px-4 py-3 text-sm text-slate-500 dark:text-slate-400 flex items-center justify-between gap-3'
     return (
-      <div className={`${box} ${className}`} role="alert">
-        <p className="font-medium">Couldn&apos;t load AI insight</p>
-        <p className="mt-1 text-red-700/90 dark:text-red-300/90">{state.error}</p>
+      <div className={`${box} ${className}`}>
+        <span>AI insight is taking a moment.</span>
+        <button
+          onClick={handleRefresh}
+          className="text-orange-600 dark:text-orange-400 font-medium hover:underline"
+        >
+          Try again
+        </button>
       </div>
     )
   }
@@ -124,20 +199,6 @@ export function AIInsights({ type, className = '', compact = false }: AIInsights
 
   const { insight } = state
 
-  const RefreshButton = ({ size = 'sm' }: { size?: 'sm' | 'md' }) => (
-    <button
-      onClick={() => fetchInsight(true)}
-      disabled={state.refreshing}
-      className={`${size === 'md' ? 'p-2' : 'p-1.5'} text-slate-400 hover:text-orange-500 hover:bg-orange-100/50 dark:hover:bg-orange-900/20 rounded-lg transition-all disabled:opacity-50`}
-      title="Refresh insight"
-    >
-      <svg className={`${size === 'md' ? 'w-5 h-5' : 'w-4 h-4'} ${state.refreshing ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-      </svg>
-    </button>
-  )
-
-  // Compact view for Dashboard
   if (compact) {
     return (
       <div className={`animate-fade-in ${className}`}>
@@ -189,18 +250,16 @@ export function AIInsights({ type, className = '', compact = false }: AIInsights
               )}
             </div>
 
-            <RefreshButton />
+            <RefreshButton onClick={handleRefresh} refreshing={state.refreshing} />
           </div>
         </div>
       </div>
     )
   }
 
-  // Full view for Reports
   return (
     <div className={`animate-fade-in ${className}`}>
       <div className={`bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50 dark:from-orange-950/30 dark:via-amber-950/30 dark:to-yellow-950/30 border border-orange-200/50 dark:border-orange-800/30 rounded-xl sm:rounded-2xl p-5 sm:p-6 shadow-sm transition-opacity ${state.refreshing ? 'opacity-75' : ''}`}>
-        {/* Header */}
         <div className="flex items-start justify-between gap-4 mb-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-orange-500 to-amber-500 rounded-xl flex items-center justify-center shadow-lg shadow-orange-500/20">
@@ -224,15 +283,13 @@ export function AIInsights({ type, className = '', compact = false }: AIInsights
               )}
             </div>
           </div>
-          <RefreshButton size="md" />
+          <RefreshButton onClick={handleRefresh} refreshing={state.refreshing} size="md" />
         </div>
 
-        {/* Summary */}
         <p className="text-sm sm:text-base text-slate-700 dark:text-slate-300 leading-relaxed mb-5">
           {insight.summary}
         </p>
 
-        {/* Key Metrics */}
         {insight.keyMetrics && insight.keyMetrics.length > 0 && (
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-5">
             {insight.keyMetrics.map((metric, idx) => (
@@ -247,7 +304,6 @@ export function AIInsights({ type, className = '', compact = false }: AIInsights
           </div>
         )}
 
-        {/* Insights list */}
         {insight.insights && insight.insights.length > 0 && (
           <div className="mb-5">
             <h4 className="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-2 flex items-center gap-2">
@@ -267,7 +323,6 @@ export function AIInsights({ type, className = '', compact = false }: AIInsights
           </div>
         )}
 
-        {/* Highlights */}
         {insight.highlights && insight.highlights.length > 0 && (
           <div className="mb-5">
             <h4 className="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-2 flex items-center gap-2">
@@ -289,7 +344,6 @@ export function AIInsights({ type, className = '', compact = false }: AIInsights
           </div>
         )}
 
-        {/* Recommendations */}
         {insight.recommendations && insight.recommendations.length > 0 && (
           <div className="bg-gradient-to-r from-orange-100/50 to-amber-100/50 dark:from-orange-900/20 dark:to-amber-900/20 rounded-lg p-4 border border-orange-200/50 dark:border-orange-800/30">
             <h4 className="text-sm font-semibold text-orange-900 dark:text-orange-300 mb-2 flex items-center gap-2">
@@ -309,7 +363,6 @@ export function AIInsights({ type, className = '', compact = false }: AIInsights
           </div>
         )}
 
-        {/* Single recommendation */}
         {insight.recommendation && !insight.recommendations && (
           <div className="bg-gradient-to-r from-orange-100/50 to-amber-100/50 dark:from-orange-900/20 dark:to-amber-900/20 rounded-lg p-4 border border-orange-200/50 dark:border-orange-800/30">
             <h4 className="text-sm font-semibold text-orange-900 dark:text-orange-300 mb-1 flex items-center gap-2">

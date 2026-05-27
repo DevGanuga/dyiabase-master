@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link'
+import { useAuthedFetch, type AuthedFetchResult } from '@/hooks/useAuthedFetch'
 
 const INSIGHT_REQUEST_TIMEOUT_MS = 12000
 
@@ -11,63 +12,97 @@ interface DyiaInsightProps {
   isPro?: boolean
 }
 
+interface InsightApiResponse {
+  insight?: {
+    tip?: string
+    recommendation?: string
+    summary?: string
+  }
+}
+
 export function DyiaInsight({ context, className = '', isPro = false }: DyiaInsightProps) {
+  const { ready, authedFetch } = useAuthedFetch({ defaultTimeoutMs: INSIGHT_REQUEST_TIMEOUT_MS })
   const [insight, setInsight] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [refreshing, setRefreshing] = useState(false)
+  const [softError, setSoftError] = useState(false)
+  const [unauthenticated, setUnauthenticated] = useState(false)
   const [dismissed, setDismissed] = useState(false)
-  const fetchedRef = useRef(false)
 
-  const fetchInsight = useCallback(async (force = false) => {
-    setLoading(true)
-    setError(null)
-    const controller = new AbortController()
-    const timeoutId = window.setTimeout(() => controller.abort(), INSIGHT_REQUEST_TIMEOUT_MS)
+  /**
+   * Apply API result to state. Always called after an await, so it never
+   * triggers `react-hooks/set-state-in-effect`.
+   */
+  const applyResult = useCallback(
+    (result: AuthedFetchResult<InsightApiResponse>) => {
+      setLoading(false)
+      setRefreshing(false)
 
-    try {
-      const apiType = context === 'reports' ? 'reports' : 'dashboard'
-      const response = await fetch('/api/ai/insights', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: apiType, forceRefresh: force }),
-        signal: controller.signal,
-      })
-      const data = await response.json().catch(() => ({}))
-      if (!response.ok) {
-        setInsight(null)
-        setError(typeof data.error === 'string' ? data.error : `Request failed (${response.status})`)
+      if (result.ok) {
+        const r = result.data.insight
+        const text = r?.tip || r?.recommendation || r?.summary || null
+        if (text) {
+          setInsight(text)
+          setSoftError(false)
+        } else {
+          console.warn('[DyiaInsight] response missing usable text', { context })
+          setSoftError(true)
+        }
         return
       }
-      const result = data.insight
-      const text = result?.tip || result?.recommendation || result?.summary || null
-      if (text) {
-        setInsight(text)
-      } else {
-        setInsight(null)
-        setError('Insight response had no usable text')
+
+      if (result.kind === 'unauthenticated') {
+        // Session race / mobile cookie blip. Hide rather than show a scary
+        // "Unauthorized" banner on a screen the user is actively using.
+        console.warn('[DyiaInsight] auth not available after refresh, hiding card', { context })
+        setUnauthenticated(true)
+        return
       }
-    } catch (e) {
-      setInsight(null)
-      const message =
-        e instanceof DOMException && e.name === 'AbortError'
-          ? 'Insight request timed out'
-          : e instanceof Error
-            ? e.message
-            : 'Failed to load insight'
-      setError(message)
-    } finally {
-      window.clearTimeout(timeoutId)
-      setLoading(false)
-    }
-  }, [context])
 
+      console.warn('[DyiaInsight] request failed', {
+        context,
+        status: result.status,
+        message: result.message,
+      })
+      setSoftError(true)
+    },
+    [context]
+  )
+
+  /** Manual refresh — user click, NOT an effect, so sync setState is fine. */
+  const handleRefresh = useCallback(async () => {
+    if (!isPro || !ready) return
+    setRefreshing(true)
+    setSoftError(false)
+    setUnauthenticated(false)
+    const apiType = context === 'reports' ? 'reports' : 'dashboard'
+    const result = await authedFetch<InsightApiResponse>('/api/ai/insights', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: apiType, forceRefresh: true }),
+    })
+    applyResult(result)
+  }, [applyResult, authedFetch, context, isPro, ready])
+
+  // Initial fetch. Defers all state changes until AFTER the await so we don't
+  // synchronously setState inside the effect body.
+  const lastFetchTokenRef = useRef(0)
   useEffect(() => {
-    if (fetchedRef.current || !isPro) return
-    fetchedRef.current = true
-    fetchInsight()
-  }, [isPro, fetchInsight])
+    if (!isPro || !ready) return
+    const token = ++lastFetchTokenRef.current
+    const apiType = context === 'reports' ? 'reports' : 'dashboard'
+    void (async () => {
+      const result = await authedFetch<InsightApiResponse>('/api/ai/insights', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: apiType, forceRefresh: false }),
+      })
+      if (lastFetchTokenRef.current !== token) return
+      applyResult(result)
+    })()
+  }, [isPro, ready, context, authedFetch, applyResult])
 
-  if (dismissed) return null
+  if (dismissed || unauthenticated) return null
 
   if (!isPro) {
     return (
@@ -98,14 +133,19 @@ export function DyiaInsight({ context, className = '', isPro = false }: DyiaInsi
     )
   }
 
-  if (error) {
+  if (softError) {
     return (
       <div
-        className={`flex flex-col gap-1 px-4 py-3 bg-red-50/90 dark:bg-red-950/25 border border-red-200 dark:border-red-900/40 rounded-xl text-sm text-red-800 dark:text-red-200 ${className}`}
-        role="alert"
+        className={`flex items-center justify-between gap-3 px-4 py-3 bg-slate-50/80 dark:bg-slate-800/30 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-500 dark:text-slate-400 ${className}`}
       >
-        <span className="font-medium">Insight unavailable</span>
-        <span className="text-red-700 dark:text-red-300">{error}</span>
+        <span>AI insight is taking a moment.</span>
+        <button
+          onClick={handleRefresh}
+          disabled={refreshing}
+          className="text-orange-600 dark:text-orange-400 font-medium hover:underline disabled:opacity-50"
+        >
+          Try again
+        </button>
       </div>
     )
   }
@@ -122,29 +162,28 @@ export function DyiaInsight({ context, className = '', isPro = false }: DyiaInsi
 
       <p className="flex-1 text-sm text-[var(--color-text-secondary)] leading-relaxed">{insight}</p>
 
-      {!loading && !error && insight && (
-        <div className="flex items-center gap-1 shrink-0 mt-0.5">
-          <button
-            onClick={() => fetchInsight(true)}
-            className="p-0.5 text-[var(--color-text-faint)] hover:text-orange-500 rounded transition-colors"
-            aria-label="Refresh insight"
-            title="Refresh"
-          >
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-          </button>
-          <button
-            onClick={() => setDismissed(true)}
-            className="p-0.5 text-[var(--color-text-faint)] hover:text-[var(--color-text-muted)] rounded transition-colors"
-            aria-label="Dismiss insight"
-          >
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-      )}
+      <div className="flex items-center gap-1 shrink-0 mt-0.5">
+        <button
+          onClick={handleRefresh}
+          disabled={refreshing}
+          className={`p-0.5 text-[var(--color-text-faint)] hover:text-orange-500 rounded transition-colors disabled:opacity-50 ${refreshing ? 'animate-spin' : ''}`}
+          aria-label="Refresh insight"
+          title="Refresh"
+        >
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+        </button>
+        <button
+          onClick={() => setDismissed(true)}
+          className="p-0.5 text-[var(--color-text-faint)] hover:text-[var(--color-text-muted)] rounded transition-colors"
+          aria-label="Dismiss insight"
+        >
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
     </div>
   )
 }

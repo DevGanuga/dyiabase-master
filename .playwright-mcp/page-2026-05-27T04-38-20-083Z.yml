@@ -1,0 +1,241 @@
+- generic [ref=e1]:
+  - alert [ref=e11]
+  - generic [ref=e12]:
+    - generic [ref=e13]:
+      - text: Demo Mode — Sample data only, nothing is saved.
+      - button "Exit" [ref=e14]
+    - complementary [ref=e15]:
+      - link "dyia Beta" [ref=e17] [cursor=pointer]:
+        - /url: /
+        - img "dyia" [ref=e18]
+        - generic [ref=e19]: Beta
+      - button "Create new item" [ref=e21]:
+        - generic [ref=e22]:
+          - img
+          - generic [ref=e23]: Create
+        - generic [ref=e24]:
+          - img
+      - navigation [ref=e25]:
+        - generic [ref=e26]:
+          - generic [ref=e27]: Work
+          - generic [ref=e28]:
+            - button "Home" [ref=e29]:
+              - generic:
+                - img
+              - generic [ref=e30]: Home
+            - button "Jobs" [ref=e31]:
+              - generic:
+                - img
+              - generic [ref=e32]: Jobs
+            - button "Quotes" [ref=e33]:
+              - generic:
+                - img
+              - generic [ref=e34]: Quotes
+            - button "Profit Calculator" [ref=e35]:
+              - generic:
+                - img
+              - generic [ref=e36]: Profit Calculator
+            - button "Follow-ups" [ref=e37]:
+              - generic:
+                - img
+              - generic [ref=e38]: Follow-ups
+            - button "Calendar" [ref=e39]:
+              - generic:
+                - img
+              - generic [ref=e40]: Calendar
+        - generic [ref=e41]:
+          - generic [ref=e42]: Customers
+          - generic [ref=e43]:
+            - button "Customers" [ref=e44]:
+              - generic:
+                - img
+              - generic [ref=e45]: Customers
+            - button "Payments" [ref=e46]:
+              - generic:
+                - img
+              - generic [ref=e47]: Payments
+            - button "Email Blast" [ref=e48]:
+              - generic:
+                - img
+              - generic [ref=e49]: Email Blast
+        - generic [ref=e50]:
+          - generic [ref=e51]: Insights
+          - generic [ref=e52]:
+            - button "Reports" [ref=e53]:
+              - generic:
+                - img
+              - generic [ref=e54]: Reports
+            - button "Intel" [ref=e55]:
+              - generic:
+                - img
+              - generic [ref=e56]: Intel
+            - button "Marketing" [ref=e57]:
+              - generic:
+                - img
+              - generic [ref=e58]: Marketing
+            - button "Dyia AI Ask Dyia" [ref=e59]:
+              - generic:
+                - img "Dyia AI"
+              - generic [ref=e60]: Ask Dyia
+      - button "Settings" [ref=e62]:
+        - generic [ref=e63]:
+          - img
+        - generic [ref=e64]: Settings
+    - main [ref=e65]:
+      - generic [ref=e67]:
+        - button "Switch to dark mode" [ref=e68]:
+          - img [ref=e69]
+        - link "Help & Support" [ref=e71] [cursor=pointer]:
+          - /url: /support
+          - img [ref=e72]
+        - button "User menu" [ref=e76]:
+          - generic [ref=e78]: D
+          - img [ref=e79]
+      - generic [ref=e92]:
+        - generic [ref=e93]:
+          - generic [ref=e94]:
+            - heading "Get paid" [level=1] [ref=e95]
+            - paragraph [ref=e96]: Send invoices and payment links. Funds settle to your Stripe balance, then auto-payout to your bank.
+          - button "Get paid" [active] [ref=e98]:
+            - img [ref=e99]
+            - text: Get paid
+        - generic [ref=e102]:
+          - generic [ref=e103]:
+            - img [ref=e105]
+            - generic [ref=e107]:
+              - heading "Connect Stripe to start accepting payments" [level=3] [ref=e108]
+              - paragraph [ref=e109]: Stripe Connect handles the legal/banking side so you can focus on the work. We move money directly from your customer to your bank — Dyia never holds your funds. Dyia keeps a 0.75% platform fee on each successful payment.
+              - generic [ref=e110]:
+                - generic [ref=e111]:
+                  - img [ref=e112]
+                  - text: Business info
+                - generic [ref=e114]: Stripe account
+                - generic [ref=e116]: ID verified
+                - generic [ref=e118]: Charges enabled
+                - generic [ref=e120]: Payouts enabled
+          - button "Connect Stripe" [ref=e123]
+        - generic [ref=e124]:
+          - generic [ref=e125]:
+            - generic [ref=e126]:
+              - button "Quick pay link Send a one-tap pay link for a fixed amount." [ref=e127] [cursor=pointer]:
+                - img [ref=e129]
+                - paragraph [ref=e131]: Quick pay link
+                - paragraph [ref=e132]: Send a one-tap pay link for a fixed amount.
+              - button "Send invoice Itemized invoice with tax, due date, and total." [ref=e133] [cursor=pointer]:
+                - img [ref=e135]
+                - paragraph [ref=e137]: Send invoice
+                - paragraph [ref=e138]: Itemized invoice with tax, due date, and total.
+              - button "From a quote or job Request payment for an existing quote or job." [ref=e139] [cursor=pointer]:
+                - img [ref=e141]
+                - paragraph [ref=e143]: From a quote or job
+                - paragraph [ref=e144]: Request payment for an existing quote or job.
+            - generic [ref=e145]:
+              - generic [ref=e146]:
+                - generic [ref=e147]:
+                  - heading "Payment activity" [level=3] [ref=e148]
+                  - paragraph [ref=e149]: All your invoices and pay links in one place.
+                - generic [ref=e150]:
+                  - button "all" [ref=e151]
+                  - button "pending" [ref=e152]
+                  - button "paid" [ref=e153]
+              - generic [ref=e154]:
+                - img [ref=e156]
+                - paragraph [ref=e158]: No payments yet
+                - paragraph [ref=e159]: Create your first pay link or invoice and the activity feed will show every request, status, and payout.
+                - button "Create your first payment" [ref=e160]
+          - generic [ref=e161]:
+            - generic [ref=e162]:
+              - heading "Where the money goes" [level=3] [ref=e163]
+              - paragraph [ref=e164]: Stripe Connect routes funds directly to your bank — Dyia never touches the money.
+              - generic [ref=e165]:
+                - generic [ref=e166]:
+                  - generic [ref=e167]: "1"
+                  - generic [ref=e168]:
+                    - generic [ref=e169]:
+                      - paragraph [ref=e170]: Customer pays
+                      - paragraph [ref=e171]: $500.00
+                    - paragraph [ref=e172]: Card payment on your branded /pay link
+                - generic [ref=e173]:
+                  - generic [ref=e174]: "2"
+                  - generic [ref=e175]:
+                    - generic [ref=e176]:
+                      - paragraph [ref=e177]: Dyia platform fee
+                      - paragraph [ref=e178]: –$3.75
+                    - paragraph [ref=e179]: 0.75% kept by Dyia (deducted at charge time)
+                - generic [ref=e180]:
+                  - generic [ref=e181]: "3"
+                  - generic [ref=e182]:
+                    - generic [ref=e183]:
+                      - paragraph [ref=e184]: Lands in your Stripe balance
+                      - paragraph [ref=e185]: ≈ $481.75
+                    - paragraph [ref=e186]: Minus Stripe's processing fee (~2.9% + $0.30)
+                - generic [ref=e187]:
+                  - generic [ref=e188]: "4"
+                  - generic [ref=e189]:
+                    - generic [ref=e190]:
+                      - paragraph [ref=e191]: Auto-payout to your bank
+                      - paragraph [ref=e192]: → Your bank
+                    - paragraph [ref=e193]: Daily rolling payout, 2 business days (US default)
+            - generic [ref=e194]:
+              - generic [ref=e195]:
+                - heading "Stripe status" [level=3] [ref=e196]
+                - generic [ref=e197]: Setup needed
+              - generic [ref=e198]:
+                - generic [ref=e199]:
+                  - term [ref=e200]: Account
+                  - definition [ref=e201]: Not created
+                - generic [ref=e202]:
+                  - term [ref=e203]: Charges
+                  - definition [ref=e204]: Pending
+                - generic [ref=e205]:
+                  - term [ref=e206]: Payouts
+                  - definition [ref=e207]: Pending
+                - generic [ref=e208]:
+                  - term [ref=e209]: ID verified
+                  - definition [ref=e210]: Pending
+              - generic [ref=e211]:
+                - button "Connect Stripe" [ref=e212]
+                - button "Refresh status" [ref=e213]:
+                  - img [ref=e214]
+        - generic [ref=e217]:
+          - generic [ref=e218]:
+            - generic [ref=e219]:
+              - heading "Get paid" [level=2] [ref=e220]
+              - paragraph [ref=e221]: Send a one-tap payment link or a full invoice. Funds land in your Stripe balance, then your bank.
+            - button "Close" [ref=e222]:
+              - img [ref=e223]
+          - generic [ref=e225]:
+            - img [ref=e227]
+            - generic [ref=e229]:
+              - paragraph [ref=e230]: Finish Stripe setup to start collecting
+              - paragraph [ref=e231]: You can build invoices and pay links now, but you need to connect Stripe before customers can pay.
+              - button "Open Stripe setup →" [ref=e232]
+          - generic [ref=e234]:
+            - button "Quick pay link" [ref=e235]
+            - button "Invoice" [ref=e236]
+          - generic [ref=e237]:
+            - generic [ref=e238]:
+              - generic [ref=e239]:
+                - text: Amount
+                - generic [ref=e240]:
+                  - generic [ref=e241]: $
+                  - spinbutton [ref=e242]
+              - generic [ref=e243]:
+                - text: What's this for
+                - textbox "Deposit, lawn service, etc." [ref=e244]
+            - generic [ref=e245]:
+              - paragraph [ref=e246]: Customer (optional but recommended)
+              - generic [ref=e247]:
+                - textbox "Customer name" [ref=e248]
+                - textbox "customer@email.com" [ref=e249]
+                - textbox "(555) 123-4567" [ref=e250]
+                - textbox "Address (for invoice)" [ref=e251]
+          - generic [ref=e252]:
+            - generic [ref=e253]:
+              - paragraph [ref=e254]: You'll get paid
+              - paragraph [ref=e255]:
+                - text: $0
+                - generic [ref=e256]: after $0 Dyia fee
+            - generic [ref=e257]:
+              - button "Cancel" [ref=e258]
+              - button "Create pay link" [disabled] [ref=e259]

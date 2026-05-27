@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Dyia Payments — Release Guide</title>
+<style>
+  @page { size: Letter; margin: 0; }
+
+  :root {
+    --orange: #f97316;
+    --amber: #f59e0b;
+    --text: #0f172a;
+    --muted: #64748b;
+    --faint: #94a3b8;
+    --bg: #ffffff;
+    --bg-subtle: #f8fafc;
+    --border: #e2e8f0;
+    --green: #16a34a;
+    --sky: #0284c7;
+    --emerald: #059669;
+    --red: #dc2626;
+  }
+
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, system-ui, sans-serif;
+    color: var(--text);
+    background: var(--bg);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  .page {
+    width: 8.5in;
+    height: 11in;
+    padding: 0.6in;
+    page-break-after: always;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+  }
+  .page:last-child { page-break-after: auto; }
+
+  /* ── Cover ───────────────────────────────────────────── */
+  .cover {
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 60%, #312e81 100%);
+    color: white;
+    padding: 1.2in 0.9in;
+    justify-content: space-between;
+  }
+  .cover .logo {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 28px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+  }
+  .cover .logo .dot {
+    width: 36px; height: 36px; border-radius: 10px;
+    background: linear-gradient(135deg, var(--orange), var(--amber));
+    box-shadow: 0 6px 24px rgba(249,115,22,0.45);
+  }
+  .cover .eyebrow {
+    margin-top: 0.6in;
+    text-transform: uppercase;
+    letter-spacing: 0.3em;
+    font-size: 11px;
+    color: #fbbf24;
+    font-weight: 700;
+  }
+  .cover h1 {
+    margin: 18px 0 0;
+    font-size: 64px;
+    font-weight: 800;
+    line-height: 1.02;
+    letter-spacing: -0.03em;
+  }
+  .cover h1 .grad {
+    background: linear-gradient(135deg, var(--orange), var(--amber));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .cover .sub {
+    margin-top: 22px;
+    font-size: 20px;
+    color: #cbd5e1;
+    max-width: 5.5in;
+    line-height: 1.4;
+  }
+  .cover .meta {
+    margin-top: 0.8in;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    border-top: 1px solid rgba(255,255,255,0.12);
+    padding-top: 22px;
+  }
+  .cover .meta div .k {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: #94a3b8;
+  }
+  .cover .meta div .v {
+    margin-top: 4px;
+    font-size: 14px;
+    color: white;
+    font-weight: 600;
+  }
+  .cover .footer {
+    font-size: 11px;
+    color: #64748b;
+  }
+
+  /* ── Page header ─────────────────────────────────────── */
+  .page-eyebrow {
+    text-transform: uppercase;
+    letter-spacing: 0.22em;
+    font-size: 10px;
+    color: var(--orange);
+    font-weight: 700;
+  }
+  h2 {
+    margin: 6px 0 6px;
+    font-size: 28px;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    font-weight: 800;
+    color: var(--text);
+  }
+  .lede {
+    color: var(--muted);
+    font-size: 13.5px;
+    line-height: 1.5;
+    max-width: 6.5in;
+  }
+
+  /* ── Image frame ─────────────────────────────────────── */
+  .shot {
+    margin-top: 18px;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 10px 28px rgba(15, 23, 42, 0.08);
+    background: var(--bg-subtle);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .shot img {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+  .shot.contain { padding: 12px; }
+  .shot.contain img { max-height: 7in; width: auto; max-width: 100%; }
+
+  .caption {
+    margin-top: 10px;
+    color: var(--faint);
+    font-size: 11px;
+    text-align: center;
+    letter-spacing: 0.04em;
+  }
+
+  /* ── Callout chips ───────────────────────────────────── */
+  .chips {
+    margin-top: 12px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    background: #fef3c7;
+    color: #92400e;
+    border: 1px solid #fde68a;
+  }
+  .chip.green { background: #dcfce7; color: #166534; border-color: #bbf7d0; }
+  .chip.blue { background: #e0f2fe; color: #075985; border-color: #bae6fd; }
+  .chip.violet { background: #ede9fe; color: #5b21b6; border-color: #ddd6fe; }
+
+  /* ── Two-column for mobile screenshots ─────────────── */
+  .two-col {
+    margin-top: 16px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+  }
+  .two-col .shot { margin-top: 0; }
+
+  /* ── Tldr cards ──────────────────────────────────────── */
+  .tldr {
+    margin-top: 22px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+  .tldr .card {
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px;
+    background: var(--bg);
+  }
+  .tldr .card .label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: var(--orange);
+    font-weight: 700;
+  }
+  .tldr .card h3 {
+    margin: 6px 0 6px;
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+  .tldr .card p {
+    margin: 0;
+    font-size: 12.5px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+
+  /* ── Funds-flow visual ──────────────────────────────── */
+  .flow {
+    margin-top: 22px;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+  }
+  .flow .step {
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px 14px;
+    background: var(--bg-subtle);
+    position: relative;
+  }
+  .flow .step .n {
+    width: 26px; height: 26px;
+    border-radius: 999px;
+    background: #cbd5e1;
+    color: white;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .flow .step.accent .n { background: var(--orange); }
+  .flow .step.final .n { background: var(--green); }
+  .flow .step .t {
+    margin-top: 10px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text);
+  }
+  .flow .step .v {
+    margin-top: 6px;
+    font-size: 18px;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+  }
+  .flow .step.neg .v { color: var(--red); }
+  .flow .step.accent .v { color: var(--orange); }
+  .flow .step.final .v { color: var(--green); }
+  .flow .step .d {
+    margin-top: 4px;
+    font-size: 10.5px;
+    color: var(--muted);
+    line-height: 1.4;
+  }
+
+  /* ── Checklist ───────────────────────────────────────── */
+  .check {
+    margin-top: 18px;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px 22px;
+    background: var(--bg);
+  }
+  .check h3 {
+    margin: 0 0 12px;
+    font-size: 16px;
+    font-weight: 700;
+  }
+  .check ul { margin: 0; padding: 0; list-style: none; }
+  .check li {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 12.5px;
+    color: var(--text);
+  }
+  .check li:last-child { border-bottom: 0; }
+  .check li .box {
+    flex: 0 0 16px;
+    width: 16px; height: 16px;
+    border: 1.5px solid var(--faint);
+    border-radius: 4px;
+    margin-top: 2px;
+  }
+  .check li .who {
+    margin-left: auto;
+    font-size: 10px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    padding: 4px 8px;
+    background: var(--bg-subtle);
+    border-radius: 999px;
+  }
+  .check li code {
+    background: #f1f5f9;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+
+  /* ── Footer for content pages ──────────────────────── */
+  .page-footer {
+    position: absolute;
+    bottom: 0.4in;
+    left: 0.6in;
+    right: 0.6in;
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    color: var(--faint);
+    letter-spacing: 0.05em;
+  }
+
+  /* ── Inline pill markers ────────────────────────────── */
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 10.5px;
+    font-weight: 700;
+    background: #fef3c7;
+    color: #92400e;
+  }
+  .pill.new { background: #fee2e2; color: #991b1b; }
+  .pill.up { background: #dcfce7; color: #166534; }
+</style>
+</head>
+<body>
+
+<!-- ────────────────────────────────────────────────────── -->
+<!-- COVER -->
+<!-- ────────────────────────────────────────────────────── -->
+<section class="page cover">
+  <div>
+    <div class="logo">
+      <span class="dot"></span>
+      dyia
+    </div>
+    <div class="eyebrow">Internal release brief · v1</div>
+    <h1>The new <br /><span class="grad">Get paid</span> experience</h1>
+    <p class="sub">
+      Stripe Connect is now the backbone of Dyia. Send branded invoices, one-tap pay
+      links, and quote/job payment requests — all from a single workspace that shows
+      every dollar moving to the merchant's bank.
+    </p>
+  </div>
+
+  <div>
+    <div class="meta">
+      <div>
+        <div class="k">Surface</div>
+        <div class="v">Payments tab · /pay/[token]</div>
+      </div>
+      <div>
+        <div class="k">Owner</div>
+        <div class="v">Dev (engineering) · Business team (rollout)</div>
+      </div>
+      <div>
+        <div class="k">Released</div>
+        <div class="v">May 27, 2026</div>
+      </div>
+    </div>
+    <div class="footer" style="margin-top: 24px;">
+      Confidential · Dyia internal · For Marco, Hanna, and the rapid-build team
+    </div>
+  </div>
+</section>
+
+<!-- ────────────────────────────────────────────────────── -->
+<!-- PAGE 2 — TL;DR -->
+<!-- ────────────────────────────────────────────────────── -->
+<section class="page">
+  <div class="page-eyebrow">What changed</div>
+  <h2>From "status panel" to a real payments backbone</h2>
+  <p class="lede">
+    The old Payments tab was a Stripe Connect status screen with one tucked-away path
+    (per-quote "Request Payment"). The new tab is a full workspace: invoices from
+    scratch, quick pay links, real activity feed, monthly stats, and a transparent
+    funds-flow diagram so users always know where the money is going.
+  </p>
+
+  <div class="tldr">
+    <div class="card">
+      <div class="label">New · Pay links</div>
+      <h3>One-tap requests for a fixed amount</h3>
+      <p>Pick an amount, optionally add a customer, share the link. Customer pays via Stripe Checkout. Best for deposits, ad-hoc work, tips.</p>
+    </div>
+    <div class="card">
+      <div class="label">New · Invoices</div>
+      <h3>Itemized invoices with tax + due date</h3>
+      <p>Build a real invoice (line items, qty, rate, tax, notes), get a branded /pay page that mirrors what your customer sees on Stripe Checkout. Optional invoice number per merchant.</p>
+    </div>
+    <div class="card">
+      <div class="label">Improved · Hub</div>
+      <h3>Monthly stats + activity in one view</h3>
+      <p>Paid this month, awaiting payment, net to your bank, Dyia fees collected. Filterable activity list with status + kind badges. Setup banner collapses when Stripe is fully live.</p>
+    </div>
+    <div class="card">
+      <div class="label">Improved · Transparency</div>
+      <h3>"Where the money goes" explainer</h3>
+      <p>4-step diagram showing customer pay → Dyia 0.75% fee → Stripe balance → auto-payout to bank. Removes confusion about who holds funds (we don't).</p>
+    </div>
+  </div>
+
+  <div class="chips">
+    <span class="chip green">0 net-new dependencies</span>
+    <span class="chip green">Type-safe (TS strict passes)</span>
+    <span class="chip blue">One DB migration: 039</span>
+    <span class="chip blue">Backwards compatible with quote/job payments</span>
+    <span class="chip violet">Mobile-first /pay layouts</span>
+  </div>
+
+  <div class="page-footer">
+    <span>1 · What changed</span>
+    <span>Dyia Payments · Release brief</span>
+  </div>
+</section>
+
+<!-- ────────────────────────────────────────────────────── -->
+<!-- PAGE 3 — Payments hub -->
+<!-- ────────────────────────────────────────────────────── -->
+<section class="page">
+  <div class="page-eyebrow">Merchant view · /app?view=payments</div>
+  <h2>The Payments hub</h2>
+  <p class="lede">
+    Single entry point for everything money. Onboarding is broken into 5 visible
+    pills so users always know the next concrete step. Once Stripe is live, the
+    setup banner disappears and four stat cards take its place (paid this month,
+    awaiting payment, net to your bank, Dyia fees collected).
+  </p>
+
+  <div class="shot contain">
+    <img src="01-payments-hub-disconnected.png" alt="Payments hub — disconnected state" />
+  </div>
+
+  <div class="chips">
+    <span class="chip">5 visible Connect steps</span>
+    <span class="chip">3 primary action cards</span>
+    <span class="chip">Filterable activity (All / Pending / Paid)</span>
+    <span class="chip">Funds-flow diagram (right column)</span>
+  </div>
+
+  <div class="page-footer">
+    <span>2 · Payments hub</span>
+    <span>Dyia Payments · Release brief</span>
+  </div>
+</section>
+
+<!-- ────────────────────────────────────────────────────── -->
+<!-- PAGE 4 — Pay link modal -->
+<!-- ────────────────────────────────────────────────────── -->
+<section class="page">
+  <div class="page-eyebrow">Merchant view · "Get paid" modal · Quick pay link tab</div>
+  <h2>Quick pay link — under 10 seconds</h2>
+  <p class="lede">
+    Tap "Get paid," type the amount and a note, hit "Create pay link." The footer
+    always shows the live net payout after Dyia's 0.75% fee (here: <strong>$447
+    after $3 Dyia fee</strong> on $450). Customer info is optional but appears on
+    the public pay page when provided.
+  </p>
+
+  <div class="shot contain">
+    <img src="02-create-modal-paylink-filled.png" alt="Get paid modal — Quick pay link tab with values filled in" />
+  </div>
+
+  <div class="chips">
+    <span class="chip">Live net-payout preview</span>
+    <span class="chip">Validates &gt; $0, &lt;= $50,000</span>
+    <span class="chip blue">Customer info: optional</span>
+  </div>
+
+  <div class="page-footer">
+    <span>3 · Quick pay link</span>
+    <span>Dyia Payments · Release brief</span>
+  </div>
+</section>
+
+<!-- ────────────────────────────────────────────────────── -->
+<!-- PAGE 5 — Invoice builder -->
+<!-- ────────────────────────────────────────────────────── -->
+<section class="page">
+  <div class="page-eyebrow">Merchant view · "Get paid" modal · Invoice tab</div>
+  <h2>Build a real invoice from scratch</h2>
+  <p class="lede">
+    Line items, quantities, rates, tax %, due date, custom invoice number, and an
+    optional note to the customer. Live subtotal + tax + total update as you type.
+    The footer always reflects the merchant's net after Dyia's 0.75% fee. Invoice
+    numbers are uniquely indexed per merchant (collisions return a friendly 409).
+  </p>
+
+  <div class="shot contain">
+    <img src="03-create-modal-invoice-filled.png" alt="Get paid modal — Invoice builder with 3 line items" />
+  </div>
+
+  <div class="chips">
+    <span class="chip">3 line items · math validates in-place</span>
+    <span class="chip">Tax % per invoice (defaults to 0)</span>
+    <span class="chip">Per-merchant unique invoice numbers</span>
+  </div>
+
+  <div class="page-footer">
+    <span>4 · Invoice builder</span>
+    <span>Dyia Payments · Release brief</span>
+  </div>
+</section>
+
+<!-- ────────────────────────────────────────────────────── -->
+<!-- PAGE 6 — Public invoice -->
+<!-- ────────────────────────────────────────────────────── -->
+<section class="page">
+  <div class="page-eyebrow">Customer view · /pay/[token]</div>
+  <h2>What the customer sees · Invoice</h2>
+  <p class="lede">
+    A full branded invoice page that mirrors what was built in the app: business
+    name + contact, invoice number, due date, "Bill to" block, itemized table,
+    subtotal/tax/total, merchant notes, and a single "Pay $X" CTA. Stripe Checkout
+    also receives the real line items so the receipt matches the invoice.
+  </p>
+
+  <div class="shot contain">
+    <img src="04-public-invoice-page.png" alt="Public invoice page — Hill Country Haul-Away · $1,060" />
+  </div>
+
+  <div class="chips">
+    <span class="chip green">Itemized — matches Stripe receipt</span>
+    <span class="chip green">No login required</span>
+    <span class="chip">Status pill: Awaiting payment / Paid</span>
+  </div>
+
+  <div class="page-footer">
+    <span>5 · Customer view (invoice)</span>
+    <span>Dyia Payments · Release brief</span>
+  </div>
+</section>
+
+<!-- ────────────────────────────────────────────────────── -->
+<!-- PAGE 7 — Public pay link -->
+<!-- ────────────────────────────────────────────────────── -->
+<section class="page">
+  <div class="page-eyebrow">Customer view · /pay/[token]</div>
+  <h2>What the customer sees · Pay link</h2>
+  <p class="lede">
+    Same /pay route, slimmer layout when the merchant just wants a one-tap charge.
+    Big amount, what it's for, business contact info, and a single Pay button.
+    Optimized for SMS / iMessage / WhatsApp where the customer taps once and is in
+    Stripe Checkout.
+  </p>
+
+  <div class="shot contain">
+    <img src="05-public-paylink-page.png" alt="Public pay link page — $450 to Hill Country Haul-Away" />
+  </div>
+
+  <div class="chips">
+    <span class="chip green">One tap to Stripe Checkout</span>
+    <span class="chip blue">Webhook + verify endpoint redundancy</span>
+    <span class="chip">Idempotent: cannot double-pay</span>
+  </div>
+
+  <div class="page-footer">
+    <span>6 · Customer view (pay link)</span>
+    <span>Dyia Payments · Release brief</span>
+  </div>
+</section>
+
+<!-- ────────────────────────────────────────────────────── -->
+<!-- PAGE 8 — Mobile -->
+<!-- ────────────────────────────────────────────────────── -->
+<section class="page">
+  <div class="page-eyebrow">Customer view · Mobile</div>
+  <h2>Designed for the phone first</h2>
+  <p class="lede">
+    Most customers will receive the link by text and pay from their phone in under
+    a minute. Both layouts collapse to a single column with thumb-reach Pay buttons.
+  </p>
+
+  <div class="two-col">
+    <div>
+      <div class="shot contain">
+        <img src="06-mobile-invoice.png" alt="Mobile invoice view at iPhone width" />
+      </div>
+      <div class="caption">Invoice · iPhone width (414px)</div>
+    </div>
+    <div>
+      <div class="shot contain">
+        <img src="07-mobile-paylink.png" alt="Mobile pay link view at iPhone width" />
+      </div>
+      <div class="caption">Pay link · iPhone width (414px)</div>
+    </div>
+  </div>
+
+  <div class="page-footer">
+    <span>7 · Mobile</span>
+    <span>Dyia Payments · Release brief</span>
+  </div>
+</section>
+
+<!-- ────────────────────────────────────────────────────── -->
+<!-- PAGE 9 — Funds flow -->
+<!-- ────────────────────────────────────────────────────── -->
+<section class="page">
+  <div class="page-eyebrow">Money flow · Transparent for every payment</div>
+  <h2>Where the money goes (Dyia never holds funds)</h2>
+  <p class="lede">
+    Stripe Connect Express routes funds straight from the customer to the merchant's
+    bank. Dyia's 0.75% fee is deducted at charge time — we don't custody balances or
+    process payouts ourselves. Merchants can open the Stripe dashboard from the app
+    to see real-time payout schedules.
+  </p>
+
+  <div class="flow">
+    <div class="step">
+      <span class="n">1</span>
+      <div class="t">Customer pays</div>
+      <div class="v">$500.00</div>
+      <div class="d">Card payment on the merchant's branded /pay link.</div>
+    </div>
+    <div class="step neg">
+      <span class="n">2</span>
+      <div class="t">Dyia platform fee</div>
+      <div class="v">–$3.75</div>
+      <div class="d">0.75% kept by Dyia, deducted at charge time.</div>
+    </div>
+    <div class="step accent">
+      <span class="n">3</span>
+      <div class="t">Stripe balance</div>
+      <div class="v">≈ $481.75</div>
+      <div class="d">After Stripe processing fees (~2.9% + $0.30 on US cards).</div>
+    </div>
+    <div class="step final">
+      <span class="n">4</span>
+      <div class="t">Auto-payout</div>
+      <div class="v">→ Bank</div>
+      <div class="d">Daily rolling payout — 2 business days for US merchants by default.</div>
+    </div>
+  </div>
+
+  <div style="margin-top: 24px; display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+    <div class="tldr"><div class="card" style="grid-column: span 2;">
+      <div class="label">Talking point for the team</div>
+      <h3>"Dyia never touches your money."</h3>
+      <p>This is the single most important customer-facing line. Stripe Connect is the funds
+      mover; Dyia is the workspace, the invoice builder, the activity feed, and the receipt
+      ledger. The 0.75% is our piece of every successful charge — Stripe's processing fee is
+      separate and not ours.</p>
+    </div></div>
+  </div>
+
+  <div class="page-footer">
+    <span>8 · Funds flow</span>
+    <span>Dyia Payments · Release brief</span>
+  </div>
+</section>
+
+<!-- ────────────────────────────────────────────────────── -->
+<!-- PAGE 10 — Rollout checklist -->
+<!-- ────────────────────────────────────────────────────── -->
+<section class="page">
+  <div class="page-eyebrow">Before the wider rollout</div>
+  <h2>Release checklist</h2>
+  <p class="lede">
+    Below is everything the engineering + business teams need to do once this branch
+    merges. The DB migration is required because invoices and standalone pay links
+    were previously blocked by a NOT NULL-ish CHECK constraint.
+  </p>
+
+  <div class="check">
+    <h3>Engineering</h3>
+    <ul>
+      <li><span class="box"></span>Apply Supabase migration <code>039_standalone_payments_and_invoices.sql</code> (idempotent — safe to re-run). <span class="who">Eng</span></li>
+      <li><span class="box"></span>Confirm <code>STRIPE_SECRET_KEY</code>, <code>STRIPE_WEBHOOK_SECRET</code>, and Stripe Connect platform settings are live in production. <span class="who">Eng</span></li>
+      <li><span class="box"></span>Verify <code>checkout.session.completed</code> webhook is firing — known production gap previously caught by BUG-031. <span class="who">Eng</span></li>
+      <li><span class="box"></span>Smoke test: pay link &rarr; pay $1 in Stripe test mode &rarr; Activity feed shows "Paid". <span class="who">Eng</span></li>
+      <li><span class="box"></span>Smoke test: invoice with 2 line items + tax &rarr; verify Stripe receipt matches. <span class="who">Eng</span></li>
+    </ul>
+  </div>
+
+  <div class="check">
+    <h3>Business / rollout</h3>
+    <ul>
+      <li><span class="box"></span>Update the public marketing page to highlight invoicing + pay links as core features. <span class="who">Marketing</span></li>
+      <li><span class="box"></span>Pricing-page footnote: <em>"0.75% platform fee per successful payment, Stripe processing fees separate."</em> <span class="who">Marketing</span></li>
+      <li><span class="box"></span>Add the 4-step funds-flow diagram to onboarding emails and help center. <span class="who">Support</span></li>
+      <li><span class="box"></span>Loom walkthrough (Marco): hub &rarr; invoice &rarr; customer view &rarr; Stripe payout. <span class="who">Founder</span></li>
+      <li><span class="box"></span>Announce to beta cohort with link to this PDF + screenshots. <span class="who">Founder</span></li>
+    </ul>
+  </div>
+
+  <div class="check">
+    <h3>Known follow-ups (non-blocking)</h3>
+    <ul>
+      <li><span class="box"></span>Idempotent "get-or-create" pay link from Quotes/Jobs (today a re-click creates a duplicate row). <span class="who">Eng · P2</span></li>
+      <li><span class="box"></span>Email-the-link via Resend / connected Gmail-Outlook (today: copy-and-paste). <span class="who">Eng · P2</span></li>
+      <li><span class="box"></span>Payout ledger view inside Dyia (today: deep-link to Stripe dashboard). <span class="who">Eng · P3</span></li>
+    </ul>
+  </div>
+
+  <div class="page-footer">
+    <span>9 · Rollout checklist</span>
+    <span>Dyia Payments · Release brief</span>
+  </div>
+</section>
+
+</body>
+</html>

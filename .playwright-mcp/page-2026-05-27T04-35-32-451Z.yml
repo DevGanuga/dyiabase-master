@@ -1,0 +1,95 @@
+- generic [active] [ref=e1]:
+  - button "Open Next.js Dev Tools" [ref=e7] [cursor=pointer]:
+    - img [ref=e8]
+  - alert [ref=e11]
+  - generic [ref=e12]:
+    - generic [ref=e13]:
+      - text: Demo Mode — Sample data only, nothing is saved.
+      - button "Exit" [ref=e14]
+    - complementary [ref=e15]:
+      - link "dyia Beta" [ref=e17] [cursor=pointer]:
+        - /url: /
+        - img "dyia" [ref=e18]
+        - generic [ref=e19]: Beta
+      - button "Create new item" [ref=e21]:
+        - generic [ref=e22]:
+          - img
+          - generic [ref=e23]: Create
+        - generic [ref=e24]:
+          - img
+      - navigation [ref=e25]:
+        - generic [ref=e26]:
+          - generic [ref=e27]: Work
+          - generic [ref=e28]:
+            - button "Home" [ref=e29]:
+              - generic:
+                - img
+              - generic [ref=e30]: Home
+            - button "Jobs" [ref=e31]:
+              - generic:
+                - img
+              - generic [ref=e32]: Jobs
+            - button "Quotes" [ref=e33]:
+              - generic:
+                - img
+              - generic [ref=e34]: Quotes
+            - button "Profit Calculator" [ref=e35]:
+              - generic:
+                - img
+              - generic [ref=e36]: Profit Calculator
+            - button "Follow-ups" [ref=e37]:
+              - generic:
+                - img
+              - generic [ref=e38]: Follow-ups
+            - button "Calendar" [ref=e39]:
+              - generic:
+                - img
+              - generic [ref=e40]: Calendar
+        - generic [ref=e41]:
+          - generic [ref=e42]: Customers
+          - generic [ref=e43]:
+            - button "Customers" [ref=e44]:
+              - generic:
+                - img
+              - generic [ref=e45]: Customers
+            - button "Payments" [ref=e46]:
+              - generic:
+                - img
+              - generic [ref=e47]: Payments
+            - button "Email Blast" [ref=e48]:
+              - generic:
+                - img
+              - generic [ref=e49]: Email Blast
+        - generic [ref=e50]:
+          - generic [ref=e51]: Insights
+          - generic [ref=e52]:
+            - button "Reports" [ref=e53]:
+              - generic:
+                - img
+              - generic [ref=e54]: Reports
+            - button "Intel" [ref=e55]:
+              - generic:
+                - img
+              - generic [ref=e56]: Intel
+            - button "Marketing" [ref=e57]:
+              - generic:
+                - img
+              - generic [ref=e58]: Marketing
+            - button "Dyia AI Ask Dyia" [ref=e59]:
+              - generic:
+                - img "Dyia AI"
+              - generic [ref=e60]: Ask Dyia
+      - button "Settings" [ref=e62]:
+        - generic [ref=e63]:
+          - img
+        - generic [ref=e64]: Settings
+    - main [ref=e65]:
+      - generic [ref=e67]:
+        - button "Switch to dark mode" [ref=e68]:
+          - img [ref=e69]
+        - link "Help & Support" [ref=e71] [cursor=pointer]:
+          - /url: /support
+          - img [ref=e72]
+        - button "User menu" [ref=e76]:
+          - generic [ref=e78]: D
+          - img [ref=e79]

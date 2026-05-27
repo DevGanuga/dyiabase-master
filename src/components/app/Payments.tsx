@@ -662,7 +662,11 @@ export function Payments({ userProfile, settings, showSuccess, onOpenSettings, o
         open={createOpen}
         onClose={() => setCreateOpen(false)}
         canAcceptPayments={canAcceptPayments}
-        defaultTaxPercentage={settings.taxPercentage}
+        // Don't pull from settings.taxPercentage — that's the user's INCOME
+        // tax estimate (used by the profit calculator), not sales tax. Two
+        // very different things. Invoice sales tax defaults to 0 and the
+        // merchant types it in per invoice.
+        defaultTaxPercentage={0}
         onOpenConnect={() => {
           setCreateOpen(false)
           startOnboarding()

@@ -1,0 +1,25 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e3]:
+    - generic [ref=e4]:
+      - img "dyia" [ref=e5]
+      - paragraph [ref=e6]: Secure checkout powered by Stripe
+    - generic [ref=e7]:
+      - generic [ref=e8]:
+        - paragraph [ref=e9]: Paying
+        - heading "Hill Country Haul-Away" [level=1] [ref=e10]
+        - paragraph [ref=e11]: $450
+        - paragraph [ref=e12]: Garage cleanout — final payment
+      - generic [ref=e13]:
+        - generic [ref=e14]:
+          - generic [ref=e15]: Customer
+          - generic [ref=e16]: Lisa Chen
+        - generic [ref=e17]:
+          - generic [ref=e18]: Business email
+          - generic [ref=e19]: hello@hillcountryhaul.co
+        - generic [ref=e20]:
+          - generic [ref=e21]: Business phone
+          - generic [ref=e22]: (512) 555-0199
+      - button "Pay $450" [ref=e23]
+  - button "Open Next.js Dev Tools" [ref=e29] [cursor=pointer]:
+    - img [ref=e30]
+  - alert [ref=e33]
