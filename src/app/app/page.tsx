@@ -896,6 +896,7 @@ function AppPageContent() {
               setSettingsInitialTab('business')
               setCurrentView('settings')
             }}
+            onNavigateQuotes={() => setCurrentView('quotes')}
           />
         )
       case 'followUps':

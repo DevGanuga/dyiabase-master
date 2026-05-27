@@ -29,6 +29,13 @@ export interface Job {
 export type QuoteStatus = 'draft' | 'sent' | 'accepted' | 'declined' | 'expired' | 'completed'
 export type PaymentRequestStatus = 'not_requested' | 'pending' | 'paid' | 'failed' | 'expired' | 'refunded'
 export type PaymentRecordStatus = 'pending' | 'checkout_created' | 'paid' | 'failed' | 'expired' | 'refunded' | 'partial_refund'
+export type PaymentRequestKind = 'payment_link' | 'invoice' | 'quote_payment' | 'job_payment'
+
+export interface PaymentLineItem {
+  description: string
+  quantity: number
+  unitAmountCents: number
+}
 
 export interface Quote {
   id: string
@@ -292,13 +299,21 @@ export interface PaymentRecord {
   stripe_payment_intent_id?: string | null
   stripe_charge_id?: string | null
   status: PaymentRecordStatus
+  kind: PaymentRequestKind
   amount_cents: number
+  subtotal_cents?: number | null
+  tax_cents?: number | null
   application_fee_amount_cents: number
   destination_amount_cents: number
   currency: string
   customer_name?: string | null
   customer_email?: string | null
+  customer_phone?: string | null
+  customer_address?: string | null
   description?: string | null
+  invoice_number?: string | null
+  due_date?: string | null
+  line_items?: PaymentLineItem[] | null
   checkout_url?: string | null
   paid_at?: string | null
   refunded_at?: string | null
@@ -313,13 +328,21 @@ export interface AppPaymentRecord {
   jobId?: string | null
   publicToken: string
   status: PaymentRecordStatus
+  kind: PaymentRequestKind
   amountCents: number
+  subtotalCents?: number | null
+  taxCents?: number | null
   applicationFeeAmountCents: number
   destinationAmountCents: number
   currency: string
   customerName?: string | null
   customerEmail?: string | null
+  customerPhone?: string | null
+  customerAddress?: string | null
   description?: string | null
+  invoiceNumber?: string | null
+  dueDate?: string | null
+  lineItems?: PaymentLineItem[] | null
   checkoutUrl?: string | null
   paidAt?: string | null
   refundedAt?: string | null

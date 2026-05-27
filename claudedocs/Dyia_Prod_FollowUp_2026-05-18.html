@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Dyia follow-up — May 18, 2026</title>
+<style>
+  @page { size: Letter; margin: 0.8in 0.75in; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, system-ui, sans-serif;
+    color: #1e293b;
+    font-size: 11.5pt;
+    line-height: 1.6;
+    margin: 0;
+  }
+  h1 { color: #0f172a; font-size: 18pt; margin: 0 0 2pt 0; font-weight: 600; letter-spacing: -0.005em; }
+  h2 { color: #0f172a; font-size: 12pt; margin: 22pt 0 8pt 0; font-weight: 600; }
+  .date { color: #64748b; font-size: 10pt; margin-bottom: 24pt; }
+  p { margin: 0 0 10pt 0; }
+  ul { margin: 0 0 10pt 0; padding-left: 22pt; }
+  li { margin-bottom: 8pt; }
+  code { font-family: "SF Mono", Menlo, monospace; font-size: 9.5pt; background: #f1f5f9; padding: 1pt 5pt; border-radius: 3pt; }
+  table { width: 100%; border-collapse: collapse; margin: 4pt 0 12pt 0; }
+  th, td { text-align: left; padding: 7pt 9pt; border-bottom: 1px solid #e2e8f0; vertical-align: top; font-size: 10.5pt; }
+  th { color: #475569; font-weight: 600; font-size: 9.5pt; text-transform: uppercase; letter-spacing: 0.03em; }
+  td.what { width: 42%; }
+  .ask li strong { color: #0f172a; }
+</style>
+</head>
+<body>
+
+<h1>Dyia &mdash; platform stability follow-up</h1>
+<div class="date">May 18, 2026 &middot; deployed to production</div>
+
+<h2>Context</h2>
+
+<p>After last week's <code>subscription_tier</code> incident note, Hanna and Marco hit four more issues during retest. Three of them were real bugs in our code, one was a synthetic-test-data limitation. Everything below is now live on <code>dyia.io</code>.</p>
+
+<h2>What shipped today</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th class="what">Symptom (what users saw)</th>
+      <th>Fix</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Brand-new signups were bounced from the app to the marketing pricing section. Hanna couldn't reach row 1 of the QA matrix and new founders never made it past the door.</td>
+      <td>The forced redirect is gone. New accounts now land in the dashboard on the Free/Basic tier. The trial banner still drives the Pro upsell inline.</td>
+    </tr>
+    <tr>
+      <td>Marco's Jobs tab kept showing the &ldquo;Unlock AI insights with Dyia Pro&rdquo; upsell even though his account is Pro.</td>
+      <td>The Jobs tab wasn't being told the user was Pro. Same prop-passing miss that <code>&lt;Quotes&gt;</code> already had fixed in Round 4. Both tabs now agree.</td>
+    </tr>
+    <tr>
+      <td>&ldquo;Upgrade to Pro&rdquo; clicks produced a generic error with no useful message. Hard to triage from logs.</td>
+      <td>Every Stripe call now refuses to start when <code>STRIPE_SECRET_KEY</code> isn't a real API key, and returns a one-line, readable diagnostic instead of a blank 500. The user-facing copy is unchanged; the change is that we can see what's wrong the second it happens.</td>
+    </tr>
+    <tr>
+      <td>BUG-031 &mdash; customer pays via the Stripe link, merchant's dashboard still shows &ldquo;Payment requested&rdquo; hours later.</td>
+      <td>New reconciliation route (<code>/api/payments/sync-pending</code>) asks Stripe directly about anything stuck in <code>pending</code> for the merchant and writes the truth back. The dashboard runs it on load and every time the merchant returns to the tab. The grid now self-heals even if a webhook is delayed, signature-mismatched, or unsubscribed in the Stripe dashboard.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>What's still on QA / ops to confirm</h2>
+
+<ul class="ask">
+  <li>
+    <strong>Stripe sandbox subscriptions for Hanna's test accounts.</strong>
+    The retest matrix needs each account in a specific subscription state. The QA accounts are now seeded directly in the database (<code>+100</code> through <code>+107</code>, see QA matrix doc). She can validate badges, banners, and gating immediately. End-to-end Stripe flows (real checkout, real invoice history in the billing portal) still require a working sandbox checkout, which loops back to the production Stripe key being valid.
+  </li>
+  <li>
+    <strong>Verify the production Stripe env on Vercel.</strong>
+    <code>STRIPE_SECRET_KEY</code> must begin with <code>sk_test_</code> or <code>sk_live_</code>. <code>STRIPE_WEBHOOK_SECRET</code> must begin with <code>whsec_</code>. If those two are swapped in production (they currently are in <code>.env.local</code>), every Stripe API call fails &mdash; including the new sync-pending route &mdash; and users see opaque errors on checkout. With today's deploy, those failures now surface with a readable message in Vercel logs the moment they happen.
+  </li>
+  <li>
+    <strong>Bulk reconciliation of the ~30 pre-Round-4 Pro users still flagged <code>tier='basic'</code>.</strong>
+    Unblocked the moment the production Stripe key above is confirmed correct. Until then, those users continue to self-heal on their next renewal or plan change event from Stripe.
+  </li>
+  <li>
+    <strong>Duplicate <code>032_</code> migration filename.</strong>
+    Still in the repo. Recommend renumbering one of them and adding the one-line CI check from the previous note before the next migration ships, to prevent another silent-skip outage.
+  </li>
+</ul>
+
+<h2>For Hanna's retest</h2>
+
+<p>Once Vercel finishes deploying (typically &lt; 2 minutes from this note):</p>
+
+<ul>
+  <li>Row 1 of the matrix (&ldquo;brand-new user lands in app with FREE badge&rdquo;) is now reachable. No more forced bounce to <code>/#pricing</code>.</li>
+  <li>The <code>+104</code> Pro account works for Pro-feature validation without needing the Stripe sandbox.</li>
+  <li>For BUG-031: pay through the public payment link as before. Within a few seconds of returning to the merchant's tab, the quote/job row should flip to <em>Paid</em> regardless of webhook state. If it doesn't, that's now a useful failure &mdash; the Vercel function logs will name the specific Stripe API error, which we can act on immediately.</li>
+</ul>
+
+</body>
+</html>

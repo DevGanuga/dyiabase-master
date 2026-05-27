@@ -26,21 +26,51 @@ export async function POST(
       return NextResponse.json({ error: 'This payment has already been completed.' }, { status: 400 })
     }
 
+    // For invoices, surface real line items to Stripe Checkout so the
+    // customer sees an itemized receipt that matches the Dyia invoice page.
+    // Tax is added as a separate line item to avoid configuring Stripe Tax.
+    const storedLineItems = Array.isArray(payment.line_items) ? payment.line_items : []
+    const checkoutLineItems = storedLineItems.length > 0
+      ? storedLineItems
+          .filter((item: { description?: unknown; quantity?: unknown; unitAmountCents?: unknown }) =>
+            item && typeof item === 'object'
+          )
+          .map((item: { description: string; quantity: number; unitAmountCents: number }) => ({
+            price_data: {
+              currency: payment.currency,
+              product_data: { name: item.description },
+              unit_amount: Math.max(0, Math.round(item.unitAmountCents)),
+            },
+            quantity: Math.max(1, Math.round(item.quantity)),
+          }))
+      : [
+          {
+            price_data: {
+              currency: payment.currency,
+              product_data: {
+                name: payment.description || 'Payment request',
+              },
+              unit_amount: payment.amount_cents,
+            },
+            quantity: 1,
+          },
+        ]
+
+    if (storedLineItems.length > 0 && payment.tax_cents && payment.tax_cents > 0) {
+      checkoutLineItems.push({
+        price_data: {
+          currency: payment.currency,
+          product_data: { name: 'Tax' },
+          unit_amount: payment.tax_cents,
+        },
+        quantity: 1,
+      })
+    }
+
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
       payment_method_types: ['card'],
-      line_items: [
-        {
-          price_data: {
-            currency: payment.currency,
-            product_data: {
-              name: payment.description || 'Payment request',
-            },
-            unit_amount: payment.amount_cents,
-          },
-          quantity: 1,
-        },
-      ],
+      line_items: checkoutLineItems,
       success_url: `${getBaseUrl()}/pay/${token}?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${getBaseUrl()}/pay/${token}?checkout=cancelled`,
       customer_email: body.customerEmail || payment.customer_email || undefined,
