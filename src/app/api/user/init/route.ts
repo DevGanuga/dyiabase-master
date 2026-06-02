@@ -103,6 +103,23 @@ export async function POST(req: Request) {
         .from('dyia_settings')
         .insert({ user_id: newProfile.id })
 
+      // Elevate known admin emails on FIRST signup too (previously only existing
+      // users were elevated, so a brand-new admin account stayed a normal user
+      // until a second app load).
+      if (ADMIN_EMAILS.includes(newProfile.email?.toLowerCase())) {
+        try {
+          await grantAdminAccess(newProfile.id, 'super_admin')
+          const { data: elevated } = await supabase
+            .from('dyia_users')
+            .select('*')
+            .eq('id', newProfile.id)
+            .single()
+          if (elevated) return NextResponse.json({ profile: elevated })
+        } catch (elevateErr) {
+          console.error('Admin elevation on signup failed:', elevateErr)
+        }
+      }
+
       // Send welcome email if Resend is configured (covers case when app loads before Clerk webhook)
       if (isResendConfigured() && newProfile.email) {
         try {

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
-import { getConnectCountry, getPaymentsAppUrl, getStripe, getSupabaseAdmin } from '@/lib/stripe'
+import { getConnectCountry, getPaymentsAppUrl, getStripe, getSupabaseAdmin, syncConnectAccountState } from '@/lib/stripe'
+import { getErrorMessage } from '@/lib/errors'
 
 export async function POST() {
   try {
@@ -42,10 +43,10 @@ export async function POST() {
 
       accountId = account.id
 
-      await supabase
-        .from('dyia_users')
-        .update({ stripe_connect_account_id: account.id })
-        .eq('id', user.id)
+      // Persist the full Connect state (account id + capability flags), not
+      // just the id, so the Payments tab reflects reality immediately and a
+      // failed write surfaces instead of silently leaving us unlinked.
+      await syncConnectAccountState(supabase, user.id, account)
     }
 
     const returnUrl = `${getPaymentsAppUrl()}&connect=return`
@@ -62,7 +63,7 @@ export async function POST() {
   } catch (error) {
     console.error('Connect onboarding error:', error)
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Unknown error' },
+      { error: getErrorMessage(error, 'Could not start Stripe setup') },
       { status: 500 }
     )
   }

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { getStripe, getSupabaseAdmin } from '@/lib/stripe'
+import { getErrorMessage } from '@/lib/errors'
 
 export async function POST() {
   try {
@@ -32,7 +33,7 @@ export async function POST() {
   } catch (error) {
     console.error('Connect dashboard error:', error)
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Unknown error' },
+      { error: getErrorMessage(error, 'Could not open Stripe dashboard') },
       { status: 500 }
     )
   }

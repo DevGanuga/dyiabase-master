@@ -35,7 +35,7 @@ export async function POST(
 
     const { data: payment, error: lookupError } = await supabase
       .from('dyia_payments')
-      .select('id, status, quote_id, job_id, public_token, stripe_checkout_session_id')
+      .select('id, status, quote_id, job_id, public_token, stripe_checkout_session_id, amount_cents')
       .eq('public_token', token)
       .single()
 
@@ -67,11 +67,55 @@ export async function POST(
       return NextResponse.json({ error: 'Could not verify payment with Stripe' }, { status: 502 })
     }
 
+    // SECURITY (P0): never trust a session id supplied by the public caller.
+    // Even when `stripe_checkout_session_id` is NULL (e.g. the checkout write
+    // didn't land), the session MUST be cryptographically bound to THIS
+    // payment. The checkout route stamps `dyia_payment_id` and `public_token`
+    // into the session metadata, so we verify both, plus the amount, before
+    // marking anything paid. Without this, an attacker could paste any other
+    // completed Checkout session id and mark a merchant's invoice paid for
+    // free.
+    const sessionPaymentId = session.metadata?.dyia_payment_id || null
+    const sessionToken = session.metadata?.public_token || null
+    const boundToThisPayment =
+      sessionPaymentId === payment.id || (sessionToken !== null && sessionToken === payment.public_token)
+
+    if (!boundToThisPayment) {
+      console.error('verify: session not bound to payment', {
+        token,
+        paymentId: payment.id,
+        sessionId,
+        sessionPaymentId,
+      })
+      return NextResponse.json({ error: 'Session does not match this payment link' }, { status: 400 })
+    }
+
     if (session.payment_status !== 'paid') {
       return NextResponse.json({
         status: payment.status,
         sessionPaymentStatus: session.payment_status,
       })
+    }
+
+    // Amount guard: the paid total must cover at least the base amount, so a
+    // cheaper session for a different (or tampered) amount can't satisfy this
+    // invoice. Anything ABOVE the base is the customer's optional tip, which we
+    // record as the authoritative tip (the merchant keeps 100%).
+    let reconciledTipCents = 0
+    if (
+      typeof session.amount_total === 'number' &&
+      typeof payment.amount_cents === 'number'
+    ) {
+      if (session.amount_total < payment.amount_cents) {
+        console.error('verify: session underpaid', {
+          token,
+          paymentId: payment.id,
+          expected: payment.amount_cents,
+          got: session.amount_total,
+        })
+        return NextResponse.json({ error: 'Payment amount does not match this invoice' }, { status: 400 })
+      }
+      reconciledTipCents = session.amount_total - payment.amount_cents
     }
 
     const paymentIntentId =
@@ -87,6 +131,7 @@ export async function POST(
         status: 'paid',
         stripe_payment_intent_id: paymentIntentId,
         paid_at: now,
+        tip_cents: reconciledTipCents,
       })
       .eq('id', payment.id)
 
@@ -113,9 +158,10 @@ export async function POST(
       reconciledNow: true,
     })
   } catch (error) {
+    // Customer-facing page: keep the message generic, log the real cause.
     console.error('Payment verify error:', error)
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Unknown error' },
+      { error: 'Could not verify payment. Please try again.' },
       { status: 500 }
     )
   }

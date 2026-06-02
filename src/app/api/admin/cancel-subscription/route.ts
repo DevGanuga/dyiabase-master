@@ -60,19 +60,27 @@ export async function POST(req: NextRequest) {
     }
 
     // Cancel in Stripe
+    let scheduledEndsAt: string | null = null
     if (immediate) {
       await stripe.subscriptions.cancel(user.stripe_subscription_id)
     } else {
-      await stripe.subscriptions.update(user.stripe_subscription_id, {
+      const updated = await stripe.subscriptions.update(user.stripe_subscription_id, {
         cancel_at_period_end: true,
       })
+      const periodEnd = (updated as unknown as { current_period_end?: number }).current_period_end
+      scheduledEndsAt = periodEnd ? new Date(periodEnd * 1000).toISOString() : null
     }
 
-    // Update DB
+    // Update DB optimistically so the admin UI reflects the change before the
+    // Stripe webhook lands. For a scheduled downgrade we mirror Stripe's
+    // cancel_at_period_end flag + period end (matching the user self-service
+    // cancel route) so the user detail page can show "Downgrading on <date>".
     await supabase
       .from('dyia_users')
       .update({
         subscription_status: immediate ? 'canceled' : user.subscription_status,
+        cancel_at_period_end: immediate ? false : true,
+        ...(immediate ? {} : scheduledEndsAt ? { subscription_ends_at: scheduledEndsAt } : {}),
       })
       .eq('id', targetUserId)
 

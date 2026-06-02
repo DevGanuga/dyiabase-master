@@ -36,7 +36,16 @@ export default function AdminDashboard() {
         if (!res.ok) throw new Error(res.status === 403 ? 'Access denied' : 'Failed to load')
         return res.json()
       })
-      .then(setMetrics)
+      .then(data => {
+        // The route returns { metrics, users }; the dashboard renders the flat
+        // metrics object. Previously the whole payload was stored as `metrics`,
+        // so every `m.mrr`/`m.totalUsers` read was undefined and crashed render.
+        const next = data?.metrics ?? data
+        if (!next || typeof next.totalUsers !== 'number') {
+          throw new Error('Failed to load')
+        }
+        setMetrics(next)
+      })
       .catch(err => setError(err.message))
       .finally(() => setLoading(false))
   }, [])
@@ -174,10 +183,14 @@ export default function AdminDashboard() {
         </div>
 
         {/* Quick Links */}
-        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-5 gap-4">
           <Link href="/app/admin/users" className="bg-slate-900 border border-slate-800 rounded-xl p-5 hover:border-slate-700 transition-colors group">
             <h3 className="font-semibold text-white group-hover:text-orange-400 transition-colors">Manage Users</h3>
             <p className="text-sm text-slate-500 mt-1">{m.totalUsers} total users</p>
+          </Link>
+          <Link href="/app/admin/payments" className="bg-slate-900 border border-slate-800 rounded-xl p-5 hover:border-slate-700 transition-colors group">
+            <h3 className="font-semibold text-white group-hover:text-orange-400 transition-colors">Dyia Pay</h3>
+            <p className="text-sm text-slate-500 mt-1">Transactions & fees</p>
           </Link>
           <Link href="/app/admin/webhooks" className="bg-slate-900 border border-slate-800 rounded-xl p-5 hover:border-slate-700 transition-colors group">
             <h3 className="font-semibold text-white group-hover:text-orange-400 transition-colors">Webhook Logs</h3>
@@ -211,7 +224,7 @@ function MetricCard({ label, value, accent }: { label: string; value: string | n
   )
 }
 
-export function AdminHeader({ active }: { active: 'dashboard' | 'users' | 'webhooks' }) {
+export function AdminHeader({ active }: { active: 'dashboard' | 'users' | 'payments' | 'webhooks' }) {
   return (
     <div className="border-b border-slate-800 px-6 py-4">
       <div className="max-w-7xl mx-auto flex items-center justify-between">
@@ -222,6 +235,7 @@ export function AdminHeader({ active }: { active: 'dashboard' | 'users' | 'webho
         <nav className="flex items-center gap-4 text-sm">
           <Link href="/app/admin" className={active === 'dashboard' ? 'text-orange-400 font-medium' : 'text-slate-400 hover:text-white transition-colors'}>Dashboard</Link>
           <Link href="/app/admin/users" className={active === 'users' ? 'text-orange-400 font-medium' : 'text-slate-400 hover:text-white transition-colors'}>Users</Link>
+          <Link href="/app/admin/payments" className={active === 'payments' ? 'text-orange-400 font-medium' : 'text-slate-400 hover:text-white transition-colors'}>Payments</Link>
           <Link href="/app/admin/webhooks" className={active === 'webhooks' ? 'text-orange-400 font-medium' : 'text-slate-400 hover:text-white transition-colors'}>Webhooks</Link>
           <Link href="/app" className="text-slate-500 hover:text-white transition-colors">Back to App</Link>
         </nav>

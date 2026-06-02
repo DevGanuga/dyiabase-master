@@ -4,12 +4,22 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
+import { auth } from '@clerk/nextjs/server'
 import { sendEmail, isResendConfigured } from '@/lib/resend/client'
 import { intelFreeReportEmail } from '@/lib/resend/templates'
 import { getBaseUrl } from '@/lib/env'
+import { isAdminByClerkId } from '@/lib/admin'
 
 export async function POST(request: NextRequest) {
   try {
+    // Admin-only: this endpoint sends real email via Resend, so leaving it open
+    // would let anyone trigger arbitrary sends (spam + cost abuse). Respond 404
+    // for everyone else so its existence isn't advertised.
+    const { userId: clerkUserId } = await auth()
+    if (!clerkUserId || !(await isAdminByClerkId(clerkUserId))) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    }
+
     const { email } = await request.json()
 
     if (!email) {

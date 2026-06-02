@@ -1,7 +1,14 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { formatCurrency } from '@/lib/utils'
+import {
+  calculatePlatformFeeCents,
+  computeInvoiceTotals,
+  dollarsToCents,
+  formatCents,
+  netAfterPlatformFeeCents,
+  parseQuantity,
+} from '@/lib/payments'
 
 interface LineItemDraft {
   id: string
@@ -19,7 +26,48 @@ interface CreatePaymentRequestModalProps {
   defaultTaxPercentage?: number
   /** Whether the merchant has finished Stripe onboarding. Drives a CTA-blocking banner. */
   canAcceptPayments: boolean
+  /** Which tab to open on. Lets the hub's action cards deep-link to invoice vs link. */
+  initialTab?: ModalTab
   onOpenConnect?: () => void
+  /**
+   * Demo-mode hook. When provided, the modal calls this INSTEAD of POSTing to
+   * the API (which 401s without a real session) and expects a share URL back.
+   * Lets the business team click through the full create flow in demo mode.
+   */
+  onDemoCreate?: (payload: DemoCreatePayload) => Promise<{ shareUrl: string }> | { shareUrl: string }
+  /** Seed the form (e.g. "Duplicate" an existing invoice/pay link). */
+  prefill?: PaymentPrefill | null
+}
+
+export interface PaymentPrefill {
+  kind: 'payment_link' | 'invoice'
+  amountCents?: number
+  description?: string
+  customerName?: string
+  customerEmail?: string
+  customerPhone?: string
+  customerAddress?: string
+  invoiceNumber?: string
+  dueDate?: string
+  taxPercentage?: number
+  lineItems?: { description: string; quantity: number; unitAmountCents: number }[]
+}
+
+export interface DemoCreatePayload {
+  kind: 'payment_link' | 'invoice'
+  amountCents: number
+  description?: string
+  allowTip: boolean
+  customerName?: string
+  customerEmail?: string
+  customerPhone?: string
+  customerAddress?: string
+  invoiceNumber?: string
+  dueDate?: string
+  taxPercentage: number
+  lineItems: { description: string; quantity: number; unitAmountCents: number }[]
+  subtotalCents: number
+  taxCents: number
 }
 
 const newLineItem = (): LineItemDraft => ({
@@ -29,29 +77,23 @@ const newLineItem = (): LineItemDraft => ({
   unitAmount: '',
 })
 
-function parseMoneyToCents(value: string): number {
-  const n = Number(value)
-  if (!Number.isFinite(n) || n < 0) return 0
-  return Math.round(n * 100)
-}
-
-function parseQuantity(value: string): number {
-  const n = Number(value)
-  if (!Number.isFinite(n) || n <= 0) return 0
-  return n
-}
-
 export function CreatePaymentRequestModal({
   open,
   onClose,
   onCreated,
   defaultTaxPercentage = 0,
   canAcceptPayments,
+  initialTab = 'link',
   onOpenConnect,
+  onDemoCreate,
+  prefill,
 }: CreatePaymentRequestModalProps) {
-  const [tab, setTab] = useState<ModalTab>('link')
+  const [tab, setTab] = useState<ModalTab>(initialTab)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // Tips flow 100% to the merchant; Dyia's fee stays on the base. Default on so
+  // customers are prompted to add a tip on the public pay page.
+  const [allowTip, setAllowTip] = useState(true)
 
   // Shared customer fields
   const [customerName, setCustomerName] = useState('')
@@ -76,7 +118,38 @@ export function CreatePaymentRequestModal({
     if (!open) return
     setError(null)
     setSubmitting(false)
-  }, [open])
+    setTab(initialTab)
+  }, [open, initialTab])
+
+  // Seed the form when opened with a prefill (e.g. "Duplicate"). The invoice
+  // number is intentionally NOT copied — it must stay unique per merchant.
+  useEffect(() => {
+    if (!open || !prefill) return
+    setCustomerName(prefill.customerName || '')
+    setCustomerEmail(prefill.customerEmail || '')
+    setCustomerPhone(prefill.customerPhone || '')
+    setCustomerAddress(prefill.customerAddress || '')
+    if (prefill.kind === 'invoice') {
+      setInvoiceNumber('')
+      setDueDate(prefill.dueDate || '')
+      setTaxPercentage(prefill.taxPercentage ? String(prefill.taxPercentage) : '')
+      setInvoiceNotes(prefill.description || '')
+      const items = prefill.lineItems && prefill.lineItems.length > 0 ? prefill.lineItems : null
+      setLineItems(
+        items
+          ? items.map((li) => ({
+              id: Math.random().toString(36).slice(2),
+              description: li.description,
+              quantity: String(li.quantity),
+              unitAmount: String(li.unitAmountCents / 100),
+            }))
+          : [newLineItem()]
+      )
+    } else {
+      setLinkAmount(prefill.amountCents ? String(prefill.amountCents / 100) : '')
+      setLinkDescription(prefill.description || '')
+    }
+  }, [open, prefill])
 
   useEffect(() => {
     if (open && defaultTaxPercentage > 0 && taxPercentage === '') {
@@ -84,24 +157,23 @@ export function CreatePaymentRequestModal({
     }
   }, [open, defaultTaxPercentage, taxPercentage])
 
-  const invoiceTotals = useMemo(() => {
-    let subtotalCents = 0
-    for (const item of lineItems) {
-      const qty = parseQuantity(item.quantity)
-      const unitCents = parseMoneyToCents(item.unitAmount)
-      if (!item.description.trim() || qty <= 0 || unitCents < 0) continue
-      subtotalCents += qty * unitCents
-    }
-    const taxPct = Number(taxPercentage)
-    const taxCents = Number.isFinite(taxPct) && taxPct > 0
-      ? Math.round(subtotalCents * (taxPct / 100))
-      : 0
-    return {
-      subtotalCents,
-      taxCents,
-      totalCents: subtotalCents + taxCents,
-    }
-  }, [lineItems, taxPercentage])
+  // Normalized line items (drops incomplete rows) — shared with submit + totals.
+  const normalizedItems = useMemo(
+    () =>
+      lineItems
+        .map((item) => ({
+          description: item.description.trim(),
+          quantity: parseQuantity(item.quantity),
+          unitAmountCents: dollarsToCents(item.unitAmount),
+        }))
+        .filter((item) => item.description && item.quantity > 0 && item.unitAmountCents >= 0),
+    [lineItems]
+  )
+
+  const invoiceTotals = useMemo(
+    () => computeInvoiceTotals(normalizedItems, Number(taxPercentage)),
+    [normalizedItems, taxPercentage]
+  )
 
   const updateLineItem = (id: string, patch: Partial<LineItemDraft>) => {
     setLineItems((prev) => prev.map((item) => (item.id === id ? { ...item, ...patch } : item)))
@@ -124,68 +196,87 @@ export function CreatePaymentRequestModal({
     setTaxPercentage(defaultTaxPercentage > 0 ? String(defaultTaxPercentage) : '')
     setLineItems([newLineItem()])
     setInvoiceNotes('')
+    setAllowTip(true)
     setError(null)
-    setTab('link')
+    setTab(initialTab)
     onClose()
   }
 
   const submit = async () => {
     setError(null)
-    if (!canAcceptPayments) {
+    if (!canAcceptPayments && !onDemoCreate) {
       setError('Finish Stripe onboarding first so payments can settle to your bank.')
       return
     }
 
+    const linkAmountCents = dollarsToCents(linkAmount)
     if (tab === 'link') {
-      const amountCents = parseMoneyToCents(linkAmount)
-      if (amountCents <= 0) {
+      if (linkAmountCents <= 0) {
         setError('Enter an amount greater than $0.')
         return
       }
-    } else {
-      const hasValidLine = lineItems.some(
-        (item) => item.description.trim() && parseQuantity(item.quantity) > 0 && parseMoneyToCents(item.unitAmount) > 0
-      )
-      if (!hasValidLine) {
-        setError('Add at least one line item with a quantity and price.')
-        return
-      }
+    } else if (normalizedItems.length === 0) {
+      setError('Add at least one line item with a quantity and price.')
+      return
     }
 
     setSubmitting(true)
     try {
-      const body =
-        tab === 'link'
-          ? {
-              kind: 'payment_link' as const,
-              amountCents: parseMoneyToCents(linkAmount),
-              description: linkDescription.trim() || undefined,
-              customerName: customerName.trim() || undefined,
-              customerEmail: customerEmail.trim() || undefined,
-              customerPhone: customerPhone.trim() || undefined,
-              customerAddress: customerAddress.trim() || undefined,
-            }
-          : {
-              kind: 'invoice' as const,
-              description: invoiceNotes.trim() || undefined,
-              customerName: customerName.trim() || undefined,
-              customerEmail: customerEmail.trim() || undefined,
-              customerPhone: customerPhone.trim() || undefined,
-              customerAddress: customerAddress.trim() || undefined,
-              invoiceNumber: invoiceNumber.trim() || undefined,
-              dueDate: dueDate || undefined,
-              taxPercentage: Number(taxPercentage) || 0,
-              lineItems: lineItems
-                .filter(
-                  (item) =>
-                    item.description.trim() && parseQuantity(item.quantity) > 0 && parseMoneyToCents(item.unitAmount) >= 0
-                )
-                .map((item) => ({
-                  description: item.description.trim(),
-                  quantity: parseQuantity(item.quantity),
-                  unitAmountCents: parseMoneyToCents(item.unitAmount),
-                })),
-            }
+      const isInvoice = tab === 'invoice'
+      const amountCents = isInvoice ? invoiceTotals.totalCents : linkAmountCents
+
+      // Demo mode: simulate locally instead of calling the API (which 401s with
+      // no real session). Lets the whole create flow be clicked through live.
+      if (onDemoCreate) {
+        const result = await onDemoCreate({
+          kind: isInvoice ? 'invoice' : 'payment_link',
+          amountCents,
+          description: (isInvoice ? invoiceNotes : linkDescription).trim() || undefined,
+          allowTip,
+          customerName: customerName.trim() || undefined,
+          customerEmail: customerEmail.trim() || undefined,
+          customerPhone: customerPhone.trim() || undefined,
+          customerAddress: customerAddress.trim() || undefined,
+          invoiceNumber: invoiceNumber.trim() || undefined,
+          dueDate: dueDate || undefined,
+          taxPercentage: Number(taxPercentage) || 0,
+          lineItems: normalizedItems,
+          subtotalCents: invoiceTotals.subtotalCents,
+          taxCents: invoiceTotals.taxCents,
+        })
+        onCreated({
+          shareUrl: result.shareUrl,
+          customerName: customerName.trim() || null,
+          kind: isInvoice ? 'invoice' : 'payment_link',
+        })
+        resetAndClose()
+        return
+      }
+
+      const body = isInvoice
+        ? {
+            kind: 'invoice' as const,
+            description: invoiceNotes.trim() || undefined,
+            allowTip,
+            customerName: customerName.trim() || undefined,
+            customerEmail: customerEmail.trim() || undefined,
+            customerPhone: customerPhone.trim() || undefined,
+            customerAddress: customerAddress.trim() || undefined,
+            invoiceNumber: invoiceNumber.trim() || undefined,
+            dueDate: dueDate || undefined,
+            taxPercentage: Number(taxPercentage) || 0,
+            lineItems: normalizedItems,
+          }
+        : {
+            kind: 'payment_link' as const,
+            amountCents: linkAmountCents,
+            description: linkDescription.trim() || undefined,
+            allowTip,
+            customerName: customerName.trim() || undefined,
+            customerEmail: customerEmail.trim() || undefined,
+            customerPhone: customerPhone.trim() || undefined,
+            customerAddress: customerAddress.trim() || undefined,
+          }
 
       const res = await fetch('/api/payments/request/custom', {
         method: 'POST',
@@ -200,7 +291,7 @@ export function CreatePaymentRequestModal({
       onCreated({
         shareUrl: data.shareUrl,
         customerName: customerName.trim() || null,
-        kind: tab === 'link' ? 'payment_link' : 'invoice',
+        kind: isInvoice ? 'invoice' : 'payment_link',
       })
       resetAndClose()
     } catch (err) {
@@ -212,14 +303,18 @@ export function CreatePaymentRequestModal({
 
   if (!open) return null
 
-  const previewTotal = tab === 'link' ? parseMoneyToCents(linkAmount) : invoiceTotals.totalCents
+  const previewTotal = tab === 'link' ? dollarsToCents(linkAmount) : invoiceTotals.totalCents
 
   return (
-    <div className="fixed inset-0 z-[120] flex items-stretch sm:items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="w-full sm:max-w-2xl bg-[var(--color-bg-card)] sm:rounded-2xl border border-[var(--color-border)] shadow-2xl flex flex-col max-h-screen sm:max-h-[90vh]">
-        <div className="flex items-start justify-between gap-3 px-6 py-4 border-b border-[var(--color-border)] flex-shrink-0">
+    <div className="fixed inset-0 z-[120] flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-150">
+      <div className="w-full sm:max-w-2xl bg-[var(--color-bg-card)] rounded-t-3xl sm:rounded-3xl border border-[var(--color-border)] shadow-2xl flex flex-col max-h-[92vh] animate-in fade-in slide-in-from-bottom sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-300">
+        {/* iOS grab handle (mobile) */}
+        <div className="sm:hidden pt-2.5 pb-1 flex justify-center flex-shrink-0">
+          <span className="w-9 h-1 rounded-full bg-[var(--color-border)]" />
+        </div>
+        <div className="flex items-start justify-between gap-3 px-6 pt-4 pb-4 sm:pt-5 border-b border-[var(--color-border)] flex-shrink-0">
           <div>
-            <h2 className="text-lg font-semibold text-[var(--color-text-primary)]">Get paid</h2>
+            <h2 className="text-lg font-bold tracking-tight text-[var(--color-text-primary)]">Get paid</h2>
             <p className="text-sm text-[var(--color-text-muted)] mt-0.5">
               Send a one-tap payment link or a full invoice. Funds land in your Stripe balance, then your bank.
             </p>
@@ -307,7 +402,7 @@ export function CreatePaymentRequestModal({
               </div>
               <div>
                 <label className="text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wide">
-                  What's this for
+                  What&apos;s this for
                 </label>
                 <input
                   type="text"
@@ -444,15 +539,15 @@ export function CreatePaymentRequestModal({
               <div className="rounded-xl bg-[var(--color-bg-subtle)] p-3 text-sm space-y-1">
                 <div className="flex justify-between text-[var(--color-text-muted)]">
                   <span>Subtotal</span>
-                  <span>{formatCurrency(invoiceTotals.subtotalCents / 100)}</span>
+                  <span>{formatCents(invoiceTotals.subtotalCents)}</span>
                 </div>
                 <div className="flex justify-between text-[var(--color-text-muted)]">
                   <span>Tax</span>
-                  <span>{formatCurrency(invoiceTotals.taxCents / 100)}</span>
+                  <span>{formatCents(invoiceTotals.taxCents)}</span>
                 </div>
                 <div className="flex justify-between font-semibold text-[var(--color-text-primary)] pt-1 border-t border-[var(--color-border)]">
                   <span>Total</span>
-                  <span>{formatCurrency(invoiceTotals.totalCents / 100)}</span>
+                  <span>{formatCents(invoiceTotals.totalCents)}</span>
                 </div>
               </div>
             </div>
@@ -495,6 +590,31 @@ export function CreatePaymentRequestModal({
             </div>
           </div>
 
+          {/* Tip toggle — tips go 100% to the merchant */}
+          <div className="mt-4 flex items-start justify-between gap-3 rounded-xl border border-[var(--color-border)] p-3">
+            <div>
+              <p className="text-sm font-medium text-[var(--color-text-primary)]">Ask for a tip</p>
+              <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
+                Show optional tip buttons (15/18/20% or custom) on the pay page. Tips go 100% to you.
+              </p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={allowTip}
+              onClick={() => setAllowTip((v) => !v)}
+              className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${
+                allowTip ? 'bg-orange-500' : 'bg-[var(--color-bg-subtle)] border border-[var(--color-border)]'
+              }`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                  allowTip ? 'translate-x-6' : 'translate-x-1'
+                }`}
+              />
+            </button>
+          </div>
+
           {error && (
             <p className="mt-4 text-sm text-red-600 dark:text-red-400">{error}</p>
           )}
@@ -502,11 +622,11 @@ export function CreatePaymentRequestModal({
 
         <div className="border-t border-[var(--color-border)] px-6 py-4 flex items-center justify-between gap-3 flex-shrink-0 bg-[var(--color-bg-card)]">
           <div className="text-sm">
-            <p className="text-[var(--color-text-muted)] text-xs uppercase tracking-wide">You'll get paid</p>
+            <p className="text-[var(--color-text-muted)] text-xs uppercase tracking-wide">You&apos;ll get paid</p>
             <p className="font-semibold text-[var(--color-text-primary)]">
-              {formatCurrency(Math.max(0, previewTotal - Math.round(previewTotal * 0.0075)) / 100)}
+              {formatCents(netAfterPlatformFeeCents(previewTotal))}
               <span className="ml-1 text-xs font-normal text-[var(--color-text-muted)]">
-                after {formatCurrency(Math.round(previewTotal * 0.0075) / 100)} Dyia fee
+                after {formatCents(calculatePlatformFeeCents(previewTotal))} Dyia fee
               </span>
             </p>
           </div>

@@ -243,6 +243,7 @@
 /* App Sidebar - Dark Theme */
 .app-sidebar {
   @apply w-64 flex flex-col h-screen overflow-hidden;
+  background: #0f172a; /* slate-900 — desktop rail stays dark by design */
 }
 
 /* Ensure sidebar SVGs never intercept clicks */
@@ -349,6 +350,22 @@
 .app-btn-primary:active:not(:disabled) {
   transform: translateY(0) scale(0.98);
   box-shadow: var(--shadow-sm);
+}
+
+/* iOS-style full-width pay button used on the public /pay page */
+.ios-pay-btn {
+  @apply w-full inline-flex items-center justify-center gap-2 py-3.5 rounded-2xl text-[15px] font-semibold text-white disabled:opacity-60 disabled:cursor-not-allowed;
+  background: linear-gradient(135deg, #f97316 0%, #f59e0b 100%);
+  box-shadow: 0 8px 22px -6px rgba(249, 115, 22, 0.5);
+  transition: transform 0.15s ease, box-shadow 0.2s ease;
+}
+
+.ios-pay-btn:hover:not(:disabled) {
+  box-shadow: 0 12px 28px -6px rgba(249, 115, 22, 0.62);
+}
+
+.ios-pay-btn:active:not(:disabled) {
+  transform: scale(0.98);
 }
 
 .app-btn-secondary {
@@ -534,6 +551,14 @@
   border: 1px solid var(--color-border);
   box-shadow: var(--shadow-xl);
   animation: modalSlideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Native-feel: keep scroll momentum inside overlays/sheets and stop it from
+   chaining to the page behind (iOS rubber-band stays within the sheet). */
+.modal-panel,
+.modal-overlay {
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 .modal-title {
@@ -1010,10 +1035,17 @@
 }
 
 @media (max-width: 640px) {
+  /* The dark desktop rail becomes a translucent, theme-aware iOS tab bar
+     pinned to the bottom with proper home-indicator safe-area inset. */
   .app-sidebar {
     @apply fixed bottom-0 left-0 right-0 top-auto w-full h-auto z-40;
     @apply flex flex-col;
     max-height: none;
+    background: color-mix(in srgb, var(--color-bg-card) 80%, transparent);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    backdrop-filter: saturate(180%) blur(20px);
+    border-top: 1px solid var(--color-border-light);
+    box-shadow: 0 -1px 0 0 color-mix(in srgb, var(--color-border) 60%, transparent);
   }
 
   .app-sidebar > .p-5,
@@ -1027,62 +1059,77 @@
   }
 
   .app-sidebar .sidebar-mobile-nav {
-    @apply flex flex-row justify-around w-full py-2 px-1;
-    @apply bg-slate-900 border-t border-slate-800;
-  }
-
-  .app-sidebar .sidebar-mobile-nav .space-y-0\.5 {
-    @apply flex flex-row justify-around w-full space-y-0 gap-0;
-  }
-
-  .app-sidebar .sidebar-mobile-nav button.nav-item-animated {
-    @apply flex flex-col items-center justify-center px-2 py-2 gap-1 rounded-lg;
-    @apply min-w-0 flex-1;
-    max-width: 72px;
-  }
-
-  .app-sidebar .sidebar-mobile-nav button.nav-item-animated span:first-child {
-    @apply scale-100;
-  }
-
-  .app-sidebar .sidebar-mobile-nav button.nav-item-animated .sidebar-text {
-    @apply block text-[10px] leading-tight truncate;
-  }
-
-  .app-sidebar .sidebar-mobile-nav button.nav-item-animated::after {
-    @apply hidden;
+    @apply flex flex-row justify-around w-full;
+    padding: 6px 4px;
+    /* Clear the iPhone home indicator */
+    padding-bottom: max(6px, env(safe-area-inset-bottom));
   }
 
   .app-layout {
     @apply flex-col;
   }
 
+  /* Reserve room for the tab bar (≈58px) + the home-indicator inset so the
+     last row of any screen is never hidden behind the bar. */
   .app-layout main {
-    @apply pb-20;
+    padding-bottom: calc(58px + env(safe-area-inset-bottom));
   }
 
-  /* Hide certain nav items on mobile to fit */
-  .app-sidebar .sidebar-mobile-nav button[data-mobile-hide="true"] {
-    @apply hidden;
-  }
-
-  /* Mobile toast positioning */
+  /* Mobile toast positioning — sit above the tab bar + safe area */
   .toast,
   .toast-success,
   .toast-error {
-    @apply top-auto bottom-24 right-4 left-4 text-center justify-center;
+    @apply top-auto right-4 left-4 text-center justify-center;
+    bottom: calc(72px + env(safe-area-inset-bottom));
   }
+}
+
+/* ============================================ */
+/* iOS-STYLE BOTTOM TAB ITEM */
+/* ============================================ */
+.ios-tab {
+  @apply relative flex flex-col items-center justify-center gap-0.5 min-w-0 flex-1;
+  padding: 5px 4px;
+  max-width: 88px;
+  color: var(--color-text-faint);
+  transition: color var(--transition-fast), transform 120ms ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.ios-tab:active {
+  transform: scale(0.9);
+}
+
+.ios-tab.is-active {
+  color: var(--color-brand);
+}
+
+.ios-tab-icon {
+  @apply flex items-center justify-center;
+  transition: transform var(--transition-bounce);
+}
+
+.ios-tab.is-active .ios-tab-icon {
+  transform: translateY(-1px) scale(1.08);
+}
+
+.ios-tab-label {
+  font-size: 10px;
+  line-height: 1.1;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  @apply truncate max-w-full;
 }
 
 /* Small mobile devices */
 @media (max-width: 380px) {
-  .app-sidebar .sidebar-mobile-nav button.nav-item-animated {
-    @apply px-1;
-    max-width: 60px;
+  .ios-tab {
+    max-width: 64px;
+    padding-left: 2px;
+    padding-right: 2px;
   }
-
-  .app-sidebar .sidebar-mobile-nav button.nav-item-animated .sidebar-text {
-    @apply text-[9px];
+  .ios-tab-label {
+    font-size: 9px;
   }
 }
 
@@ -1776,9 +1823,114 @@
   100% { opacity: 1; transform: translateY(0); }
 }
 
-/* Animate-in utility */
+/* ============================================ */
+/* UNIFIED MOTION SYSTEM (tailwindcss-animate compatible) */
+/* One enter/exit vocabulary used across the whole platform so every */
+/* dropdown, sheet, modal and toast shares the same iOS-spring motion. */
+/* Components already author `animate-in fade-in slide-in-from-bottom   */
+/* zoom-in-95 duration-200` etc — these utilities make them real.       */
+/* ============================================ */
+
+@keyframes enter {
+  from {
+    opacity: var(--tw-enter-opacity, 1);
+    transform: translate3d(var(--tw-enter-translate-x, 0), var(--tw-enter-translate-y, 0), 0)
+      scale3d(var(--tw-enter-scale, 1), var(--tw-enter-scale, 1), 1)
+      rotate(var(--tw-enter-rotate, 0));
+  }
+}
+
+@keyframes exit {
+  to {
+    opacity: var(--tw-exit-opacity, 1);
+    transform: translate3d(var(--tw-exit-translate-x, 0), var(--tw-exit-translate-y, 0), 0)
+      scale3d(var(--tw-exit-scale, 1), var(--tw-exit-scale, 1), 1)
+      rotate(var(--tw-exit-rotate, 0));
+  }
+}
+
 .animate-in {
-  animation: fadeSlideIn 0.2s ease-out;
+  animation-name: enter;
+  animation-duration: 200ms;
+  /* iOS spring — same curve as system sheets/menus */
+  animation-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
+  animation-fill-mode: both;
+  --tw-enter-opacity: initial;
+  --tw-enter-scale: initial;
+  --tw-enter-rotate: initial;
+  --tw-enter-translate-x: initial;
+  --tw-enter-translate-y: initial;
+}
+
+.animate-out {
+  animation-name: exit;
+  animation-duration: 160ms;
+  animation-timing-function: cubic-bezier(0.4, 0, 1, 1);
+  animation-fill-mode: both;
+  --tw-exit-opacity: initial;
+  --tw-exit-scale: initial;
+  --tw-exit-rotate: initial;
+  --tw-exit-translate-x: initial;
+  --tw-exit-translate-y: initial;
+}
+
+/* fade */
+.fade-in, .fade-in-0 { --tw-enter-opacity: 0; }
+.fade-out, .fade-out-0 { --tw-exit-opacity: 0; }
+
+/* zoom */
+.zoom-in-50 { --tw-enter-scale: 0.5; }
+.zoom-in-75 { --tw-enter-scale: 0.75; }
+.zoom-in-90 { --tw-enter-scale: 0.9; }
+.zoom-in-95 { --tw-enter-scale: 0.95; }
+.zoom-out-95 { --tw-exit-scale: 0.95; }
+.zoom-out-90 { --tw-exit-scale: 0.9; }
+
+/* slide in */
+.slide-in-from-top-1 { --tw-enter-translate-y: -0.25rem; }
+.slide-in-from-top-2 { --tw-enter-translate-y: -0.5rem; }
+.slide-in-from-top-4 { --tw-enter-translate-y: -1rem; }
+.slide-in-from-top { --tw-enter-translate-y: -100%; }
+.slide-in-from-bottom-1 { --tw-enter-translate-y: 0.25rem; }
+.slide-in-from-bottom-2 { --tw-enter-translate-y: 0.5rem; }
+.slide-in-from-bottom-4 { --tw-enter-translate-y: 1rem; }
+.slide-in-from-bottom-8 { --tw-enter-translate-y: 2rem; }
+.slide-in-from-bottom { --tw-enter-translate-y: 100%; }
+.slide-in-from-left-2 { --tw-enter-translate-x: -0.5rem; }
+.slide-in-from-left { --tw-enter-translate-x: -100%; }
+.slide-in-from-right-2 { --tw-enter-translate-x: 0.5rem; }
+.slide-in-from-right { --tw-enter-translate-x: 100%; }
+
+/* slide out */
+.slide-out-to-bottom { --tw-exit-translate-y: 100%; }
+.slide-out-to-top { --tw-exit-translate-y: -100%; }
+
+/* Per-animation duration overrides (so `duration-150` etc. also speeds the
+   keyframe animation, matching tailwindcss-animate semantics). */
+.duration-100 { animation-duration: 100ms; }
+.duration-150 { animation-duration: 150ms; }
+.duration-200 { animation-duration: 200ms; }
+.duration-300 { animation-duration: 300ms; }
+.duration-500 { animation-duration: 500ms; }
+
+/* sm: desktop responsive variants used by modal/sheet components */
+@media (min-width: 640px) {
+  .sm\:zoom-in-95 { --tw-enter-scale: 0.95; }
+  .sm\:slide-in-from-bottom-0 { --tw-enter-translate-y: 0; }
+}
+
+/* ============================================ */
+/* REDUCED MOTION — honor the OS accessibility setting platform-wide */
+/* ============================================ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 @keyframes sendBounce {

@@ -2,8 +2,11 @@ import { randomBytes } from 'crypto'
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
 import { getBaseUrl } from '@/lib/env'
+import { STRIPE_PLATFORM_FEE_BPS as FEE_BPS, calculatePlatformFeeCents } from '@/lib/payments'
 
-export const STRIPE_PLATFORM_FEE_BPS = 75
+// Re-exported from the isomorphic payments lib so the fee constant has a single
+// source of truth shared with the client. Kept here for backwards-compatible imports.
+export const STRIPE_PLATFORM_FEE_BPS = FEE_BPS
 
 export type ResourcePaymentStatus =
   | 'not_requested'
@@ -46,7 +49,8 @@ export function getConnectCountry() {
 }
 
 export function calculateApplicationFee(amountCents: number) {
-  return Math.max(0, Math.round(amountCents * (STRIPE_PLATFORM_FEE_BPS / 10_000)))
+  // Delegates to the shared, unit-tested implementation in @/lib/payments.
+  return calculatePlatformFeeCents(amountCents)
 }
 
 export function generatePublicPaymentToken() {
@@ -67,7 +71,7 @@ export async function syncConnectAccountState(
   const payoutsEnabled = Boolean(account.payouts_enabled)
   const onboardingComplete = detailsSubmitted && chargesEnabled
 
-  await supabase
+  const { error: updateError } = await supabase
     .from('dyia_users')
     .update({
       stripe_connect_account_id: account.id,
@@ -79,6 +83,13 @@ export async function syncConnectAccountState(
       stripe_connect_default_currency: account.default_currency || null,
     })
     .eq('id', userId)
+
+  // Callers (onboarding, account, status) assume Connect state is persisted.
+  // If the write fails silently, the Payments tab shows stale/incorrect status
+  // and merchants can't tell why charges won't enable. Surface it.
+  if (updateError) {
+    throw updateError
+  }
 
   return {
     stripeConnectAccountId: account.id,

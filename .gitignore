@@ -57,6 +57,10 @@ out/
 .cache/
 .parcel-cache/
 
+# TypeScript incremental build cache (must not be committed — stale copies
+# cause spurious "module not found" failures on a fresh build)
+*.tsbuildinfo
+
 # Environment Files
 .env
 .env.local

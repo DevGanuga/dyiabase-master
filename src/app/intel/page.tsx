@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import Image from 'next/image'
 import { PublicHeader } from '@/components/PublicHeader'
 import { INTEL_INDUSTRIES, INTEL_RADIUS_OPTIONS } from '@/types/database'
 import type { IntelScanData, IntelActionStep, IntelResearchSource } from '@/types/database'

@@ -371,9 +371,12 @@ export function MassEmail({ jobs, quotes, isPro = false, showSuccess, showError 
           </div>
           <h2 className="text-xl font-semibold text-[var(--color-text-primary)] mb-2">Pro Feature</h2>
           <p className="text-[var(--color-text-muted)] mb-4">Upgrade to Pro to send email blasts to your customers from your own Gmail or Outlook account.</p>
-          <span className="inline-block bg-gradient-to-r from-orange-500 to-amber-500 text-white px-4 py-2 rounded-lg text-sm font-medium">
+          <a
+            href="/app?view=settings&tab=account#subscription"
+            className="inline-block bg-gradient-to-r from-orange-500 to-amber-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 transition-opacity"
+          >
             Upgrade to Pro
-          </span>
+          </a>
         </div>
       </div>
     )

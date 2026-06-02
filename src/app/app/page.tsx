@@ -6,7 +6,7 @@ import { useUser, useClerk, useAuth } from '@clerk/nextjs'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient, initSupabaseAuth } from '@/lib/supabase/client'
 import { extractAdditionalExpenseLabel, getRelativeLocalDateInput } from '@/lib/utils'
-import type { AppJob, AppQuote, AppSettings, UserProfile } from '@/types/database'
+import type { AppJob, AppQuote, AppSettings, UserProfile, PaymentRequestStatus } from '@/types/database'
 import { computeSubscriptionState } from '@/lib/subscription'
 import { Sidebar } from '@/components/app/Sidebar'
 import { Dashboard } from '@/components/app/Dashboard'
@@ -15,7 +15,6 @@ import { Quotes } from '@/components/app/Quotes'
 import { QuoteBuilder } from '@/components/app/QuoteBuilder'
 import { Settings } from '@/components/app/Settings'
 import { TrialBanner } from '@/components/app/TrialBanner'
-import { BetaBanner } from '@/components/app/BetaBanner'
 import { TopBar } from '@/components/app/TopBar'
 import { ConfirmProvider } from '@/components/providers/ConfirmProvider'
 import type { LaunchpadItem } from '@/components/app/Launchpad'
@@ -62,6 +61,9 @@ const DEMO_SETTINGS: AppSettings = {
 
 const VALID_VIEWS: View[] = ['dashboard', 'jobs', 'quotes', 'quoteBuilder', 'followUps', 'calendar', 'reports', 'marketing', 'customers', 'massEmail', 'assistant', 'settings', 'payments', 'admin', 'profitCalculator', 'intel']
 
+type SettingsTab = 'business' | 'financial' | 'expenses' | 'templates' | 'account'
+const VALID_SETTINGS_TABS: SettingsTab[] = ['business', 'financial', 'expenses', 'templates', 'account']
+
 export default function AppPage() {
   return (
     <Suspense fallback={
@@ -95,6 +97,12 @@ function AppPageContent() {
   const viewParam = (viewParamRaw && VALID_VIEWS.includes(viewParamRaw as View)) ? (viewParamRaw as View) : null
   const planParam = searchParams.get('plan') as 'monthly' | 'annual' | null
   const sessionIdParam = searchParams.get('session_id')
+  // Deep link into a specific Settings tab (e.g. upgrade CTAs across the app use
+  // /app?view=settings&tab=account#subscription). Previously `tab` was ignored,
+  // so those CTAs landed on the default Business tab and the #subscription
+  // scroll never ran.
+  const tabParamRaw = searchParams.get('tab')
+  const tabParam = (tabParamRaw && VALID_SETTINGS_TABS.includes(tabParamRaw as SettingsTab)) ? (tabParamRaw as SettingsTab) : null
   const [currentView, setCurrentViewState] = useState<View>(viewParam ?? 'dashboard')
 
   // Keep currentView in sync when URL changes (e.g., browser back/forward).
@@ -139,6 +147,9 @@ function AppPageContent() {
   const [jobDraftStatus, setJobDraftStatus] = useState<AppJob['status'] | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  // Set when the primary data load (jobs/quotes/settings) fails so we can show
+  // a retry banner instead of silently leaving the app empty.
+  const [loadError, setLoadError] = useState(false)
   const [fixedMonthlyExpenses, setFixedMonthlyExpenses] = useState(0)
   const [pendingFollowUpsCount, setPendingFollowUpsCount] = useState(0)
   const [selectedJobForQuote, setSelectedJobForQuote] = useState<AppJob | null>(null)
@@ -148,7 +159,7 @@ function AppPageContent() {
   const [hasViewedAssistant, setHasViewedAssistant] = useState(false)
   const [hasNewIntel, setHasNewIntel] = useState(false)
   const [checkoutLoading, setCheckoutLoading] = useState(false)
-  const [settingsInitialTab, setSettingsInitialTab] = useState<'business' | 'templates' | null>(null)
+  const [settingsInitialTab, setSettingsInitialTab] = useState<SettingsTab | null>(null)
   const [verifyingCheckout, setVerifyingCheckout] = useState(false)
   const checkoutTriggeredRef = useRef(false)
   const verifyAttemptedRef = useRef(false)
@@ -225,6 +236,7 @@ function AppPageContent() {
   }, [])
 
   const loadData = useCallback(async (userId: string) => {
+    setLoadError(false)
     try {
       // Load jobs
       const { data: jobsData } = await supabase
@@ -259,7 +271,15 @@ function AppPageContent() {
             notes: cleanNotes,
             address: (j as { address?: string }).address || undefined,
             status: (j as { status?: string }).status as AppJob['status'] | undefined,
-            receiptUrl: (j as { receipt_url?: string | null }).receipt_url ?? undefined
+            receiptUrl: (j as { receipt_url?: string | null }).receipt_url ?? undefined,
+            // Payment fields must be hydrated from the DB so paid/pending badges
+            // and "Copy Pay Link" survive a reload or an async customer payment;
+            // previously only optimistic in-memory updates set these.
+            paymentStatus: (j as { payment_status?: PaymentRequestStatus }).payment_status ?? undefined,
+            paymentAmountCents: (j as { payment_amount_cents?: number | null }).payment_amount_cents ?? null,
+            paymentRequestedAt: (j as { payment_requested_at?: string | null }).payment_requested_at ?? null,
+            paymentPaidAt: (j as { payment_paid_at?: string | null }).payment_paid_at ?? null,
+            paymentLastRequestId: (j as { payment_last_request_id?: string | null }).payment_last_request_id ?? null,
           }
         }))
       }
@@ -289,7 +309,12 @@ function AppPageContent() {
           estimateRange: { low: parseFloat(q.estimate_low) || 0, high: parseFloat(q.estimate_high) || 0 },
           total: parseFloat(q.total) || 0,
           status: q.status || 'draft',
-          sentAt: q.sent_at ? new Date(q.sent_at).getTime() : undefined
+          sentAt: q.sent_at ? new Date(q.sent_at).getTime() : undefined,
+          paymentStatus: (q as { payment_status?: PaymentRequestStatus }).payment_status ?? undefined,
+          paymentAmountCents: (q as { payment_amount_cents?: number | null }).payment_amount_cents ?? null,
+          paymentRequestedAt: (q as { payment_requested_at?: string | null }).payment_requested_at ?? null,
+          paymentPaidAt: (q as { payment_paid_at?: string | null }).payment_paid_at ?? null,
+          paymentLastRequestId: (q as { payment_last_request_id?: string | null }).payment_last_request_id ?? null,
         })))
       }
 
@@ -386,6 +411,7 @@ function AppPageContent() {
       }
     } catch (error) {
       console.error('Error loading data:', error)
+      setLoadError(true)
     }
   }, [supabase])
 
@@ -586,16 +612,31 @@ function AppPageContent() {
     setVerifyingCheckout(true)
 
     const verifySession = async () => {
+      let verifiedProfile: UserProfile | null = null
       try {
         const res = await fetch('/api/stripe/verify-session', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ sessionId: sessionIdParam }),
         })
-        const data = await res.json()
-        if (res.ok && data.profile) {
-          setUserProfile(data.profile)
+        const data = await res.json().catch(() => ({}))
+        // CRITICAL: only treat this as success when the server actually
+        // confirmed and returned the updated profile. Previously ANY response
+        // (including 4xx/5xx) fell through to the success path below, so users
+        // saw "Your Pro trial is active!" even when activation failed.
+        if (!res.ok || !data.profile) {
+          console.error('Checkout verification failed:', data?.error)
+          showError(
+            typeof data?.error === 'string' && data.error
+              ? data.error
+              : "We couldn't confirm your subscription yet. Refresh in a moment — if it keeps happening, contact support."
+          )
+          // Keep session_id in the URL so a refresh retries verification.
+          setVerifyingCheckout(false)
+          return
         }
+        verifiedProfile = data.profile as UserProfile
+        setUserProfile(verifiedProfile)
       } catch (err) {
         console.error('Failed to verify checkout session:', err)
         // Keep session_id in URL so a refresh can retry verification
@@ -603,7 +644,19 @@ function AppPageContent() {
         setVerifyingCheckout(false)
         return
       }
-      sessionStorage.setItem('dyia_checkout_success', '1')
+
+      // Derive an accurate success message from the verified profile so we
+      // don't tell a Basic subscriber they're on a "Pro trial".
+      const verifiedState = computeSubscriptionState(verifiedProfile)
+      const successMsg =
+        verifiedState.tier === 'trial'
+          ? verifiedState.productTier === 'basic'
+            ? "Your free trial is active. You'll move to the Basic plan when it ends."
+            : 'Your free trial is active! Welcome to Dyia Pro.'
+          : verifiedState.planTier === 'pro'
+            ? "You're on Dyia Pro! Welcome aboard."
+            : 'Your Basic plan is active. Welcome to Dyia!'
+      sessionStorage.setItem('dyia_checkout_success', successMsg)
       const url = new URL(window.location.href)
       url.searchParams.delete('session_id')
       router.replace(url.pathname + (url.search || ''), { scroll: false })
@@ -611,14 +664,18 @@ function AppPageContent() {
     }
 
     verifySession()
-  }, [sessionIdParam, loading, userProfile, router])
+  }, [sessionIdParam, loading, userProfile, router, showError])
 
   // Show checkout success toast after onboarding is complete (not during redirect to onboarding)
   const needsOnboardingEarly = !settings.onboardingCompleted && !settings.onboardingSkipped
   useEffect(() => {
-    if (!loading && !verifyingCheckout && userProfile && !needsOnboardingEarly && sessionStorage.getItem('dyia_checkout_success')) {
-      sessionStorage.removeItem('dyia_checkout_success')
-      showSuccess('Your Pro trial is active! Welcome to Dyia Pro.')
+    if (!loading && !verifyingCheckout && userProfile && !needsOnboardingEarly) {
+      const successMsg = sessionStorage.getItem('dyia_checkout_success')
+      if (successMsg) {
+        sessionStorage.removeItem('dyia_checkout_success')
+        // Tolerate the legacy '1' flag from older sessions.
+        showSuccess(successMsg === '1' ? 'Welcome to Dyia!' : successMsg)
+      }
     }
   }, [loading, verifyingCheckout, userProfile, needsOnboardingEarly, showSuccess])
 
@@ -640,6 +697,9 @@ function AppPageContent() {
   const subState = useMemo(() => computeSubscriptionState(userProfile), [userProfile])
   const isAdmin = subState.isAdmin
   const isPro = subState.isPro
+  // AI is usable with Pro access OR purchased credits. Non-Pro users with no
+  // credits get an upgrade panel instead of hitting a raw 403 from /api/ai/chat.
+  const canUseAI = subState.canUseAI
   // Brand-new users with no Stripe history now land in the app on the Free/Basic
   // experience (row 1 of QA_SUBSCRIPTION_STATE_MATRIX). TrialBanner handles the
   // upsell — no forced redirect to the marketing pricing section.
@@ -881,7 +941,7 @@ function AppPageContent() {
             userImageUrl={isDemoMode ? undefined : user?.imageUrl}
             userName={isDemoMode ? 'Demo User' : (user?.firstName || userProfile?.first_name || '')}
             isDemoMode={isDemoMode}
-            initialTab={settingsInitialTab ?? undefined}
+            initialTab={settingsInitialTab ?? tabParam ?? undefined}
             onDataChanged={refreshCounts}
             onOpenPayments={() => setCurrentView('payments')}
           />
@@ -892,6 +952,8 @@ function AppPageContent() {
             userProfile={userProfile}
             settings={settings}
             showSuccess={showSuccess}
+            showError={showError}
+            isDemoMode={isDemoMode}
             onOpenSettings={() => {
               setSettingsInitialTab('business')
               setCurrentView('settings')
@@ -1011,9 +1073,24 @@ function AppPageContent() {
           subscriptionTier={subState.tier}
           isDemoMode={isDemoMode}
         />
-        {!isDemoMode && !isAdmin && <BetaBanner />}
+        {loadError && !isDemoMode && (
+          <div className="mx-4 sm:mx-6 lg:mx-8 mt-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 flex items-center justify-between gap-3" role="alert">
+            <div className="flex items-center gap-2 text-sm text-red-700 dark:text-red-300 min-w-0">
+              <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M5.07 19h13.86c1.54 0 2.5-1.67 1.73-3L13.73 4a2 2 0 00-3.46 0L3.34 16c-.77 1.33.19 3 1.73 3z" />
+              </svg>
+              <span className="truncate">We couldn&apos;t load your latest data. Some screens may be incomplete.</span>
+            </div>
+            <button
+              onClick={() => { void refreshAllData() }}
+              className="app-btn-secondary text-xs py-1.5 px-3 shrink-0"
+            >
+              Retry
+            </button>
+          </div>
+        )}
         {/* Assistant: render when open; keep mounted after first visit so conversation persists when switching views */}
-        {(currentView === 'assistant' || hasViewedAssistant) && (
+        {(currentView === 'assistant' || hasViewedAssistant) && canUseAI && (
           <div
             className={`flex-1 min-h-0 flex flex-col ${currentView === 'assistant' ? 'animate-view-enter' : 'hidden'}`}
           >
@@ -1024,6 +1101,27 @@ function AppPageContent() {
               onPromptConsumed={() => setAssistantInitialPrompt(null)}
               onAppDataChanged={refreshAllData}
             />
+          </div>
+        )}
+        {currentView === 'assistant' && !canUseAI && (
+          <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6 lg:p-8 animate-view-enter">
+            <div className="max-w-xl mx-auto mt-8 text-center bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-2xl p-8">
+              <div className="w-16 h-16 bg-gradient-to-br from-orange-500 to-amber-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+                </svg>
+              </div>
+              <h2 className="text-xl font-semibold text-[var(--color-text-primary)] mb-2">Meet your AI business assistant</h2>
+              <p className="text-[var(--color-text-muted)] mb-5">
+                Ask Dyia logs jobs, drafts quotes, tracks expenses, and surfaces insights from a chat. It&apos;s included with Pro — or use AI credits.
+              </p>
+              <a
+                href="/app?view=settings&tab=account#subscription"
+                className="inline-block bg-gradient-to-r from-orange-500 to-amber-500 text-white px-5 py-2.5 rounded-lg text-sm font-semibold hover:opacity-90 transition-opacity"
+              >
+                Upgrade to Pro
+              </a>
+            </div>
           </div>
         )}
         {currentView !== 'assistant' && (

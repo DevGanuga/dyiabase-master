@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { getBaseUrl } from '@/lib/env'
+import { getErrorMessage } from '@/lib/errors'
 import {
   calculateApplicationFee,
   generatePublicPaymentToken,
@@ -74,48 +75,94 @@ export async function POST(request: NextRequest) {
       const applicationFeeAmountCents = calculateApplicationFee(amountCents)
       const destinationAmountCents = Math.max(0, amountCents - applicationFeeAmountCents)
 
-      const { data: payment, error: paymentError } = await supabase
+      // Idempotent get-or-create: re-clicking "Request Payment" must NOT spawn a
+      // duplicate row. Reuse an existing not-yet-paid request for this quote and
+      // refresh its amount/fee so a changed quote total stays in sync.
+      const { data: existing } = await supabase
         .from('dyia_payments')
-        .insert({
-          user_id: user.id,
-          quote_id: quote.id,
-          public_token: publicToken,
-          stripe_connected_account_id: user.stripe_connect_account_id,
-          kind: 'quote_payment',
-          status: 'pending',
-          amount_cents: amountCents,
-          application_fee_amount_cents: applicationFeeAmountCents,
-          destination_amount_cents: destinationAmountCents,
-          currency,
-          customer_name: quote.customer_name,
-          customer_email: quote.customer_email,
-          customer_phone: quote.customer_phone,
-          customer_address: quote.customer_address,
-          description: `Payment for quote for ${quote.customer_name}`,
-          metadata: {
-            resource_type: 'quote',
-            quote_id: quote.id,
-          },
-        })
-        .select('id')
-        .single()
+        .select('id, public_token')
+        .eq('user_id', user.id)
+        .eq('quote_id', quote.id)
+        .in('status', ['pending', 'checkout_created'])
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
 
-      if (paymentError || !payment) {
-        throw paymentError || new Error('Could not create payment request')
+      let paymentId: string
+      let token: string
+
+      if (existing) {
+        const { error: reuseError } = await supabase
+          .from('dyia_payments')
+          .update({
+            status: 'pending',
+            amount_cents: amountCents,
+            application_fee_amount_cents: applicationFeeAmountCents,
+            destination_amount_cents: destinationAmountCents,
+            tip_cents: 0,
+            currency,
+            customer_name: quote.customer_name,
+            customer_email: quote.customer_email,
+            customer_phone: quote.customer_phone,
+            customer_address: quote.customer_address,
+          })
+          .eq('id', existing.id)
+        if (reuseError) throw reuseError
+        paymentId = existing.id
+        token = existing.public_token
+      } else {
+        const { data: payment, error: paymentError } = await supabase
+          .from('dyia_payments')
+          .insert({
+            user_id: user.id,
+            quote_id: quote.id,
+            public_token: publicToken,
+            stripe_connected_account_id: user.stripe_connect_account_id,
+            kind: 'quote_payment',
+            status: 'pending',
+            amount_cents: amountCents,
+            application_fee_amount_cents: applicationFeeAmountCents,
+            destination_amount_cents: destinationAmountCents,
+            allow_tip: true,
+            currency,
+            customer_name: quote.customer_name,
+            customer_email: quote.customer_email,
+            customer_phone: quote.customer_phone,
+            customer_address: quote.customer_address,
+            description: `Payment for quote for ${quote.customer_name}`,
+            metadata: {
+              resource_type: 'quote',
+              quote_id: quote.id,
+            },
+          })
+          .select('id')
+          .single()
+
+        if (paymentError || !payment) {
+          throw paymentError || new Error('Could not create payment request')
+        }
+        paymentId = payment.id
+        token = publicToken
       }
 
-      await supabase
+      const { error: quoteUpdateError } = await supabase
         .from('dyia_quotes')
         .update({
           payment_status: 'pending',
           payment_amount_cents: amountCents,
           payment_requested_at: now,
-          payment_last_request_id: payment.id,
+          payment_last_request_id: paymentId,
         })
         .eq('id', quote.id)
 
-      const shareUrl = `${getBaseUrl()}/pay/${publicToken}`
-      return NextResponse.json({ shareUrl, amountCents, paymentId: payment.id })
+      if (quoteUpdateError) {
+        // The payment row exists but the quote didn't get marked pending —
+        // surface it instead of letting the merchant UI silently desync.
+        throw quoteUpdateError
+      }
+
+      const shareUrl = `${getBaseUrl()}/pay/${token}`
+      return NextResponse.json({ shareUrl, amountCents, paymentId })
     }
 
     const { data: job, error: jobError } = await supabase
@@ -141,49 +188,89 @@ export async function POST(request: NextRequest) {
     const applicationFeeAmountCents = calculateApplicationFee(amountCents)
     const destinationAmountCents = Math.max(0, amountCents - applicationFeeAmountCents)
 
-    const { data: payment, error: paymentError } = await supabase
+    // Idempotent get-or-create (see quote branch): reuse an existing not-yet-paid
+    // request for this job rather than spawning a duplicate row on re-click.
+    const { data: existingJobPayment } = await supabase
       .from('dyia_payments')
-      .insert({
-        user_id: user.id,
-        job_id: job.id,
-        public_token: publicToken,
-        stripe_connected_account_id: user.stripe_connect_account_id,
-        kind: 'job_payment',
-        status: 'pending',
-        amount_cents: amountCents,
-        application_fee_amount_cents: applicationFeeAmountCents,
-        destination_amount_cents: destinationAmountCents,
-        currency,
-        customer_name: job.customer_name,
-        description: `Payment for job for ${job.customer_name}`,
-        metadata: {
-          resource_type: 'job',
-          job_id: job.id,
-        },
-      })
-      .select('id')
-      .single()
+      .select('id, public_token')
+      .eq('user_id', user.id)
+      .eq('job_id', job.id)
+      .in('status', ['pending', 'checkout_created'])
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
 
-    if (paymentError || !payment) {
-      throw paymentError || new Error('Could not create payment request')
+    let jobPaymentId: string
+    let jobToken: string
+
+    if (existingJobPayment) {
+      const { error: reuseError } = await supabase
+        .from('dyia_payments')
+        .update({
+          status: 'pending',
+          amount_cents: amountCents,
+          application_fee_amount_cents: applicationFeeAmountCents,
+          destination_amount_cents: destinationAmountCents,
+          tip_cents: 0,
+          currency,
+          customer_name: job.customer_name,
+        })
+        .eq('id', existingJobPayment.id)
+      if (reuseError) throw reuseError
+      jobPaymentId = existingJobPayment.id
+      jobToken = existingJobPayment.public_token
+    } else {
+      const { data: payment, error: paymentError } = await supabase
+        .from('dyia_payments')
+        .insert({
+          user_id: user.id,
+          job_id: job.id,
+          public_token: publicToken,
+          stripe_connected_account_id: user.stripe_connect_account_id,
+          kind: 'job_payment',
+          status: 'pending',
+          amount_cents: amountCents,
+          application_fee_amount_cents: applicationFeeAmountCents,
+          destination_amount_cents: destinationAmountCents,
+          allow_tip: true,
+          currency,
+          customer_name: job.customer_name,
+          description: `Payment for job for ${job.customer_name}`,
+          metadata: {
+            resource_type: 'job',
+            job_id: job.id,
+          },
+        })
+        .select('id')
+        .single()
+
+      if (paymentError || !payment) {
+        throw paymentError || new Error('Could not create payment request')
+      }
+      jobPaymentId = payment.id
+      jobToken = publicToken
     }
 
-    await supabase
+    const { error: jobUpdateError } = await supabase
       .from('dyia_jobs')
       .update({
         payment_status: 'pending',
         payment_amount_cents: amountCents,
         payment_requested_at: now,
-        payment_last_request_id: payment.id,
+        payment_last_request_id: jobPaymentId,
       })
       .eq('id', job.id)
 
-    const shareUrl = `${getBaseUrl()}/pay/${publicToken}`
-    return NextResponse.json({ shareUrl, amountCents, paymentId: payment.id })
+    if (jobUpdateError) {
+      throw jobUpdateError
+    }
+
+    const shareUrl = `${getBaseUrl()}/pay/${jobToken}`
+    return NextResponse.json({ shareUrl, amountCents, paymentId: jobPaymentId })
   } catch (error) {
     console.error('Payment request error:', error)
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Unknown error' },
+      { error: getErrorMessage(error, 'Could not create payment link') },
       { status: 500 }
     )
   }

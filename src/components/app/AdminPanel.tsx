@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
+import Link from 'next/link'
 
 // ---------- Types ----------
 
@@ -351,7 +352,10 @@ export function AdminPanel() {
           <h1 className="text-2xl font-bold text-[var(--color-text-primary)]">Admin Panel</h1>
           <p className="text-sm text-[var(--color-text-muted)] mt-1">Platform management and analytics</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <AdminToolLink href="/app/admin/payments" label="Dyia Pay" />
+          <AdminToolLink href="/app/admin/webhooks" label="Webhooks" />
+          <AdminToolLink href="/app/admin" label="Full dashboard" />
           <QuickLink href="https://dashboard.stripe.com" label="Stripe" color="bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-200 dark:border-violet-800" />
           <QuickLink href="https://dashboard.clerk.com" label="Clerk" color="bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800" />
           <QuickLink href="https://supabase.com/dashboard" label="Supabase" color="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800" />
@@ -1105,6 +1109,21 @@ function QuickLink({ href, label, color }: { href: string; label: string; color:
       {label}
       <svg className="w-3 h-3 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
     </a>
+  )
+}
+
+// Internal link to the standalone /app/admin tools (Dyia Pay, Webhooks, full
+// dashboard) so the embedded panel and the standalone admin pages are reachable
+// from one place instead of being URL-only.
+function AdminToolLink({ href, label }: { href: string; label: string }) {
+  return (
+    <Link
+      href={href}
+      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all hover:shadow-sm bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-200 dark:border-orange-800/60"
+    >
+      {label}
+      <svg className="w-3 h-3 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+    </Link>
   )
 }
 

@@ -10,6 +10,8 @@ interface WebhookEvent {
   event_id: string | null
   payload: Record<string, unknown>
   status: string
+  // The logger writes `error_message`; older rows may carry the legacy `error`.
+  error_message: string | null
   error: string | null
   created_at: string
 }
@@ -59,6 +61,7 @@ export default function AdminWebhooksPage() {
           <nav className="flex items-center gap-4 text-sm">
             <Link href="/app/admin" className="text-slate-400 hover:text-white transition-colors">Dashboard</Link>
             <Link href="/app/admin/users" className="text-slate-400 hover:text-white transition-colors">Users</Link>
+            <Link href="/app/admin/payments" className="text-slate-400 hover:text-white transition-colors">Payments</Link>
             <Link href="/app/admin/webhooks" className="text-orange-400 font-medium">Webhooks</Link>
             <Link href="/app" className="text-slate-500 hover:text-white transition-colors">Back to App</Link>
           </nav>
@@ -132,9 +135,9 @@ export default function AdminWebhooksPage() {
                     {event.event_id && (
                       <p className="text-xs text-slate-600 mt-2">Event ID: {event.event_id}</p>
                     )}
-                    {event.error && (
+                    {(event.error_message || event.error) && (
                       <div className="mt-2 p-2 bg-red-950/30 border border-red-900/50 rounded text-xs text-red-400">
-                        {event.error}
+                        {event.error_message || event.error}
                       </div>
                     )}
                     <pre className="mt-2 p-3 bg-slate-950 rounded-lg text-xs text-slate-400 overflow-auto max-h-60">

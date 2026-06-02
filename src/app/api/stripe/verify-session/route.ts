@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
+import { getErrorMessage } from '@/lib/errors'
 
 function getStripe() {
   const key = process.env.STRIPE_SECRET_KEY
@@ -120,9 +121,10 @@ export async function POST(request: NextRequest) {
     const subscriptionResponse = await stripe.subscriptions.retrieve(subscriptionId)
     const subscription = subscriptionResponse as unknown as {
       status: string
-      items: { data: Array<{ price?: { recurring?: { interval?: string } } }> }
+      items: { data: Array<{ price?: { id?: string; recurring?: { interval?: string } } }> }
       current_period_end?: number
       trial_end?: number | null
+      cancel_at_period_end?: boolean
     }
 
     const plan = subscription.items.data[0]?.price?.recurring?.interval === 'year' ? 'annual' : 'monthly'
@@ -135,15 +137,42 @@ export async function POST(request: NextRequest) {
 
     const periodEnd = subscription.trial_end || subscription.current_period_end
 
+    // Mirror the webhook's tier resolution so Pro/Basic gating is correct
+    // immediately, before the async webhook lands. Prefer the tier stamped on
+    // the checkout session; fall back to the price id.
+    const metaTier = session.metadata?.subscription_tier
+    const basicPriceIds = [
+      process.env.NEXT_PUBLIC_STRIPE_BASIC_MONTHLY_PRICE_ID,
+      process.env.NEXT_PUBLIC_STRIPE_BASIC_ANNUAL_PRICE_ID,
+    ].filter(Boolean)
+    const priceId = subscription.items.data[0]?.price?.id
+    const subscriptionTier: 'basic' | 'pro' =
+      metaTier === 'basic' || metaTier === 'pro'
+        ? metaTier
+        : priceId && basicPriceIds.includes(priceId)
+          ? 'basic'
+          : 'pro'
+
+    const updatePayload: Record<string, unknown> = {
+      stripe_customer_id: customerId,
+      stripe_subscription_id: subscriptionId,
+      subscription_status: ourStatus,
+      subscription_plan: plan,
+      subscription_tier: subscriptionTier,
+      subscription_ends_at: periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
+      cancel_at_period_end: !!subscription.cancel_at_period_end,
+      // A fresh checkout always clears any prior dunning stamp.
+      payment_failed_at: null,
+    }
+    // Stamp trial consumption now (mirrors the webhook) so the "Try Pro free"
+    // banner self-suppresses without waiting for the async webhook round-trip.
+    if ((ourStatus === 'trialing' || subscription.trial_end) && !dyiaUser.trial_consumed_at) {
+      updatePayload.trial_consumed_at = new Date().toISOString()
+    }
+
     const { data: updatedUser, error: updateError } = await supabase
       .from('dyia_users')
-      .update({
-        stripe_customer_id: customerId,
-        stripe_subscription_id: subscriptionId,
-        subscription_status: ourStatus,
-        subscription_plan: plan,
-        subscription_ends_at: periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
-      })
+      .update(updatePayload)
       .eq('id', dyiaUser.id)
       .select()
       .single()
@@ -157,7 +186,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Verify-session error:', error)
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Unknown error' },
+      { error: getErrorMessage(error, 'Could not verify your subscription') },
       { status: 500 }
     )
   }

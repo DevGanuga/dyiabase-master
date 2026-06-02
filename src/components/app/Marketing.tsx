@@ -128,7 +128,6 @@ export function Marketing({ showSuccess, isPro = false }: MarketingProps) {
 
   const totalSpend = roiItems.reduce((s, i) => s + i.spend, 0)
   const totalRevenue = roiItems.reduce((s, i) => s + i.revenue, 0)
-  const totalJobs = roiItems.reduce((s, i) => s + i.jobs, 0)
   const overallRoi = totalSpend > 0 ? ((totalRevenue - totalSpend) / totalSpend) * 100 : null
 
   const bestChannel = useMemo(() => {
@@ -257,6 +256,12 @@ export function Marketing({ showSuccess, isPro = false }: MarketingProps) {
           </div>
           <h2 className="text-xl font-semibold text-[var(--color-text-primary)] mb-2">Pro Feature</h2>
           <p className="text-[var(--color-text-muted)] mb-4">Upgrade to Pro to track marketing spend and see ROI by channel.</p>
+          <a
+            href="/app?view=settings&tab=account#subscription"
+            className="inline-block bg-gradient-to-r from-orange-500 to-amber-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 transition-opacity"
+          >
+            Upgrade to Pro
+          </a>
         </div>
       </div>
     )

@@ -13,9 +13,9 @@ const STEPS: Step[] = ['welcome', 'you', 'business', 'strategy', 'operations', '
 
 const BUSINESS_TYPES = [
   { id: 'junk_removal', label: 'Junk Removal', icon: '🚛', available: true },
-  { id: 'lawn_care', label: 'Lawn Care', icon: '🌿', available: false },
-  { id: 'cleaning', label: 'Cleaning', icon: '🧹', available: false },
-  { id: 'moving', label: 'Moving', icon: '📦', available: false },
+  { id: 'lawn_care', label: 'Lawn Care', icon: '🌿', available: true },
+  { id: 'cleaning', label: 'Cleaning', icon: '🧹', available: true },
+  { id: 'moving', label: 'Moving', icon: '📦', available: true },
   { id: 'handyman', label: 'Handyman', icon: '🔧', available: true },
   { id: 'other', label: 'Other', icon: '💼', available: true },
 ]
@@ -96,7 +96,6 @@ export default function OnboardingPage() {
 
   initSupabaseAuth(() => getToken({ template: 'supabase' }))
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   const supabase = useMemo(() => createClient(), [])
   const { resolvedTheme, setTheme } = useTheme()
   
@@ -131,7 +130,7 @@ export default function OnboardingPage() {
   const [businessEmail, setBusinessEmail] = useState(savedData.businessEmail || '')
   const [businessAddress, setBusinessAddress] = useState(savedData.businessAddress || '')
   const [serviceArea, setServiceArea] = useState(savedData.serviceArea || '')
-  const [servicesOffered, setServicesOffered] = useState(savedData.servicesOffered || '')
+  const [servicesOffered] = useState(savedData.servicesOffered || '')
   const [yearsInBusiness, setYearsInBusiness] = useState(savedData.yearsInBusiness || '')
   const [logoPreview, setLogoPreview] = useState<string | null>(savedData.logoPreview || null)
   
@@ -728,9 +727,6 @@ export default function OnboardingPage() {
                     <div className="mb-5">
                       <div className="flex items-center gap-2 mb-2">
                         <label className={`block text-sm ${c.textMuted}`}>Type of business</label>
-                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${isDark ? 'bg-orange-500/20 text-orange-400' : 'bg-orange-100 text-orange-600'}`}>
-                          Lawn care, cleaning &amp; moving coming soon
-                        </span>
                       </div>
                       <div className="grid grid-cols-3 gap-2">
                         {BUSINESS_TYPES.map((type) => (

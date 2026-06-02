@@ -73,6 +73,7 @@ export default function AdminUsersPage() {
           <nav className="flex items-center gap-4 text-sm">
             <Link href="/app/admin" className="text-slate-400 hover:text-white transition-colors">Dashboard</Link>
             <Link href="/app/admin/users" className="text-orange-400 font-medium">Users</Link>
+            <Link href="/app/admin/payments" className="text-slate-400 hover:text-white transition-colors">Payments</Link>
             <Link href="/app/admin/webhooks" className="text-slate-400 hover:text-white transition-colors">Webhooks</Link>
             <Link href="/app" className="text-slate-500 hover:text-white transition-colors">Back to App</Link>
           </nav>

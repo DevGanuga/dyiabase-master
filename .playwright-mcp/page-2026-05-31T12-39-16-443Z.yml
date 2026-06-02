@@ -1,0 +1,350 @@
+- generic [ref=e1]:
+  - alert [ref=e16]
+  - generic [ref=e17]:
+    - generic [ref=e18]:
+      - text: Demo Mode — Sample data only, nothing is saved.
+      - button "Exit" [ref=e19]
+    - complementary [ref=e20]:
+      - link "dyia" [ref=e22] [cursor=pointer]:
+        - /url: /
+        - img "dyia" [ref=e23]
+      - button "Create new item" [ref=e25]:
+        - generic [ref=e26]:
+          - img
+          - generic [ref=e27]: Create
+        - generic [ref=e28]:
+          - img
+      - navigation [ref=e29]:
+        - generic [ref=e30]:
+          - generic [ref=e31]: Work
+          - generic [ref=e32]:
+            - button "Home" [ref=e33]:
+              - generic:
+                - img
+              - generic [ref=e34]: Home
+            - button "Jobs" [ref=e35]:
+              - generic:
+                - img
+              - generic [ref=e36]: Jobs
+            - button "Quotes" [ref=e37]:
+              - generic:
+                - img
+              - generic [ref=e38]: Quotes
+            - button "Profit Calculator" [ref=e39]:
+              - generic:
+                - img
+              - generic [ref=e40]: Profit Calculator
+            - button "Follow-ups" [ref=e41]:
+              - generic:
+                - img
+              - generic [ref=e42]: Follow-ups
+            - button "Calendar" [ref=e43]:
+              - generic:
+                - img
+              - generic [ref=e44]: Calendar
+        - generic [ref=e45]:
+          - generic [ref=e46]: Customers
+          - generic [ref=e47]:
+            - button "Customers" [ref=e48]:
+              - generic:
+                - img
+              - generic [ref=e49]: Customers
+            - button "Payments" [ref=e50]:
+              - generic:
+                - img
+              - generic [ref=e51]: Payments
+            - button "Email Blast" [ref=e52]:
+              - generic:
+                - img
+              - generic [ref=e53]: Email Blast
+        - generic [ref=e54]:
+          - generic [ref=e55]: Insights
+          - generic [ref=e56]:
+            - button "Reports" [ref=e57]:
+              - generic:
+                - img
+              - generic [ref=e58]: Reports
+            - button "Intel" [ref=e59]:
+              - generic:
+                - img
+              - generic [ref=e60]: Intel
+            - button "Marketing" [ref=e61]:
+              - generic:
+                - img
+              - generic [ref=e62]: Marketing
+            - button "Dyia AI Ask Dyia" [ref=e63]:
+              - generic:
+                - img "Dyia AI"
+              - generic [ref=e64]: Ask Dyia
+      - button "Settings" [ref=e66]:
+        - generic [ref=e67]:
+          - img
+        - generic [ref=e68]: Settings
+    - main [ref=e69]:
+      - generic [ref=e71]:
+        - button "Switch to dark mode" [ref=e72]:
+          - img [ref=e73]
+        - link "Help & Support" [ref=e75] [cursor=pointer]:
+          - /url: /support
+          - img [ref=e76]
+        - button "User menu" [ref=e80]:
+          - generic [ref=e82]: D
+          - img [ref=e83]
+      - generic [ref=e87]:
+        - generic [ref=e88]:
+          - generic [ref=e89]:
+            - heading "Get paid" [level=1] [ref=e90]
+            - paragraph [ref=e91]: Send invoices and payment links. Funds settle to your Stripe balance, then auto-payout to your bank.
+          - generic [ref=e92]:
+            - button "Stripe dashboard" [ref=e93]
+            - button "Get paid" [ref=e94]:
+              - img [ref=e95]
+              - text: Get paid
+        - generic [ref=e97]:
+          - generic [ref=e98]:
+            - paragraph [ref=e99]: Paid in May
+            - paragraph [ref=e100]: $1,420
+            - paragraph [ref=e101]: 3 payments
+          - generic [ref=e102]:
+            - paragraph [ref=e103]: Awaiting payment
+            - paragraph [ref=e104]: $2,132
+            - paragraph [ref=e105]: 4 open requests
+          - generic [ref=e106]:
+            - paragraph [ref=e107]: Net to your bank · May
+            - paragraph [ref=e108]: $1,410
+            - paragraph [ref=e109]: After Dyia fee
+          - generic [ref=e110]:
+            - paragraph [ref=e111]: Dyia fees collected
+            - paragraph [ref=e112]: $10
+            - paragraph [ref=e113]: May so far
+        - generic [ref=e114]:
+          - generic [ref=e115]:
+            - generic [ref=e116]:
+              - button "Quick pay link Send a one-tap pay link for a fixed amount." [ref=e117] [cursor=pointer]:
+                - img [ref=e119]
+                - paragraph [ref=e121]: Quick pay link
+                - paragraph [ref=e122]: Send a one-tap pay link for a fixed amount.
+              - button "Send invoice Itemized invoice with tax, due date, and total." [ref=e123] [cursor=pointer]:
+                - img [ref=e125]
+                - paragraph [ref=e127]: Send invoice
+                - paragraph [ref=e128]: Itemized invoice with tax, due date, and total.
+              - button "From a quote or job Request payment for an existing quote or job." [ref=e129] [cursor=pointer]:
+                - img [ref=e131]
+                - paragraph [ref=e133]: From a quote or job
+                - paragraph [ref=e134]: Request payment for an existing quote or job.
+            - generic [ref=e135]:
+              - generic [ref=e136]:
+                - generic [ref=e137]:
+                  - heading "Payment activity" [level=3] [ref=e138]
+                  - paragraph [ref=e139]: All your invoices and pay links in one place.
+                - generic [ref=e140]:
+                  - button "all" [ref=e141]
+                  - button "pending" [ref=e142]
+                  - button "paid" [ref=e143]
+              - list [ref=e144]:
+                - listitem [ref=e355]:
+                  - generic [ref=e356]:
+                    - generic [ref=e357]:
+                      - generic [ref=e358]:
+                        - generic [ref=e359]:
+                          - img [ref=e360]
+                          - text: Pay link
+                        - generic [ref=e362]: Awaiting payment
+                      - paragraph [ref=e364]: Sarah Miller
+                      - paragraph [ref=e365]: Created 5/31/2026, 8:39:15 AM
+                    - generic [ref=e366]:
+                      - generic [ref=e367]:
+                        - paragraph [ref=e368]: $275
+                        - paragraph [ref=e369]: You get $273
+                      - generic [ref=e370]:
+                        - button "Share" [ref=e371]
+                        - link "Preview" [ref=e372] [cursor=pointer]:
+                          - /url: /pay/demo-k7cxtonm
+                - listitem [ref=e145]:
+                  - generic [ref=e146]:
+                    - generic [ref=e147]:
+                      - generic [ref=e148]:
+                        - generic [ref=e149]:
+                          - img [ref=e150]
+                          - text: Pay link
+                        - generic [ref=e152]: Paid
+                      - paragraph [ref=e154]: Lisa Chen
+                      - paragraph [ref=e155]: Created 5/29/2026, 8:37:50 AM · Paid 5/30/2026
+                    - generic [ref=e156]:
+                      - generic [ref=e157]:
+                        - paragraph [ref=e158]: $540
+                        - paragraph [ref=e159]: incl. $90 tip
+                        - paragraph [ref=e160]: You get $537
+                      - generic [ref=e161]:
+                        - button "Share" [ref=e162]
+                        - link "Preview" [ref=e163] [cursor=pointer]:
+                          - /url: /pay/demo-seed-paidlink
+                - listitem [ref=e164]:
+                  - generic [ref=e165]:
+                    - generic [ref=e166]:
+                      - generic [ref=e167]:
+                        - generic [ref=e168]:
+                          - img [ref=e169]
+                          - text: Invoice
+                        - generic [ref=e171]: "#INV-2026-009"
+                        - generic [ref=e172]: Paid
+                      - paragraph [ref=e174]: Amanda Torres
+                      - paragraph [ref=e175]: Created 5/28/2026, 8:37:50 AM · Paid 5/30/2026
+                    - generic [ref=e176]:
+                      - generic [ref=e177]:
+                        - paragraph [ref=e178]: $280
+                        - paragraph [ref=e179]: incl. $20 tip
+                        - paragraph [ref=e180]: You get $278
+                      - generic [ref=e181]:
+                        - button "Share" [ref=e182]
+                        - link "Preview" [ref=e183] [cursor=pointer]:
+                          - /url: /pay/demo-seed-paidinvoice
+                - listitem [ref=e184]:
+                  - generic [ref=e185]:
+                    - generic [ref=e186]:
+                      - generic [ref=e187]:
+                        - generic [ref=e188]:
+                          - img [ref=e189]
+                          - text: From quote
+                        - generic [ref=e191]: Paid
+                      - paragraph [ref=e193]: Robert Hayes
+                      - paragraph [ref=e194]: Created 5/25/2026, 8:37:50 AM · Paid 5/27/2026
+                    - generic [ref=e195]:
+                      - generic [ref=e196]:
+                        - paragraph [ref=e197]: $600
+                        - paragraph [ref=e198]: You get $596
+                      - generic [ref=e199]:
+                        - button "Share" [ref=e200]
+                        - link "Preview" [ref=e201] [cursor=pointer]:
+                          - /url: /pay/demo-seed-paidquote
+                - listitem [ref=e202]:
+                  - generic [ref=e203]:
+                    - generic [ref=e204]:
+                      - generic [ref=e205]:
+                        - generic [ref=e206]:
+                          - img [ref=e207]
+                          - text: Invoice
+                        - generic [ref=e209]: "#INV-2026-014"
+                        - generic [ref=e210]: Awaiting payment
+                      - paragraph [ref=e212]: Lisa Chen
+                      - paragraph [ref=e213]: Created 5/29/2026, 8:37:50 AM · Due 6/13/2026
+                    - generic [ref=e214]:
+                      - generic [ref=e215]:
+                        - paragraph [ref=e216]: $882
+                        - paragraph [ref=e217]: You get $876
+                      - generic [ref=e218]:
+                        - button "Share" [ref=e219]
+                        - link "Preview" [ref=e220] [cursor=pointer]:
+                          - /url: /pay/demo-seed-openinvoice
+                - listitem [ref=e221]:
+                  - generic [ref=e222]:
+                    - generic [ref=e223]:
+                      - generic [ref=e224]:
+                        - generic [ref=e225]:
+                          - img [ref=e226]
+                          - text: Pay link
+                        - generic [ref=e228]: Awaiting payment
+                      - paragraph [ref=e230]: Sarah Miller
+                      - paragraph [ref=e231]: Created 5/30/2026, 8:37:50 AM
+                    - generic [ref=e232]:
+                      - generic [ref=e233]:
+                        - paragraph [ref=e234]: $275
+                        - paragraph [ref=e235]: You get $273
+                      - generic [ref=e236]:
+                        - button "Share" [ref=e237]
+                        - link "Preview" [ref=e238] [cursor=pointer]:
+                          - /url: /pay/demo-seed-openlink
+                - listitem [ref=e239]:
+                  - generic [ref=e240]:
+                    - generic [ref=e241]:
+                      - generic [ref=e242]:
+                        - generic [ref=e243]:
+                          - img [ref=e244]
+                          - text: From job
+                        - generic [ref=e246]: Customer started checkout
+                      - paragraph [ref=e248]: Kevin Park
+                      - paragraph [ref=e249]: Created 5/30/2026, 8:37:50 AM
+                    - generic [ref=e250]:
+                      - generic [ref=e251]:
+                        - paragraph [ref=e252]: $700
+                        - paragraph [ref=e253]: You get $695
+                      - generic [ref=e254]:
+                        - button "Share" [ref=e255]
+                        - link "Preview" [ref=e256] [cursor=pointer]:
+                          - /url: /pay/demo-seed-checkout
+          - generic [ref=e257]:
+            - generic [ref=e258]:
+              - heading "Where the money goes" [level=3] [ref=e259]
+              - paragraph [ref=e260]: Stripe Connect routes funds directly to your bank — Dyia never touches the money.
+              - generic [ref=e261]:
+                - generic [ref=e262]:
+                  - generic [ref=e263]: "1"
+                  - generic [ref=e264]:
+                    - generic [ref=e265]:
+                      - paragraph [ref=e266]: Customer pays
+                      - paragraph [ref=e267]: $500.00
+                    - paragraph [ref=e268]: Card payment on your branded /pay link
+                - generic [ref=e269]:
+                  - generic [ref=e270]: "2"
+                  - generic [ref=e271]:
+                    - generic [ref=e272]:
+                      - paragraph [ref=e273]: Dyia platform fee
+                      - paragraph [ref=e274]: –$3.75
+                    - paragraph [ref=e275]: 0.75% kept by Dyia (deducted at charge time)
+                - generic [ref=e276]:
+                  - generic [ref=e277]: "3"
+                  - generic [ref=e278]:
+                    - generic [ref=e279]:
+                      - paragraph [ref=e280]: Lands in your Stripe balance
+                      - paragraph [ref=e281]: ≈ $481.75
+                    - paragraph [ref=e282]: Minus Stripe's processing fee (~2.9% + $0.30)
+                - generic [ref=e283]:
+                  - generic [ref=e284]: "4"
+                  - generic [ref=e285]:
+                    - generic [ref=e286]:
+                      - paragraph [ref=e287]: Auto-payout to your bank
+                      - paragraph [ref=e288]: → Your bank
+                    - paragraph [ref=e289]: Daily rolling payout, 2 business days (US default)
+              - button "View payouts in Stripe →" [ref=e290]
+            - generic [ref=e291]:
+              - generic [ref=e292]:
+                - heading "Stripe status" [level=3] [ref=e293]
+                - generic [ref=e294]: Live
+              - generic [ref=e295]:
+                - generic [ref=e296]:
+                  - term [ref=e297]: Account
+                  - definition [ref=e298]: acct_d…Hill
+                - generic [ref=e299]:
+                  - term [ref=e300]: Charges
+                  - definition [ref=e301]: Enabled
+                - generic [ref=e302]:
+                  - term [ref=e303]: Payouts
+                  - definition [ref=e304]: Enabled
+                - generic [ref=e305]:
+                  - term [ref=e306]: ID verified
+                  - definition [ref=e307]: "Yes"
+              - generic [ref=e308]:
+                - button "Stripe dashboard" [ref=e309]
+                - button "Refresh status" [ref=e310]:
+                  - img [ref=e311]
+        - generic [ref=e374]:
+          - generic [ref=e375]:
+            - img [ref=e377]
+            - generic [ref=e379]:
+              - heading "Payment link ready" [level=2] [ref=e380]
+              - paragraph [ref=e381]: Send this to Sarah Miller to collect payment.
+            - button "Close" [ref=e382]:
+              - img [ref=e383]
+          - generic [ref=e385]: Payment link
+          - generic [ref=e386]:
+            - textbox "Payment link URL" [active] [ref=e387]: http://localhost:3001/pay/demo-k7cxtonm
+            - button "Copy link" [ref=e388]
+          - generic [ref=e389]:
+            - button "Open link" [ref=e390]:
+              - generic [ref=e391]:
+                - img [ref=e392]
+                - text: Open link
+            - button "Done" [ref=e394]
+    - status [ref=e395]:
+      - img [ref=e396]
+      - generic [ref=e398]: Payment link ready to share.

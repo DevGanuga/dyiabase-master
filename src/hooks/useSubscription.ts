@@ -18,6 +18,7 @@ const INITIAL_STATE: SubscriptionState = {
   isPro: false,
   isAdmin: false,
   isCanceled: false,
+  cancelScheduled: false,
   isInDunning: false,
   dunningGraceDaysLeft: 0,
   dunningExpired: false,
@@ -58,7 +59,7 @@ export function useSubscription(): SubscriptionStateWithLoading {
         const { data, error } = await supabase
           .from('dyia_users')
           .select(
-            'subscription_status, subscription_plan, subscription_tier, subscription_ends_at, trial_consumed_at, payment_failed_at, ai_credits_balance, is_admin, role, stripe_customer_id, stripe_subscription_id'
+            'subscription_status, subscription_plan, subscription_tier, subscription_ends_at, cancel_at_period_end, trial_consumed_at, payment_failed_at, ai_credits_balance, is_admin, role, stripe_customer_id, stripe_subscription_id'
           )
           .eq('clerk_user_id', user.id)
           .maybeSingle()

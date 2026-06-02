@@ -31,11 +31,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
-    // 3. Check AI access via the single source of truth — accepts active,
-    //    trialing, canceled-with-time-left, and dunning-grace users.
-    if (!userHasProAccess(userProfile)) {
+    // 3. Check AI access. Mirror the chat route's gate exactly (Pro access OR
+    //    a positive credit balance) so a credits-only user who was allowed to
+    //    have the conversation can also confirm the action it proposed —
+    //    previously they hit a dead end here because confirm required Pro.
+    const isPro = userHasProAccess(userProfile)
+    const hasCredits = (userProfile.ai_credits_balance || 0) > 0
+    if (!isPro && !hasCredits) {
       return NextResponse.json(
-        { error: 'Dyia Pro subscription required. Upgrade to confirm AI actions.', needsUpgrade: true },
+        { error: 'AI credits required. Purchase credits or upgrade to Pro to confirm AI actions.', needsCredits: true },
         { status: 403 }
       )
     }

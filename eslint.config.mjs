@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Build/tooling scripts and generated docs — not application source.
+    "claudedocs/**",
   ]),
 ]);
 

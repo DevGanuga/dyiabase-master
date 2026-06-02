@@ -322,17 +322,24 @@ export default function PricingCalculatorPage() {
   const resultsRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    setMounted(true)
+    // Defer to the next frame so the initial (hidden) state paints first and the
+    // entrance transition actually animates. Keeping both client-only reads inside
+    // the rAF callback also avoids synchronous setState in the effect body (which
+    // can trigger a cascading render).
+    const raf = requestAnimationFrame(() => {
+      setMounted(true)
+      try {
+        const raw = localStorage.getItem(QUOTES_STORAGE_KEY)
+        if (raw) setSavedQuotes(JSON.parse(raw))
+      } catch { /* ignore */ }
+    })
 
     fetch('/api/calculator/verify-license')
       .then((res) => res.json())
       .then((data) => setLicensed(!!data.licensed))
       .catch(() => setLicensed(false))
 
-    try {
-      const raw = localStorage.getItem(QUOTES_STORAGE_KEY)
-      if (raw) setSavedQuotes(JSON.parse(raw))
-    } catch { /* ignore */ }
+    return () => cancelAnimationFrame(raf)
   }, [])
 
   const [jobType, setJobType] = useState<JobType>('volume')

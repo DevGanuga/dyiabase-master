@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { getConnectCountry, getStripe, getSupabaseAdmin, syncConnectAccountState } from '@/lib/stripe'
+import { getErrorMessage } from '@/lib/errors'
 
 export async function POST() {
   try {
@@ -54,7 +55,7 @@ export async function POST() {
   } catch (error) {
     console.error('Connect account error:', error)
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Unknown error' },
+      { error: getErrorMessage(error, 'Could not set up your Stripe account') },
       { status: 500 }
     )
   }

@@ -5,6 +5,7 @@ import { auth } from '@clerk/nextjs/server'
 import { rateLimiters } from '@/lib/rate-limit'
 import { getBaseUrl } from '@/lib/env'
 import { grantAdminAccess } from '@/lib/admin'
+import { getErrorMessage } from '@/lib/errors'
 
 const BILLABLE_SUBSCRIPTION_STATUSES = new Set<Stripe.Subscription.Status>([
   'active',
@@ -323,7 +324,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Checkout error:', error)
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Unknown error' },
+      { error: getErrorMessage(error, 'Could not start checkout') },
       { status: 500 }
     )
   }

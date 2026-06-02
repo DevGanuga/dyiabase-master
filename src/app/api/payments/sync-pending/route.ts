@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { auth } from '@clerk/nextjs/server'
 import { getStripe, getSupabaseAdmin } from '@/lib/stripe'
+import { getErrorMessage } from '@/lib/errors'
 
 /**
  * BUG-031 (round 5): merchant-side reconciliation.
@@ -44,13 +45,16 @@ export async function POST() {
     }
 
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+    // Include `checkout_created`: once a customer clicks "Pay", the row moves
+    // from `pending` to `checkout_created`. Those are the MOST common stuck
+    // rows when the webhook is dark, so merchant reconciliation must cover them.
     const { data: pending, error: pendingErr } = await supabase
       .from('dyia_payments')
       .select(
         'id, status, quote_id, job_id, stripe_checkout_session_id, stripe_payment_intent_id, amount_cents'
       )
       .eq('user_id', dyiaUser.id)
-      .eq('status', 'pending')
+      .in('status', ['pending', 'checkout_created'])
       .gte('created_at', sevenDaysAgo)
       .limit(50)
 
@@ -80,15 +84,20 @@ export async function POST() {
         // Prefer payment intent (most authoritative); fall back to session.
         let paid = false
         let paymentIntentId = payment.stripe_payment_intent_id || null
+        // Total the customer actually paid (base + tip). Anything above the
+        // base amount_cents is the customer's tip (100% to the merchant).
+        let totalPaidCents: number | null = null
 
         if (paymentIntentId) {
           const intent = await stripe.paymentIntents.retrieve(paymentIntentId)
           paid = intent.status === 'succeeded'
+          totalPaidCents = intent.amount_received ?? intent.amount ?? null
         } else if (payment.stripe_checkout_session_id) {
           const session = await stripe.checkout.sessions.retrieve(
             payment.stripe_checkout_session_id
           )
           paid = session.payment_status === 'paid'
+          totalPaidCents = typeof session.amount_total === 'number' ? session.amount_total : null
           if (typeof session.payment_intent === 'string') {
             paymentIntentId = session.payment_intent
           } else if (session.payment_intent?.id) {
@@ -101,16 +110,35 @@ export async function POST() {
 
         if (!paid) continue
 
+        // Compute the tip the same way the webhook + verify paths do, so a
+        // payment reconciled here (because the webhook was dark) still reports
+        // tips correctly on the merchant dashboard instead of $0.
+        const tipCents =
+          totalPaidCents != null && payment.amount_cents
+            ? Math.max(0, totalPaidCents - payment.amount_cents)
+            : 0
+
         const now = new Date().toISOString()
+        const updatePayload: {
+          status: 'paid'
+          stripe_payment_intent_id: string | null
+          paid_at: string
+          tip_cents?: number
+        } = {
+          status: 'paid',
+          stripe_payment_intent_id: paymentIntentId,
+          paid_at: now,
+        }
+        // Only write a positive tip so we never overwrite a tip the webhook
+        // already recorded with 0.
+        if (tipCents > 0) updatePayload.tip_cents = tipCents
+
         const { error: updateErr } = await supabase
           .from('dyia_payments')
-          .update({
-            status: 'paid',
-            stripe_payment_intent_id: paymentIntentId,
-            paid_at: now,
-          })
+          .update(updatePayload)
           .eq('id', payment.id)
-          .eq('status', 'pending') // optimistic concurrency guard
+          // Optimistic concurrency guard: only transition not-yet-paid rows.
+          .in('status', ['pending', 'checkout_created'])
 
         if (updateErr) {
           errors.push(`payment ${payment.id}: ${updateErr.message}`)
@@ -144,7 +172,7 @@ export async function POST() {
   } catch (error) {
     console.error('sync-pending error:', error)
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Unknown error' },
+      { error: getErrorMessage(error, 'Could not sync payments') },
       { status: 500 }
     )
   }

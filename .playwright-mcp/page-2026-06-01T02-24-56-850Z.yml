@@ -1,0 +1,28 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e3]:
+    - generic [ref=e5]:
+      - img "dyia" [ref=e6]
+      - paragraph [ref=e7]:
+        - img [ref=e8]
+        - text: Secure checkout · powered by Stripe
+    - generic [ref=e10]:
+      - paragraph [ref=e12]: Demo preview — exactly what your customer sees. No real charge is made.
+      - generic [ref=e14]:
+        - generic [ref=e15]:
+          - generic [ref=e16]: H
+          - generic [ref=e17]:
+            - paragraph [ref=e18]: Payment request
+            - heading "Hill Country Haul-Away" [level=1] [ref=e19]
+          - generic [ref=e20]: Paid
+        - generic [ref=e22]:
+          - paragraph [ref=e23]: Amount paid
+          - paragraph [ref=e24]: $450.00
+          - paragraph [ref=e25]: Garage cleanout — final payment
+        - generic [ref=e27]:
+          - img [ref=e29]
+          - paragraph [ref=e31]: Payment received. Thank you!
+          - paragraph [ref=e32]: Paid May 30, 2026
+      - paragraph [ref=e33]: Payments are processed securely by Stripe. dyia never stores your card details.
+  - button "Open Next.js Dev Tools" [ref=e39] [cursor=pointer]:
+    - img [ref=e40]
+  - alert [ref=e43]

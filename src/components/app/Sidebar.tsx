@@ -198,7 +198,7 @@ function NavButton({
   )
 }
 
-export function Sidebar({ currentView, setCurrentView, onLogout, isPro = false, subscriptionTier = 'basic', trialDaysRemaining = 0, subscriptionPlan, isDemoMode = false, isAdmin = false, hasNewIntel = false }: SidebarProps) {
+export function Sidebar({ currentView, setCurrentView, onLogout, isPro = false, subscriptionTier = 'basic', trialDaysRemaining = 0, subscriptionPlan, isAdmin = false, hasNewIntel = false }: SidebarProps) {
   const { resolvedTheme, setTheme } = useTheme()
   const [createOpen, setCreateOpen] = useState(false)
   const [mobileMoreOpen, setMobileMoreOpen] = useState(false)
@@ -223,7 +223,7 @@ export function Sidebar({ currentView, setCurrentView, onLogout, isPro = false, 
 
   return (
     <>
-      <aside className="app-sidebar bg-slate-900">
+      <aside className="app-sidebar">
         {/* Logo - hidden on mobile */}
         <div className="p-5 hidden sm:block">
           <Link href="/" className="flex items-center gap-2">
@@ -234,9 +234,6 @@ export function Sidebar({ currentView, setCurrentView, onLogout, isPro = false, 
               height={40}
               className="brightness-0 invert opacity-90 hover:opacity-100 transition-opacity"
             />
-            <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-orange-500/20 text-orange-400 uppercase tracking-wide">
-              Beta
-            </span>
           </Link>
         </div>
 
@@ -337,36 +334,35 @@ export function Sidebar({ currentView, setCurrentView, onLogout, isPro = false, 
           )}
         </nav>
 
-        {/* Mobile Bottom Nav */}
-        <nav className="sidebar-mobile-nav sm:hidden flex-1 flex items-end">
-          <div className="w-full flex items-center justify-around py-1">
-            {MOBILE_PRIMARY.map((viewId) => {
-              const item = allNavItems.find(i => i.id === viewId)!
-              const isActive = currentView === item.id || (item.id === 'quotes' && currentView === 'quoteBuilder')
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => setCurrentView(item.id)}
-                  className={`flex flex-col items-center gap-0.5 px-3 py-2 rounded-lg transition-all active:scale-95 ${
-                    isActive ? 'text-orange-400' : 'text-slate-400'
-                  }`}
-                >
-                  <span className={isActive ? 'scale-110' : ''}>{Icons[item.icon]}</span>
-                  <span className="text-[10px]">{item.label}</span>
-                </button>
-              )
-            })}
-            {/* More button */}
-            <button
-              onClick={() => setMobileMoreOpen(true)}
-              className={`flex flex-col items-center gap-0.5 px-3 py-2 rounded-lg transition-all ${
-                !MOBILE_PRIMARY.includes(currentView) && currentView !== 'quoteBuilder' ? 'text-orange-400' : 'text-slate-400'
-              }`}
-            >
-              <span>{Icons.more}</span>
-              <span className="text-[10px]">More</span>
-            </button>
-          </div>
+        {/* Mobile Bottom Nav — iOS-style translucent tab bar */}
+        <nav className="sidebar-mobile-nav sm:hidden">
+          {MOBILE_PRIMARY.map((viewId) => {
+            const item = allNavItems.find(i => i.id === viewId)!
+            const isActive = currentView === item.id || (item.id === 'quotes' && currentView === 'quoteBuilder')
+            return (
+              <button
+                key={item.id}
+                onClick={() => setCurrentView(item.id)}
+                aria-label={item.label}
+                aria-current={isActive ? 'page' : undefined}
+                className={`ios-tab ${isActive ? 'is-active' : ''}`}
+              >
+                <span className="ios-tab-icon">{Icons[item.icon]}</span>
+                <span className="ios-tab-label">{item.label}</span>
+              </button>
+            )
+          })}
+          {/* More button */}
+          <button
+            onClick={() => setMobileMoreOpen(true)}
+            aria-label="More"
+            aria-haspopup="true"
+            aria-expanded={mobileMoreOpen}
+            className={`ios-tab ${!MOBILE_PRIMARY.includes(currentView) && currentView !== 'quoteBuilder' ? 'is-active' : ''}`}
+          >
+            <span className="ios-tab-icon">{Icons.more}</span>
+            <span className="ios-tab-label">More</span>
+          </button>
         </nav>
 
         {/* Footer - hidden on mobile */}
@@ -430,130 +426,166 @@ export function Sidebar({ currentView, setCurrentView, onLogout, isPro = false, 
         </div>
       </aside>
 
-      {/* Mobile "More" Drawer */}
+      {/* Mobile "More" Drawer — iOS sheet */}
       {mobileMoreOpen && (
         <div className="fixed inset-0 z-[100] sm:hidden">
           {/* Backdrop */}
-          <div 
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200"
             onClick={() => setMobileMoreOpen(false)}
           />
           {/* Drawer from bottom */}
-          <div className="absolute bottom-0 left-0 right-0 bg-slate-900 rounded-t-2xl max-h-[80vh] overflow-y-auto animate-in slide-in-from-bottom duration-200">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-800">
-              <span className="text-lg font-semibold text-white">Menu</span>
-              <button 
-                onClick={() => setMobileMoreOpen(false)}
-                className="p-1 text-slate-400 hover:text-white"
-              >
-                {Icons.close}
-              </button>
+          <div className="absolute bottom-0 left-0 right-0 bg-[var(--color-bg-card)] rounded-t-3xl max-h-[85vh] overflow-y-auto border-t border-[var(--color-border)] shadow-2xl animate-in slide-in-from-bottom duration-300">
+            {/* Grab handle */}
+            <div className="sticky top-0 z-10 bg-[var(--color-bg-card)] pt-2.5">
+              <div className="flex justify-center pb-1">
+                <span className="w-9 h-1 rounded-full bg-[var(--color-border-hover)]" />
+              </div>
+              <div className="flex items-center justify-between px-5 pb-3">
+                <span className="text-lg font-bold tracking-tight text-[var(--color-text-primary)]">Menu</span>
+                <button
+                  onClick={() => setMobileMoreOpen(false)}
+                  aria-label="Close menu"
+                  className="p-1.5 -mr-1.5 rounded-full text-[var(--color-text-muted)] hover:bg-[var(--color-bg-hover)] active:scale-90 transition-all"
+                >
+                  {Icons.close}
+                </button>
+              </div>
             </div>
 
             {/* Quick actions */}
-            <div className="px-4 py-3 border-b border-slate-800">
+            <div className="px-4 pb-3">
               <div className="grid grid-cols-3 gap-2">
                 <button
                   onClick={() => { setCurrentView('jobs'); setMobileMoreOpen(false) }}
-                  className="flex flex-col items-center gap-1.5 py-3 bg-orange-500/10 rounded-xl text-orange-400"
+                  className="flex flex-col items-center gap-1.5 py-3.5 bg-orange-500/10 rounded-2xl text-orange-500 active:scale-95 transition-transform"
                 >
                   {Icons.briefcase}
-                  <span className="text-xs font-medium">Log Job</span>
+                  <span className="text-xs font-semibold">Log Job</span>
                 </button>
                 <button
                   onClick={() => { setCurrentView('quoteBuilder'); setMobileMoreOpen(false) }}
-                  className="flex flex-col items-center gap-1.5 py-3 bg-orange-500/10 rounded-xl text-orange-400"
+                  className="flex flex-col items-center gap-1.5 py-3.5 bg-orange-500/10 rounded-2xl text-orange-500 active:scale-95 transition-transform"
                 >
                   {Icons.document}
-                  <span className="text-xs font-medium">New Quote</span>
+                  <span className="text-xs font-semibold">New Quote</span>
                 </button>
                 <button
                   onClick={() => { setCurrentView('customers'); setMobileMoreOpen(false) }}
-                  className="flex flex-col items-center gap-1.5 py-3 bg-orange-500/10 rounded-xl text-orange-400"
+                  className="flex flex-col items-center gap-1.5 py-3.5 bg-orange-500/10 rounded-2xl text-orange-500 active:scale-95 transition-transform"
                 >
                   {Icons.users}
-                  <span className="text-xs font-medium">Customer</span>
+                  <span className="text-xs font-semibold">Customer</span>
                 </button>
               </div>
             </div>
 
             {/* All nav sections */}
-            <div className="px-4 py-3">
+            <div className="px-4 pb-3">
               {NAV_SECTIONS.map((section) => (
                 <div key={section.label} className="mb-4">
-                  <div className="px-2 mb-2">
-                    <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">
+                  <div className="px-2 mb-1.5">
+                    <span className="text-[10px] font-semibold text-[var(--color-text-faint)] uppercase tracking-widest">
                       {section.label}
                     </span>
                   </div>
                   <div className="space-y-0.5">
-                    {section.items.map((item) => (
-                      <button
-                        key={item.id}
-                        onClick={() => { setCurrentView(item.id); setMobileMoreOpen(false) }}
-                        className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg text-left transition-all ${
-                          currentView === item.id
-                            ? 'bg-slate-800 text-white'
-                            : 'text-slate-300 hover:bg-slate-800/50'
-                        }`}
-                      >
-                        <span className={currentView === item.id ? 'text-orange-400' : 'text-slate-400'}>
-                          {Icons[item.icon]}
-                        </span>
-                        <span className="text-sm">{item.label}</span>
-                        {item.pro && !isPro && (
-                          <span className="ml-auto px-1.5 py-0.5 rounded text-[9px] font-bold bg-orange-500/20 text-orange-400 flex-shrink-0">
-                            PRO
+                    {section.items.map((item) => {
+                      const itemActive = currentView === item.id || (item.id === 'quotes' && currentView === 'quoteBuilder')
+                      return (
+                        <button
+                          key={item.id}
+                          onClick={() => { setCurrentView(item.id); setMobileMoreOpen(false) }}
+                          className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-left transition-all active:scale-[0.98] ${
+                            itemActive
+                              ? 'bg-orange-500/10 text-orange-600 dark:text-orange-400'
+                              : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-hover)]'
+                          }`}
+                        >
+                          <span className={itemActive ? 'text-orange-500' : 'text-[var(--color-text-muted)]'}>
+                            {Icons[item.icon]}
                           </span>
-                        )}
-                      </button>
-                    ))}
+                          <span className="text-sm font-medium">{item.label}</span>
+                          {item.id === 'intel' && hasNewIntel && (
+                            <span className="ml-auto px-1.5 py-0.5 rounded text-[9px] font-bold bg-purple-500/15 text-purple-500 flex-shrink-0">
+                              New
+                            </span>
+                          )}
+                          {item.pro && !isPro && !(item.id === 'intel' && hasNewIntel) && (
+                            <span className="ml-auto px-1.5 py-0.5 rounded text-[9px] font-bold bg-orange-500/15 text-orange-500 flex-shrink-0">
+                              PRO
+                            </span>
+                          )}
+                        </button>
+                      )
+                    })}
                   </div>
                 </div>
               ))}
 
-              {/* Settings in mobile drawer */}
-              <div className="border-t border-slate-800 pt-3 mt-2">
+              {/* Admin section for admins */}
+              {isAdmin && (
+                <div className="mb-4">
+                  <div className="px-2 mb-1.5">
+                    <span className="text-[10px] font-semibold text-red-400/80 uppercase tracking-widest">Admin</span>
+                  </div>
+                  <button
+                    onClick={() => { setCurrentView('admin'); setMobileMoreOpen(false) }}
+                    className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-left transition-all active:scale-[0.98] ${
+                      currentView === 'admin'
+                        ? 'bg-orange-500/10 text-orange-600 dark:text-orange-400'
+                        : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-hover)]'
+                    }`}
+                  >
+                    <span className={currentView === 'admin' ? 'text-orange-500' : 'text-[var(--color-text-muted)]'}>
+                      {Icons.shield}
+                    </span>
+                    <span className="text-sm font-medium">Admin Panel</span>
+                  </button>
+                </div>
+              )}
+
+              {/* Settings / theme / sign out */}
+              <div className="border-t border-[var(--color-border-light)] pt-3 mt-2 pb-[max(1rem,env(safe-area-inset-bottom))]">
                 <button
                   onClick={() => { setCurrentView('settings'); setMobileMoreOpen(false) }}
-                  className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg text-left transition-all ${
-                    currentView === 'settings' ? 'bg-slate-800 text-white' : 'text-slate-300 hover:bg-slate-800/50'
+                  className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-left transition-all active:scale-[0.98] ${
+                    currentView === 'settings'
+                      ? 'bg-orange-500/10 text-orange-600 dark:text-orange-400'
+                      : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-hover)]'
                   }`}
                 >
-                  <span className={currentView === 'settings' ? 'text-orange-400' : 'text-slate-400'}>
+                  <span className={currentView === 'settings' ? 'text-orange-500' : 'text-[var(--color-text-muted)]'}>
                     {Icons.cog}
                   </span>
-                  <span className="text-sm">Settings</span>
+                  <span className="text-sm font-medium">Settings</span>
                 </button>
                 <button
                   onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
-                  className="w-full flex items-center gap-3 px-3 py-3 text-slate-300 hover:bg-slate-800/50 rounded-lg transition-all"
+                  className="w-full flex items-center gap-3 px-3 py-3 text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-hover)] rounded-xl transition-all active:scale-[0.98]"
                 >
                   {resolvedTheme === 'dark' ? (
-                    <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-5 h-5 text-[var(--color-text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
                     </svg>
                   ) : (
-                    <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-5 h-5 text-[var(--color-text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
                     </svg>
                   )}
-                  <span className="text-sm">{resolvedTheme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
+                  <span className="text-sm font-medium">{resolvedTheme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
                 </button>
                 <button
                   onClick={() => { onLogout(); setMobileMoreOpen(false) }}
-                  className="w-full flex items-center gap-3 px-3 py-3 text-red-400 hover:bg-slate-800/50 rounded-lg transition-all"
+                  className="w-full flex items-center gap-3 px-3 py-3 text-red-500 hover:bg-red-500/10 rounded-xl transition-all active:scale-[0.98]"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                   </svg>
-                  <span className="text-sm">Sign Out</span>
+                  <span className="text-sm font-medium">Sign Out</span>
                 </button>
               </div>
             </div>
-
-            {/* Bottom safe area */}
-            <div className="h-6" />
           </div>
         </div>
       )}

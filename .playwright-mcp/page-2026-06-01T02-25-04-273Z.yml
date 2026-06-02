@@ -1,0 +1,48 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e3]:
+    - generic [ref=e5]:
+      - img "dyia" [ref=e6]
+      - paragraph [ref=e7]:
+        - img [ref=e8]
+        - text: Secure checkout · powered by Stripe
+    - generic [ref=e10]:
+      - paragraph [ref=e12]: Demo preview — exactly what your customer sees. No real charge is made.
+      - generic [ref=e13]:
+        - generic [ref=e14]:
+          - generic [ref=e15]:
+            - generic [ref=e16]: H
+            - generic [ref=e17]:
+              - paragraph [ref=e18]: Payment request
+              - heading "Hill Country Haul-Away" [level=1] [ref=e19]
+            - generic [ref=e20]: Due
+          - generic [ref=e22]:
+            - paragraph [ref=e23]: Amount due
+            - paragraph [ref=e24]: $275.00
+            - paragraph [ref=e25]: Basement cleanout deposit
+          - generic [ref=e26]:
+            - generic [ref=e27]:
+              - paragraph [ref=e29]: Add a tip
+              - generic [ref=e30]:
+                - button "None" [ref=e31]:
+                  - generic [ref=e32]: None
+                - button "15% $41.25" [ref=e33]:
+                  - generic [ref=e34]: 15%
+                  - generic [ref=e35]: $41.25
+                - button "18% $49.50" [ref=e36]:
+                  - generic [ref=e37]: 18%
+                  - generic [ref=e38]: $49.50
+                - button "20% $55.00" [ref=e39]:
+                  - generic [ref=e40]: 20%
+                  - generic [ref=e41]: $55.00
+                - button "Other" [ref=e42]:
+                  - generic [ref=e43]: Other
+            - button "Pay $275.00" [ref=e44]:
+              - text: Pay $275.00
+              - img [ref=e45]
+        - button "Pay $275.00" [ref=e48]:
+          - text: Pay $275.00
+          - img [ref=e49]
+      - paragraph [ref=e51]: Payments are processed securely by Stripe. dyia never stores your card details.
+  - button "Open Next.js Dev Tools" [ref=e57] [cursor=pointer]:
+    - img [ref=e58]
+  - alert [ref=e61]

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { getStripe, getSupabaseAdmin, syncConnectAccountState } from '@/lib/stripe'
+import { getErrorMessage } from '@/lib/errors'
 
 export async function GET() {
   try {
@@ -44,7 +45,7 @@ export async function GET() {
   } catch (error) {
     console.error('Connect status error:', error)
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Unknown error' },
+      { error: getErrorMessage(error, 'Could not load Stripe status') },
       { status: 500 }
     )
   }

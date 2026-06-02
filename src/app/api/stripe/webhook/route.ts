@@ -156,6 +156,27 @@ export async function POST(request: NextRequest) {
         break
       }
 
+      // Connect merchant onboarding/capability changes. Stripe enables charges
+      // and payouts asynchronously (identity review, bank verification), so
+      // without this the merchant's Payments hub showed "Setup needed" until
+      // they manually clicked refresh. Keep the dyia_users Connect flags live.
+      case 'account.updated': {
+        const account = event.data.object as Stripe.Account
+        await handleConnectAccountUpdated(supabase, account)
+        break
+      }
+
+      // A Checkout Session expired (Stripe expires unpaid sessions ~24h after
+      // creation) before the customer paid. Roll the still-unpaid row back to
+      // `pending` and drop the dead session handle so the next "Pay" click mints
+      // a fresh session and merchant reconciliation stops chasing it. Without
+      // this, abandoned links sat in `checkout_created` forever.
+      case 'checkout.session.expired': {
+        const session = event.data.object as Stripe.Checkout.Session
+        await handleCheckoutExpired(supabase, session)
+        break
+      }
+
       default:
         console.warn(`Unhandled event type: ${event.type}`)
     }
@@ -335,6 +356,7 @@ async function handleSubscriptionUpdate(supabase: any, subscription: Stripe.Subs
     items: { data: Array<{ price?: { id?: string; recurring?: { interval?: string } } }> }
     current_period_end?: number
     trial_end?: number | null
+    cancel_at_period_end?: boolean
   }
   const priceItem = sub.items.data[0]?.price
   const plan = priceItem?.recurring?.interval === 'year' ? 'annual' : 'monthly'
@@ -359,6 +381,9 @@ async function handleSubscriptionUpdate(supabase: any, subscription: Stripe.Subs
     subscription_plan: plan,
     subscription_tier: tierFromPrice,
     subscription_ends_at: periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
+    // Mirror Stripe's scheduled-downgrade flag so the in-app Settings UI can
+    // show "Downgrading on <date>" (and the undo) without calling Stripe.
+    cancel_at_period_end: !!sub.cancel_at_period_end,
   }
   // First time we ever see this user trialing (or holding a trial_end), or
   // any time their subscription transitions out of trialing — stamp the
@@ -408,6 +433,11 @@ async function handleSubscriptionCanceled(supabase: any, subscription: Stripe.Su
     .update({
       subscription_status: 'canceled',
       subscription_ends_at: periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
+      // Final cancellation: the downgrade has now happened, so the scheduled
+      // flag no longer applies, and the user is on Basic. Leaving tier='pro'
+      // here left stale data that disagreed with their actual access.
+      subscription_tier: 'basic',
+      cancel_at_period_end: false,
     })
     .eq('stripe_customer_id', customerId)
 
@@ -488,12 +518,24 @@ async function handleCustomerPayment(supabase: any, session: Stripe.Checkout.Ses
   const paymentIntentId = session.payment_intent as string | null
   const now = new Date().toISOString()
 
+  // Anything paid above the base amount is the customer's tip (100% to merchant).
+  const { data: baseRow } = await supabase
+    .from('dyia_payments')
+    .select('amount_cents')
+    .eq('id', dyiaPaymentId)
+    .maybeSingle()
+  const tipCents =
+    typeof session.amount_total === 'number' && baseRow?.amount_cents
+      ? Math.max(0, session.amount_total - baseRow.amount_cents)
+      : 0
+
   const { error: paymentError } = await supabase
     .from('dyia_payments')
     .update({
       status: 'paid',
       stripe_payment_intent_id: paymentIntentId || null,
       paid_at: now,
+      tip_cents: tipCents,
     })
     .eq('id', dyiaPaymentId)
 
@@ -532,6 +574,33 @@ async function handleCustomerPayment(supabase: any, session: Stripe.Checkout.Ses
       console.error('Customer payment: failed to update dyia_jobs', jobError)
       throw jobError
     }
+  }
+}
+
+// A customer Checkout Session expired before payment. Reset the linked
+// dyia_payments row from `checkout_created` back to `pending` so the link is
+// payable again with a fresh session. Guarded so it never disturbs a row that
+// already reached paid/refunded (handles the pay-right-at-expiry race).
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function handleCheckoutExpired(supabase: any, session: Stripe.Checkout.Session) {
+  // Only customer (Connect) payments carry dyia_payment_id; subscription
+  // checkout expirations have no row to reset here.
+  const dyiaPaymentId = session.metadata?.dyia_payment_id
+  if (!dyiaPaymentId) return
+
+  const { error } = await supabase
+    .from('dyia_payments')
+    .update({
+      status: 'pending',
+      stripe_checkout_session_id: null,
+      checkout_url: null,
+    })
+    .eq('id', dyiaPaymentId)
+    .eq('status', 'checkout_created')
+
+  if (error) {
+    console.error('checkout.session.expired: failed to reset payment', error)
+    throw error
   }
 }
 
@@ -710,7 +779,7 @@ async function handlePaymentIntentSucceeded(supabase: any, pi: Stripe.PaymentInt
 
   const { data: paymentRow, error: paymentSelectError } = await supabase
     .from('dyia_payments')
-    .select('id, status, quote_id, job_id')
+    .select('id, status, quote_id, job_id, amount_cents')
     .eq('id', resolvedPaymentId)
     .maybeSingle()
 
@@ -724,12 +793,18 @@ async function handlePaymentIntentSucceeded(supabase: any, pi: Stripe.PaymentInt
   }
 
   if (paymentRow.status !== 'paid') {
+    // Amount charged above the base is the customer's tip (100% to merchant).
+    const tipCents =
+      typeof pi.amount === 'number' && paymentRow.amount_cents
+        ? Math.max(0, pi.amount - paymentRow.amount_cents)
+        : 0
     const { error: paymentError } = await supabase
       .from('dyia_payments')
       .update({
         status: 'paid',
         stripe_payment_intent_id: pi.id,
         paid_at: now,
+        tip_cents: tipCents,
       })
       .eq('id', resolvedPaymentId)
 
@@ -827,5 +902,44 @@ async function handleChargeRefunded(supabase: any, charge: Stripe.Charge) {
       .from('dyia_jobs')
       .update({ payment_status: 'pending', payment_paid_at: null })
       .eq('id', payment.job_id)
+  }
+}
+
+// Connect `account.updated`: sync the merchant's onboarding/capability flags so
+// the Payments hub flips to "Live" automatically when Stripe finishes enabling
+// charges/payouts, without the merchant having to click refresh.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function handleConnectAccountUpdated(supabase: any, account: Stripe.Account) {
+  const { data: user } = await supabase
+    .from('dyia_users')
+    .select('id')
+    .eq('stripe_connect_account_id', account.id)
+    .maybeSingle()
+
+  if (!user) {
+    // Not one of our connected accounts (or not yet linked). Nothing to do.
+    return
+  }
+
+  const detailsSubmitted = Boolean(account.details_submitted)
+  const chargesEnabled = Boolean(account.charges_enabled)
+  const payoutsEnabled = Boolean(account.payouts_enabled)
+  const onboardingComplete = detailsSubmitted && chargesEnabled
+
+  const { error } = await supabase
+    .from('dyia_users')
+    .update({
+      stripe_connect_onboarding_complete: onboardingComplete,
+      stripe_connect_details_submitted: detailsSubmitted,
+      stripe_connect_charges_enabled: chargesEnabled,
+      stripe_connect_payouts_enabled: payoutsEnabled,
+      stripe_connect_country: account.country || null,
+      stripe_connect_default_currency: account.default_currency || null,
+    })
+    .eq('id', user.id)
+
+  if (error) {
+    console.error('account.updated: failed to sync connect flags', error)
+    throw error
   }
 }

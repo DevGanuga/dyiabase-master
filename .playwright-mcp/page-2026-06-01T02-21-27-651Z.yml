@@ -1,0 +1,7 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e3]:
+    - img "dyia logo" [ref=e4]
+    - paragraph [ref=e6]: Loading...
+  - button "Open Next.js Dev Tools" [ref=e12] [cursor=pointer]:
+    - img [ref=e13]
+  - alert [ref=e16]

@@ -35,6 +35,7 @@ export interface SubscriptionInputRow {
   subscription_tier?: string | null
   subscription_plan?: string | null
   subscription_ends_at?: string | null
+  cancel_at_period_end?: boolean | null
   trial_consumed_at?: string | null
   payment_failed_at?: string | null
   ai_credits_balance?: number | null
@@ -58,6 +59,8 @@ export interface SubscriptionState {
   isPro: boolean
   isAdmin: boolean
   isCanceled: boolean
+  /** True when the user scheduled a downgrade to Basic (Stripe cancel_at_period_end) but still has Pro until subscription_ends_at. */
+  cancelScheduled: boolean
   /** True when subscription is past_due AND we are still inside the 7-day grace window. */
   isInDunning: boolean
   /** Days remaining in dunning grace window (0 if not in dunning). */
@@ -143,6 +146,10 @@ export function computeSubscriptionState(row: SubscriptionInputRow | null | unde
   // so AI insights, marketing tools, email blasts, etc. correctly upsell.
   const isTrialing = TRIAL_STATUSES.includes(effectiveStatus as SubscriptionStatus)
   const isActive = effectiveStatus === 'active'
+  // A downgrade is "scheduled" when Stripe's cancel_at_period_end is set AND the
+  // subscription is still live (active/trialing). Once it actually lapses, the
+  // status flips to canceled/inactive and the downgrade has already happened.
+  const cancelScheduled = !!row?.cancel_at_period_end && (isActive || isTrialing)
   const hasAccess =
     isAdmin ||
     isTrialing ||
@@ -185,6 +192,7 @@ export function computeSubscriptionState(row: SubscriptionInputRow | null | unde
     isPro: hasAccess,
     isAdmin,
     isCanceled,
+    cancelScheduled,
     isInDunning,
     dunningGraceDaysLeft,
     dunningExpired,

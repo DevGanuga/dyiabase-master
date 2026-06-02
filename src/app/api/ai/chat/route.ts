@@ -10,7 +10,6 @@ import {
   recordUsage,
   estimateCostUsd,
   MAX_OUTPUT_TOKENS_CHAT,
-  MAX_TOOL_ITERATIONS,
 } from '@/lib/openai/guardrails'
 import { userHasProAccess } from '@/lib/subscription'
 

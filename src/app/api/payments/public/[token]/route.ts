@@ -21,7 +21,7 @@ export async function GET(
 
     const { data: settings } = await supabase
       .from('dyia_settings')
-      .select('business_name, business_email, business_phone')
+      .select('business_name, business_email, business_phone, business_address, business_logo')
       .eq('user_id', payment.user_id)
       .single()
 
@@ -33,6 +33,8 @@ export async function GET(
       amountCents: payment.amount_cents,
       subtotalCents: payment.subtotal_cents,
       taxCents: payment.tax_cents,
+      tipCents: payment.tip_cents ?? 0,
+      allowTip: payment.allow_tip ?? false,
       currency: payment.currency,
       customerName: payment.customer_name,
       customerEmail: payment.customer_email,
@@ -47,11 +49,14 @@ export async function GET(
       businessName: settings?.business_name || 'Dyia Business',
       businessEmail: settings?.business_email || null,
       businessPhone: settings?.business_phone || null,
+      businessAddress: settings?.business_address || null,
+      businessLogo: settings?.business_logo || null,
     })
   } catch (error) {
+    // Customer-facing page: keep the message generic, log the real cause.
     console.error('Public payment fetch error:', error)
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Unknown error' },
+      { error: 'Could not load payment details. Please try again.' },
       { status: 500 }
     )
   }

@@ -56,6 +56,10 @@ export function Settings({ settings, setSettings, userId, showSuccess, userProfi
   const [uploadingLogo, setUploadingLogo] = useState(false)
   const [portalLoading, setPortalLoading] = useState(false)
   const [exportLoading, setExportLoading] = useState(false)
+  const [downgradeLoading, setDowngradeLoading] = useState(false)
+  // Local mirror of the scheduled-downgrade flag so the UI flips instantly
+  // after the user confirms, without waiting on a userProfile refresh.
+  const [cancelScheduledLocal, setCancelScheduledLocal] = useState<boolean | null>(null)
 
   const supabase = createClient()
   const { confirm, alert } = useConfirm()
@@ -74,6 +78,65 @@ export function Settings({ settings, setSettings, userId, showSuccess, userProfi
       await alert({ title: 'Error', message: 'Failed to open billing portal', variant: 'error' })
     } finally {
       setPortalLoading(false)
+    }
+  }
+
+  // The effective "downgrade scheduled" state: the optimistic local override
+  // wins once the user acts; otherwise fall back to the computed value.
+  const downgradeScheduled = cancelScheduledLocal ?? subscription.cancelScheduled
+  const accessEndsLabel = userProfile?.subscription_ends_at
+    ? new Date(userProfile.subscription_ends_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+    : subscription.daysRemaining > 0
+      ? `${subscription.daysRemaining} day${subscription.daysRemaining === 1 ? '' : 's'} from now`
+      : 'the end of your billing period'
+
+  const scheduleDowngrade = async () => {
+    const ok = await confirm({
+      title: 'Downgrade to Basic?',
+      message: `You'll keep full Pro access until ${accessEndsLabel}. After that, your account moves to the free Basic plan (job & quote tracking, calendar, customers, and payments). You won't be charged again. You can undo this anytime before then.`,
+      confirmLabel: 'Schedule downgrade',
+      cancelLabel: 'Keep Pro',
+      variant: 'warning',
+    })
+    if (!ok) return
+    setDowngradeLoading(true)
+    try {
+      const res = await fetch('/api/stripe/subscription/cancel', { method: 'POST' })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        await alert({ title: 'Could not downgrade', message: data.error || 'Please try again.', variant: 'error' })
+        return
+      }
+      setCancelScheduledLocal(true)
+      onDataChanged?.()
+      await alert({
+        title: 'Downgrade scheduled',
+        message: `You'll keep Pro until ${accessEndsLabel}, then move to Basic. Changed your mind? Use "Keep my Pro plan" anytime before then.`,
+        variant: 'info',
+      })
+    } catch {
+      await alert({ title: 'Error', message: 'Could not reach billing. Check your connection and try again.', variant: 'error' })
+    } finally {
+      setDowngradeLoading(false)
+    }
+  }
+
+  const resumePlan = async () => {
+    setDowngradeLoading(true)
+    try {
+      const res = await fetch('/api/stripe/subscription/cancel', { method: 'DELETE' })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        await alert({ title: 'Could not resume', message: data.error || 'Please try again.', variant: 'error' })
+        return
+      }
+      setCancelScheduledLocal(false)
+      onDataChanged?.()
+      await alert({ title: 'Pro plan kept', message: 'Your subscription will continue and renew as usual. No downgrade scheduled.', variant: 'info' })
+    } catch {
+      await alert({ title: 'Error', message: 'Could not reach billing. Check your connection and try again.', variant: 'error' })
+    } finally {
+      setDowngradeLoading(false)
     }
   }
 
@@ -826,6 +889,37 @@ export function Settings({ settings, setSettings, userId, showSuccess, userProfi
                 )
               })()}
 
+              {/* Scheduled downgrade banner + undo (native cancel flow) */}
+              {downgradeScheduled && !isDemoMode && !isAdminAccount && (
+                <div className="mb-5 p-4 rounded-xl border border-amber-200 dark:border-amber-800/40 bg-amber-50/80 dark:bg-amber-950/20">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                    <div className="flex items-start gap-3 flex-1">
+                      <div className="w-8 h-8 bg-amber-100 dark:bg-amber-900/30 rounded-lg flex items-center justify-center shrink-0 mt-0.5">
+                        <svg className="w-4 h-4 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-[var(--color-text-primary)]">
+                          Downgrading to Basic on {accessEndsLabel}
+                        </p>
+                        <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
+                          You keep full Pro access until then. After that you move to the free Basic plan and won&apos;t be charged again.
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={resumePlan}
+                      disabled={downgradeLoading}
+                      className="app-btn-primary text-sm shrink-0 disabled:opacity-60"
+                    >
+                      {downgradeLoading ? 'Working…' : 'Keep my Pro plan'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* Trial user: manage billing (card already on file) */}
               {subscription.tier === 'trial' && !isDemoMode && !isAdminAccount && (
                 <div className="mb-5">
@@ -940,7 +1034,7 @@ export function Settings({ settings, setSettings, userId, showSuccess, userProfi
                 </div>
               )}
 
-              {/* Pro user: Manage plan / Switch plan */}
+              {/* Pro user: Manage plan / Switch plan / Downgrade */}
               {subscription.tier === 'pro' && !isDemoMode && !isAdminAccount && (
                 <div className="flex flex-wrap gap-2">
                   <button
@@ -959,6 +1053,18 @@ export function Settings({ settings, setSettings, userId, showSuccess, userProfi
                       className="app-btn-secondary"
                     >
                       Switch to Annual (Save $60/yr)
+                    </button>
+                  )}
+                  {/* Native downgrade — no Stripe portal round-trip. Hidden once
+                      a downgrade is already scheduled (the undo banner shows). */}
+                  {!downgradeScheduled && (
+                    <button
+                      type="button"
+                      onClick={scheduleDowngrade}
+                      disabled={downgradeLoading}
+                      className="text-sm font-medium text-[var(--color-text-muted)] hover:text-red-600 dark:hover:text-red-400 underline-offset-2 hover:underline px-2 disabled:opacity-60"
+                    >
+                      {downgradeLoading ? 'Working…' : 'Cancel subscription'}
                     </button>
                   )}
                 </div>

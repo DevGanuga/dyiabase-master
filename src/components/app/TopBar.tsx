@@ -10,12 +10,10 @@ interface TopBarProps {
   onLogout: () => void
   /** UI tier: basic/trial/pro — controls trial messaging. */
   subscriptionTier?: 'basic' | 'trial' | 'pro'
-  /** Product tier: basic/pro — controls plan label on the account chip. */
-  planTier?: 'basic' | 'pro'
   isDemoMode?: boolean
 }
 
-export function TopBar({ userName, userEmail, userImageUrl, onLogout, subscriptionTier = 'basic', planTier, isDemoMode }: TopBarProps) {
+export function TopBar({ userName, userEmail, userImageUrl, onLogout, subscriptionTier = 'basic', isDemoMode }: TopBarProps) {
   const { resolvedTheme, setTheme } = useTheme()
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)

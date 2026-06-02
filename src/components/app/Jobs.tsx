@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import type { AppJob, AppSettings, ScheduledJobKind } from '@/types/database'
+import type { AppJob, AppSettings } from '@/types/database'
 import { formatCurrency, formatLocalDateInput, mergeAdditionalExpenseLabelIntoNotes, extractAdditionalExpenseLabel, parseLocalDate } from '@/lib/utils'
 import { getReviewRequestMessage } from '@/lib/reviews'
 import { useConfirm } from '@/components/providers/ConfirmProvider'
@@ -815,21 +815,18 @@ export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth,
   const taxRate = settings?.taxPercentage || 30
   const liveTaxSetAside = Math.max(0, liveProfit * (taxRate / 100))
   const liveTakeHome = liveProfit - liveTaxSetAside
-  const expensePerCustomer = tempCustomers.length > 0 ? totalExpenses / tempCustomers.length : 0
 
   const todayStr = formatLocalDateInput()
   const isFutureJob = tempDate > todayStr
-  const isTodayJob = tempDate === todayStr
   const isScheduledDraft = tempStatus === 'scheduled' || isFutureJob
   const shouldShowEstimateRange = isScheduledDraft && tempScheduledKind === 'estimate'
-  const isCompletingScheduledJob = editingJob !== 'new' && !!editingJob && tempStatus === 'scheduled'
 
   // ===================== FORM VIEW =====================
   if (editingJob) {
     const isEditing = editingJob !== 'new'
 
     return (
-      <div className="space-y-4 sm:space-y-5 pb-24">
+      <div className="space-y-4 sm:space-y-5 pb-40 sm:pb-24">
         {/* Header */}
         <div className="flex items-start sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
@@ -1305,8 +1302,9 @@ export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth,
           </div>
         </div>
 
-        {/* === STICKY SAVE BAR === */}
-        <div className="fixed bottom-0 left-0 right-0 z-40 bg-[var(--color-bg-page)]/95 backdrop-blur-lg border-t border-[var(--color-border)] px-4 py-3 sm:px-6">
+        {/* === STICKY SAVE BAR === sits above the mobile bottom nav (80px) and
+            anchors to the bottom on >=sm where there is no bottom nav. */}
+        <div className="fixed bottom-20 sm:bottom-0 left-0 right-0 z-40 bg-[var(--color-bg-page)]/95 backdrop-blur-lg border-t border-[var(--color-border)] px-4 py-3 sm:px-6">
           <div className="max-w-3xl mx-auto flex items-center justify-between gap-3">
             {/* Profit preview in sticky bar */}
             <div className="hidden sm:flex items-center gap-4 text-sm">
@@ -1731,6 +1729,7 @@ export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth,
                                 onClick={() => { setReviewModalJob(job); setReviewPlatform(REVIEW_PLATFORMS[0]); setReviewCopied(false) }}
                                 className="p-1.5 text-[var(--color-text-faint)] hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/30 rounded-lg transition-colors"
                                 title="Request review"
+                                aria-label={`Request a review from ${job.customerName}`}
                               >
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
@@ -1740,6 +1739,8 @@ export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth,
                             <button 
                               onClick={() => startEditJob(job)} 
                               className="p-1.5 text-[var(--color-text-faint)] hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
+                              title="Edit job"
+                              aria-label={`Edit job for ${job.customerName}`}
                             >
                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -1750,6 +1751,7 @@ export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth,
                                 onClick={() => requestJobPayment(job)}
                                 className="p-1.5 text-[var(--color-text-faint)] hover:text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-900/30 rounded-lg transition-colors"
                                 title={job.paymentStatus === 'pending' ? 'Copy payment link' : 'Request payment'}
+                                aria-label={job.paymentStatus === 'pending' ? `Copy payment link for ${job.customerName}` : `Request payment from ${job.customerName}`}
                               >
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.25 8.25h19.5M3.75 5.25h16.5a1.5 1.5 0 011.5 1.5v10.5a1.5 1.5 0 01-1.5 1.5H3.75a1.5 1.5 0 01-1.5-1.5V6.75a1.5 1.5 0 011.5-1.5zm2.25 9h3.75" />
@@ -1759,6 +1761,8 @@ export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth,
                             <button 
                               onClick={() => deleteJob(job.id)} 
                               className="p-1.5 text-[var(--color-text-faint)] hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
+                              title="Delete job"
+                              aria-label={`Delete job for ${job.customerName}`}
                             >
                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />

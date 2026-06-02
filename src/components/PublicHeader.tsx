@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState, useSyncExternalStore } from 'react'
 import Link from 'next/link'
 import { useUser } from '@clerk/nextjs'
 
@@ -9,14 +9,18 @@ interface PublicHeaderProps {
   activePage?: string
 }
 
+// Reading the demo cookie via useSyncExternalStore (instead of setState-in-effect)
+// keeps the server snapshot stable (false) while letting the client read the real
+// value on hydration — without triggering an extra cascading render.
+const subscribeNoop = () => () => {}
+const getDemoCookieSnapshot = () =>
+  document.cookie.split(';').some(c => c.trim().startsWith('dyia_demo_active='))
+const getDemoCookieServerSnapshot = () => false
+
 export function PublicHeader({ variant = 'default', activePage }: PublicHeaderProps) {
   const { isSignedIn } = useUser()
-  const [hasDemoCookie, setHasDemoCookie] = useState(false)
+  const hasDemoCookie = useSyncExternalStore(subscribeNoop, getDemoCookieSnapshot, getDemoCookieServerSnapshot)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-
-  useEffect(() => {
-    setHasDemoCookie(document.cookie.split(';').some(c => c.trim().startsWith('dyia_demo_active=')))
-  }, [])
 
   const isAuthed = isSignedIn || hasDemoCookie
   const authLink = isAuthed ? '/app' : '/sign-in'
@@ -25,9 +29,9 @@ export function PublicHeader({ variant = 'default', activePage }: PublicHeaderPr
   const ctaLabel = isAuthed ? 'Open App' : 'Start Free'
 
   const navLinks = [
-    { href: '/intel', label: 'Intel', highlight: true },
-    { href: '/#features', label: 'Features' },
+    { href: '/features', label: 'Features' },
     { href: '/#pricing', label: 'Pricing' },
+    { href: '/intel', label: 'Intel', highlight: true },
     { href: '/support', label: 'Support' },
   ]
 

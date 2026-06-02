@@ -73,13 +73,22 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const body = await req.json()
     const supabase = getSupabase()
 
-    // Only allow updating specific fields
-    const allowedFields = ['role', 'subscription_status', 'subscription_plan', 'subscription_ends_at', 'ai_credits_balance']
+    // Only allow updating specific fields. `subscription_tier` is required for
+    // "Grant Pro" to actually unlock Pro (computeSubscriptionState gates on
+    // tier), and `is_admin` must stay in lock-step with `role` or the standalone
+    // /app/admin gate (which checks is_admin) disagrees with the API gate.
+    const allowedFields = ['role', 'subscription_status', 'subscription_plan', 'subscription_tier', 'subscription_ends_at', 'ai_credits_balance', 'is_admin']
     const updates: Record<string, unknown> = {}
     for (const field of allowedFields) {
       if (body[field] !== undefined) {
         updates[field] = body[field]
       }
+    }
+
+    // Keep is_admin in sync with role whenever role is changed and is_admin
+    // wasn't explicitly provided, so "Make Admin"/"Remove Admin" works fully.
+    if (updates.role !== undefined && updates.is_admin === undefined) {
+      updates.is_admin = updates.role === 'admin' || updates.role === 'super_admin'
     }
 
     if (Object.keys(updates).length === 0) {

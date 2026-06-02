@@ -30,10 +30,10 @@ export async function isAdmin(userId: string): Promise<boolean> {
   const supabase = getSupabaseAdmin()
   const { data } = await supabase
     .from('dyia_users')
-    .select('role')
+    .select('is_admin, role')
     .eq('id', userId)
     .single()
-  return data?.role === 'admin' || data?.role === 'super_admin'
+  return hasAdminAccess(data)
 }
 
 /**
@@ -43,34 +43,145 @@ export async function isAdminByClerkId(clerkUserId: string): Promise<boolean> {
   const supabase = getSupabaseAdmin()
   const { data } = await supabase
     .from('dyia_users')
-    .select('role')
+    .select('is_admin, role')
     .eq('clerk_user_id', clerkUserId)
     .single()
-  return data?.role === 'admin' || data?.role === 'super_admin'
+  return hasAdminAccess(data)
 }
 
 /**
- * Get admin metrics for the admin dashboard.
+ * A user has admin access when either the `is_admin` boolean is true OR their
+ * role is an admin role. Checking both keeps the API guard in lock-step with
+ * `computeSubscriptionState`, which already grants Pro access on `is_admin`;
+ * previously a user with `is_admin = true, role = 'user'` got Pro in the UI but
+ * was rejected by every admin API.
+ */
+function hasAdminAccess(data: { is_admin?: boolean | null; role?: string | null } | null): boolean {
+  if (!data) return false
+  return data.is_admin === true || data.role === 'admin' || data.role === 'super_admin'
+}
+
+// List-price estimates (USD/month) used for MRR. Stripe is the source of
+// truth for actual billed revenue; these mirror the public pricing so the
+// internal dashboard has a directional number without a Stripe round-trip.
+const MONTHLY_PRICE: Record<string, Record<string, number>> = {
+  pro: { monthly: 29.99, annual: 24.99 },
+  basic: { monthly: 9.99, annual: 8.33 },
+}
+
+/**
+ * Get admin metrics for the standalone /app/admin dashboard.
+ *
+ * Returns the full flat shape the dashboard renders (revenue, users, health,
+ * signup trend, status breakdown, calculator funnel). Previously this returned
+ * a minimal object that didn't match the dashboard's `Metrics` interface, so
+ * the page crashed on `m.mrr.toLocaleString()`.
  */
 export async function getAdminMetrics() {
   const supabase = getSupabaseAdmin()
 
-  const [usersResult, activeResult, trialingResult, jobsResult, revenueResult] = await Promise.all([
-    supabase.from('dyia_users').select('*', { count: 'exact', head: true }),
-    supabase.from('dyia_users').select('*', { count: 'exact', head: true }).eq('subscription_status', 'active'),
-    supabase.from('dyia_users').select('*', { count: 'exact', head: true }).eq('subscription_status', 'trialing'),
+  const [usersResult, jobsResult, quotesResult] = await Promise.all([
+    supabase
+      .from('dyia_users')
+      .select('subscription_status, subscription_tier, subscription_plan, trial_consumed_at, created_at, updated_at'),
     supabase.from('dyia_jobs').select('*', { count: 'exact', head: true }),
-    supabase.from('dyia_jobs').select('revenue'),
+    supabase.from('dyia_quotes').select('*', { count: 'exact', head: true }),
   ])
 
-  const totalRevenue = (revenueResult.data || []).reduce((sum: number, j: { revenue: number }) => sum + (j.revenue || 0), 0)
+  const users = usersResult.data || []
+  const now = Date.now()
+  const WEEK_MS = 7 * 86_400_000
+  const MONTH_MS = 30 * 86_400_000
+
+  const statusBreakdown: Record<string, number> = {}
+  let payingUsers = 0
+  let trialingUsers = 0
+  let canceledTotal = 0
+  let canceledRecent = 0
+  let newUsersThisWeek = 0
+  let mrr = 0
+  let trialConsumed = 0
+  let trialConsumedConverted = 0
+
+  // Signup trend for the last 7 days, keyed YYYY-MM-DD (oldest first).
+  const signupsByDay: Record<string, number> = {}
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(now - i * 86_400_000)
+    signupsByDay[d.toISOString().slice(0, 10)] = 0
+  }
+
+  for (const u of users) {
+    const status = u.subscription_status || 'inactive'
+    statusBreakdown[status] = (statusBreakdown[status] || 0) + 1
+
+    const createdMs = u.created_at ? new Date(u.created_at).getTime() : 0
+    if (createdMs && now - createdMs <= WEEK_MS) newUsersThisWeek += 1
+    const dayKey = u.created_at ? new Date(u.created_at).toISOString().slice(0, 10) : null
+    if (dayKey && dayKey in signupsByDay) signupsByDay[dayKey] += 1
+
+    if (status === 'active' || status === 'trialing' || status === 'past_due') {
+      const tier = (u.subscription_tier as string) || 'pro'
+      const plan = (u.subscription_plan as string) || 'monthly'
+      mrr += MONTHLY_PRICE[tier]?.[plan] ?? MONTHLY_PRICE.pro.monthly
+    }
+    if (status === 'active') payingUsers += 1
+    if (status === 'trialing') trialingUsers += 1
+    if (status === 'canceled') {
+      canceledTotal += 1
+      const updatedMs = u.updated_at ? new Date(u.updated_at).getTime() : 0
+      if (updatedMs && now - updatedMs <= MONTH_MS) canceledRecent += 1
+    }
+    if (u.trial_consumed_at) {
+      trialConsumed += 1
+      if (status === 'active') trialConsumedConverted += 1
+    }
+  }
+
+  const totalUsers = users.length
+  const arr = Math.round(mrr * 12)
+  const arpu = payingUsers > 0 ? Math.round((mrr / payingUsers) * 100) / 100 : 0
+  const conversionRate = trialConsumed > 0 ? Math.round((trialConsumedConverted / trialConsumed) * 100) : 0
+  const churnBase = payingUsers + canceledRecent
+  const churnRate = churnBase > 0 ? Math.round((canceledRecent / churnBase) * 100) : 0
+  const ltv = churnRate > 0 ? Math.round(arpu / (churnRate / 100)) : 0
+
+  // Profit-calculator funnel (optional table — never let it break the page).
+  let quizSubmissions = 0
+  let quizStartedTrial = 0
+  try {
+    const { count } = await supabase
+      .from('dyia_quiz_submissions')
+      .select('*', { count: 'exact', head: true })
+    quizSubmissions = count || 0
+    const { count: trialCount } = await supabase
+      .from('dyia_quiz_submissions')
+      .select('*', { count: 'exact', head: true })
+      .not('email', 'is', null)
+    quizStartedTrial = trialCount || 0
+  } catch {
+    // table may not exist in some environments — leave funnel at 0
+  }
 
   return {
-    totalUsers: usersResult.count || 0,
-    activeSubscriptions: activeResult.count || 0,
-    trialingUsers: trialingResult.count || 0,
+    totalUsers,
+    activeSubscriptions: payingUsers,
+    payingUsers,
+    trialingUsers,
+    newUsersThisWeek,
+    mrr: Math.round(mrr),
+    arr,
+    arpu,
+    ltv,
+    conversionRate,
+    churnRate,
+    canceledRecent,
+    canceledTotal,
     totalJobs: jobsResult.count || 0,
-    platformRevenue: totalRevenue,
+    totalQuotes: quotesResult.count || 0,
+    statusBreakdown,
+    signupsByDay,
+    quizSubmissions,
+    quizStartedTrial,
   }
 }
 

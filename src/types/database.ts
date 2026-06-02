@@ -105,6 +105,8 @@ export interface UserProfile {
   subscription_plan?: 'monthly' | 'annual' | null
   subscription_tier?: 'basic' | 'pro' | null
   subscription_ends_at?: string | null
+  /** TRUE when the user scheduled a downgrade to Basic that takes effect at subscription_ends_at. Mirrors Stripe's cancel_at_period_end. */
+  cancel_at_period_end?: boolean | null
   trial_consumed_at?: string | null
   /** First-failure timestamp from Stripe invoice.payment_failed; null when not in dunning. (BUG-022 round 4) */
   payment_failed_at?: string | null
@@ -303,6 +305,8 @@ export interface PaymentRecord {
   amount_cents: number
   subtotal_cents?: number | null
   tax_cents?: number | null
+  tip_cents?: number | null
+  allow_tip?: boolean | null
   application_fee_amount_cents: number
   destination_amount_cents: number
   currency: string
@@ -332,6 +336,8 @@ export interface AppPaymentRecord {
   amountCents: number
   subtotalCents?: number | null
   taxCents?: number | null
+  tipCents?: number | null
+  allowTip?: boolean | null
   applicationFeeAmountCents: number
   destinationAmountCents: number
   currency: string

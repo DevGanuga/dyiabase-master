@@ -3,6 +3,7 @@ import { auth } from '@clerk/nextjs/server'
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
 import { getBaseUrl } from '@/lib/env'
+import { getErrorMessage } from '@/lib/errors'
 
 function getStripe() {
   const key = process.env.STRIPE_SECRET_KEY
@@ -70,7 +71,7 @@ export async function POST() {
   } catch (err) {
     console.error('Stripe portal error:', err)
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Failed to open billing portal' },
+      { error: getErrorMessage(err, 'Failed to open billing portal') },
       { status: 500 }
     )
   }

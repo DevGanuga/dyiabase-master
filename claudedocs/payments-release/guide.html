@@ -369,12 +369,13 @@
       <span class="dot"></span>
       dyia
     </div>
-    <div class="eyebrow">Internal release brief · v1</div>
+    <div class="eyebrow">Internal release brief · v2</div>
     <h1>The new <br /><span class="grad">Get paid</span> experience</h1>
     <p class="sub">
-      Stripe Connect is now the backbone of Dyia. Send branded invoices, one-tap pay
-      links, and quote/job payment requests — all from a single workspace that shows
-      every dollar moving to the merchant's bank.
+      Stripe Connect is the backbone of Dyia. Send branded invoices, one-tap pay
+      links, quote/job payment requests, and optional customer tips — from a single
+      workspace that shows every dollar moving to the merchant's bank. Now fully
+      demo-able and verified with automated + manual QA.
     </p>
   </div>
 
@@ -390,7 +391,7 @@
       </div>
       <div>
         <div class="k">Released</div>
-        <div class="v">May 27, 2026</div>
+        <div class="v">May 31, 2026</div>
       </div>
     </div>
     <div class="footer" style="margin-top: 24px;">
@@ -438,9 +439,10 @@
   <div class="chips">
     <span class="chip green">0 net-new dependencies</span>
     <span class="chip green">Type-safe (TS strict passes)</span>
-    <span class="chip blue">One DB migration: 039</span>
-    <span class="chip blue">Backwards compatible with quote/job payments</span>
-    <span class="chip violet">Mobile-first /pay layouts</span>
+    <span class="chip green">21 automated logic checks pass</span>
+    <span class="chip blue">Customer tipping (100% to merchant)</span>
+    <span class="chip blue">Shared money lib · client = server</span>
+    <span class="chip violet">Fully clickable in demo mode</span>
   </div>
 
   <div class="page-footer">
@@ -454,22 +456,22 @@
 <!-- ────────────────────────────────────────────────────── -->
 <section class="page">
   <div class="page-eyebrow">Merchant view · /app?view=payments</div>
-  <h2>The Payments hub</h2>
+  <h2>The Payments hub (live)</h2>
   <p class="lede">
-    Single entry point for everything money. Onboarding is broken into 5 visible
-    pills so users always know the next concrete step. Once Stripe is live, the
-    setup banner disappears and four stat cards take its place (paid this month,
-    awaiting payment, net to your bank, Dyia fees collected).
+    Single entry point for everything money. Once Stripe is live, four stat cards
+    lead (paid this month, awaiting payment, net to your bank, Dyia fees collected),
+    followed by three action cards and a filterable activity feed that shows every
+    request with its kind, status, tips, and net payout. Captured live from demo mode.
   </p>
 
   <div class="shot contain">
-    <img src="01-payments-hub-disconnected.png" alt="Payments hub — disconnected state" />
+    <img src="qa-hub-demo-live.png" alt="Payments hub — live with sample data" />
   </div>
 
   <div class="chips">
-    <span class="chip">5 visible Connect steps</span>
-    <span class="chip">3 primary action cards</span>
-    <span class="chip">Filterable activity (All / Pending / Paid)</span>
+    <span class="chip green">Stripe status: Live</span>
+    <span class="chip">4 monthly stat cards</span>
+    <span class="chip">Activity with tips + net payout</span>
     <span class="chip">Funds-flow diagram (right column)</span>
   </div>
 
@@ -557,6 +559,7 @@
   <div class="chips">
     <span class="chip green">Itemized — matches Stripe receipt</span>
     <span class="chip green">No login required</span>
+    <span class="chip blue">Optional tip (15/18/20% or custom)</span>
     <span class="chip">Status pill: Awaiting payment / Paid</span>
   </div>
 
@@ -585,7 +588,7 @@
 
   <div class="chips">
     <span class="chip green">One tap to Stripe Checkout</span>
-    <span class="chip blue">Webhook + verify endpoint redundancy</span>
+    <span class="chip blue">Optional tip — 100% to the merchant</span>
     <span class="chip">Idempotent: cannot double-pay</span>
   </div>
 
@@ -685,21 +688,111 @@
 </section>
 
 <!-- ────────────────────────────────────────────────────── -->
-<!-- PAGE 10 — Rollout checklist -->
+<!-- PAGE — Demo mode -->
+<!-- ────────────────────────────────────────────────────── -->
+<section class="page">
+  <div class="page-eyebrow">For the team · Sales & QA</div>
+  <h2>Fully clickable in demo mode</h2>
+  <p class="lede">
+    Demo mode (no login, no Stripe, no database) now shows a live-looking payments
+    hub with sample data and lets you click the entire flow end to end: create a pay
+    link or invoice, watch it land in the activity feed, then open the customer pay
+    page from the share link. Nothing is charged. Perfect for sales walkthroughs.
+  </p>
+
+  <div class="two-col">
+    <div>
+      <div class="shot contain">
+        <img src="qa-modal-paylink.png" alt="Create pay link modal with live net-payout preview" />
+      </div>
+      <div class="caption">1 · Create — live net-payout preview + tip toggle</div>
+    </div>
+    <div>
+      <div class="shot contain">
+        <img src="qa-public-paylink-demo.png" alt="Customer demo pay page with tip selector" />
+      </div>
+      <div class="caption">2 · The share link opens the real customer pay page</div>
+    </div>
+  </div>
+
+  <div class="chips">
+    <span class="chip green">No charge — clearly labeled “Demo preview”</span>
+    <span class="chip blue">Created links persist + resolve on /pay</span>
+    <span class="chip">Stats + activity update instantly</span>
+  </div>
+
+  <div class="page-footer">
+    <span>9 · Demo mode</span>
+    <span>Dyia Payments · Release brief</span>
+  </div>
+</section>
+
+<!-- ────────────────────────────────────────────────────── -->
+<!-- PAGE — QA & verification -->
+<!-- ────────────────────────────────────────────────────── -->
+<section class="page">
+  <div class="page-eyebrow">Engineering · How this was verified</div>
+  <h2>QA &amp; verification</h2>
+  <p class="lede">
+    The money math (platform fee, tips, tax, line-item totals, the $50k ceiling)
+    now lives in one shared, isomorphic library used by BOTH the client preview and
+    the server — so what the merchant sees, what gets stored, and what Stripe charges
+    are computed by the same code. That library has automated checks, and the full
+    flow was driven manually in the browser.
+  </p>
+
+  <div class="tldr">
+    <div class="card">
+      <div class="label">Automated · 21/21 pass</div>
+      <h3>Pure-logic test suite</h3>
+      <p>Fee = 0.75% of base only; tips never taxed/feed; 8.25% tax on $815 = $67.24; fractional-qty subtotals stay exact; $50k ceiling; input sanitization. Run with the project's Node, no network needed.</p>
+    </div>
+    <div class="card">
+      <div class="label">Manual · browser</div>
+      <h3>Full flow, zero console errors</h3>
+      <p>Hub → create pay link (real typing) → success modal → feed + stats update → open share link → tip selector ($275 + 20% = $330) → demo pay guard. Invoice layout verified ($815 + tax = $882.24).</p>
+    </div>
+    <div class="card">
+      <div class="label">Refinement</div>
+      <h3>Fractional-quantity correctness</h3>
+      <p>Checkout now collapses each line to qty:1 × rounded amount, so Stripe's total always equals the invoice total even for e.g. 1.5 hrs of labor (Stripe requires integer quantities).</p>
+    </div>
+    <div class="card">
+      <div class="label">Blocker found</div>
+      <h3>Migrations not yet applied</h3>
+      <p>Migrations 039–042 (standalone payments, invoices, tips, webhook fields) are <strong>not applied</strong> to the connected database. The authenticated create flow will 400/500 until they run. See the checklist.</p>
+    </div>
+  </div>
+
+  <div class="chips">
+    <span class="chip green">tsc --noEmit clean</span>
+    <span class="chip green">eslint clean</span>
+    <span class="chip">Single source of truth for money math</span>
+  </div>
+
+  <div class="page-footer">
+    <span>10 · QA &amp; verification</span>
+    <span>Dyia Payments · Release brief</span>
+  </div>
+</section>
+
+<!-- ────────────────────────────────────────────────────── -->
+<!-- PAGE — Rollout checklist -->
 <!-- ────────────────────────────────────────────────────── -->
 <section class="page">
   <div class="page-eyebrow">Before the wider rollout</div>
   <h2>Release checklist</h2>
   <p class="lede">
-    Below is everything the engineering + business teams need to do once this branch
-    merges. The DB migration is required because invoices and standalone pay links
-    were previously blocked by a NOT NULL-ish CHECK constraint.
+    Everything the engineering + business teams need once this branch merges. The DB
+    migrations are <strong>required and currently NOT applied</strong> to the connected
+    database — verified during QA — so the authenticated create flow won't work until
+    they run. (Demo mode works without them.)
   </p>
 
   <div class="check">
     <h3>Engineering</h3>
     <ul>
-      <li><span class="box"></span>Apply Supabase migration <code>039_standalone_payments_and_invoices.sql</code> (idempotent — safe to re-run). <span class="who">Eng</span></li>
+      <li><span class="box"></span><strong>Apply migrations 039–042</strong> (standalone payments + invoices, cancel-at-period-end, tips, webhook error column). Idempotent — safe to re-run. <span class="who">Eng · BLOCKER</span></li>
       <li><span class="box"></span>Confirm <code>STRIPE_SECRET_KEY</code>, <code>STRIPE_WEBHOOK_SECRET</code>, and Stripe Connect platform settings are live in production. <span class="who">Eng</span></li>
       <li><span class="box"></span>Verify <code>checkout.session.completed</code> webhook is firing — known production gap previously caught by BUG-031. <span class="who">Eng</span></li>
       <li><span class="box"></span>Smoke test: pay link &rarr; pay $1 in Stripe test mode &rarr; Activity feed shows "Paid". <span class="who">Eng</span></li>
@@ -728,7 +821,7 @@
   </div>
 
   <div class="page-footer">
-    <span>9 · Rollout checklist</span>
+    <span>11 · Rollout checklist</span>
     <span>Dyia Payments · Release brief</span>
   </div>
 </section>

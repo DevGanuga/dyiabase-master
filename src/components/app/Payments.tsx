@@ -1,18 +1,22 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { formatCurrency } from '@/lib/utils'
-import type { AppPaymentRecord, AppSettings, PaymentLineItem, UserProfile } from '@/types/database'
+import { formatCents } from '@/lib/payments'
+import type { AppPaymentRecord, AppSettings, UserProfile } from '@/types/database'
+import { createDemoPaymentRecord, getDemoFeed } from '@/lib/demo-payments'
 import { PaymentLinkReadyModal } from './PaymentLinkReadyModal'
-import { CreatePaymentRequestModal } from './CreatePaymentRequestModal'
+import { CreatePaymentRequestModal, type PaymentPrefill } from './CreatePaymentRequestModal'
 
 interface PaymentsProps {
   userProfile: UserProfile | null
   settings: AppSettings
   showSuccess: (message: string) => void
+  showError?: (message: string) => void
   onOpenSettings?: () => void
   onNavigateQuotes?: () => void
+  /** Demo mode: show a live-looking, fully clickable payments hub with sample data. */
+  isDemoMode?: boolean
 }
 
 interface ConnectStatus {
@@ -101,24 +105,75 @@ const KIND_BADGES: Record<string, { label: string; icon: React.ReactNode; cls: s
   },
 }
 
-type ActivityFilter = 'all' | 'pending' | 'paid'
+type ActivityFilter = 'all' | 'awaiting' | 'overdue' | 'paid'
 
-export function Payments({ userProfile, settings, showSuccess, onOpenSettings, onNavigateQuotes }: PaymentsProps) {
-  const supabase = useMemo(() => createClient(), [])
-  const [loadingStatus, setLoadingStatus] = useState(true)
-  const [status, setStatus] = useState<ConnectStatus>({
-    connected: Boolean(userProfile?.stripe_connect_account_id),
-    accountId: userProfile?.stripe_connect_account_id || null,
-    onboardingComplete: Boolean(userProfile?.stripe_connect_onboarding_complete),
-    detailsSubmitted: Boolean(userProfile?.stripe_connect_details_submitted),
-    chargesEnabled: Boolean(userProfile?.stripe_connect_charges_enabled),
-    payoutsEnabled: Boolean(userProfile?.stripe_connect_payouts_enabled),
-  })
+const OPEN_STATUSES = new Set(['pending', 'checkout_created'])
+
+function isOverdue(p: AppPaymentRecord): boolean {
+  if (!OPEN_STATUSES.has(p.status) || !p.dueDate) return false
+  const due = new Date(`${p.dueDate}T23:59:59`)
+  return Number.isFinite(due.getTime()) && due.getTime() < Date.now()
+}
+
+/** Mutually-exclusive management category for an invoice/payment. */
+function categoryOf(p: AppPaymentRecord): ActivityFilter {
+  if (p.status === 'paid') return 'paid'
+  if (isOverdue(p)) return 'overdue'
+  if (OPEN_STATUSES.has(p.status)) return 'awaiting'
+  return 'all'
+}
+
+export function Payments({ userProfile, settings, showSuccess, showError, onOpenSettings, onNavigateQuotes, isDemoMode = false }: PaymentsProps) {
+  const [loadingStatus, setLoadingStatus] = useState(!isDemoMode)
+  const [status, setStatus] = useState<ConnectStatus>(
+    isDemoMode
+      ? {
+          connected: true,
+          accountId: 'acct_demo_1Hill',
+          onboardingComplete: true,
+          detailsSubmitted: true,
+          chargesEnabled: true,
+          payoutsEnabled: true,
+        }
+      : {
+          connected: Boolean(userProfile?.stripe_connect_account_id),
+          accountId: userProfile?.stripe_connect_account_id || null,
+          onboardingComplete: Boolean(userProfile?.stripe_connect_onboarding_complete),
+          detailsSubmitted: Boolean(userProfile?.stripe_connect_details_submitted),
+          chargesEnabled: Boolean(userProfile?.stripe_connect_charges_enabled),
+          payoutsEnabled: Boolean(userProfile?.stripe_connect_payouts_enabled),
+        }
+  )
   const [payments, setPayments] = useState<AppPaymentRecord[]>([])
   const [actionLoading, setActionLoading] = useState<'onboarding' | 'dashboard' | 'refresh' | null>(null)
   const [paymentLinkModal, setPaymentLinkModal] = useState<{ url: string; customerName?: string; kind?: string } | null>(null)
   const [createOpen, setCreateOpen] = useState(false)
+  const [createTab, setCreateTab] = useState<'link' | 'invoice'>('link')
+  const [createPrefill, setCreatePrefill] = useState<PaymentPrefill | null>(null)
   const [filter, setFilter] = useState<ActivityFilter>('all')
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  const openCreate = useCallback((tab: 'link' | 'invoice' = 'link', prefill: PaymentPrefill | null = null) => {
+    setCreateTab(tab)
+    setCreatePrefill(prefill)
+    setCreateOpen(true)
+  }, [])
+
+  // Close the per-row actions menu on outside click / escape.
+  useEffect(() => {
+    if (!openMenuId) return
+    const onClick = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setOpenMenuId(null)
+    }
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpenMenuId(null)
+    document.addEventListener('mousedown', onClick)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onClick)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [openMenuId])
 
   const businessReady = Boolean(
     settings.businessInfo.name?.trim() &&
@@ -127,6 +182,10 @@ export function Payments({ userProfile, settings, showSuccess, onOpenSettings, o
   )
 
   const refreshStatus = useCallback(async () => {
+    if (isDemoMode) {
+      setLoadingStatus(false)
+      return
+    }
     setActionLoading('refresh')
     try {
       const res = await fetch('/api/stripe/connect/status')
@@ -142,52 +201,37 @@ export function Payments({ userProfile, settings, showSuccess, onOpenSettings, o
       })
     } catch (error) {
       console.error('Payments status error:', error)
+      showError?.('Could not refresh your Stripe status. Check your connection and try again.')
     } finally {
       setLoadingStatus(false)
       setActionLoading(null)
     }
-  }, [])
+  }, [showError, isDemoMode])
 
   const loadPayments = useCallback(async () => {
-    const { data, error } = await supabase
-      .from('dyia_payments')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(50)
-
-    if (error) {
-      console.error('Load payments error:', error)
+    // Demo mode: no Clerk session, so the real feed 401s. Serve curated sample
+    // payments (plus anything created during the demo) so the whole hub is live.
+    if (isDemoMode) {
+      setPayments(getDemoFeed())
       return
     }
-
-    setPayments((data || []).map((payment) => ({
-      id: payment.id,
-      quoteId: payment.quote_id,
-      jobId: payment.job_id,
-      publicToken: payment.public_token,
-      status: payment.status,
-      kind: payment.kind || (payment.quote_id ? 'quote_payment' : payment.job_id ? 'job_payment' : 'payment_link'),
-      amountCents: payment.amount_cents,
-      subtotalCents: payment.subtotal_cents,
-      taxCents: payment.tax_cents,
-      applicationFeeAmountCents: payment.application_fee_amount_cents,
-      destinationAmountCents: payment.destination_amount_cents,
-      currency: payment.currency,
-      customerName: payment.customer_name,
-      customerEmail: payment.customer_email,
-      customerPhone: payment.customer_phone,
-      customerAddress: payment.customer_address,
-      description: payment.description,
-      invoiceNumber: payment.invoice_number,
-      dueDate: payment.due_date,
-      lineItems: payment.line_items as PaymentLineItem[] | null,
-      checkoutUrl: payment.checkout_url,
-      paidAt: payment.paid_at,
-      refundedAt: payment.refunded_at,
-      createdAt: payment.created_at,
-      updatedAt: payment.updated_at,
-    })))
-  }, [supabase])
+    // Load through the server (service-role) so the feed + stat cards always
+    // populate. Reading `dyia_payments` with the browser client is subject to
+    // an RLS policy that compares the Clerk subject to a dyia_users UUID and
+    // never matches, which left the activity feed empty even when payments
+    // existed.
+    try {
+      const res = await fetch('/api/payments/list')
+      if (!res.ok) {
+        if (res.status !== 401) console.error('Load payments failed:', res.status)
+        return
+      }
+      const data = await res.json()
+      setPayments(Array.isArray(data.payments) ? data.payments : [])
+    } catch (error) {
+      console.error('Load payments error:', error)
+    }
+  }, [isDemoMode])
 
   useEffect(() => {
     refreshStatus()
@@ -197,36 +241,89 @@ export function Payments({ userProfile, settings, showSuccess, onOpenSettings, o
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const connectParam = params.get('connect')
+    // Stripe sends `return` when the merchant finishes (or exits) onboarding and
+    // `refresh` when the account link expires and needs to be regenerated. Both
+    // should re-pull the authoritative Connect status.
     if (connectParam === 'return') {
       showSuccess('Stripe setup updated.')
       refreshStatus()
       loadPayments()
+    } else if (connectParam === 'refresh') {
+      refreshStatus()
     }
   }, [loadPayments, refreshStatus, showSuccess])
 
+  // Keep the activity feed live. When the merchant returns to this tab after a
+  // customer paid in another window/device (or the webhook just landed), the
+  // feed was stale until a full navigation away and back. Reconcile any stuck
+  // rows against Stripe, then refetch the feed + Connect status. Throttled so
+  // rapid focus/visibility toggles don't hammer the API.
+  useEffect(() => {
+    if (isDemoMode) return
+    let lastRefreshAt = 0
+    const MIN_REFETCH_INTERVAL_MS = 5_000
+    const onMaybeRefresh = () => {
+      if (document.visibilityState !== 'visible') return
+      const now = Date.now()
+      if (now - lastRefreshAt < MIN_REFETCH_INTERVAL_MS) return
+      lastRefreshAt = now
+      void (async () => {
+        try {
+          await fetch('/api/payments/sync-pending', { method: 'POST' })
+        } catch {
+          // best-effort; the refetch below still surfaces webhook updates
+        }
+        await loadPayments()
+      })()
+    }
+    document.addEventListener('visibilitychange', onMaybeRefresh)
+    window.addEventListener('focus', onMaybeRefresh)
+    return () => {
+      document.removeEventListener('visibilitychange', onMaybeRefresh)
+      window.removeEventListener('focus', onMaybeRefresh)
+    }
+  }, [isDemoMode, loadPayments])
+
   const startOnboarding = async () => {
+    if (isDemoMode) {
+      showSuccess('Demo mode: Stripe is already connected. Try creating a pay link or invoice.')
+      return
+    }
     setActionLoading('onboarding')
     try {
       const res = await fetch('/api/stripe/connect/onboarding', { method: 'POST' })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Could not start Stripe setup')
-      if (data.url) window.location.href = data.url
+      if (data.url) {
+        window.location.href = data.url
+      } else {
+        throw new Error('Stripe did not return a setup link. Please try again.')
+      }
     } catch (error) {
       console.error('Connect onboarding error:', error)
-    } finally {
+      showError?.(error instanceof Error ? error.message : 'Could not start Stripe setup. Please try again.')
       setActionLoading(null)
     }
   }
 
   const openDashboard = async () => {
+    if (isDemoMode) {
+      showSuccess('Demo mode: this opens your live Stripe payouts dashboard once connected.')
+      return
+    }
     setActionLoading('dashboard')
     try {
       const res = await fetch('/api/stripe/connect/dashboard', { method: 'POST' })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Could not open Stripe dashboard')
-      if (data.url) window.open(data.url, '_blank', 'noopener,noreferrer')
+      if (data.url) {
+        window.open(data.url, '_blank', 'noopener,noreferrer')
+      } else {
+        throw new Error('Stripe did not return a dashboard link. Please try again.')
+      }
     } catch (error) {
       console.error('Connect dashboard error:', error)
+      showError?.(error instanceof Error ? error.message : 'Could not open your Stripe dashboard. Please try again.')
     } finally {
       setActionLoading(null)
     }
@@ -246,15 +343,18 @@ export function Payments({ userProfile, settings, showSuccess, onOpenSettings, o
 
     for (const p of payments) {
       const created = new Date(p.createdAt)
+      // Tips flow 100% to the merchant, so they count toward collected + net
+      // but never toward Dyia fees (which are charged on the base only).
+      const tip = p.tipCents || 0
       if (p.status === 'pending' || p.status === 'checkout_created') {
         pendingCents += p.amountCents
         pendingCount += 1
       }
       if (p.status === 'paid') {
-        lifetimePaidCents += p.amountCents
+        lifetimePaidCents += p.amountCents + tip
         if (created >= monthStart) {
-          paidThisMonthCents += p.amountCents
-          netThisMonthCents += p.destinationAmountCents
+          paidThisMonthCents += p.amountCents + tip
+          netThisMonthCents += p.destinationAmountCents + tip
           feesThisMonthCents += p.applicationFeeAmountCents
           paidThisMonthCount += 1
         }
@@ -264,11 +364,51 @@ export function Payments({ userProfile, settings, showSuccess, onOpenSettings, o
     return { pendingCents, pendingCount, paidThisMonthCents, netThisMonthCents, feesThisMonthCents, paidThisMonthCount, lifetimePaidCents }
   }, [payments])
 
+  // Categorized management: counts per bucket (Overdue is open + past due).
+  const categoryCounts = useMemo(() => {
+    const counts = { all: payments.length, awaiting: 0, overdue: 0, paid: 0 }
+    for (const p of payments) {
+      const c = categoryOf(p)
+      if (c === 'awaiting') counts.awaiting += 1
+      else if (c === 'overdue') counts.overdue += 1
+      else if (c === 'paid') counts.paid += 1
+    }
+    return counts
+  }, [payments])
+
   const filteredPayments = useMemo(() => {
     if (filter === 'all') return payments
-    if (filter === 'paid') return payments.filter((p) => p.status === 'paid')
-    return payments.filter((p) => p.status === 'pending' || p.status === 'checkout_created')
+    return payments.filter((p) => categoryOf(p) === filter)
   }, [payments, filter])
+
+  // Duplicate an existing request into the create modal (prefilled).
+  const duplicatePayment = useCallback((p: AppPaymentRecord) => {
+    setOpenMenuId(null)
+    const isInvoice = p.kind === 'invoice' || (Array.isArray(p.lineItems) && p.lineItems.length > 0)
+    openCreate(isInvoice ? 'invoice' : 'link', {
+      kind: isInvoice ? 'invoice' : 'payment_link',
+      amountCents: p.amountCents,
+      description: p.description || undefined,
+      customerName: p.customerName || undefined,
+      customerEmail: p.customerEmail || undefined,
+      customerPhone: p.customerPhone || undefined,
+      customerAddress: p.customerAddress || undefined,
+      taxPercentage:
+        p.subtotalCents && p.subtotalCents > 0 && p.taxCents
+          ? Math.round((p.taxCents / p.subtotalCents) * 10000) / 100
+          : 0,
+      lineItems: Array.isArray(p.lineItems) ? p.lineItems : undefined,
+    })
+  }, [openCreate])
+
+  // Demo-only: flip a sample payment to paid to demonstrate the lifecycle.
+  const markPaidDemo = useCallback((id: string) => {
+    setOpenMenuId(null)
+    setPayments((prev) =>
+      prev.map((p) => (p.id === id ? { ...p, status: 'paid', paidAt: new Date().toISOString() } : p))
+    )
+    showSuccess('Marked as paid (demo).')
+  }, [showSuccess])
 
   const canAcceptPayments = status.chargesEnabled
   const showConnectBanner = !status.connected || !status.chargesEnabled
@@ -294,7 +434,7 @@ export function Payments({ userProfile, settings, showSuccess, onOpenSettings, o
             </button>
           )}
           <button
-            onClick={() => setCreateOpen(true)}
+            onClick={() => openCreate('link')}
             disabled={!businessReady}
             className="app-btn-primary text-sm"
             title={!businessReady ? 'Add business info in Settings first' : 'Create a new payment request'}
@@ -406,7 +546,7 @@ export function Payments({ userProfile, settings, showSuccess, onOpenSettings, o
               description="Send a one-tap pay link for a fixed amount."
               accent="orange"
               disabled={!businessReady}
-              onClick={() => setCreateOpen(true)}
+              onClick={() => openCreate('link')}
               icon={
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
@@ -418,7 +558,7 @@ export function Payments({ userProfile, settings, showSuccess, onOpenSettings, o
               description="Itemized invoice with tax, due date, and total."
               accent="sky"
               disabled={!businessReady}
-              onClick={() => setCreateOpen(true)}
+              onClick={() => openCreate('invoice')}
               icon={
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -441,25 +581,40 @@ export function Payments({ userProfile, settings, showSuccess, onOpenSettings, o
 
           {/* ── Activity ─────────────────────────────────────────────── */}
           <div className="app-card">
-            <div className="flex items-center justify-between gap-4 mb-4">
-              <div>
-                <h3 className="text-base font-semibold text-[var(--color-text-primary)]">Payment activity</h3>
-                <p className="text-sm text-[var(--color-text-muted)]">All your invoices and pay links in one place.</p>
-              </div>
-              <div className="inline-flex p-1 bg-[var(--color-bg-subtle)] rounded-lg text-xs">
-                {(['all', 'pending', 'paid'] as ActivityFilter[]).map((f) => (
-                  <button
-                    key={f}
-                    onClick={() => setFilter(f)}
-                    className={`px-3 py-1 rounded-md font-medium transition-all capitalize ${
-                      filter === f
-                        ? 'bg-[var(--color-bg-card)] text-[var(--color-text-primary)] shadow-sm'
-                        : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]'
-                    }`}
-                  >
-                    {f}
-                  </button>
-                ))}
+            <div className="mb-4">
+              <h3 className="text-base font-semibold text-[var(--color-text-primary)]">Payment activity</h3>
+              <p className="text-sm text-[var(--color-text-muted)]">Manage every invoice and pay link in one place.</p>
+              {/* Categorized management — counts per bucket, Overdue surfaced */}
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {([
+                  { id: 'all', label: 'All', count: categoryCounts.all },
+                  { id: 'awaiting', label: 'Awaiting', count: categoryCounts.awaiting },
+                  { id: 'overdue', label: 'Overdue', count: categoryCounts.overdue },
+                  { id: 'paid', label: 'Paid', count: categoryCounts.paid },
+                ] as { id: ActivityFilter; label: string; count: number }[]).map((c) => {
+                  const active = filter === c.id
+                  const isOverdueCat = c.id === 'overdue' && c.count > 0
+                  return (
+                    <button
+                      key={c.id}
+                      onClick={() => setFilter(c.id)}
+                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all active:scale-95 ${
+                        active
+                          ? 'bg-[var(--color-text-primary)] text-[var(--color-bg-card)]'
+                          : isOverdueCat
+                            ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300 hover:opacity-80'
+                            : 'bg-[var(--color-bg-subtle)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]'
+                      }`}
+                    >
+                      {c.label}
+                      <span className={`min-w-[1.25rem] text-center px-1 rounded-full text-[10px] ${
+                        active ? 'bg-[var(--color-bg-card)]/20' : 'bg-[var(--color-bg-card)]'
+                      }`}>
+                        {c.count}
+                      </span>
+                    </button>
+                  )
+                })}
               </div>
             </div>
 
@@ -475,7 +630,7 @@ export function Payments({ userProfile, settings, showSuccess, onOpenSettings, o
                   Create your first pay link or invoice and the activity feed will show every request, status, and payout.
                 </p>
                 <button
-                  onClick={() => setCreateOpen(true)}
+                  onClick={() => openCreate('link')}
                   disabled={!businessReady}
                   className="app-btn-primary text-sm mt-4"
                 >
@@ -491,7 +646,10 @@ export function Payments({ userProfile, settings, showSuccess, onOpenSettings, o
             ) : (
               <ul className="divide-y divide-[var(--color-border)]">
                 {filteredPayments.map((payment) => {
-                  const meta = STATUS_STYLES[payment.status] || STATUS_STYLES.pending
+                  const overdue = isOverdue(payment)
+                  const meta = overdue
+                    ? { label: 'Overdue', cls: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300', dot: 'bg-red-500' }
+                    : STATUS_STYLES[payment.status] || STATUS_STYLES.pending
                   const kind = KIND_BADGES[payment.kind] || KIND_BADGES.payment_link
                   const url = typeof window !== 'undefined' ? `${window.location.origin}/pay/${payment.publicToken}` : `/pay/${payment.publicToken}`
                   return (
@@ -523,31 +681,85 @@ export function Payments({ userProfile, settings, showSuccess, onOpenSettings, o
                           </p>
                         </div>
                         <div className="flex items-center justify-between sm:justify-end gap-4 sm:gap-3">
-                          <div className="text-right">
-                            <p className="text-base font-bold text-[var(--color-text-primary)]">
-                              {formatCurrency(payment.amountCents / 100)}
-                            </p>
-                            <p className="text-[11px] text-[var(--color-text-muted)]">
-                              You get {formatCurrency(payment.destinationAmountCents / 100)}
-                            </p>
-                          </div>
-                          <div className="flex gap-1">
+                          {(() => {
+                            const tip = payment.tipCents || 0
+                            const isPaid = payment.status === 'paid'
+                            const total = payment.amountCents + (isPaid ? tip : 0)
+                            const youGet = payment.destinationAmountCents + (isPaid ? tip : 0)
+                            return (
+                              <div className="text-right">
+                                <p className="text-base font-bold text-[var(--color-text-primary)]">
+                                  {formatCents(total)}
+                                </p>
+                                {isPaid && tip > 0 && (
+                                  <p className="text-[11px] text-emerald-600 dark:text-emerald-400">
+                                    incl. {formatCents(tip)} tip
+                                  </p>
+                                )}
+                                <p className="text-[11px] text-[var(--color-text-muted)]">
+                                  You get {formatCents(youGet)}
+                                </p>
+                              </div>
+                            )
+                          })()}
+                          <div className="flex items-center gap-1.5">
                             <button
                               onClick={() => setPaymentLinkModal({ url, customerName: payment.customerName || undefined, kind: payment.kind })}
-                              className="px-2 py-1.5 text-xs font-medium rounded-md border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-subtle)] transition-colors"
-                              title="Copy share link"
+                              className="px-3 py-1.5 text-xs font-semibold rounded-full bg-[var(--color-bg-subtle)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors active:scale-95"
+                              title="Share payment link"
                             >
-                              Share
+                              Send
                             </button>
-                            <a
-                              href={`/pay/${payment.publicToken}`}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="px-2 py-1.5 text-xs font-medium rounded-md border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-subtle)] transition-colors"
-                              title="Open the customer view"
-                            >
-                              Preview
-                            </a>
+                            <div className="relative">
+                              <button
+                                onClick={() => setOpenMenuId(openMenuId === payment.id ? null : payment.id)}
+                                className="w-8 h-8 flex items-center justify-center rounded-full text-[var(--color-text-muted)] hover:bg-[var(--color-bg-subtle)] hover:text-[var(--color-text-primary)] transition-colors"
+                                aria-label="More actions"
+                                aria-haspopup="true"
+                                aria-expanded={openMenuId === payment.id}
+                              >
+                                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                  <path d="M6 10a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM11.5 10a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM17 10a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />
+                                </svg>
+                              </button>
+                              {openMenuId === payment.id && (
+                                <div
+                                  ref={menuRef}
+                                  className="absolute right-0 top-9 z-20 w-48 rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg-card)] shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150"
+                                >
+                                  <MenuItem
+                                    label="Copy link"
+                                    onClick={() => { setOpenMenuId(null); setPaymentLinkModal({ url, customerName: payment.customerName || undefined, kind: payment.kind }) }}
+                                    icon="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244"
+                                  />
+                                  <a
+                                    href={`/pay/${payment.publicToken}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    onClick={() => setOpenMenuId(null)}
+                                    className="flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-bg-subtle)] transition-colors"
+                                  >
+                                    <svg className="w-4 h-4 text-[var(--color-text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.7} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                    </svg>
+                                    Open preview
+                                  </a>
+                                  <MenuItem
+                                    label="Duplicate"
+                                    onClick={() => duplicatePayment(payment)}
+                                    icon="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"
+                                  />
+                                  {isDemoMode && payment.status !== 'paid' && (
+                                    <MenuItem
+                                      label="Mark as paid"
+                                      onClick={() => markPaidDemo(payment.id)}
+                                      icon="M5 13l4 4L19 7"
+                                      tone="green"
+                                    />
+                                  )}
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -660,13 +872,18 @@ export function Payments({ userProfile, settings, showSuccess, onOpenSettings, o
       {/* Modals */}
       <CreatePaymentRequestModal
         open={createOpen}
-        onClose={() => setCreateOpen(false)}
+        onClose={() => { setCreateOpen(false); setCreatePrefill(null) }}
         canAcceptPayments={canAcceptPayments}
+        initialTab={createTab}
+        prefill={createPrefill}
         // Don't pull from settings.taxPercentage — that's the user's INCOME
         // tax estimate (used by the profit calculator), not sales tax. Two
         // very different things. Invoice sales tax defaults to 0 and the
         // merchant types it in per invoice.
         defaultTaxPercentage={0}
+        // Demo mode: simulate the create locally (persists to localStorage so
+        // the generated /pay link actually resolves) instead of POSTing.
+        onDemoCreate={isDemoMode ? (payload) => createDemoPaymentRecord(payload) : undefined}
         onOpenConnect={() => {
           setCreateOpen(false)
           startOnboarding()
@@ -692,6 +909,22 @@ export function Payments({ userProfile, settings, showSuccess, onOpenSettings, o
 // ────────────────────────────────────────────────────────────────────────
 // Sub-components
 // ────────────────────────────────────────────────────────────────────────
+
+function MenuItem({ label, onClick, icon, tone }: { label: string; onClick: () => void; icon: string; tone?: 'green' }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-left hover:bg-[var(--color-bg-subtle)] transition-colors ${
+        tone === 'green' ? 'text-green-600 dark:text-green-400' : 'text-[var(--color-text-primary)]'
+      }`}
+    >
+      <svg className={`w-4 h-4 ${tone === 'green' ? '' : 'text-[var(--color-text-muted)]'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.7} d={icon} />
+      </svg>
+      {label}
+    </button>
+  )
+}
 
 function StatusPill({ done, label }: { done: boolean; label: string }) {
   return (

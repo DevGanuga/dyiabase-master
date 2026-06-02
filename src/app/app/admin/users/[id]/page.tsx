@@ -2,7 +2,6 @@
 
 import { useState, useEffect, use } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 
 interface UserDetail {
   id: string
@@ -15,6 +14,7 @@ interface UserDetail {
   subscription_plan: string | null
   subscription_tier: string | null
   subscription_ends_at: string | null
+  cancel_at_period_end: boolean | null
   stripe_customer_id: string | null
   stripe_subscription_id: string | null
   ai_credits_balance: number
@@ -32,16 +32,17 @@ interface UserStats {
 
 export default function AdminUserDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
-  const router = useRouter()
   const [user, setUser] = useState<UserDetail | null>(null)
   const [stats, setStats] = useState<UserStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [impersonating, setImpersonating] = useState(false)
 
   useEffect(() => {
     fetch(`/api/admin/users/${id}`)
-      .then(res => res.json())
+      .then(async res => {
+        if (!res.ok) throw new Error(res.status === 403 ? 'Access denied' : 'Failed to load user')
+        return res.json()
+      })
       .then(data => {
         setUser(data.user)
         setStats(data.stats)
@@ -66,24 +67,6 @@ export default function AdminUserDetailPage({ params }: { params: Promise<{ id: 
       alert('Failed to update user')
     } finally {
       setSaving(false)
-    }
-  }
-
-  const handleImpersonate = async () => {
-    setImpersonating(true)
-    try {
-      const res = await fetch('/api/admin/impersonate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ targetUserId: id }),
-      })
-      if (!res.ok) throw new Error('Failed to impersonate')
-      router.push('/app')
-    } catch (err) {
-      console.error(err)
-      alert('Failed to impersonate')
-    } finally {
-      setImpersonating(false)
     }
   }
 
@@ -114,6 +97,33 @@ export default function AdminUserDetailPage({ params }: { params: Promise<{ id: 
     } catch (err) {
       console.error(err)
       alert(err instanceof Error ? err.message : 'Failed to switch plan')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  // Cancel a live Stripe subscription — either scheduled (keeps access until the
+  // period ends, the usual "downgrade me" support flow) or immediate.
+  const cancelSubscription = async (immediate: boolean) => {
+    const msg = immediate
+      ? `Cancel ${user?.email}'s subscription IMMEDIATELY?\n\nThey lose Pro access right now with no proration.`
+      : `Schedule ${user?.email}'s subscription to cancel at the end of the billing period?\n\nThey keep access until then, and you can undo it before the date.`
+    if (!confirm(msg)) return
+    setSaving(true)
+    try {
+      const res = await fetch('/api/admin/cancel-subscription', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targetUserId: id, immediate }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data?.error || 'Failed to cancel subscription')
+      alert(data.message || 'Done.')
+      const refreshed = await fetch(`/api/admin/users/${id}`).then(r => r.json())
+      setUser(refreshed.user)
+    } catch (err) {
+      console.error(err)
+      alert(err instanceof Error ? err.message : 'Failed to cancel subscription')
     } finally {
       setSaving(false)
     }
@@ -158,6 +168,7 @@ export default function AdminUserDetailPage({ params }: { params: Promise<{ id: 
           <nav className="flex items-center gap-4 text-sm">
             <Link href="/app/admin" className="text-slate-400 hover:text-white transition-colors">Dashboard</Link>
             <Link href="/app/admin/users" className="text-orange-400 font-medium">Users</Link>
+            <Link href="/app/admin/payments" className="text-slate-400 hover:text-white transition-colors">Payments</Link>
             <Link href="/app/admin/webhooks" className="text-slate-400 hover:text-white transition-colors">Webhooks</Link>
             <Link href="/app" className="text-slate-500 hover:text-white transition-colors">Back to App</Link>
           </nav>
@@ -177,13 +188,6 @@ export default function AdminUserDetailPage({ params }: { params: Promise<{ id: 
               <p className="text-xs text-slate-600 mt-1">ID: {user.id}</p>
               <p className="text-xs text-slate-600">Clerk: {user.clerk_user_id}</p>
             </div>
-            <button
-              onClick={handleImpersonate}
-              disabled={impersonating}
-              className="px-4 py-2 bg-amber-500/20 text-amber-400 text-sm font-medium rounded-lg hover:bg-amber-500/30 transition-colors disabled:opacity-50"
-            >
-              {impersonating ? 'Loading...' : 'View as User'}
-            </button>
           </div>
         </div>
 
@@ -221,6 +225,16 @@ export default function AdminUserDetailPage({ params }: { params: Promise<{ id: 
                   </a>
                 </div>
               )}
+              {user.cancel_at_period_end && (
+                <div className="flex items-center gap-2 rounded-lg bg-amber-500/10 border border-amber-500/20 px-3 py-2 text-xs text-amber-400">
+                  <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span>
+                    Scheduled to cancel{user.subscription_ends_at ? ` on ${new Date(user.subscription_ends_at).toLocaleDateString()}` : ' at period end'}.
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Quick actions */}
@@ -228,7 +242,7 @@ export default function AdminUserDetailPage({ params }: { params: Promise<{ id: 
               <h4 className="text-xs text-slate-500 mb-2">Quick Actions</h4>
               <div className="flex flex-wrap gap-2">
                 <button
-                  onClick={() => updateUser({ subscription_status: 'active', subscription_plan: 'monthly' })}
+                  onClick={() => updateUser({ subscription_status: 'active', subscription_plan: 'monthly', subscription_tier: 'pro' })}
                   disabled={saving}
                   className="px-3 py-1.5 bg-green-500/20 text-green-400 text-xs font-medium rounded-lg hover:bg-green-500/30 transition-colors disabled:opacity-50"
                 >
@@ -295,6 +309,32 @@ export default function AdminUserDetailPage({ params }: { params: Promise<{ id: 
                 <p className="text-[11px] text-slate-600 mt-2">
                   Tells the customer to update their card via Settings &rarr; Manage Billing (Stripe portal). Admins cannot change cards directly &mdash;{' '}
                   <button onClick={sendBillingPortal} className="underline hover:text-orange-400">open in Stripe</button>{' '}to do it manually.
+                </p>
+              </div>
+            )}
+
+            {/* Cancel subscription — full lifecycle control alongside switch-plan */}
+            {user.stripe_subscription_id && (
+              <div className="space-y-2 pt-4 border-t border-slate-800 mt-4">
+                <h4 className="text-xs text-slate-500 mb-2">Cancel Subscription</h4>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => cancelSubscription(false)}
+                    disabled={saving || !!user.cancel_at_period_end}
+                    className="px-3 py-1.5 bg-amber-500/20 text-amber-400 text-xs font-medium rounded-lg hover:bg-amber-500/30 transition-colors disabled:opacity-30"
+                  >
+                    {user.cancel_at_period_end ? 'Cancel Scheduled' : 'Cancel at Period End'}
+                  </button>
+                  <button
+                    onClick={() => cancelSubscription(true)}
+                    disabled={saving}
+                    className="px-3 py-1.5 bg-red-500/20 text-red-400 text-xs font-medium rounded-lg hover:bg-red-500/30 transition-colors disabled:opacity-30"
+                  >
+                    Cancel Immediately
+                  </button>
+                </div>
+                <p className="text-[11px] text-slate-600 mt-2">
+                  &ldquo;At period end&rdquo; keeps access until the billing date (the standard downgrade). &ldquo;Immediately&rdquo; ends access now with no proration.
                 </p>
               </div>
             )}

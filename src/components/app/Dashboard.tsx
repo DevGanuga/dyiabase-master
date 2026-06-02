@@ -240,7 +240,6 @@ export function Dashboard({
   onResumePendingAction,
   launchpadItems = [],
   showLaunchpad = false,
-  onOpenDyia,
   onOpenDyiaWithPrompt,
   onLogDailyExpenses,
 }: DashboardProps) {
@@ -415,7 +414,7 @@ export function Dashboard({
         type: 'insight',
         title: `${stats.goalProgress}% to your monthly goal`,
         subtitle: `${formatCurrency(settings.monthlyGoal - stats.revenueThisMonth)} to go`,
-        action: () => {},
+        action: () => onNavigate('reports'),
         urgency: 'info',
       })
     }

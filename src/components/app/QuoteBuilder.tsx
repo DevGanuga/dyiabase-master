@@ -114,13 +114,11 @@ export function QuoteBuilder({ quotes, setQuotes, userId, selectedJob, editingQu
     }
     return [null, null, null]
   })
-  const [total, setTotal] = useState(0)
   const [saving, setSaving] = useState(false)
   const [templates, setTemplates] = useState<AppPriceTemplate[]>([])
-  const [defaultTemplate, setDefaultTemplate] = useState<AppPriceTemplate | null>(null)
+  const [, setDefaultTemplate] = useState<AppPriceTemplate | null>(null)
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null)
   const [templateLoaded, setTemplateLoaded] = useState(false)
-  const [showSummary, setShowSummary] = useState(false)
   const [quoteSource, setQuoteSource] = useState(() => {
     if (editingQuote?.pricing?.source) return editingQuote.pricing.source as string
     return ''
@@ -266,8 +264,6 @@ export function QuoteBuilder({ quotes, setQuotes, userId, selectedJob, editingQu
     loadTemplates()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId, supabase, templateLoaded])
-
-  const selectedTemplate = selectedTemplateId ? templates.find((t) => t.id === selectedTemplateId) ?? null : null
 
   const generateFromPricing = useCallback((pricingValues: Record<string, number>, loads = 0, perLoad = 0) => {
     const items: LineItem[] = []
@@ -437,12 +433,6 @@ export function QuoteBuilder({ quotes, setQuotes, userId, selectedJob, editingQu
     reader.readAsDataURL(file)
   }
 
-  const removeImage = (index: number) => {
-    const newPhotos = [...photos]
-    newPhotos[index] = null
-    setPhotos(newPhotos)
-  }
-
   const saveQuote = async (downloadPdf = false) => {
     if (!customer.name.trim()) {
       await alert({ title: 'Missing Name', message: 'Please enter a customer name.', variant: 'warning' })
@@ -591,17 +581,17 @@ export function QuoteBuilder({ quotes, setQuotes, userId, selectedJob, editingQu
   const photoCount = photos.filter(Boolean).length
 
   return (
-    <div className="animate-fade-in pb-28">
+    <div className="animate-fade-in pb-36 sm:pb-28">
       {/* Header */}
       <div className="page-header">
         <div>
-          <h1 className="page-title text-xl sm:text-2xl">{isEditing ? 'Edit Estimate' : 'New Estimate'}</h1>
+          <h1 className="page-title text-xl sm:text-2xl">{isEditing ? 'Edit Quote' : 'New Quote'}</h1>
           <p className="page-subtitle text-sm">
             {selectedJob
               ? <>For <span className="text-orange-600 dark:text-orange-400 font-medium">{selectedJob.customerName}</span></>
               : isEditing
                 ? <>Editing quote for <span className="text-orange-600 dark:text-orange-400 font-medium">{editingQuote?.customer.name}</span></>
-                : 'Create a professional estimate'}
+                : 'Create a professional quote'}
           </p>
         </div>
         <button onClick={onBack} className="app-btn-secondary text-sm px-4 py-2">
@@ -1087,8 +1077,10 @@ export function QuoteBuilder({ quotes, setQuotes, userId, selectedJob, editingQu
         )}
       </div>
 
-      {/* Sticky Action Bar */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 bg-[var(--color-bg-page)]/95 backdrop-blur-lg border-t border-[var(--color-border)] px-4 sm:px-6 py-3">
+      {/* Sticky Action Bar — sits above the mobile bottom nav (which reserves
+          80px via .app-layout main { pb-20 }); on >=sm there is no bottom nav,
+          so it anchors to the very bottom. */}
+      <div className="fixed bottom-20 sm:bottom-0 left-0 right-0 z-40 bg-[var(--color-bg-page)]/95 backdrop-blur-lg border-t border-[var(--color-border)] px-4 sm:px-6 py-3">
         <div className="max-w-2xl mx-auto flex gap-2">
           <button type="button" onClick={onBack} className="app-btn-secondary flex-shrink-0 text-sm py-2.5 px-4">Cancel</button>
           <button
