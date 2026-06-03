@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Dyia — Release Guide · June 2, 2026</title>
+<style>
+  @page { size: Letter; margin: 0.6in; }
+  @page cover { margin: 0; }
+
+  :root {
+    --orange: #f97316;
+    --amber: #f59e0b;
+    --text: #0f172a;
+    --muted: #475569;
+    --faint: #94a3b8;
+    --bg: #ffffff;
+    --bg-subtle: #f8fafc;
+    --border: #e2e8f0;
+    --green: #16a34a;
+    --sky: #0284c7;
+    --violet: #7c3aed;
+    --red: #dc2626;
+  }
+
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, system-ui, sans-serif;
+    color: var(--text);
+    background: var(--bg);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  /* ── Cover (full bleed) ─────────────────────────────── */
+  .cover {
+    page: cover;
+    width: 8.5in;
+    height: 11in;
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 55%, #3b1d05 100%);
+    color: white;
+    padding: 1.1in 0.9in;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    break-after: page;
+    position: relative;
+    overflow: hidden;
+  }
+  .cover::after {
+    content: "";
+    position: absolute;
+    top: -3in; right: -2in;
+    width: 7in; height: 7in;
+    background: radial-gradient(circle, rgba(249,115,22,0.30), transparent 70%);
+    filter: blur(8px);
+  }
+  .cover .logo { display: inline-flex; align-items: center; gap: 12px; font-size: 26px; font-weight: 800; letter-spacing: -0.02em; position: relative; }
+  .cover .logo .dot { width: 34px; height: 34px; border-radius: 10px; background: linear-gradient(135deg, var(--orange), var(--amber)); box-shadow: 0 6px 24px rgba(249,115,22,0.45); }
+  .cover .eyebrow { margin-top: 0.5in; text-transform: uppercase; letter-spacing: 0.3em; font-size: 11px; color: #fbbf24; font-weight: 700; position: relative; }
+  .cover h1 { margin: 16px 0 0; font-size: 56px; font-weight: 800; line-height: 1.03; letter-spacing: -0.03em; position: relative; }
+  .cover h1 .grad { background: linear-gradient(135deg, var(--orange), var(--amber)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+  .cover .sub { margin-top: 20px; font-size: 18px; color: #cbd5e1; max-width: 5.6in; line-height: 1.45; position: relative; }
+  .cover .meta { margin-top: 0.6in; display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; border-top: 1px solid rgba(255,255,255,0.12); padding-top: 20px; position: relative; }
+  .cover .meta .k { font-size: 10px; text-transform: uppercase; letter-spacing: 0.18em; color: #94a3b8; }
+  .cover .meta .v { margin-top: 4px; font-size: 13px; color: white; font-weight: 600; }
+  .cover .footer { font-size: 11px; color: #94a3b8; position: relative; }
+
+  /* ── Sections / typography ──────────────────────────── */
+  .sec { break-before: page; }
+  .sec.first { break-before: avoid; }
+  .eyebrow { text-transform: uppercase; letter-spacing: 0.22em; font-size: 10px; color: var(--orange); font-weight: 700; }
+  h2 { margin: 6px 0 8px; font-size: 26px; line-height: 1.1; letter-spacing: -0.02em; font-weight: 800; }
+  h3 { font-size: 15px; font-weight: 700; margin: 18px 0 6px; letter-spacing: -0.01em; }
+  .lede { color: var(--muted); font-size: 13px; line-height: 1.55; max-width: 6.6in; }
+  p { color: var(--muted); }
+  strong { color: var(--text); }
+  a { color: var(--orange); text-decoration: none; }
+
+  /* ── Pills / chips ──────────────────────────────────── */
+  .pill { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; font-size: 10px; font-weight: 700; background: #fef3c7; color: #92400e; vertical-align: middle; }
+  .pill.new { background: #fee2e2; color: #991b1b; }
+  .pill.fix { background: #dcfce7; color: #166534; }
+  .chips { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 7px; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; font-size: 10.5px; font-weight: 600; background: #fff7ed; color: #9a3412; border: 1px solid #fed7aa; }
+  .chip.green { background: #dcfce7; color: #166534; border-color: #bbf7d0; }
+  .chip.blue { background: #e0f2fe; color: #075985; border-color: #bae6fd; }
+  .chip.violet { background: #ede9fe; color: #5b21b6; border-color: #ddd6fe; }
+  .chip.slate { background: #f1f5f9; color: #334155; border-color: #e2e8f0; }
+
+  /* ── Tables ─────────────────────────────────────────── */
+  table { width: 100%; border-collapse: collapse; margin-top: 14px; break-inside: avoid; }
+  th { text-align: left; font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); border-bottom: 1.5px solid var(--border); padding: 8px 10px; background: var(--bg-subtle); }
+  td { font-size: 11.5px; padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: top; color: var(--text); }
+  td .m { color: var(--muted); }
+  .ok { color: var(--green); font-weight: 700; }
+  .no { color: var(--faint); }
+
+  /* ── Cards ──────────────────────────────────────────── */
+  .grid2 { margin-top: 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .card { border: 1px solid var(--border); border-radius: 12px; padding: 16px; background: var(--bg); break-inside: avoid; }
+  .card .label { font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.16em; color: var(--orange); font-weight: 700; }
+  .card h4 { margin: 6px 0 6px; font-size: 14px; font-weight: 700; }
+  .card p { margin: 0; font-size: 11.5px; color: var(--muted); line-height: 1.5; }
+
+  /* ── What-changed list ──────────────────────────────── */
+  ul.feat { margin: 10px 0 0; padding: 0; list-style: none; }
+  ul.feat li { position: relative; padding: 7px 0 7px 22px; font-size: 12px; color: var(--text); border-bottom: 1px solid var(--border); break-inside: avoid; }
+  ul.feat li:last-child { border-bottom: 0; }
+  ul.feat li::before { content: ""; position: absolute; left: 2px; top: 12px; width: 8px; height: 8px; border-radius: 2px; background: linear-gradient(135deg, var(--orange), var(--amber)); }
+  ul.feat li .h { font-weight: 700; }
+  ul.plain { margin: 8px 0 0; padding-left: 18px; }
+  ul.plain li { font-size: 11.5px; color: var(--muted); margin: 4px 0; }
+
+  code { background: #f1f5f9; padding: 1px 6px; border-radius: 4px; font-size: 10.5px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: #0f172a; }
+  pre { margin-top: 12px; background: #0f172a; color: #e2e8f0; border-radius: 10px; padding: 14px 16px; font-size: 10.5px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; line-height: 1.6; overflow: hidden; break-inside: avoid; }
+  pre .c { color: #94a3b8; }
+  pre .o { color: #fdba74; }
+
+  /* ── Shots ──────────────────────────────────────────── */
+  .shot { margin-top: 16px; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; box-shadow: 0 10px 28px rgba(15,23,42,0.08); break-inside: avoid; }
+  .shot img { display: block; width: 100%; height: auto; }
+  .caption { margin-top: 8px; color: var(--faint); font-size: 10px; text-align: center; letter-spacing: 0.04em; }
+
+  /* ── Checklist ──────────────────────────────────────── */
+  .check { margin-top: 14px; border: 1px solid var(--border); border-radius: 12px; padding: 8px 18px; background: var(--bg); }
+  .check li { display: flex; align-items: flex-start; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--border); font-size: 11.5px; list-style: none; break-inside: avoid; }
+  .check ul { margin: 0; padding: 0; }
+  .check li:last-child { border-bottom: 0; }
+  .check li .box { flex: 0 0 15px; width: 15px; height: 15px; border: 1.5px solid var(--faint); border-radius: 4px; margin-top: 1px; }
+
+  .callout { margin-top: 14px; border-left: 3px solid var(--orange); background: #fff7ed; border-radius: 0 10px 10px 0; padding: 12px 16px; font-size: 11.5px; color: #7c2d12; break-inside: avoid; }
+  .callout.warn { border-color: var(--red); background: #fef2f2; color: #991b1b; }
+  .divider { height: 1px; background: var(--border); margin: 22px 0; }
+  .muted-note { color: var(--faint); font-size: 10.5px; margin-top: 10px; }
+</style>
+</head>
+<body>
+
+<!-- ── COVER ───────────────────────────────────────────── -->
+<section class="cover">
+  <div>
+    <div class="logo"><span class="dot"></span> dyia</div>
+    <div class="eyebrow">Internal release brief · all-in-one</div>
+    <h1>The <span class="grad">June&nbsp;2</span><br />release</h1>
+    <p class="sub">
+      Everything shipped in one commit: Dyia Pay &amp; tips, native subscription
+      downgrades, full admin control, an iOS-native app UI, and a brand-new
+      11-page marketing site. Type-checked, linted, and visually verified on
+      desktop and mobile.
+    </p>
+  </div>
+  <div>
+    <div class="meta">
+      <div><div class="k">Commit</div><div class="v">fb492ab · 133 files</div></div>
+      <div><div class="k">Released</div><div class="v">June 2, 2026</div></div>
+      <div><div class="k">Status</div><div class="v">Verified · ready to ship</div></div>
+    </div>
+    <div class="footer" style="margin-top: 22px;">Confidential · Dyia internal · Engineering + rollout</div>
+  </div>
+</section>
+
+<!-- ── AT A GLANCE ─────────────────────────────────────── -->
+<section class="sec first">
+  <div class="eyebrow">Overview</div>
+  <h2>At a glance</h2>
+  <p class="lede">
+    This release bundles five workstreams into commit <code>fb492ab</code>
+    (<strong>68 added, 64 modified, 1 removed</strong>). At hand-off the working
+    tree is clean — everything below is committed and verified.
+  </p>
+
+  <table>
+    <thead><tr><th>Workstream</th><th>What shipped</th><th>Migration</th><th>Risk</th></tr></thead>
+    <tbody>
+      <tr><td><strong>A · Dyia Pay</strong></td><td class="m">Stripe Connect payments, customer tips, reconciliation, expired-session cleanup, live hub refresh, refunds</td><td><code>041</code></td><td>Medium</td></tr>
+      <tr><td><strong>B · Subscriptions</strong></td><td class="m">Self-service + admin downgrade to Basic, cancel at period end</td><td><code>040</code></td><td>Medium</td></tr>
+      <tr><td><strong>C · Admin panel</strong></td><td class="m">Dashboard fix, full subscription lifecycle, cross-linked surfaces, auth alignment, webhook-log fix</td><td><code>042</code></td><td>Low</td></tr>
+      <tr><td><strong>D · iOS-native UI</strong></td><td class="m">Unified motion system, translucent safe-area tab bar, themed sheets, reduced-motion</td><td class="no">—</td><td>Low</td></tr>
+      <tr><td><strong>E · Marketing site</strong></td><td class="m">11 pages, 8 custom graphics, emoji-free icon system, SEO metadata</td><td class="no">—</td><td>Low</td></tr>
+    </tbody>
+  </table>
+
+  <div class="grid2">
+    <div class="card"><div class="label">Verification</div><h4>Green across the board</h4><p><code>tsc --noEmit</code> clean · ESLint clean on changed files · all 11 marketing routes return <strong>200</strong> · mobile (390×844) + desktop (1440×900) visually verified · payments money-math unit test passing.</p></div>
+    <div class="card"><div class="label">Customer asks closed</div><h4>Marco &amp; the downgrade ticket</h4><p>Customers can <strong>tip</strong> at Stripe checkout (100% to the merchant), and a Pro subscriber can be <strong>downgraded to Basic</strong> — by themselves at period end, or by an admin (scheduled or immediate).</p></div>
+  </div>
+</section>
+
+<!-- ── A · DYIA PAY ────────────────────────────────────── -->
+<section class="sec">
+  <div class="eyebrow">Workstream A</div>
+  <h2>Dyia Pay — Stripe Connect payments</h2>
+  <p class="lede">
+    Merchants collect card payments from their customers via a Stripe Connect
+    destination charge. Dyia takes a flat <strong>0.75% platform fee on the base
+    amount only</strong>; money settles to the merchant's connected account.
+  </p>
+
+  <div class="chips">
+    <span class="chip green">Tips reconciled everywhere</span>
+    <span class="chip">Expired-checkout cleanup</span>
+    <span class="chip">Live hub refresh</span>
+    <span class="chip blue">Stripe Connect</span>
+    <span class="chip violet">Admin refunds</span>
+  </div>
+
+  <h3>What changed this release</h3>
+  <ul class="feat">
+    <li><span class="h">Customer tipping <span class="pill new">new</span></span> — optional tip (15/18/20% or custom) on <code>/pay/[token]</code> across pay links, invoices, and quote/job payments. <strong>Tips go 100% to the merchant</strong>; the fee is on the base only, the tip is a separate Stripe line item.</li>
+    <li><span class="h">Tip reconciliation in every path <span class="pill fix">fix</span></span> — the tip is computed from the paid Stripe total in the webhook, the customer <code>verify</code> route, and <code>sync-pending</code>. The sync-pending path previously marked paid <em>without</em> writing the tip, so tips under-reported when the webhook was dark. Now fixed.</li>
+    <li><span class="h">Stuck-checkout cleanup <span class="pill new">new</span></span> — a <code>checkout.session.expired</code> handler rolls an unpaid <code>checkout_created</code> row back to <code>pending</code> (still payable) and drops the dead session id, instead of leaving it stuck forever.</li>
+    <li><span class="h">Live payments hub <span class="pill fix">fix</span></span> — the activity feed reconciles + refetches on tab focus/visibility (throttled 5s), so a payment made elsewhere appears without a manual reload.</li>
+    <li><span class="h">Onboarding stays live</span> — the <code>account.updated</code> webhook keeps the merchant's Connect flags current so the hub flips to "Live" automatically.</li>
+  </ul>
+
+  <div class="shot">
+    <img src="../payments-release/qa-hub-demo-live.png" alt="Dyia Pay hub" />
+  </div>
+  <div class="caption">The "Get paid" hub — stats, activity feed, and Stripe Connect status.</div>
+
+  <div class="callout warn">
+    <strong>Operational dependency:</strong> tip + paid reconciliation is correct in three layers, but the
+    Stripe webhook must be configured correctly in production (see the Stripe section). <code>verify</code> and
+    <code>sync-pending</code> are backups, not substitutes.
+  </div>
+</section>
+
+<!-- ── B · SUBSCRIPTIONS ───────────────────────────────── -->
+<section class="sec">
+  <div class="eyebrow">Workstream B</div>
+  <h2>Subscriptions &amp; billing</h2>
+  <p class="lede">
+    Three tiers gated by <code>computeSubscriptionState()</code>: <strong>basic</strong> (free),
+    <strong>trial</strong> (14-day full Pro), <strong>pro</strong> (paid). The trial is full Pro and
+    steps down to the chosen plan when it ends.
+  </p>
+
+  <h3>What changed this release</h3>
+  <ul class="feat">
+    <li><span class="h">Self-service downgrade (Pro → Basic) <span class="pill new">new</span></span> — <code>POST /api/stripe/subscription/cancel</code> sets Stripe <code>cancel_at_period_end</code>, mirrors the flag + <code>subscription_ends_at</code> in the DB (migration <code>040</code>); <code>DELETE</code> undoes it. The user keeps Pro until the period they already paid for ends.</li>
+    <li><span class="h">Admin cancel parity <span class="pill fix">fix</span></span> — <code>/api/admin/cancel-subscription</code> now writes <code>cancel_at_period_end</code> + end date optimistically on the scheduled path (previously waited on the webhook), matching the self-service route.</li>
+    <li><span class="h">Admin plan switch</span> — <code>/api/admin/switch-plan</code> does a live, prorated Stripe price swap for support cases ("downgrade me to Basic").</li>
+    <li><span class="h">Dunning</span> — <code>invoice.payment_failed</code> stamps a one-time grace window and emails the customer; cleared on recovery.</li>
+  </ul>
+
+  <div class="grid2">
+    <div class="card"><div class="label">User-facing</div><h4>Settings → Manage billing</h4><p>Schedule a downgrade with an "undo," update the card via the Stripe portal, and see "Downgrading on &lt;date&gt;" without a Stripe round-trip.</p></div>
+    <div class="card"><div class="label">Admin-facing</div><h4>One place for the whole lifecycle</h4><p>Grant Pro / trial, revoke, switch plan, and cancel (scheduled or immediate) — all on the user-detail page, with the scheduled state surfaced.</p></div>
+  </div>
+</section>
+
+<!-- ── C · ADMIN ───────────────────────────────────────── -->
+<section class="sec">
+  <div class="eyebrow">Workstream C</div>
+  <h2>Full admin control</h2>
+  <p class="lede">
+    Two surfaces: the in-app <strong>AdminPanel</strong> (Sidebar → "Admin Panel") and the standalone
+    <code>/app/admin/*</code> pages (dashboard, users, user detail, Dyia Pay, webhooks).
+  </p>
+
+  <h3>What changed this release</h3>
+  <ul class="feat">
+    <li><span class="h">Dashboard crash fixed <span class="pill fix">fix</span></span> — <code>/app/admin</code> read the whole <code>{ metrics, users }</code> payload as <code>metrics</code>, so every figure was <code>undefined</code> and the page crashed. Now unwrapped + guarded.</li>
+    <li><span class="h">Full lifecycle on user-detail <span class="pill new">new</span></span> — added Cancel-at-period-end / Cancel-immediately controls, surfaced the "Scheduled to cancel on &lt;date&gt;" state, and hardened load errors (403/500 no longer reads as "user not found").</li>
+    <li><span class="h">Surfaces interconnected <span class="pill new">new</span></span> — the in-app AdminPanel links to the previously URL-only tools (Dyia Pay, Webhooks, full dashboard); the Admin entry also appears in the mobile "More" sheet.</li>
+    <li><span class="h">Auth aligned <span class="pill fix">fix</span></span> — <code>/app/admin/layout</code> now authorizes via <code>is_admin</code> <em>or</em> an admin/super_admin <code>role</code> — matching the APIs. A role-based admin is no longer bounced out of the standalone pages.</li>
+    <li><span class="h">Webhook log fixed <span class="pill fix">fix</span></span> — migration <code>042</code> adds the <code>error_message</code> column the logger actually writes, so the admin Webhooks log stops under-reporting errors.</li>
+  </ul>
+</section>
+
+<!-- ── D · iOS UI ──────────────────────────────────────── -->
+<section class="sec">
+  <div class="eyebrow">Workstream D</div>
+  <h2>iOS-native app UI &amp; motion</h2>
+  <p class="lede">
+    A platform-wide polish pass so the whole product (<code>/app</code>) shares one motion language and feels
+    native on iPhone.
+  </p>
+
+  <h3>What changed this release</h3>
+  <ul class="feat">
+    <li><span class="h">Unified motion system <span class="pill new">new</span></span> — a tailwindcss-animate-compatible enter/exit engine with one iOS-spring curve. The <code>animate-in / fade-in / slide-in-from-* / zoom-in-95</code> classes used across 8+ components were previously no-ops; they now resolve consistently. Full <code>prefers-reduced-motion</code> support.</li>
+    <li><span class="h">iOS bottom tab bar <span class="pill new">new</span></span> — the flat dark bar became translucent, blurred, theme-aware, and respects <code>env(safe-area-inset-bottom)</code> (no more home-indicator overlap), with an active-tab lift and press feedback.</li>
+    <li><span class="h">Themed "More" sheet <span class="pill new">new</span></span> — a proper iOS bottom sheet: grab handle, safe-area inset, theme-aware surface, springy slide, plus the Admin entry for admins.</li>
+    <li><span class="h">Nothing clipped</span> — content padding reserves the tab-bar height + safe area; overlays/sheets contain their overscroll (native rubber-band).</li>
+  </ul>
+
+  <div class="callout">
+    <strong>Verified on mobile (390×844):</strong> translucent tab bar + active state, "More" sheet animation,
+    and no overflow or clipping on Dashboard, Payments, and Jobs.
+  </div>
+</section>
+
+<!-- ── E · MARKETING ───────────────────────────────────── -->
+<section class="sec">
+  <div class="eyebrow">Workstream E</div>
+  <h2>Marketing website</h2>
+  <p class="lede">
+    From a single emoji-heavy landing page (no SEO, no depth) to a structured 11-page site — the page-depth
+    pattern competitors (Jobber, Housecall Pro, ServiceTitan) use to rank and read as a serious platform.
+  </p>
+
+  <ul class="feat">
+    <li><span class="h">8 custom brand graphics</span> — 5 photoreal "owners using dyia" shots (junk removal, lawn care, cleaning, doorway tap-to-pay, on-site phone) + 3 brand renders (profit dashboard, AI orb, chaos→clarity), one warm dark/orange grade.</li>
+    <li><span class="h">Emoji-free icon system</span> — a crafted 28-icon line set replaces every decorative emoji site-wide.</li>
+    <li><span class="h">Landing rebuilt</span> — a real "Built for the people who do the work" band, reworked problem section, a new Dyia Pay section, an honest/current comparison (with trademark disclaimers + links to <code>/vs</code>), and beta-credible proof (no invented user counts).</li>
+    <li><span class="h">10 new pages, each with SEO metadata</span> — <code>/features</code> hub + 4 deep feature pages, <code>/vs/jobber</code> &amp; <code>/vs/housecall-pro</code>, and <code>/for/{junk-removal,lawn-care,cleaning}</code>.</li>
+  </ul>
+
+  <div class="shot">
+    <img src="../../public/marketing/use-junk-removal.png" alt="Service owner using dyia" />
+  </div>
+  <div class="caption">One of eight generated assets — real owners using dyia, replacing the old emoji art.</div>
+
+  <div class="callout">
+    <strong>Decision to confirm:</strong> the core product is trade-agnostic, so lawn care + cleaning are marked
+    "Live" alongside junk removal (moving/handyman/pressure-wash stay "coming soon" with the waitlist). Flip those
+    two to a waitlist framing if preferred.
+  </div>
+</section>
+
+<!-- ── MIGRATIONS / ENV / STRIPE ───────────────────────── -->
+<section class="sec">
+  <div class="eyebrow">Ship it</div>
+  <h2>Migrations, env &amp; Stripe</h2>
+
+  <h3>Database migrations — apply in order (additive, safe)</h3>
+  <table>
+    <thead><tr><th>Migration</th><th>Adds</th><th>Why</th></tr></thead>
+    <tbody>
+      <tr><td><code>040_cancel_at_period_end</code></td><td class="m"><code>dyia_users.cancel_at_period_end</code></td><td class="m">Mirror Stripe's scheduled-downgrade flag for the UI.</td></tr>
+      <tr><td><code>041_payment_tips</code></td><td class="m"><code>dyia_payments.tip_cents</code>, <code>allow_tip</code></td><td class="m">Customer tipping; 100% to merchant, fee on base only.</td></tr>
+      <tr><td><code>042_webhook_error_message</code></td><td class="m"><code>dyia_webhook_events.error_message</code></td><td class="m">Align the table with the logger so the admin log reports errors.</td></tr>
+    </tbody>
+  </table>
+  <div class="muted-note">Prerequisite (from prior payments work): <code>028</code> (Connect / dyia_payments), <code>036</code> (refunds), <code>037</code> (payment_failed_at), <code>039</code> (standalone payments / invoices).</div>
+  <pre><span class="c"># Apply via Supabase CLI (or paste each SQL in order)</span>
+supabase db push</pre>
+
+  <h3>Environment variables to confirm</h3>
+  <ul class="plain">
+    <li><code>NEXT_PUBLIC_STRIPE_BASIC_MONTHLY_PRICE_ID</code>, <code>NEXT_PUBLIC_STRIPE_BASIC_ANNUAL_PRICE_ID</code> — Basic checkout + admin downgrades <span class="pill new">set these</span></li>
+    <li><code>STRIPE_CONNECT_COUNTRY</code> — optional, defaults to <code>US</code></li>
+    <li>Existing: Clerk, Supabase (url/anon/service role), <code>STRIPE_SECRET_KEY</code>, <code>STRIPE_WEBHOOK_SECRET</code>, Pro price IDs, <code>OPENAI_API_KEY</code>, Resend</li>
+  </ul>
+
+  <h3>Stripe webhook → <code>/api/stripe/webhook</code></h3>
+  <p style="margin-top:6px">Subscribe the endpoint to:</p>
+  <ul class="plain">
+    <li><code>checkout.session.completed</code> · <code>checkout.session.expired</code> <span class="pill new">new</span> · <code>payment_intent.succeeded</code> · <code>charge.refunded</code> · <code>account.updated</code></li>
+    <li><code>customer.subscription.updated</code> · <code>customer.subscription.deleted</code> · <code>invoice.paid</code> · <code>invoice.payment_failed</code></li>
+  </ul>
+</section>
+
+<!-- ── TESTING ─────────────────────────────────────────── -->
+<section class="sec">
+  <div class="eyebrow">Quality</div>
+  <h2>Testing performed</h2>
+  <ul class="feat">
+    <li><span class="h">Type check</span> — <code>npx tsc --noEmit</code> → clean.</li>
+    <li><span class="h">Lint</span> — ESLint clean on all changed files.</li>
+    <li><span class="h">Route smoke test</span> — all 11 marketing routes return <code>200</code> (<code>/</code>, <code>/features</code>, 4 feature pages, 2 <code>/vs</code>, 3 <code>/for</code>).</li>
+    <li><span class="h">Mobile iOS visual check (390×844)</span> — translucent tab bar + active state, "More" sheet animation, no overflow/clipping on Dashboard / Payments / Jobs.</li>
+    <li><span class="h">Marketing visual check (1440×900 + mobile)</span> — all pages render; real photos load, no emojis, no overflow or overlap.</li>
+    <li><span class="h">Payments money math</span> — <code>claudedocs/payments-release/payments-logic.test.mts</code> (<code>node --experimental-strip-types</code>).</li>
+    <li><span class="h">QA screenshots</span> — <code>claudedocs/payments-release/qa-*.png</code> (hub, invoice, pay link, modal, public pages — desktop + iOS).</li>
+  </ul>
+
+  <h3>Suggested pre-prod manual QA</h3>
+  <ul class="plain">
+    <li>Connect a test merchant; confirm the hub flips to "Live".</li>
+    <li>Pay link <strong>with tipping on</strong> → pay with a tip → confirm the hub shows base + tip and the merchant receives the full tip.</li>
+    <li>Abandon a checkout → confirm the row returns to <code>pending</code>.</li>
+    <li>Schedule a downgrade to Basic → confirm "Downgrading on &lt;date&gt;" + undo; admin cancel (scheduled + immediate).</li>
+    <li>Refund from <code>/app/admin/payments</code> → confirm the quote/job returns to pending.</li>
+  </ul>
+</section>
+
+<!-- ── DEPLOY / ROLLBACK ───────────────────────────────── -->
+<section class="sec">
+  <div class="eyebrow">Operations</div>
+  <h2>Deploy &amp; rollback</h2>
+
+  <div class="check">
+    <ul>
+      <li><span class="box"></span>Apply migrations <code>040</code>, <code>041</code>, <code>042</code> (after confirming 028/036/037/039).</li>
+      <li><span class="box"></span>Set Basic price-ID env vars (+ Connect country if non-US).</li>
+      <li><span class="box"></span>Configure the Stripe webhook with every event listed (incl. <code>checkout.session.expired</code>).</li>
+      <li><span class="box"></span><code>npm run build</code> on the deploy target.</li>
+      <li><span class="box"></span>Deploy; smoke-test <code>/</code>, <code>/features</code>, <code>/app</code>, <code>/pay/&lt;token&gt;</code>.</li>
+      <li><span class="box"></span>Run the manual payments QA above.</li>
+    </ul>
+  </div>
+
+  <h3>Rollback</h3>
+  <ul class="plain">
+    <li>Code: <code>git revert fb492ab</code> (single commit) or redeploy the prior build.</li>
+    <li>Migrations are additive (new defaulted columns) — safe to leave even if code is rolled back; the columns are simply unused by older code.</li>
+    <li>No destructive schema changes. The only deletion is <code>BetaBanner.tsx</code> (replaced by <code>TrialBanner</code>).</li>
+  </ul>
+
+  <h3>Known gaps / follow-ups (not blockers)</h3>
+  <ul class="plain">
+    <li>Per-request tip opt-out on quote/job links (tips work, default on; toggle exists for standalone links).</li>
+    <li>Merchant-facing refunds (currently admin-only).</li>
+    <li><code>dyia_payments</code> RLS policy mismatch — mitigated by reading through a service-role server route.</li>
+    <li>Admin MRR/ARR are list-price estimates, not Stripe Billing actuals.</li>
+    <li>Impersonation API sets a cookie nothing reads — finish or remove.</li>
+    <li>Marketing: add Open Graph / social-share images, more industry pages, a resources hub.</li>
+  </ul>
+</section>
+
+<!-- ── FILE INVENTORY ──────────────────────────────────── -->
+<section class="sec">
+  <div class="eyebrow">Reference</div>
+  <h2>File inventory · <code>fb492ab</code></h2>
+
+  <h3>Added (68) — highlights</h3>
+  <ul class="plain">
+    <li><strong>Marketing:</strong> <code>src/components/marketing/{icons,sections,templates,MarketingShell,MarketingFooter}.tsx</code>; <code>src/app/features/*</code> (hub + 4); <code>src/app/vs/{jobber,housecall-pro}</code>; <code>src/app/for/{junk-removal,lawn-care,cleaning}</code>; <code>public/marketing/*.png</code> (8).</li>
+    <li><strong>Payments/billing:</strong> <code>api/payments/list</code>, <code>api/admin/payments</code>, <code>api/stripe/subscription/cancel</code>, <code>app/admin/payments/page</code>, <code>lib/{payments,demo-payments,errors}.ts</code>.</li>
+    <li><strong>Migrations:</strong> <code>040</code>, <code>041</code>, <code>042</code>. <strong>Docs/QA:</strong> <code>payments-logic.test.mts</code>, <code>qa-*.png</code>.</li>
+    <li><span class="m">Plus 24 <code>.playwright-mcp/*.yml</code> browser-session artifacts — safe to prune / gitignore.</span></li>
+  </ul>
+
+  <h3>Modified (64) — highlights</h3>
+  <ul class="plain">
+    <li><strong>App UI/motion:</strong> <code>globals.css</code>, <code>components/app/{Sidebar,Payments,CreatePaymentRequestModal,Assistant,AdminPanel,…}.tsx</code>, <code>app/app/page.tsx</code>.</li>
+    <li><strong>Landing:</strong> <code>app/page.tsx</code>, <code>PublicHeader.tsx</code>, <code>landing/BusinessTypes.tsx</code>.</li>
+    <li><strong>Payments/Stripe:</strong> <code>api/payments/{sync-pending,request,request/custom,public/[token]/*}</code>, <code>api/stripe/{webhook,checkout,verify-session,portal,connect/*}</code>, <code>lib/stripe.ts</code>.</li>
+    <li><strong>Admin/subscription:</strong> <code>app/admin/{layout,page,users/*}</code>, <code>api/admin/{cancel-subscription,users/[id]}</code>, <code>lib/{admin,subscription}.ts</code>, <code>hooks/useSubscription.ts</code>, <code>types/database.ts</code>.</li>
+    <li><strong>Config:</strong> <code>.gitignore</code>, <code>eslint.config.mjs</code>, <code>tsconfig.json</code>. <strong>Removed:</strong> <code>BetaBanner.tsx</code>.</li>
+  </ul>
+
+  <div class="divider"></div>
+  <p class="muted-note">Generated for the Dyia June 2, 2026 release. Pair with <code>claudedocs/payments-release/</code> for the Dyia Pay deep-dive + QA screenshots. Full written version: <code>claudedocs/release-2026-06-02/RELEASE_GUIDE.md</code>.</p>
+</section>
+
+</body>
+</html>
