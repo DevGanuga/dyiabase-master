@@ -11,6 +11,7 @@ import { DyiaInsight } from './DyiaInsight'
 import { ensureCustomer } from '@/lib/customers'
 import { DyiaActionButton, DYIA_PROMPTS } from './DyiaActionButton'
 import { PaymentLinkReadyModal } from './PaymentLinkReadyModal'
+import { AddressAutocomplete } from './AddressAutocomplete'
 
 const REVIEW_PLATFORMS = ['Google', 'Yelp', 'Facebook'] as const
 
@@ -30,6 +31,11 @@ interface JobsProps {
   initialDraftDate?: string | null
   initialDraftStatus?: AppJob['status'] | null
   onDraftConsumed?: () => void
+  /** When set, open this job's editor on mount (from a Maps cross-link). */
+  initialFocusJobId?: string | null
+  onFocusConsumed?: () => void
+  /** Jump to the Maps view with this job's pin pre-selected. */
+  onOpenMap?: (jobId: string) => void
 }
 
 interface TempCustomer {
@@ -51,7 +57,7 @@ interface TempExpenses {
 
 const MARKETING_SOURCES = ['Google', 'Facebook', 'Referral', 'Repeat Customer', 'Yelp', 'Craigslist', 'Instagram', 'Nextdoor', 'Thumbtack', 'HomeAdvisor', 'Website', 'Other']
 
-export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth, setSelectedMonth, settings, showSuccess, onOpenDyiaWithPrompt, isPro = false, initialCloseDayDate, onCloseDayDateConsumed, initialDraftDate, initialDraftStatus, onDraftConsumed }: JobsProps) {
+export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth, setSelectedMonth, settings, showSuccess, onOpenDyiaWithPrompt, isPro = false, initialCloseDayDate, onCloseDayDateConsumed, initialDraftDate, initialDraftStatus, onDraftConsumed, initialFocusJobId, onFocusConsumed, onOpenMap }: JobsProps) {
   const [editingJob, setEditingJob] = useState<AppJob | 'new' | null>(null)
   const [tempCustomers, setTempCustomers] = useState<TempCustomer[]>([])
   const [tempExpenses, setTempExpenses] = useState<TempExpenses>({ labor: 0, gas: 0, dumpFee: 0, dumpsterRental: 0, additional: 0 })
@@ -64,6 +70,11 @@ export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth,
   const [tempDate, setTempDate] = useState(formatLocalDateInput())
   const [tempNotes, setTempNotes] = useState('')
   const [tempAddress, setTempAddress] = useState('')
+  // Coordinates captured silently from Google Places autocomplete so the Maps
+  // view can render a pin without re-geocoding. Null when the address was typed
+  // manually or hasn't been resolved.
+  const [tempLat, setTempLat] = useState<number | null>(null)
+  const [tempLng, setTempLng] = useState<number | null>(null)
   const [saving, setSaving] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [sourceFilter, setSourceFilter] = useState<string>('all')
@@ -139,6 +150,19 @@ export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth,
     onDraftConsumed?.()
   // eslint-disable-next-line react-hooks/exhaustive-deps -- only run when calendar draft trigger changes
   }, [initialDraftDate, initialDraftStatus])
+
+  // Maps cross-link: open the targeted job's editor when arriving from a pin.
+  useEffect(() => {
+    if (!initialFocusJobId) return
+    const job = jobs.find(j => j.id === initialFocusJobId)
+    if (job) {
+      const targetDate = parseLocalDate(job.date)
+      setSelectedMonth(new Date(targetDate.getFullYear(), targetDate.getMonth(), 1))
+      startEditJob(job)
+    }
+    onFocusConsumed?.()
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- only run when the focus target changes
+  }, [initialFocusJobId])
 
   // Filter jobs by month
   const monthJobs = useMemo(() => {
@@ -385,6 +409,8 @@ export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth,
     setTempDate(date)
     setTempNotes('')
     setTempAddress('')
+    setTempLat(null)
+    setTempLng(null)
     setShowExpenseDetails(false)
     setShowContactFields({})
   }
@@ -416,6 +442,8 @@ export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth,
     setTempDate(job.date)
     setTempNotes(job.notes || '')
     setTempAddress(job.address || '')
+    setTempLat(job.latitude ?? null)
+    setTempLng(job.longitude ?? null)
     const hasExpenses = (job.labor || 0) + (job.gas || 0) + (job.dumpFee || 0) + (job.dumpsterRental || 0) + (job.additionalExpense || 0) > 0
     setShowExpenseDetails(hasExpenses)
     setShowContactFields({})
@@ -459,7 +487,7 @@ export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth,
         updated[index] = { ...current, name: newName, phone: '', email: '' }
         // Also clear the shared tempAddress field if it was populated from a
         // matched customer (only when the cleared row is the first/primary one).
-        if (index === 0) setTempAddress('')
+        if (index === 0) { setTempAddress(''); setTempLat(null); setTempLng(null) }
         setTempCustomers(updated)
         return
       }
@@ -520,6 +548,8 @@ export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth,
             additionalExpenseLabel: additionalExpenseLabel || undefined,
             notes: tempNotes.trim(),
             address: tempAddress.trim() || undefined,
+            latitude: tempAddress.trim() ? tempLat : null,
+            longitude: tempAddress.trim() ? tempLng : null,
             status: targetStatus,
           } : j))
           showSuccess(isScheduling
@@ -549,6 +579,8 @@ export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth,
               costPerWorker: 0,
               notes: tempNotes.trim(),
               address: tempAddress.trim() || undefined,
+              latitude: tempAddress.trim() ? tempLat : null,
+              longitude: tempAddress.trim() ? tempLng : null,
               status: targetStatus,
             }
           })
@@ -595,6 +627,8 @@ export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth,
           additional_expense: Math.max(0, tempExpenses.additional),
           notes: notesWithExpenseLabel,
           address: tempAddress.trim() || null,
+          latitude: tempAddress.trim() ? tempLat : null,
+          longitude: tempAddress.trim() ? tempLng : null,
           status: targetStatus,
         }
 
@@ -626,6 +660,8 @@ export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth,
           additionalExpenseLabel: additionalExpenseLabel || undefined,
           notes: tempNotes.trim(),
           address: tempAddress.trim() || undefined,
+          latitude: tempAddress.trim() ? tempLat : null,
+          longitude: tempAddress.trim() ? tempLng : null,
           status: targetStatus,
         } : j))
         showSuccess(isScheduling
@@ -659,6 +695,8 @@ export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth,
             additional_expense: Math.max(0, tempExpenses.additional / expPerCustomer),
             notes: notesWithExpenseLabel,
             address: tempAddress.trim() || null,
+            latitude: tempAddress.trim() ? tempLat : null,
+            longitude: tempAddress.trim() ? tempLng : null,
             status: targetStatus,
           }
 
@@ -691,6 +729,8 @@ export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth,
             costPerWorker: 0,
             notes: tempNotes.trim(),
             address: tempAddress.trim() || undefined,
+            latitude: tempAddress.trim() ? tempLat : null,
+            longitude: tempAddress.trim() ? tempLng : null,
             status: targetStatus,
           })
 
@@ -1282,13 +1322,20 @@ export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth,
         <div className="app-card p-4 sm:p-5 space-y-3">
           <div>
             <label className="app-label">Job Address <span className="text-[var(--color-text-faint)] font-normal text-xs">(optional)</span></label>
-            <input
-              type="text"
+            <AddressAutocomplete
               value={tempAddress}
-              onChange={(e) => setTempAddress(e.target.value)}
+              onChange={(text) => { setTempAddress(text); setTempLat(null); setTempLng(null) }}
+              onSelect={(sel) => { setTempAddress(sel.address); setTempLat(sel.latitude); setTempLng(sel.longitude) }}
+              disabled={isDemoMode}
               className="app-input"
-              placeholder="123 Main St, Anytown, ST 12345"
+              placeholder="Start typing an address…"
             />
+            {tempAddress.trim() && tempLat != null && tempLng != null && (
+              <p className="mt-1 text-[11px] text-green-600 dark:text-green-400 inline-flex items-center gap-1">
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                Pinned for Maps
+              </p>
+            )}
           </div>
           <div>
             <label className="app-label">Notes <span className="text-[var(--color-text-faint)] font-normal text-xs">(optional)</span></label>
@@ -1733,6 +1780,19 @@ export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth,
                               >
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                                </svg>
+                              </button>
+                            )}
+                            {onOpenMap && job.address && (
+                              <button
+                                onClick={() => onOpenMap(job.id)}
+                                className="p-1.5 text-[var(--color-text-faint)] hover:text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-900/30 rounded-lg transition-colors"
+                                title="View on map"
+                                aria-label={`View ${job.customerName} on the map`}
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                                 </svg>
                               </button>
                             )}

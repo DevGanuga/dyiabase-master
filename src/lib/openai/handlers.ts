@@ -3,6 +3,7 @@ import type { DyiaFunctionName } from './functions'
 import type { JobProposal, QuoteProposal, UserContext, ConfidenceLevel } from '@/types/database'
 import { generateEmbedding, buildJobEmbeddingText } from './client'
 import { ensureCustomer } from '@/lib/customers'
+import { sortJobsForRoute, buildRouteUrl } from '@/lib/maps/jobs'
 
 // Create Supabase client with service role for server-side operations
 const getSupabase = () => createClient(
@@ -2240,6 +2241,95 @@ async function batchCreateQuotes(args: Record<string, unknown>, dyiaUserId: stri
 // MAIN HANDLER ROUTER
 // =============================================
 
+// =============================================
+// MAPS / ROUTE HANDLER (Dyia Maps — Phase 4)
+// =============================================
+
+async function getJobsForRoute(args: Record<string, unknown>, dyiaUserId: string): Promise<HandlerResult> {
+  const supabase = getSupabase()
+  try {
+    const date = (args.date as string)?.trim() || new Date().toISOString().split('T')[0]
+    const includeEstimates = args.include_estimates !== false
+
+    const { data: jobs, error } = await supabase
+      .from('dyia_jobs')
+      .select('id, date, customer_name, address, latitude, longitude, appointment_window_text, scheduled_kind, status, estimate_low, estimate_high, revenue')
+      .eq('user_id', dyiaUserId)
+      .eq('date', date)
+      .neq('status', 'cancelled')
+
+    if (error) throw error
+
+    const filtered = (jobs || []).filter(j => {
+      const isEstimate = j.scheduled_kind === 'estimate' || j.scheduled_kind === 'free_estimate'
+      return includeEstimates || !isEstimate
+    })
+
+    // Reuse the same chronological ordering the Maps view uses (parses the
+    // appointment window's start time; untimed stops fall to the end).
+    const ordered = sortJobsForRoute(
+      filtered.map(j => ({
+        ...j,
+        appointmentWindow: j.appointment_window_text || undefined,
+        customerName: j.customer_name,
+      }))
+    )
+
+    const dateLabel = new Date(date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })
+
+    if (ordered.length === 0) {
+      return {
+        success: true,
+        data: { date, stops: [], routeUrl: null },
+        message: `No jobs scheduled for ${dateLabel}. Schedule work from the Jobs tab and it'll appear on the map.`
+      }
+    }
+
+    const stops = ordered.map(j => ({
+      customer: j.customer_name,
+      window: j.appointment_window_text || null,
+      address: j.address || null,
+      kind: (j.scheduled_kind === 'estimate' || j.scheduled_kind === 'free_estimate') ? 'estimate' : 'job',
+      hasCoords: typeof j.latitude === 'number' && typeof j.longitude === 'number',
+    }))
+
+    // Build a Google Maps multi-stop directions link from coordinates (falls
+    // back to text addresses when a stop hasn't been geocoded yet).
+    const points = ordered
+      .map(j => (typeof j.latitude === 'number' && typeof j.longitude === 'number')
+        ? `${j.latitude},${j.longitude}`
+        : (j.address || null))
+      .filter((p): p is string => !!p)
+
+    const routeUrl = buildRouteUrl(points)
+
+    const stopLines = stops.map((s, i) =>
+      `${i + 1}. ${s.window ? `${s.window} — ` : ''}${s.customer}${s.address ? ` (${s.address})` : ''}${s.kind === 'estimate' ? ' [estimate]' : ''}`
+    ).join('\n')
+
+    const missingCoords = stops.filter(s => !s.hasCoords).length
+    const routeNote = routeUrl
+      ? `\n\n[Open the full route in Google Maps](${routeUrl})`
+      : ''
+    const coordsNote = missingCoords > 0
+      ? `\n\n_${missingCoords} stop${missingCoords !== 1 ? 's' : ''} need an address picked from autocomplete to map precisely._`
+      : ''
+
+    return {
+      success: true,
+      data: { date, stops, routeUrl },
+      message: `**${ordered.length} stop${ordered.length !== 1 ? 's' : ''} for ${dateLabel}:**\n\n${stopLines}${routeNote}${coordsNote}`
+    }
+  } catch (error) {
+    console.error('Error building route:', error)
+    return {
+      success: false,
+      error: String(error),
+      message: "I couldn't pull up the route just now. Try again in a moment."
+    }
+  }
+}
+
 export async function handleFunctionCall(
   functionName: DyiaFunctionName,
   args: Record<string, unknown>,
@@ -2324,6 +2414,9 @@ export async function handleFunctionCall(
 
     case 'update_job':
       return updateJob(args, dyiaUserId)
+
+    case 'get_jobs_for_route':
+      return getJobsForRoute(args, dyiaUserId)
 
     case 'save_memory':
       return saveMemory(args, dyiaUserId)

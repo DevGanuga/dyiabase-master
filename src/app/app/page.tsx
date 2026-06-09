@@ -30,16 +30,21 @@ const Payments = dynamic(() => import('@/components/app/Payments').then(m => ({ 
 const AdminPanel = dynamic(() => import('@/components/app/AdminPanel').then(m => ({ default: m.AdminPanel })), { ssr: false })
 const ProfitCalculator = dynamic(() => import('@/components/app/ProfitCalculator').then(m => ({ default: m.ProfitCalculator })), { ssr: false })
 const Intel = dynamic(() => import('@/components/app/Intel').then(m => ({ default: m.Intel })), { ssr: false })
+const Maps = dynamic(() => import('@/components/app/Maps').then(m => ({ default: m.Maps })), { ssr: false })
 
-type View = 'dashboard' | 'jobs' | 'quotes' | 'quoteBuilder' | 'followUps' | 'calendar' | 'reports' | 'marketing' | 'customers' | 'massEmail' | 'assistant' | 'settings' | 'payments' | 'admin' | 'profitCalculator' | 'intel'
+type View = 'dashboard' | 'jobs' | 'quotes' | 'quoteBuilder' | 'followUps' | 'calendar' | 'reports' | 'marketing' | 'customers' | 'massEmail' | 'assistant' | 'settings' | 'payments' | 'admin' | 'profitCalculator' | 'intel' | 'maps'
 
 // Demo data for showcase
+// Demo pins are spread around Austin, TX so the Maps view has something to show
+// without making any Google API calls (coordinates are hard-coded).
 const DEMO_JOBS: AppJob[] = [
-  { id: 'demo-1', date: getRelativeLocalDateInput(0), customerName: 'Johnson Family', source: 'Google', revenue: 450, labor: 80, gas: 25, dumpFee: 65, dumpsterRental: 0, additionalExpense: 0, numWorkers: 2, costPerWorker: 40, notes: 'Full garage cleanout' },
-  { id: 'demo-2', date: getRelativeLocalDateInput(-1), customerName: 'Mike\'s Restaurant', source: 'Referral', revenue: 800, labor: 150, gas: 40, dumpFee: 120, dumpsterRental: 150, additionalExpense: 0, numWorkers: 3, costPerWorker: 50, notes: 'Commercial kitchen equipment removal' },
-  { id: 'demo-3', date: getRelativeLocalDateInput(-2), customerName: 'Sarah Miller', source: 'Yelp', revenue: 275, labor: 60, gas: 20, dumpFee: 45, dumpsterRental: 0, additionalExpense: 0, numWorkers: 2, costPerWorker: 30, notes: 'Basement cleanout' },
-  { id: 'demo-4', date: getRelativeLocalDateInput(-3), customerName: 'Downtown Office Co', source: 'Website', revenue: 1200, labor: 200, gas: 50, dumpFee: 180, dumpsterRental: 200, additionalExpense: 50, additionalExpenseLabel: 'Supplies', numWorkers: 4, costPerWorker: 50, notes: 'Office furniture disposal' },
-  { id: 'demo-5', date: getRelativeLocalDateInput(-4), customerName: 'The Martinez Home', source: 'Google', revenue: 350, labor: 70, gas: 22, dumpFee: 55, dumpsterRental: 0, additionalExpense: 0, numWorkers: 2, costPerWorker: 35, notes: 'Attic cleanout' },
+  { id: 'demo-1', date: getRelativeLocalDateInput(0), customerName: 'Johnson Family', source: 'Google', revenue: 450, labor: 80, gas: 25, dumpFee: 65, dumpsterRental: 0, additionalExpense: 0, numWorkers: 2, costPerWorker: 40, notes: 'Full garage cleanout', status: 'scheduled', scheduledKind: 'job', appointmentWindow: '8:00-10:00am', address: '1200 Maple Dr, Austin, TX 78704', latitude: 30.2466, longitude: -97.7592, customerPhone: '(555) 678-9012' },
+  { id: 'demo-6', date: getRelativeLocalDateInput(0), customerName: 'Lisa Chen', source: 'Yelp', revenue: 0, estimateLow: 350, estimateHigh: 450, labor: 0, gas: 0, dumpFee: 0, dumpsterRental: 0, additionalExpense: 0, numWorkers: 1, costPerWorker: 0, notes: 'Storm debris — needs estimate', status: 'scheduled', scheduledKind: 'estimate', appointmentWindow: '11:00am-12:00pm', address: '892 Oak Ave, Austin, TX 78745', latitude: 30.2200, longitude: -97.7700, customerPhone: '(555) 234-5678' },
+  { id: 'demo-7', date: getRelativeLocalDateInput(0), customerName: 'Kevin Park', source: 'Website', revenue: 700, labor: 120, gas: 30, dumpFee: 90, dumpsterRental: 0, additionalExpense: 0, numWorkers: 2, costPerWorker: 60, notes: 'Construction debris from bathroom remodel', status: 'scheduled', scheduledKind: 'job', appointmentWindow: '2:00-4:00pm', address: '88 Birch Ln, Austin, TX 78702', latitude: 30.2640, longitude: -97.7180, customerPhone: '(555) 567-8901' },
+  { id: 'demo-2', date: getRelativeLocalDateInput(-1), customerName: 'Mike\'s Restaurant', source: 'Referral', revenue: 800, labor: 150, gas: 40, dumpFee: 120, dumpsterRental: 150, additionalExpense: 0, numWorkers: 3, costPerWorker: 50, notes: 'Commercial kitchen equipment removal', status: 'completed', address: '450 Congress Ave, Austin, TX 78701', latitude: 30.2670, longitude: -97.7430 },
+  { id: 'demo-3', date: getRelativeLocalDateInput(-2), customerName: 'Sarah Miller', source: 'Yelp', revenue: 275, labor: 60, gas: 20, dumpFee: 45, dumpsterRental: 0, additionalExpense: 0, numWorkers: 2, costPerWorker: 30, notes: 'Basement cleanout', status: 'completed', address: '2100 Barton Springs Rd, Austin, TX 78704', latitude: 30.2630, longitude: -97.7700 },
+  { id: 'demo-4', date: getRelativeLocalDateInput(-3), customerName: 'Downtown Office Co', source: 'Website', revenue: 1200, labor: 200, gas: 50, dumpFee: 180, dumpsterRental: 200, additionalExpense: 50, additionalExpenseLabel: 'Supplies', numWorkers: 4, costPerWorker: 50, notes: 'Office furniture disposal', status: 'completed', address: '600 Guadalupe St, Austin, TX 78701', latitude: 30.2715, longitude: -97.7470 },
+  { id: 'demo-5', date: getRelativeLocalDateInput(-4), customerName: 'The Martinez Home', source: 'Google', revenue: 350, labor: 70, gas: 22, dumpFee: 55, dumpsterRental: 0, additionalExpense: 0, numWorkers: 2, costPerWorker: 35, notes: 'Attic cleanout', status: 'completed', address: '3400 N Lamar Blvd, Austin, TX 78705', latitude: 30.3010, longitude: -97.7390 },
 ]
 
 const DEMO_QUOTES: AppQuote[] = [
@@ -59,7 +64,7 @@ const DEMO_SETTINGS: AppSettings = {
   onboardingCompletedAt: null
 }
 
-const VALID_VIEWS: View[] = ['dashboard', 'jobs', 'quotes', 'quoteBuilder', 'followUps', 'calendar', 'reports', 'marketing', 'customers', 'massEmail', 'assistant', 'settings', 'payments', 'admin', 'profitCalculator', 'intel']
+const VALID_VIEWS: View[] = ['dashboard', 'jobs', 'quotes', 'quoteBuilder', 'followUps', 'calendar', 'reports', 'marketing', 'customers', 'massEmail', 'assistant', 'settings', 'payments', 'admin', 'profitCalculator', 'intel', 'maps']
 
 type SettingsTab = 'business' | 'financial' | 'expenses' | 'templates' | 'account'
 const VALID_SETTINGS_TABS: SettingsTab[] = ['business', 'financial', 'expenses', 'templates', 'account']
@@ -145,6 +150,10 @@ function AppPageContent() {
   const [closeDayDateFromDashboard, setCloseDayDateFromDashboard] = useState<string | null>(null)
   const [jobDraftDate, setJobDraftDate] = useState<string | null>(null)
   const [jobDraftStatus, setJobDraftStatus] = useState<AppJob['status'] | null>(null)
+  // Cross-link target: when navigating to Maps from Calendar/Jobs, pre-select this pin.
+  const [mapFocusJobId, setMapFocusJobId] = useState<string | null>(null)
+  // When opening a job from a Maps pin, scroll/expand it in the Jobs view.
+  const [jobFocusId, setJobFocusId] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   // Set when the primary data load (jobs/quotes/settings) fails so we can show
@@ -270,6 +279,8 @@ function AppPageContent() {
             costPerWorker: parseFloat(j.cost_per_worker) || 0,
             notes: cleanNotes,
             address: (j as { address?: string }).address || undefined,
+            latitude: (j as { latitude?: number | null }).latitude ?? null,
+            longitude: (j as { longitude?: number | null }).longitude ?? null,
             status: (j as { status?: string }).status as AppJob['status'] | undefined,
             receiptUrl: (j as { receipt_url?: string | null }).receipt_url ?? undefined,
             // Payment fields must be hydrated from the DB so paid/pending badges
@@ -877,6 +888,12 @@ function AppPageContent() {
               setJobDraftDate(null)
               setJobDraftStatus(null)
             }}
+            initialFocusJobId={jobFocusId}
+            onFocusConsumed={() => setJobFocusId(null)}
+            onOpenMap={(jobId) => {
+              setMapFocusJobId(jobId)
+              setCurrentView('maps')
+            }}
           />
         )
       case 'quotes':
@@ -982,6 +999,10 @@ function AppPageContent() {
               setJobDraftStatus('scheduled')
               setCurrentView('jobs')
             }}
+            onOpenMap={(jobId) => {
+              setMapFocusJobId(jobId)
+              setCurrentView('maps')
+            }}
           />
         )
       case 'reports':
@@ -1027,6 +1048,23 @@ function AppPageContent() {
           <Intel
             businessName={settings.businessInfo.name || ''}
             showSuccess={showSuccess}
+          />
+        )
+      case 'maps':
+        return (
+          <Maps
+            jobs={jobs}
+            setJobs={setJobs}
+            settings={settings}
+            userId={userProfile?.id || ''}
+            isPro={isPro}
+            isDemoMode={isDemoMode}
+            focusJobId={mapFocusJobId}
+            onFocusConsumed={() => setMapFocusJobId(null)}
+            onOpenJob={(job) => {
+              setJobFocusId(job.id)
+              setCurrentView('jobs')
+            }}
           />
         )
       case 'assistant':

@@ -1204,6 +1204,34 @@
   }
 }
 
+/* Dyia Maps — pulsing ring under today's job pins */
+.dyia-map-pulse {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  margin-left: -7px;
+  margin-top: -7px;
+  border-radius: 9999px;
+  background-color: var(--dyia-pulse-color, #3b82f6);
+  pointer-events: none;
+  animation: dyiaMapPulse 1.8s ease-out infinite;
+}
+
+@keyframes dyiaMapPulse {
+  0% {
+    transform: scale(0.6);
+    opacity: 0.55;
+  }
+  70% {
+    transform: scale(3.2);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(3.2);
+    opacity: 0;
+  }
+}
+
 /* Shimmer loading effect */
 @keyframes shimmer {
   0% {

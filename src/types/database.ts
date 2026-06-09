@@ -16,6 +16,9 @@ export interface Job {
   num_workers: number
   cost_per_worker: number
   notes?: string | null
+  address?: string | null
+  latitude?: number | null
+  longitude?: number | null
   receipt_url?: string | null
   payment_status?: PaymentRequestStatus
   payment_amount_cents?: number | null
@@ -238,6 +241,12 @@ export interface AppJob {
   notes?: string
   status?: JobStatus
   address?: string
+  /** Cached latitude from Google Places autocomplete, used by the Maps view. */
+  latitude?: number | null
+  /** Cached longitude from Google Places autocomplete, used by the Maps view. */
+  longitude?: number | null
+  /** Optional enrichment (e.g. for the Maps "Call customer" action). Not stored on dyia_jobs. */
+  customerPhone?: string | null
   receiptUrl?: string | null
   paymentStatus?: PaymentRequestStatus
   paymentAmountCents?: number | null

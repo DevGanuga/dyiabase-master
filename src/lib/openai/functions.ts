@@ -644,6 +644,30 @@ export const DYIA_TOOLS: FunctionTool[] = [
     strict: true
   },
   // ============================================
+  // MAPS / ROUTE TOOL
+  // ============================================
+  {
+    type: 'function',
+    name: 'get_jobs_for_route',
+    description: "Get the day's jobs and estimates with their addresses, ordered by appointment time, plus a ready-to-open Google Maps multi-stop route link. Use when the user asks things like \"what's my route for Friday\", \"plan my day\", \"what jobs do I have today and where\", or \"map out tomorrow\". Returns each stop's customer, time window, address, and status.",
+    parameters: {
+      type: 'object',
+      properties: {
+        date: {
+          type: 'string',
+          description: 'The day to build the route for, in YYYY-MM-DD format. Pass an empty string to use today.'
+        },
+        include_estimates: {
+          type: 'boolean',
+          description: 'Whether to include estimate visits alongside jobs. Defaults to true.'
+        }
+      },
+      required: ['date', 'include_estimates'],
+      additionalProperties: false
+    },
+    strict: true
+  },
+  // ============================================
   // MEMORY TOOL
   // ============================================
   {
@@ -691,6 +715,7 @@ export type DyiaFunctionName =
   | 'batch_store_customers'
   | 'batch_create_quotes'
   | 'update_job'
+  | 'get_jobs_for_route'
   | 'save_memory'
 
 export type ProposalFunctionName = 'propose_job' | 'propose_quote'

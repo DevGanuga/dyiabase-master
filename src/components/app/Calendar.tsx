@@ -9,12 +9,14 @@ interface CalendarProps {
   onNavigate?: (view: string) => void
   initialDate?: string
   onScheduleJob?: (date: string) => void
+  /** Jump to the Maps view with this job's pin pre-selected. */
+  onOpenMap?: (jobId: string) => void
 }
 
 const WEEKDAYS_FULL = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 const WEEKDAYS_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
-export function Calendar({ jobs, onNavigate, initialDate, onScheduleJob }: CalendarProps) {
+export function Calendar({ jobs, onNavigate, initialDate, onScheduleJob, onOpenMap }: CalendarProps) {
   const todayStr = formatLocalDateInput()
 
   const [currentMonth, setCurrentMonth] = useState(() => {
@@ -424,7 +426,22 @@ export function Calendar({ jobs, onNavigate, initialDate, onScheduleJob }: Calen
                               )}
                               {job.address && (
                                 <div className="pt-2 border-t border-[var(--color-border-light)]">
-                                  <p className="text-xs text-[var(--color-text-faint)]">Address</p>
+                                  <div className="flex items-center justify-between gap-2">
+                                    <p className="text-xs text-[var(--color-text-faint)]">Address</p>
+                                    {onOpenMap && (
+                                      <button
+                                        onClick={(e) => { e.stopPropagation(); onOpenMap(job.id) }}
+                                        className="inline-flex items-center gap-1 text-[10px] font-medium text-orange-600 dark:text-orange-400 hover:underline"
+                                        title="View on map"
+                                      >
+                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                                        </svg>
+                                        Map
+                                      </button>
+                                    )}
+                                  </div>
                                   <p className="text-xs text-[var(--color-text-muted)] leading-relaxed">{job.address}</p>
                                 </div>
                               )}
