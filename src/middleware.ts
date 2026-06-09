@@ -61,14 +61,33 @@ export default clerkMiddleware(
           'https://*.ingest.sentry.io',
           // OpenAI (for any client-side streaming)
           'https://api.openai.com',
+          // Google Maps JS API (map data + Places/Geocoding XHRs)
+          'https://maps.googleapis.com',
+          'https://maps.gstatic.com',
         ].filter(Boolean),
+        // Google Maps injects its loader <script> from maps.googleapis.com.
+        // (Merged with Clerk's own required script-src entries.)
+        'script-src': [
+          'https://maps.googleapis.com',
+          // Vercel preview toolbar / live feedback
+          'https://vercel.live',
+        ],
         'img-src': [
           // Supabase storage (user-uploaded photos)
           process.env.NEXT_PUBLIC_SUPABASE_URL ?? '',
           // data: and blob: URIs for client-side image processing (logo upload, compression)
           'data:',
           'blob:',
+          // Google Maps tiles + marker/sprite assets
+          'https://maps.gstatic.com',
+          'https://*.googleapis.com',
+          'https://*.google.com',
+          'https://*.gstatic.com',
         ].filter(Boolean),
+        // Vercel preview toolbar runs in a frame.
+        'frame-src': [
+          'https://vercel.live',
+        ],
       },
     },
   }

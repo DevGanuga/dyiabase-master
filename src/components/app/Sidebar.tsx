@@ -223,8 +223,17 @@ export function Sidebar({ currentView, setCurrentView, onLogout, isPro = false, 
     }
   }, [createOpen])
 
+  // Feature flag: the Maps tab only appears when a Google Maps key is configured
+  // (NEXT_PUBLIC_* is inlined at build time). No key = Maps stays hidden, so it
+  // can ship to prod dark and light up the moment the key is added.
+  const mapsEnabled = !!process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
+  const navSections: NavSection[] = NAV_SECTIONS.map(section => ({
+    ...section,
+    items: section.items.filter(item => item.id !== 'maps' || mapsEnabled),
+  }))
+
   // Flat list of all nav items for convenience
-  const allNavItems = NAV_SECTIONS.flatMap(s => s.items)
+  const allNavItems = navSections.flatMap(s => s.items)
   let animIndex = 0
 
   return (
@@ -289,7 +298,7 @@ export function Sidebar({ currentView, setCurrentView, onLogout, isPro = false, 
 
         {/* Grouped Navigation - Desktop */}
         <nav className="sidebar-desktop-nav flex-1 px-3 py-1 overflow-y-auto hidden sm:block">
-          {NAV_SECTIONS.map((section, sectionIdx) => (
+          {navSections.map((section, sectionIdx) => (
             <div key={section.label} className={sectionIdx > 0 ? 'mt-4' : ''}>
               <div className="px-3 mb-1.5">
                 <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">
@@ -488,7 +497,7 @@ export function Sidebar({ currentView, setCurrentView, onLogout, isPro = false, 
 
             {/* All nav sections */}
             <div className="px-4 pb-3">
-              {NAV_SECTIONS.map((section) => (
+              {navSections.map((section) => (
                 <div key={section.label} className="mb-4">
                   <div className="px-2 mb-1.5">
                     <span className="text-[10px] font-semibold text-[var(--color-text-faint)] uppercase tracking-widest">
