@@ -27,6 +27,53 @@ function getSupabase() {
   )
 }
 
+/**
+ * Resolve a customer id that exists in THIS Stripe mode (live vs test).
+ *
+ * QA Round 5: several accounts carry `stripe_customer_id`s that were created
+ * by a test-mode key (branch/QA environments writing to the shared database).
+ * Opening the portal with those ids throws "No such customer … a similar
+ * object exists in test mode". Self-heal instead of erroring:
+ *   1. Verify the stored id actually exists in the current mode.
+ *   2. If not, look the customer up by email (live-mode customer may exist).
+ *   3. If found, repoint dyia_users at it; if not, clear the stale pointer so
+ *      the next checkout starts clean, and tell the user to subscribe.
+ */
+async function resolvePortalCustomerId(
+  stripe: Stripe,
+  supabase: ReturnType<typeof getSupabase>,
+  dyiaUserId: string,
+  storedCustomerId: string,
+  email: string | null
+): Promise<string | null> {
+  try {
+    const customer = await stripe.customers.retrieve(storedCustomerId)
+    if (!('deleted' in customer)) return customer.id
+  } catch {
+    // Missing in this mode (test-mode id with a live key, or deleted) — heal below.
+  }
+
+  if (email) {
+    const matches = await stripe.customers.list({ email, limit: 10 })
+    const reusable = matches.data.find((c) => !c.deleted)
+    if (reusable) {
+      await supabase
+        .from('dyia_users')
+        .update({ stripe_customer_id: reusable.id })
+        .eq('id', dyiaUserId)
+      return reusable.id
+    }
+  }
+
+  // No customer in this mode at all — clear the poisoned pointer so checkout
+  // can recreate a fresh one, and clear the dead subscription pointer with it.
+  await supabase
+    .from('dyia_users')
+    .update({ stripe_customer_id: null, stripe_subscription_id: null })
+    .eq('id', dyiaUserId)
+  return null
+}
+
 /** POST: create Stripe Customer Portal session; returns { url }. */
 export async function POST() {
   try {
@@ -36,11 +83,13 @@ export async function POST() {
     const supabase = getSupabase()
     const { data: user } = await supabase
       .from('dyia_users')
-      .select('stripe_customer_id, is_admin, role')
+      .select('id, email, stripe_customer_id, is_admin, role')
       .eq('clerk_user_id', clerkUserId)
       .single()
 
     const account = user as {
+      id: string
+      email: string | null
       stripe_customer_id: string | null
       is_admin?: boolean | null
       role?: string | null
@@ -52,16 +101,30 @@ export async function POST() {
       )
     }
 
-    const customerId = account?.stripe_customer_id
-    if (!customerId) {
+    if (!account?.stripe_customer_id) {
       return NextResponse.json(
         { error: 'No billing account linked. Subscribe from the pricing page first.' },
         { status: 400 }
       )
     }
 
-    const baseUrl = getBaseUrl()
     const stripe = getStripe()
+    const customerId = await resolvePortalCustomerId(
+      stripe,
+      supabase,
+      account.id,
+      account.stripe_customer_id,
+      account.email
+    )
+
+    if (!customerId) {
+      return NextResponse.json(
+        { error: 'Your billing account was reset because it pointed to a missing Stripe record. Subscribe from Settings → Account to set up billing again.' },
+        { status: 400 }
+      )
+    }
+
+    const baseUrl = getBaseUrl()
     const session = await stripe.billingPortal.sessions.create({
       customer: customerId,
       return_url: `${baseUrl}/app`,

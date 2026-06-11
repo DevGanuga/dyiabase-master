@@ -813,6 +813,13 @@ export function Settings({ settings, setSettings, userId, showSuccess, userProfi
                   : isRegisteredPro ? 'PRO'
                   : isRegisteredBasic ? 'BASIC'
                   : 'FREE'
+                // QA Round 5: a registered-but-not-paid plan (e.g. PRO with
+                // status `inactive`/`canceled`) kept showing a bare PRO badge
+                // here while the header dropdown showed effective Basic access
+                // — testers read that as a contradiction. Surface the inactive
+                // state explicitly so both screens tell the same story.
+                const isRegisteredInactive =
+                  !isAdminAccount && !isTrial && (isRegisteredPro || isRegisteredBasic) && !isPaidPro && !isPaidBasic
                 const bodyCopy =
                   isAdminAccount
                     ? 'Admin accounts have full Pro access and are never billed through Stripe.'
@@ -852,6 +859,11 @@ export function Settings({ settings, setSettings, userId, showSuccess, userProfi
                       {isTrial && (
                         <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-200 dark:border-emerald-800 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 uppercase">
                           Free Trial{productTier === 'basic' ? ' (Basic plan)' : ''}
+                        </span>
+                      )}
+                      {isRegisteredInactive && (
+                        <span className="px-2 py-0.5 rounded-full bg-slate-500/10 border border-slate-300 dark:border-slate-600 text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase">
+                          Inactive
                         </span>
                       )}
                       {(isPaidPro || isPaidBasic) && subscription.plan && (

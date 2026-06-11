@@ -218,13 +218,12 @@ export async function POST(request: NextRequest) {
     }
 
     if (!isOneTime) {
-      if (['active', 'trialing', 'past_due'].includes(dyiaUser.subscription_status || '')) {
-        return NextResponse.json(
-          { error: 'You already have a subscription. Please manage your existing billing instead of starting a new checkout.' },
-          { status: 409 }
-        )
-      }
-
+      // QA Round 5 (+103/+104): do NOT block on the DB `subscription_status`
+      // field alone. Test-mode QA traffic and missed webhooks can leave the DB
+      // claiming an active subscription that doesn't exist in this Stripe mode,
+      // dead-ending users with "You already have a subscription" and no way to
+      // pay. The checks below verify against live Stripe, which is the source
+      // of truth for whether a billable subscription actually exists.
       if (dyiaUser.stripe_subscription_id) {
         try {
           const existingSubscription = await stripe.subscriptions.retrieve(dyiaUser.stripe_subscription_id)
@@ -234,8 +233,18 @@ export async function POST(request: NextRequest) {
               { status: 409 }
             )
           }
-        } catch {
-          // Ignore stale subscription IDs and continue with customer-level checks below.
+        } catch (err) {
+          // Self-heal: the stored subscription doesn't exist in this mode
+          // (test-mode id under a live key, or deleted). Clear the stale
+          // pointer and the now-unverifiable status so the UI stops claiming
+          // an active plan; the webhook re-populates both on next subscribe.
+          if (err instanceof Stripe.errors.StripeInvalidRequestError && err.code === 'resource_missing') {
+            await supabase
+              .from('dyia_users')
+              .update({ stripe_subscription_id: null, subscription_status: 'inactive' })
+              .eq('id', dyiaUser.id)
+          }
+          // Continue with customer-level checks below either way.
         }
       }
 
