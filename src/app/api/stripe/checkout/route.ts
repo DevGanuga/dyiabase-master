@@ -6,6 +6,7 @@ import { rateLimiters } from '@/lib/rate-limit'
 import { getBaseUrl } from '@/lib/env'
 import { grantAdminAccess } from '@/lib/admin'
 import { getErrorMessage } from '@/lib/errors'
+import { storedIdsMatchCurrentMode, updateUserWithModeStamp } from '@/lib/stripe-mode'
 
 const BILLABLE_SUBSCRIPTION_STATUSES = new Set<Stripe.Subscription.Status>([
   'active',
@@ -178,10 +179,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid price' }, { status: 400 })
     }
 
-    // Get the dyia user ID from clerk_user_id
+    // Get the dyia user ID from clerk_user_id.
+    // NOTE: select('*') so the optional stripe_livemode column (migration 044)
+    // is included when present without erroring when it isn't yet.
     const { data: dyiaUser, error: userError } = await supabase
       .from('dyia_users')
-      .select('id, is_admin, role, stripe_customer_id, stripe_subscription_id, subscription_status')
+      .select('*')
       .eq('clerk_user_id', clerkUserId)
       .single()
 
@@ -190,6 +193,15 @@ export async function POST(request: NextRequest) {
         { error: 'User not found. Please try signing out and back in.' },
         { status: 404 }
       )
+    }
+
+    // QA Round 5 mode guard: if the stored Stripe ids were created by the
+    // OTHER mode's key (test ids under a live key or vice versa), they are
+    // unusable here — treat them as absent so we re-resolve by email or
+    // create a fresh customer instead of erroring downstream.
+    if (!storedIdsMatchCurrentMode((dyiaUser as { stripe_livemode?: boolean | null }).stripe_livemode)) {
+      dyiaUser.stripe_customer_id = null
+      dyiaUser.stripe_subscription_id = null
     }
 
     // Admin accounts get free access — never create a Stripe subscription
@@ -211,10 +223,8 @@ export async function POST(request: NextRequest) {
     )
 
     if (dyiaUser.stripe_customer_id !== customer.id) {
-      await supabase
-        .from('dyia_users')
-        .update({ stripe_customer_id: customer.id })
-        .eq('id', dyiaUser.id)
+      // Stamp the mode that created this id (QA Round 5 mode guard).
+      await updateUserWithModeStamp(supabase, 'id', dyiaUser.id, { stripe_customer_id: customer.id })
     }
 
     if (!isOneTime) {

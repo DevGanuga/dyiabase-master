@@ -3,6 +3,7 @@ import { auth } from '@clerk/nextjs/server'
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
 import { getErrorMessage } from '@/lib/errors'
+import { isLivemode, isMissingColumnError } from '@/lib/stripe-mode'
 
 function getStripe() {
   const key = process.env.STRIPE_SECRET_KEY
@@ -170,12 +171,23 @@ export async function POST(request: NextRequest) {
       updatePayload.trial_consumed_at = new Date().toISOString()
     }
 
-    const { data: updatedUser, error: updateError } = await supabase
+    // Stamp which Stripe mode created these ids (QA Round 5 mode guard).
+    // Retry without the stamp when migration 044 hasn't been applied yet.
+    let { data: updatedUser, error: updateError } = await supabase
       .from('dyia_users')
-      .update(updatePayload)
+      .update({ ...updatePayload, stripe_livemode: isLivemode() })
       .eq('id', dyiaUser.id)
       .select()
       .single()
+
+    if (updateError && isMissingColumnError(updateError)) {
+      ;({ data: updatedUser, error: updateError } = await supabase
+        .from('dyia_users')
+        .update(updatePayload)
+        .eq('id', dyiaUser.id)
+        .select()
+        .single())
+    }
 
     if (updateError) {
       console.error('Error updating user subscription via verify-session:', updateError)

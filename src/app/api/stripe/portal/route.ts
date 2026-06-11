@@ -4,6 +4,7 @@ import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
 import { getBaseUrl } from '@/lib/env'
 import { getErrorMessage } from '@/lib/errors'
+import { storedIdsMatchCurrentMode, updateUserWithModeStamp } from '@/lib/stripe-mode'
 
 function getStripe() {
   const key = process.env.STRIPE_SECRET_KEY
@@ -44,23 +45,24 @@ async function resolvePortalCustomerId(
   supabase: ReturnType<typeof getSupabase>,
   dyiaUserId: string,
   storedCustomerId: string,
-  email: string | null
+  email: string | null,
+  /** False when stripe_livemode says the stored id came from the other mode — skip the doomed retrieve. */
+  storedIdUsable: boolean = true
 ): Promise<string | null> {
-  try {
-    const customer = await stripe.customers.retrieve(storedCustomerId)
-    if (!('deleted' in customer)) return customer.id
-  } catch {
-    // Missing in this mode (test-mode id with a live key, or deleted) — heal below.
+  if (storedIdUsable) {
+    try {
+      const customer = await stripe.customers.retrieve(storedCustomerId)
+      if (!('deleted' in customer)) return customer.id
+    } catch {
+      // Missing in this mode (test-mode id with a live key, or deleted) — heal below.
+    }
   }
 
   if (email) {
     const matches = await stripe.customers.list({ email, limit: 10 })
     const reusable = matches.data.find((c) => !c.deleted)
     if (reusable) {
-      await supabase
-        .from('dyia_users')
-        .update({ stripe_customer_id: reusable.id })
-        .eq('id', dyiaUserId)
+      await updateUserWithModeStamp(supabase, 'id', dyiaUserId, { stripe_customer_id: reusable.id })
       return reusable.id
     }
   }
@@ -81,9 +83,11 @@ export async function POST() {
     if (!clerkUserId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     const supabase = getSupabase()
+    // select('*') so the optional stripe_livemode column (migration 044) is
+    // included when present without erroring when it isn't yet.
     const { data: user } = await supabase
       .from('dyia_users')
-      .select('id, email, stripe_customer_id, is_admin, role')
+      .select('*')
       .eq('clerk_user_id', clerkUserId)
       .single()
 
@@ -91,6 +95,7 @@ export async function POST() {
       id: string
       email: string | null
       stripe_customer_id: string | null
+      stripe_livemode?: boolean | null
       is_admin?: boolean | null
       role?: string | null
     } | null
@@ -109,12 +114,15 @@ export async function POST() {
     }
 
     const stripe = getStripe()
+    // QA Round 5 mode guard: when the stored id came from the other Stripe
+    // mode, skip the doomed retrieve and go straight to email-based healing.
     const customerId = await resolvePortalCustomerId(
       stripe,
       supabase,
       account.id,
       account.stripe_customer_id,
-      account.email
+      account.email,
+      storedIdsMatchCurrentMode(account.stripe_livemode)
     )
 
     if (!customerId) {

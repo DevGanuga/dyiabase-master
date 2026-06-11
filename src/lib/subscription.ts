@@ -107,6 +107,16 @@ export function computeSubscriptionState(row: SubscriptionInputRow | null | unde
   if (rawStatus === 'trialing' && endsAt && !hasTimeLeft && !hasStripeSubscription) {
     effectiveStatus = 'inactive'
   }
+  // QA Round 5 (+102): an expired trial WITH a Stripe subscription on file
+  // previously kept 'trialing' forever, granting indefinite Pro access when
+  // the trial→active webhook never landed (misconfigured/wrong-mode webhook).
+  // Normally Stripe flips the row to 'active' (payment) or 'past_due'/
+  // 'canceled' (failure) at trial end; if the row still says 'trialing' well
+  // past its end date, the webhook didn't arrive — fail closed. The 1-day
+  // buffer absorbs ordinary webhook/retry lag so real conversions never blip.
+  if (rawStatus === 'trialing' && endsAt && hasStripeSubscription && now > endsAt.getTime() + DAY_MS) {
+    effectiveStatus = 'inactive'
+  }
   if (isCanceled && !hasTimeLeft) {
     effectiveStatus = 'inactive'
   }

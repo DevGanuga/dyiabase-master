@@ -4,6 +4,7 @@ import { createClient } from '@supabase/supabase-js'
 import { sendEmail, isResendConfigured } from '@/lib/resend/client'
 import { subscriptionConfirmedEmail, intelActionPlanEmail, paymentFailedEmail } from '@/lib/resend/templates'
 import { DUNNING_GRACE_DAYS } from '@/lib/subscription'
+import { isLivemode, updateUserWithModeStamp } from '@/lib/stripe-mode'
 import { logWebhookEvent } from '@/lib/admin'
 import { getBaseUrl } from '@/lib/env'
 import { generateActionPlan } from '@/lib/intel/action-plan'
@@ -64,6 +65,21 @@ export async function POST(request: NextRequest) {
       { error: `Webhook Error: ${err instanceof Error ? err.message : 'Unknown'}` },
       { status: 400 }
     )
+  }
+
+  // QA Round 5 mode guard: never let events from the other Stripe mode mutate
+  // this database. Test-mode events reaching a live deployment (or vice versa)
+  // were how QA branch traffic rewrote production rows matched by
+  // stripe_customer_id. Acknowledge with 200 so Stripe stops retrying, but log
+  // it as an error so the admin webhook log surfaces the misconfiguration.
+  if (event.livemode !== isLivemode()) {
+    console.error(
+      `Stripe webhook mode mismatch: event.livemode=${event.livemode} but server key is ${isLivemode() ? 'live' : 'test'} mode. ` +
+      'A webhook endpoint from the other Stripe mode is pointed at this deployment. Event ignored.',
+      { eventId: event.id, type: event.type }
+    )
+    logWebhookEvent('stripe', event.type, event.id, { type: event.type }, 'error', 'Dropped: event livemode does not match server Stripe key mode').catch(() => {})
+    return NextResponse.json({ received: true, ignored: 'livemode_mismatch' })
   }
 
   try {
@@ -300,10 +316,8 @@ async function handleCheckoutComplete(stripe: Stripe, supabase: any, session: St
     }
   }
 
-  const { error } = await supabase
-    .from('dyia_users')
-    .update(updatePayload)
-    .eq('id', dyiaUserId)
+  // Stamp which Stripe mode created these ids (QA Round 5 mode guard).
+  const error = await updateUserWithModeStamp(supabase, 'id', dyiaUserId, updatePayload)
 
   if (error) {
     console.error('Error updating user subscription:', error)
@@ -401,10 +415,8 @@ async function handleSubscriptionUpdate(supabase: any, subscription: Stripe.Subs
     updatePayload.payment_failed_at = null
   }
 
-  const { error } = await supabase
-    .from('dyia_users')
-    .update(updatePayload)
-    .eq('stripe_customer_id', customerId)
+  // Stamp which Stripe mode produced this update (QA Round 5 mode guard).
+  const error = await updateUserWithModeStamp(supabase, 'stripe_customer_id', customerId, updatePayload)
 
   if (error) {
     console.error('Error updating subscription:', error)
