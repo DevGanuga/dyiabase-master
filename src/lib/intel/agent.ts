@@ -176,6 +176,31 @@ function buildResearchInput(input: IntelAgentInput): string {
   if (input.yearsInBusiness) lines.push(`Years in business: ${input.yearsInBusiness}`)
   if (input.teamSize) lines.push(`Team size: ${input.teamSize}`)
 
+  // Ground the agent in verified Google Places data when we have it, so it
+  // anchors review counts to real listings instead of re-guessing them.
+  const fmtPlace = (p: PlaceBusiness): string => {
+    const parts = [
+      `${p.name} — ${p.reviewCount} reviews`,
+      Number.isFinite(p.rating) && p.rating > 0 ? `${p.rating.toFixed(1)}★` : null,
+      p.address || null,
+      p.googleMapsUri || p.websiteUri || null,
+    ].filter(Boolean)
+    return parts.join(' · ')
+  }
+
+  if (input.verifiedTarget || (input.verifiedCompetitors && input.verifiedCompetitors.length > 0)) {
+    lines.push(
+      ``,
+      `VERIFIED GOOGLE PLACES DATA (already confirmed from live Google listings — treat these review counts as ground truth and do NOT override them with guesses; only refine if a live search shows a clearly newer number):`,
+    )
+    if (input.verifiedTarget) {
+      lines.push(`- Target business: ${fmtPlace(input.verifiedTarget)}`)
+    }
+    for (const comp of input.verifiedCompetitors || []) {
+      lines.push(`- Competitor: ${fmtPlace(comp)}`)
+    }
+  }
+
   lines.push(
     ``,
     `Research requirements:`,
@@ -376,6 +401,7 @@ function normalizeScanData(raw: unknown): IntelScanData {
     target_zip_codes: zips,
   }
 }
+
 
 
 

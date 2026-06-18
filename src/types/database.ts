@@ -217,7 +217,7 @@ export interface AppReviewRequest {
 
 // App-side transformed types (camelCase)
 export type JobStatus = 'scheduled' | 'in_progress' | 'completed' | 'cancelled'
-export type ScheduledJobKind = 'job' | 'estimate' | 'free_estimate'
+export type ScheduledJobKind = 'job' | 'estimate'
 
 export interface AppJob {
   id: string
@@ -283,6 +283,8 @@ export interface AppQuote {
 export interface AppSettings {
   taxPercentage: number
   monthlyGoal: number
+  /** Service vertical (junk_removal, lawn_care, cleaning, …) from onboarding metadata. */
+  businessType?: string
   businessInfo: {
     name: string
     phone: string
@@ -900,3 +902,19 @@ export type IntelIndustry = (typeof INTEL_INDUSTRIES)[number]
 
 export const INTEL_RADIUS_OPTIONS = [10, 25, 50, 100] as const
 export type IntelRadius = (typeof INTEL_RADIUS_OPTIONS)[number]
+
+/**
+ * Service verticals the product supports. The `id` matches the value stored in
+ * `dyia_settings.metadata.business_type` (set during onboarding). Used to label
+ * the business in AI context and to seed trade-appropriate quote templates.
+ */
+export const BUSINESS_TYPE_OPTIONS = [
+  { id: 'junk_removal', label: 'Junk Removal' },
+  { id: 'lawn_care', label: 'Lawn Care' },
+  { id: 'cleaning', label: 'Cleaning' },
+  { id: 'moving', label: 'Moving' },
+  { id: 'handyman', label: 'Handyman' },
+  { id: 'other', label: 'Other' },
+] as const
+
+export type BusinessTypeId = (typeof BUSINESS_TYPE_OPTIONS)[number]['id']

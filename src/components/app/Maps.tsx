@@ -574,7 +574,7 @@ function LegendDot({ color, label }: { color: string; label: string }) {
 function PinDetail({ job, phone, onClose, onOpenJob, sheet }: { job: AppJob; phone?: string | null; onClose: () => void; onOpenJob?: (job: AppJob) => void; sheet?: boolean }) {
   const kind = pinKindForJob(job)
   const statusLabel =
-    kind === 'cancelled' ? 'Cancelled' : kind === 'estimate' ? (job.scheduledKind === 'free_estimate' ? 'Free estimate' : 'Estimate') : kind === 'completed' ? 'Completed' : 'Scheduled'
+    kind === 'cancelled' ? 'Cancelled' : kind === 'estimate' ? 'Estimate' : kind === 'completed' ? 'Completed' : 'Scheduled'
   const dateLabel = parseLocalDate(job.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
   const directionsUrl = buildDirectionsUrl(job)
   const callHref = telHref(phone)

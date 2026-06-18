@@ -63,7 +63,7 @@ export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth,
   const [tempExpenses, setTempExpenses] = useState<TempExpenses>({ labor: 0, gas: 0, dumpFee: 0, dumpsterRental: 0, additional: 0 })
   const [tempOtherLabel, setTempOtherLabel] = useState('')
   const [tempStatus, setTempStatus] = useState<AppJob['status']>('completed')
-  const [tempScheduledKind, setTempScheduledKind] = useState<'job' | 'estimate' | 'free_estimate'>('job')
+  const [tempScheduledKind, setTempScheduledKind] = useState<'job' | 'estimate'>('job')
   const [tempAppointmentWindow, setTempAppointmentWindow] = useState('')
   const [tempEstimateLow, setTempEstimateLow] = useState(0)
   const [tempEstimateHigh, setTempEstimateHigh] = useState(0)
@@ -1140,7 +1140,7 @@ export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth,
                 <select
                   value={tempScheduledKind}
                   onChange={(e) => {
-                    const nextKind = e.target.value as 'job' | 'estimate' | 'free_estimate'
+                    const nextKind = e.target.value as 'job' | 'estimate'
                     setTempScheduledKind(nextKind)
                     if (nextKind !== 'estimate') {
                       setTempEstimateLow(0)
@@ -1151,7 +1151,6 @@ export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth,
                 >
                   <option value="job">Scheduled Job</option>
                   <option value="estimate">Estimate</option>
-                  <option value="free_estimate">Free Estimate</option>
                 </select>
               </div>
             </div>
@@ -1192,9 +1191,7 @@ export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth,
             <p className="text-xs text-[var(--color-text-faint)] mt-2">
               {tempScheduledKind === 'estimate'
                 ? 'Add the expected price range for this estimate appointment.'
-                : tempScheduledKind === 'free_estimate'
-                  ? 'Mark this as a free estimate visit with no price range.'
-                  : 'Use this for normal scheduled jobs before you know the final gross.'}
+                : 'Use this for normal scheduled jobs before you know the final gross.'}
             </p>
           </div>
         )}
@@ -1357,11 +1354,9 @@ export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth,
             <div className="hidden sm:flex items-center gap-4 text-sm">
               {isScheduledDraft ? (
                 <span className="text-[var(--color-text-faint)]">
-                  {tempScheduledKind === 'free_estimate'
-                    ? `Free estimate${tempAppointmentWindow ? ` · ${tempAppointmentWindow}` : ''}`
-                    : tempEstimateLow || tempEstimateHigh
-                      ? `Estimate: ${tempEstimateLow ? formatCurrency(tempEstimateLow) : '$0'}${tempEstimateHigh ? ` - ${formatCurrency(tempEstimateHigh)}` : ''}${tempAppointmentWindow ? ` · ${tempAppointmentWindow}` : ''}`
-                      : `Scheduled${tempAppointmentWindow ? ` · ${tempAppointmentWindow}` : ''}`}
+                  {tempEstimateLow || tempEstimateHigh
+                    ? `Estimate: ${tempEstimateLow ? formatCurrency(tempEstimateLow) : '$0'}${tempEstimateHigh ? ` - ${formatCurrency(tempEstimateHigh)}` : ''}${tempAppointmentWindow ? ` · ${tempAppointmentWindow}` : ''}`
+                    : `Scheduled${tempAppointmentWindow ? ` · ${tempAppointmentWindow}` : ''}`}
                 </span>
               ) : totalRevenue > 0 ? (
                 <>
@@ -1850,63 +1845,78 @@ export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth,
       />
 
       {/* Close day / Log daily expenses modal */}
-      {/* BUG-016: center vertically on all sizes and keep modal inside the
-          viewport. The previous `items-start + pt-12` pushed the panel offscreen
-          when the page was scrolled to the middle of a long Jobs list. */}
+      {/* BUG-016 + mobile UX: dock to the bottom as a native-feel sheet on phones
+          (items-end) and center on desktop. The panel is a flex column so the
+          header and primary action footer stay pinned while only the form body
+          scrolls — the user no longer has to scroll the whole modal to reach
+          the expense inputs or the "Apply & calculate" button. */}
       {closeDayDate && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 overflow-y-auto" onClick={() => !closeDaySaving && setCloseDayDate(null)}>
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/50" onClick={() => !closeDaySaving && setCloseDayDate(null)}>
           <div
-            className="bg-[var(--color-bg)] border border-[var(--color-border)] rounded-xl shadow-xl max-w-md w-full max-h-[85vh] sm:max-h-[90vh] overflow-y-auto p-6"
+            className="bg-[var(--color-bg)] border border-[var(--color-border)] rounded-t-2xl sm:rounded-xl shadow-xl w-full sm:max-w-md max-h-[90vh] flex flex-col animate-in fade-in slide-in-from-bottom sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-300"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-[var(--color-text-primary)]">
-                {closeDayResult ? 'Day summary' : 'Log daily expenses'}
-              </h3>
+            {/* Grab handle (mobile only) */}
+            <div className="sm:hidden pt-2.5 pb-1 flex justify-center flex-shrink-0">
+              <span className="w-9 h-1 rounded-full bg-[var(--color-border)]" />
+            </div>
+
+            {/* Sticky header */}
+            <div className="flex items-start justify-between gap-3 px-6 pt-3 sm:pt-6 pb-3 flex-shrink-0">
+              <div className="min-w-0">
+                <h3 className="text-lg font-semibold text-[var(--color-text-primary)]">
+                  {closeDayResult ? 'Day summary' : 'Log daily expenses'}
+                </h3>
+                <p className="text-sm text-[var(--color-text-muted)] mt-0.5">
+                  {parseLocalDate(closeDayDate).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
+                </p>
+              </div>
               {!closeDaySaving && (
-                <button type="button" onClick={() => setCloseDayDate(null)} className="p-1.5 text-[var(--color-text-faint)] hover:bg-[var(--color-bg-subtle)] rounded-lg">
+                <button type="button" onClick={() => setCloseDayDate(null)} aria-label="Close" className="-mr-1.5 p-1.5 text-[var(--color-text-faint)] hover:bg-[var(--color-bg-subtle)] rounded-lg flex-shrink-0">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                 </button>
               )}
             </div>
-            <p className="text-sm text-[var(--color-text-muted)] mb-4">
-              {parseLocalDate(closeDayDate).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
-            </p>
 
             {closeDayResult ? (
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="bg-[var(--color-bg-subtle)] rounded-xl p-3">
-                    <p className="text-xs text-[var(--color-text-muted)]">Total revenue</p>
-                    <p className="text-lg font-bold text-green-600 dark:text-green-400">{formatCurrency(closeDayResult.revenue)}</p>
-                  </div>
-                  <div className="bg-[var(--color-bg-subtle)] rounded-xl p-3">
-                    <p className="text-xs text-[var(--color-text-muted)]">Total expenses</p>
-                    <p className="text-lg font-bold text-red-500 dark:text-red-400">{formatCurrency(closeDayResult.expenses)}</p>
-                  </div>
-                  <div className="bg-[var(--color-bg-subtle)] rounded-xl p-3">
-                    <p className="text-xs text-[var(--color-text-muted)]">Daily profit</p>
-                    <p className={`text-lg font-bold ${closeDayResult.profit >= 0 ? 'text-purple-600 dark:text-purple-400' : 'text-red-600 dark:text-red-400'}`}>
-                      {formatCurrency(closeDayResult.profit)}
-                    </p>
-                  </div>
-                  <div className="bg-[var(--color-bg-subtle)] rounded-xl p-3">
-                    <p className="text-xs text-[var(--color-text-muted)]">Per-job average</p>
-                    <p className="text-sm font-semibold text-[var(--color-text-primary)]">{formatCurrency(closeDayResult.avgRevenue)} rev</p>
-                    <p className="text-xs text-[var(--color-text-muted)]">{formatCurrency(closeDayResult.avgProfit)} profit</p>
-                  </div>
-                </div>
-                <p className="text-xs text-[var(--color-text-muted)]">
-                  Expenses were allocated across {closeDayResult.jobCount} job{closeDayResult.jobCount !== 1 ? 's' : ''} proportionally by revenue.
-                </p>
-                <button type="button" onClick={() => setCloseDayDate(null)} className="w-full app-btn-primary py-2.5">Done</button>
-              </div>
-            ) : (
               <>
-                {(() => {
-                  const dayJobsList = jobs.filter(j => j.date === closeDayDate && j.status !== 'scheduled')
-                  return (
-                    <>
+                <div className="px-6 overflow-y-auto flex-1 space-y-4">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-[var(--color-bg-subtle)] rounded-xl p-3">
+                      <p className="text-xs text-[var(--color-text-muted)]">Total revenue</p>
+                      <p className="text-lg font-bold text-green-600 dark:text-green-400">{formatCurrency(closeDayResult.revenue)}</p>
+                    </div>
+                    <div className="bg-[var(--color-bg-subtle)] rounded-xl p-3">
+                      <p className="text-xs text-[var(--color-text-muted)]">Total expenses</p>
+                      <p className="text-lg font-bold text-red-500 dark:text-red-400">{formatCurrency(closeDayResult.expenses)}</p>
+                    </div>
+                    <div className="bg-[var(--color-bg-subtle)] rounded-xl p-3">
+                      <p className="text-xs text-[var(--color-text-muted)]">Daily profit</p>
+                      <p className={`text-lg font-bold ${closeDayResult.profit >= 0 ? 'text-purple-600 dark:text-purple-400' : 'text-red-600 dark:text-red-400'}`}>
+                        {formatCurrency(closeDayResult.profit)}
+                      </p>
+                    </div>
+                    <div className="bg-[var(--color-bg-subtle)] rounded-xl p-3">
+                      <p className="text-xs text-[var(--color-text-muted)]">Per-job average</p>
+                      <p className="text-sm font-semibold text-[var(--color-text-primary)]">{formatCurrency(closeDayResult.avgRevenue)} rev</p>
+                      <p className="text-xs text-[var(--color-text-muted)]">{formatCurrency(closeDayResult.avgProfit)} profit</p>
+                    </div>
+                  </div>
+                  <p className="text-xs text-[var(--color-text-muted)]">
+                    Expenses were allocated across {closeDayResult.jobCount} job{closeDayResult.jobCount !== 1 ? 's' : ''} proportionally by revenue.
+                  </p>
+                </div>
+                <div className="px-6 pt-3 border-t border-[var(--color-border)] flex-shrink-0" style={{ paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom))' }}>
+                  <button type="button" onClick={() => setCloseDayDate(null)} className="w-full app-btn-primary py-2.5">Done</button>
+                </div>
+              </>
+            ) : (
+              (() => {
+                const dayJobsList = jobs.filter(j => j.date === closeDayDate && j.status !== 'scheduled')
+                return (
+                  <>
+                    {/* Scrollable body */}
+                    <div className="px-6 overflow-y-auto flex-1">
                       <div className="mb-4">
                         <p className="text-xs font-medium text-[var(--color-text-muted)] mb-2">Jobs this day ({dayJobsList.length})</p>
                         <ul className="space-y-1 max-h-24 overflow-y-auto">
@@ -1933,6 +1943,7 @@ export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth,
                               <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)] text-sm">$</span>
                               <input
                                 type="number"
+                                inputMode="decimal"
                                 min={0}
                                 value={closeDayExpenses[key] || ''}
                                 onChange={(e) => setCloseDayExpenses(prev => ({ ...prev, [key]: Math.max(0, parseFloat(e.target.value) || 0) }))}
@@ -1943,7 +1954,7 @@ export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth,
                         ))}
                       </div>
                       {(closeDayExpenses.additional > 0 || closeDayOtherLabel) && (
-                        <div className="mb-4">
+                        <div className="mb-2">
                           <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1">What was &quot;Other&quot;?</label>
                           <input
                             type="text"
@@ -1955,23 +1966,25 @@ export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth,
                           />
                         </div>
                       )}
-                      <div className="flex gap-2">
-                        <button type="button" onClick={() => setCloseDayDate(null)} disabled={closeDaySaving} className="app-btn-secondary flex-1 py-2.5">Cancel</button>
-                        <button type="button" onClick={applyDailyExpenses} disabled={closeDaySaving} className="app-btn-primary flex-1 py-2.5 disabled:opacity-50 flex items-center justify-center gap-2">
-                          {closeDaySaving ? (
-                            <>
-                              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                              Applying…
-                            </>
-                          ) : (
-                            'Apply & calculate'
-                          )}
-                        </button>
-                      </div>
-                    </>
-                  )
-                })()}
-              </>
+                    </div>
+
+                    {/* Sticky footer — primary action always reachable */}
+                    <div className="flex gap-2 px-6 pt-3 border-t border-[var(--color-border)] flex-shrink-0" style={{ paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom))' }}>
+                      <button type="button" onClick={() => setCloseDayDate(null)} disabled={closeDaySaving} className="app-btn-secondary flex-1 py-2.5">Cancel</button>
+                      <button type="button" onClick={applyDailyExpenses} disabled={closeDaySaving} className="app-btn-primary flex-1 py-2.5 disabled:opacity-50 flex items-center justify-center gap-2">
+                        {closeDaySaving ? (
+                          <>
+                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                            Applying…
+                          </>
+                        ) : (
+                          'Apply & calculate'
+                        )}
+                      </button>
+                    </div>
+                  </>
+                )
+              })()
             )}
           </div>
         </div>

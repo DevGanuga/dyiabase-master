@@ -485,9 +485,9 @@ export function Marketing({ showSuccess, isPro = false }: MarketingProps) {
 
       {/* Edit Modal */}
       {editItem && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center sm:p-4">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setEditItem(null)} />
-          <div className="relative bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-2xl shadow-2xl w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
+          <div className="relative bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-md p-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:pb-6 animate-in fade-in slide-in-from-bottom sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-300" onClick={e => e.stopPropagation()}>
             <h3 className="text-lg font-semibold text-[var(--color-text-primary)] mb-4">Edit Spend</h3>
             <div className="space-y-3">
               <div>

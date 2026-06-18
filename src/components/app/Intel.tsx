@@ -1,6 +1,9 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import Link from 'next/link'
+import ReactMarkdown from 'react-markdown'
+import { useSubscription } from '@/hooks/useSubscription'
 import { INTEL_INDUSTRIES, INTEL_RADIUS_OPTIONS } from '@/types/database'
 import type { IntelScanData, IntelActionStep, IntelActionCategory, IntelResearchSource } from '@/types/database'
 
@@ -11,7 +14,7 @@ interface Changes { localRank: number; reviewCount: number; reviewGap: number; m
 interface CrmIntelData {
   currentScan: {
     id: string; businessName: string; zipCode: string; industry: string; radiusMiles: number
-    scanData: IntelScanData; researchSources: IntelResearchSource[] | null; actionPlan: IntelActionStep[]; createdAt: string
+    scanData: IntelScanData; researchSources: IntelResearchSource[] | null; researchReport: string | null; actionPlan: IntelActionStep[]; createdAt: string
   } | null
   changes: Changes | null; daysUntilRefresh: number; hasNewReport: boolean
   monthlyStatus: { jobStatus: string; monthYear: string } | null
@@ -24,6 +27,7 @@ function sevLabel(p: number) { return p >= 70 ? 'Strong' : p >= 40 ? 'Room to gr
 const IC = 'w-full px-4 py-2.5 bg-[var(--color-bg)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)]'
 
 export function Intel({ businessName, showSuccess }: IntelProps) {
+  const { isPro, tier, isLoading: subLoading } = useSubscription()
   const [data, setData] = useState<CrmIntelData | null>(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -53,13 +57,35 @@ export function Intel({ businessName, showSuccess }: IntelProps) {
     try {
       const body = showSetup ? { industry: setupIndustry, zipCode: setupZipCode, radiusMiles: setupRadius, websiteUrl: setupWebsite || undefined } : {}
       const res = await fetch('/api/intel/refresh', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
-      if (!res.ok) { const e = await res.json(); throw new Error(e.error || 'Refresh failed') }
+      if (!res.ok) {
+        const e = await res.json().catch(() => ({}))
+        if (res.status === 403) throw new Error('Intel scans require an active Dyia subscription. Upgrade in Settings → Account to generate your report.')
+        throw new Error(e.error || 'Refresh failed')
+      }
       showSuccess('Intel report refreshed!'); setShowSetup(false); await loadData()
     } catch (err) { setError(err instanceof Error ? err.message : 'Failed to refresh') }
     finally { setRefreshing(false) }
   }
 
-  if (loading) return <div className="flex items-center justify-center py-32"><div className="w-10 h-10 border-2 border-purple-500/30 border-t-purple-500 rounded-full animate-spin" /></div>
+  if (loading || subLoading) return <div className="flex items-center justify-center py-32"><div className="w-10 h-10 border-2 border-purple-500/30 border-t-purple-500 rounded-full animate-spin" /></div>
+
+  // Basic-tier users can't generate Intel scans (the refresh endpoint requires an
+  // active/trialing subscription). Show a clear upgrade prompt instead of letting
+  // them fill out the setup form only to hit a silent 403.
+  if (!isPro && !data?.currentScan) return (
+    <div className="max-w-lg mx-auto text-center py-12">
+      <div className="w-14 h-14 bg-purple-500/10 rounded-xl flex items-center justify-center mx-auto mb-4"><svg className="w-7 h-7 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg></div>
+      <h1 className="text-2xl font-bold text-[var(--color-text)]">Dyia Intel is a Pro feature</h1>
+      <p className="text-[var(--color-text-secondary)] mt-2 mb-1">Get a full competitive intelligence report every month — verified competitor reviews, keyword gaps, ad spend, and a prioritized action plan.</p>
+      {tier === 'trial'
+        ? <p className="text-sm text-amber-600 dark:text-amber-400 mb-6">Your trial needs an active subscription to run Intel scans.</p>
+        : <p className="text-sm text-[var(--color-text-secondary)] mb-6">Included with every Dyia subscription at no extra cost.</p>}
+      <Link href="/app?view=settings&tab=account#subscription" className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-semibold rounded-lg transition-colors">
+        Upgrade to unlock Intel
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>
+      </Link>
+    </div>
+  )
 
   if (showSetup && !data?.currentScan) return (
     <div className="max-w-lg mx-auto">
@@ -143,6 +169,26 @@ export function Intel({ businessName, showSuccess }: IntelProps) {
           <div><h3 className="font-semibold text-[var(--color-text)]">Your {new Date(scan.createdAt).toLocaleDateString('en-US', { month: 'long' })} action plan is ready</h3><p className="text-sm text-[var(--color-text-secondary)]">6 prioritized steps from your latest scan</p></div>
           <a href="#action-plan" className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-sm font-medium rounded-lg transition-colors">View plan</a>
         </div>
+      )}
+
+      {/* Full Research Report — the narrative analysis behind the metrics */}
+      {scan.researchReport && (
+        <details className="bg-[var(--color-card)] border border-[var(--color-border)] rounded-xl p-6 mb-6 group" open>
+          <summary className="flex items-center gap-2 cursor-pointer list-none">
+            <svg className="w-4 h-4 text-purple-500 transition-transform group-open:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+            <span className="text-lg font-semibold text-[var(--color-text)]">Full Research Report</span>
+          </summary>
+          <p className="text-sm text-[var(--color-text-secondary)] mt-1 mb-4 ml-6">Competitive analysis with verified data and source citations</p>
+          <div className="prose prose-sm dark:prose-invert max-w-none prose-headings:text-[var(--color-text)] prose-p:text-[var(--color-text-secondary)] prose-li:text-[var(--color-text-secondary)] prose-strong:text-[var(--color-text)] prose-a:text-purple-500">
+            <ReactMarkdown
+              components={{
+                a: ({ href, children }) => <a href={href} target="_blank" rel="noreferrer">{children}</a>,
+              }}
+            >
+              {scan.researchReport}
+            </ReactMarkdown>
+          </div>
+        </details>
       )}
 
       {/* Competitor Rankings */}
@@ -247,7 +293,7 @@ export function Intel({ businessName, showSuccess }: IntelProps) {
       <div className="bg-gradient-to-r from-orange-500/10 to-amber-500/10 border border-orange-500/20 rounded-xl p-6 text-center">
         <h3 className="font-semibold text-[var(--color-text)] mb-1">Want these steps done for you?</h3>
         <p className="text-sm text-[var(--color-text-secondary)] mb-4">Our Pro service handles execution — reviews, keywords, ads, and GBP optimization.</p>
-        <button className="px-6 py-2.5 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-medium rounded-lg hover:from-orange-600 hover:to-amber-600 transition-all text-sm">Learn about Pro</button>
+        <a href={`mailto:dyia.io.app@gmail.com?subject=${encodeURIComponent('Dyia Intel — done-for-you Pro service')}&body=${encodeURIComponent(`Hi, I'd like to learn more about the done-for-you Intel service for ${scan.businessName}.`)}`} className="inline-block px-6 py-2.5 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-medium rounded-lg hover:from-orange-600 hover:to-amber-600 transition-all text-sm">Learn about Pro</a>
       </div>
     </div>
   )

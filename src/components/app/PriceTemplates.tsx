@@ -5,11 +5,14 @@ import { createClient } from '@/lib/supabase/client'
 import type { AppPriceTemplate } from '@/types/database'
 import { formatCurrency } from '@/lib/utils'
 import { useConfirm } from '@/components/providers/ConfirmProvider'
+import { defaultTemplateItems, usesLegacyJunkPricing } from '@/lib/quotes/templates'
 
 interface PriceTemplatesProps {
   userId: string
   showSuccess: (message: string) => void
   onDataChanged?: () => void
+  /** Business vertical — seeds trade-appropriate categories for new templates. */
+  businessType?: string
 }
 
 const DEFAULT_PRICES: AppPriceTemplate['prices'] = {
@@ -33,17 +36,21 @@ interface TemplateFormData {
   prices: AppPriceTemplate['prices']
 }
 
-const defaultFormData: TemplateFormData = {
-  name: '',
-  prices: { ...DEFAULT_PRICES }
+/**
+ * Build starter prices for a brand-new template. Junk removal keeps the legacy
+ * load-tier fields; other trades start with seeded `items[]` categories.
+ */
+function makeDefaultPrices(businessType?: string): AppPriceTemplate['prices'] {
+  if (usesLegacyJunkPricing(businessType)) return { ...DEFAULT_PRICES }
+  return { items: defaultTemplateItems(businessType) }
 }
 
-export function PriceTemplates({ userId, showSuccess, onDataChanged }: PriceTemplatesProps) {
+export function PriceTemplates({ userId, showSuccess, onDataChanged, businessType }: PriceTemplatesProps) {
   const [templates, setTemplates] = useState<AppPriceTemplate[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [formData, setFormData] = useState<TemplateFormData>(defaultFormData)
+  const [formData, setFormData] = useState<TemplateFormData>({ name: '', prices: makeDefaultPrices(businessType) })
   const [saving, setSaving] = useState(false)
 
   const supabase = useMemo(() => createClient(), [])
@@ -73,6 +80,7 @@ export function PriceTemplates({ userId, showSuccess, onDataChanged }: PriceTemp
             name: t.name,
             isDefault: t.is_default,
             prices: {
+              ...(Array.isArray(t.prices?.items) && t.prices.items.length > 0 ? { items: t.prices.items } : {}),
               minimumFee: t.prices?.minimumFee ?? DEFAULT_PRICES.minimumFee,
               quarterLoad: t.prices?.quarterLoad ?? DEFAULT_PRICES.quarterLoad,
               halfLoad: t.prices?.halfLoad ?? DEFAULT_PRICES.halfLoad,
@@ -100,10 +108,10 @@ export function PriceTemplates({ userId, showSuccess, onDataChanged }: PriceTemp
   }, [userId, supabase])
 
   const resetForm = useCallback(() => {
-    setFormData({ name: '', prices: { ...DEFAULT_PRICES } })
+    setFormData({ name: '', prices: makeDefaultPrices(businessType) })
     setEditingId(null)
     setShowForm(false)
-  }, [])
+  }, [businessType])
 
   const handleEdit = useCallback((template: AppPriceTemplate) => {
     setFormData({
@@ -131,6 +139,31 @@ export function PriceTemplates({ userId, showSuccess, onDataChanged }: PriceTemp
     }))
   }
 
+  const handleItemChange = (index: number, field: 'label' | 'amount', value: string | number) => {
+    setFormData(prev => {
+      const items = [...(prev.prices.items || [])]
+      const current = items[index] || { label: '', amount: 0 }
+      items[index] = field === 'label'
+        ? { ...current, label: value as string }
+        : { ...current, amount: Math.max(0, Number(value) || 0) }
+      return { ...prev, prices: { ...prev.prices, items } }
+    })
+  }
+
+  const addItem = () => {
+    setFormData(prev => ({
+      ...prev,
+      prices: { ...prev.prices, items: [...(prev.prices.items || []), { label: '', amount: 0 }] }
+    }))
+  }
+
+  const removeItem = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      prices: { ...prev.prices, items: (prev.prices.items || []).filter((_, i) => i !== index) }
+    }))
+  }
+
   const handleSave = async () => {
     if (!formData.name.trim()) {
       await alert({ title: 'Missing Name', message: 'Please enter a template name.', variant: 'warning' })
@@ -139,6 +172,13 @@ export function PriceTemplates({ userId, showSuccess, onDataChanged }: PriceTemp
 
     setSaving(true)
 
+    // Drop blank item rows so empty placeholders don't get persisted.
+    const cleanedItems = (formData.prices.items || []).filter(it => it.label.trim() && it.amount > 0)
+    const prices: AppPriceTemplate['prices'] = {
+      ...formData.prices,
+      ...(cleanedItems.length > 0 ? { items: cleanedItems } : { items: undefined }),
+    }
+
     try {
       if (editingId) {
         // Update existing template
@@ -146,7 +186,7 @@ export function PriceTemplates({ userId, showSuccess, onDataChanged }: PriceTemp
           .from('dyia_price_templates')
           .update({
             name: formData.name.trim(),
-            prices: formData.prices
+            prices
           })
           .eq('id', editingId)
 
@@ -154,7 +194,7 @@ export function PriceTemplates({ userId, showSuccess, onDataChanged }: PriceTemp
 
         setTemplates(templates.map(t =>
           t.id === editingId
-            ? { ...t, name: formData.name.trim(), prices: formData.prices }
+            ? { ...t, name: formData.name.trim(), prices }
             : t
         ))
         showSuccess('Template updated!')
@@ -167,7 +207,7 @@ export function PriceTemplates({ userId, showSuccess, onDataChanged }: PriceTemp
           .insert({
             user_id: userId,
             name: formData.name.trim(),
-            prices: formData.prices,
+            prices,
             is_default: isFirst // First template is default
           })
           .select()
@@ -180,7 +220,7 @@ export function PriceTemplates({ userId, showSuccess, onDataChanged }: PriceTemp
             id: data.id,
             name: data.name,
             isDefault: data.is_default,
-            prices: formData.prices
+            prices
           }, ...templates])
         }
         showSuccess('Template created!')
@@ -271,7 +311,7 @@ export function PriceTemplates({ userId, showSuccess, onDataChanged }: PriceTemp
         </div>
         <button
           onClick={() => {
-            setFormData({ name: '', prices: { ...DEFAULT_PRICES } })
+            setFormData({ name: '', prices: makeDefaultPrices(businessType) })
             setEditingId(null)
             setShowForm(true)
           }}
@@ -304,7 +344,51 @@ export function PriceTemplates({ userId, showSuccess, onDataChanged }: PriceTemp
               />
             </div>
 
-            {/* Load Sizes */}
+            {/* Custom line items — trade-agnostic categories (lawn care, cleaning, …) */}
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <h5 className="text-sm font-medium text-[var(--color-text-secondary)]">🧾 Line Items</h5>
+                <button type="button" onClick={addItem} className="text-xs text-orange-500 hover:text-orange-600 font-medium flex items-center gap-1">
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                  Add item
+                </button>
+              </div>
+              {(formData.prices.items || []).length === 0 ? (
+                <p className="text-xs text-[var(--color-text-faint)] mb-1">Add your own pricing categories (e.g. {usesLegacyJunkPricing(businessType) ? 'Full Load, Hot Tub Removal' : 'Standard Clean, Mowing'}). These auto-fill the quote builder.</p>
+              ) : (
+                <div className="space-y-2">
+                  {(formData.prices.items || []).map((item, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={item.label}
+                        onChange={(e) => handleItemChange(i, 'label', e.target.value)}
+                        className="app-input flex-1 text-sm"
+                        placeholder="Category label"
+                      />
+                      <div className="relative w-28 shrink-0">
+                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)] text-sm">$</span>
+                        <input
+                          type="number"
+                          value={item.amount || ''}
+                          onChange={(e) => handleItemChange(i, 'amount', parseFloat(e.target.value) || 0)}
+                          className="app-input pl-6 text-sm"
+                          min="0"
+                          placeholder="0"
+                        />
+                      </div>
+                      <button type="button" onClick={() => removeItem(i)} className="p-1 text-slate-400 hover:text-red-500 transition-colors" title="Remove">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Load Sizes — legacy junk-removal fields, only for junk businesses */}
+            {usesLegacyJunkPricing(businessType) && (
+            <>
             <div>
               <h5 className="text-sm font-medium text-[var(--color-text-secondary)] mb-3">📦 Load Sizes</h5>
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
@@ -398,6 +482,8 @@ export function PriceTemplates({ userId, showSuccess, onDataChanged }: PriceTemp
                 ))}
               </div>
             </div>
+            </>
+            )}
 
             {/* Actions */}
             <div className="flex gap-3 pt-2">
@@ -490,7 +576,17 @@ export function PriceTemplates({ userId, showSuccess, onDataChanged }: PriceTemp
                 </div>
               </div>
 
-              {/* Price Preview Grid */}
+              {/* Price Preview Grid — custom items when present, else legacy junk fields */}
+              {template.prices.items && template.prices.items.length > 0 ? (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+                  {template.prices.items.slice(0, 8).map((it, i) => (
+                    <div key={i} className="bg-[var(--color-bg-card)]/50 rounded-lg p-2 text-center">
+                      <div className="text-[var(--color-text-muted)] truncate" title={it.label}>{it.label}</div>
+                      <div className="font-semibold text-[var(--color-text-primary)]">{formatCurrency(it.amount ?? 0)}</div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
               <div className="grid grid-cols-4 md:grid-cols-8 gap-2 text-xs">
                 <div className="bg-[var(--color-bg-card)]/50 rounded-lg p-2 text-center">
                   <div className="text-[var(--color-text-muted)]">Min</div>
@@ -525,6 +621,7 @@ export function PriceTemplates({ userId, showSuccess, onDataChanged }: PriceTemp
                   <div className="font-semibold text-[var(--color-text-primary)]">{formatCurrency(template.prices.surcharges?.hotTub ?? 0)}</div>
                 </div>
               </div>
+              )}
             </div>
           ))}
         </div>

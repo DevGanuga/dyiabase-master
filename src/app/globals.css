@@ -535,8 +535,10 @@
 
 .modal-overlay {
   /* BUG-016: overflow-y-auto ensures the user can still scroll to reach a
-     panel that's taller than the viewport on small screens. */
-  @apply fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto;
+     panel that's taller than the viewport on small screens.
+     Mobile: dock to the bottom as a native-feel sheet (items-end, no edge
+     padding) so the panel anchors to the thumb zone; desktop stays centered. */
+  @apply fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-y-auto;
   background: var(--color-overlay);
   -webkit-backdrop-filter: blur(4px);
   backdrop-filter: blur(4px);
@@ -545,12 +547,21 @@
 
 .modal-panel {
   /* BUG-016: cap height and scroll inside so the Convert-to-Job popup is
-     fully reachable even when the underlying page has many quotes. */
-  @apply relative w-full max-w-md rounded-2xl p-6 sm:p-8 max-h-[90vh] overflow-y-auto;
+     fully reachable even when the underlying page has many quotes.
+     Mobile: full-width bottom sheet with rounded top corners and a
+     home-indicator safe-area inset; desktop: centered rounded card. */
+  @apply relative w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl p-6 sm:p-8 max-h-[88vh] sm:max-h-[90vh] overflow-y-auto;
+  padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
   background: var(--color-bg-card);
   border: 1px solid var(--color-border);
   box-shadow: var(--shadow-xl);
   animation: modalSlideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@media (min-width: 640px) {
+  .modal-panel {
+    padding-bottom: 2rem;
+  }
 }
 
 /* Native-feel: keep scroll momentum inside overlays/sheets and stop it from
@@ -1477,8 +1488,17 @@
 }
 
 /* New performative animation utilities */
+/* IMPORTANT: use `backwards` (not `both`) fill mode. A *filling* transform
+   animation always resolves `transform` to a matrix — even the identity
+   matrix from the `transform: none` end keyframe — which makes this wrapper a
+   containing block for `position: fixed` descendants. With `both`, every modal
+   rendered inside a view was trapped in this tall, scrolled wrapper instead of
+   the viewport, landing far down the page (you had to scroll to reach the form
+   and primary action). `backwards` keeps the entrance (applies the 0% state
+   before the run) but reverts to the base `transform: none` keyword afterward,
+   so finished views never trap fixed overlays. */
 .animate-view-enter {
-  animation: viewEnter 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: viewEnter 0.35s cubic-bezier(0.16, 1, 0.3, 1) backwards;
 }
 
 .animate-card-pop {

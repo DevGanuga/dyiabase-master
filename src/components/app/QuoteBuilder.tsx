@@ -8,6 +8,7 @@ import { useConfirm } from '@/components/providers/ConfirmProvider'
 import { useCustomerAutocomplete } from '@/hooks/useCustomerAutocomplete'
 import { ensureCustomer } from '@/lib/customers'
 import { downloadQuotePdf } from '@/lib/quote-pdf'
+import { templateToLineItems } from '@/lib/quotes/templates'
 
 interface QuoteBuilderProps {
   quotes: AppQuote[]
@@ -236,16 +237,9 @@ export function QuoteBuilder({ quotes, setQuotes, userId, selectedJob, editingQu
           if (p.surcharges?.piano != null) templatePricing.piano = p.surcharges.piano
           setPricing((prev) => ({ ...prev, ...templatePricing }))
 
-          const genItems: LineItem[] = []
-          let genTotal = 0
-          for (const { field, label } of VOLUME_FIELDS) {
-            const val = templatePricing[field] || 0
-            if (val > 0) { genItems.push({ id: `vol-${field}`, description: label, amount: val }); genTotal += val }
-          }
-          for (const { field, label } of SPECIALTY_FIELDS) {
-            const val = templatePricing[field] || 0
-            if (val > 0) { genItems.push({ id: `spec-${field}`, description: `${label} Removal`, amount: val }); genTotal += val }
-          }
+          // Trade-agnostic: prefer the template's user-defined items[]; fall back
+          // to legacy junk load tiers + surcharges for older templates.
+          const { items: genItems, total: genTotal } = templateToLineItems(p)
           if (genItems.length > 0) {
             setLineItems(genItems)
             setEstimateLow(Math.floor(genTotal * 0.9))
@@ -312,13 +306,13 @@ export function QuoteBuilder({ quotes, setQuotes, userId, selectedJob, editingQu
     if (p.surcharges?.piano != null) next.piano = p.surcharges.piano
     setPricing(next)
 
-    const { items, total } = generateFromPricing(next)
+    const { items, total } = templateToLineItems(template.prices)
     if (items.length > 0) {
       setLineItems(items)
       setEstimateLow(Math.floor(total * 0.9))
       setEstimateHigh(Math.ceil(total * 1.1))
     }
-  }, [generateFromPricing])
+  }, [])
 
   const fetchAiSuggestion = useCallback(async () => {
     const desc = customer.jobDescription?.trim()
@@ -363,7 +357,14 @@ export function QuoteBuilder({ quotes, setQuotes, userId, selectedJob, editingQu
     }
     setSavingTemplate(true)
     try {
+      // Save the current line items as the template's trade-agnostic items[] so
+      // any vertical (lawn care, cleaning, …) can reuse its own categories. Keep
+      // the legacy junk fields populated for backward compatibility.
+      const items = lineItems
+        .filter((li) => li.description.trim() && li.amount > 0)
+        .map((li) => ({ label: li.description.trim(), amount: li.amount }))
       const pricesPayload = {
+        ...(items.length > 0 ? { items } : {}),
         minimumFee: pricing.minimumFee ?? 0,
         quarterLoad: pricing.quarterLoad ?? 0,
         halfLoad: pricing.halfLoad ?? 0,
@@ -393,7 +394,7 @@ export function QuoteBuilder({ quotes, setQuotes, userId, selectedJob, editingQu
     } finally {
       setSavingTemplate(false)
     }
-  }, [newTemplateName, pricing, userId, supabase, templates.length, showSuccess, alert])
+  }, [newTemplateName, pricing, lineItems, userId, supabase, templates.length, showSuccess, alert])
 
   // When calculator values change, generate line items and update estimate range
   const applyCalculator = useCallback(() => {
@@ -1108,8 +1109,8 @@ export function QuoteBuilder({ quotes, setQuotes, userId, selectedJob, editingQu
 
       {/* Save as template modal */}
       {saveTemplateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={() => !savingTemplate && setSaveTemplateModal(false)}>
-          <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-2xl shadow-xl max-w-sm w-full p-5" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/50" onClick={() => !savingTemplate && setSaveTemplateModal(false)}>
+          <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-t-2xl sm:rounded-2xl shadow-xl w-full sm:max-w-sm p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:pb-5 animate-in fade-in slide-in-from-bottom sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-300" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-lg font-semibold text-[var(--color-text-primary)] mb-2">Save as template</h3>
             <p className="text-sm text-[var(--color-text-muted)] mb-4">Save your current pricing so you can reuse it for future quotes.</p>
             <input

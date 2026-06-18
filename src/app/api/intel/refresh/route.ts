@@ -164,12 +164,12 @@ export async function POST(request: NextRequest) {
         throw new Error(status.error)
       }
 
-      const { scanData, researchSources } = status.result
+      const { scanData, researchSources, researchReport } = status.result
       const actionPlan = await generateActionPlan(scanData, settings.business_name)
 
       await supabase
         .from('dyia_intel_scans')
-        .update({ scan_data: scanData, research_sources: researchSources, action_plan: actionPlan })
+        .update({ scan_data: scanData, research_sources: researchSources, research_report: researchReport, action_plan: actionPlan })
         .eq('id', scan.id)
 
       await supabase
@@ -183,6 +183,7 @@ export async function POST(request: NextRequest) {
         scanId: scan.id,
         scanData,
         researchSources,
+        researchReport,
         actionPlan,
       })
     }

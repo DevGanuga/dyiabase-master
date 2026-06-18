@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { AppSettings, UserProfile } from '@/types/database'
+import { BUSINESS_TYPE_OPTIONS } from '@/types/database'
 import { compressImage, formatCurrency, formatLocalDateInput } from '@/lib/utils'
 import { FixedExpenses } from './FixedExpenses'
 import { PriceTemplates } from './PriceTemplates'
@@ -42,6 +43,7 @@ export function Settings({ settings, setSettings, userId, showSuccess, userProfi
     ? { ...computeSubscriptionState(userProfile), isLoading: false }
     : hookSub
   const isAdminAccount = !!userProfile?.is_admin || ['admin', 'super_admin'].includes(userProfile?.role || '')
+  const [businessType, setBusinessType] = useState(settings.businessType || '')
   const [businessName, setBusinessName] = useState(settings.businessInfo.name)
   const [businessPhone, setBusinessPhone] = useState(settings.businessInfo.phone)
   const [businessEmail, setBusinessEmail] = useState(settings.businessInfo.email)
@@ -181,6 +183,17 @@ export function Settings({ settings, setSettings, userId, showSuccess, userProfi
         dbSettings.review_url_facebook = reviewUrlFacebook?.trim() || null
       }
 
+      // Persist business_type inside the metadata JSON. Merge with the existing
+      // metadata first so we don't clobber other onboarding keys (business_stage,
+      // service_area, etc.).
+      const { data: metaRow } = await supabase
+        .from('dyia_settings')
+        .select('metadata')
+        .eq('user_id', userId)
+        .single()
+      const existingMeta = (metaRow?.metadata as Record<string, unknown> | null) || {}
+      dbSettings.metadata = { ...existingMeta, business_type: businessType || null }
+
       const { error } = await supabase
         .from('dyia_settings')
         .update(dbSettings)
@@ -191,6 +204,7 @@ export function Settings({ settings, setSettings, userId, showSuccess, userProfi
       setSettings({
         taxPercentage,
         monthlyGoal,
+        businessType: businessType || undefined,
         businessInfo: {
           name: businessName,
           phone: businessPhone,
@@ -389,13 +403,27 @@ export function Settings({ settings, setSettings, userId, showSuccess, userProfi
 
         <div className="space-y-5">
           <div>
+            <label className="app-label">Business Type</label>
+            <select
+              value={businessType}
+              onChange={(e) => setBusinessType(e.target.value)}
+              className="app-select"
+            >
+              <option value="">Select your trade…</option>
+              {BUSINESS_TYPE_OPTIONS.map((opt) => (
+                <option key={opt.id} value={opt.id}>{opt.label}</option>
+              ))}
+            </select>
+            <p className="mt-1 text-xs text-slate-500">Used to tailor AI suggestions and seed trade-appropriate quote templates.</p>
+          </div>
+          <div>
             <label className="app-label">Business Name</label>
             <input
               type="text"
               value={businessName}
               onChange={(e) => setBusinessName(e.target.value)}
               className="app-input"
-              placeholder="Your Junk Removal Co."
+              placeholder="Your Business Co."
             />
           </div>
           
@@ -693,7 +721,7 @@ export function Settings({ settings, setSettings, userId, showSuccess, userProfi
 
       {/* Pricing Templates */}
       {activeTab === 'templates' && (
-        <PriceTemplates userId={userId} showSuccess={showSuccess} onDataChanged={onDataChanged} />
+        <PriceTemplates userId={userId} businessType={settings.businessType} showSuccess={showSuccess} onDataChanged={onDataChanged} />
       )}
 
       {/* Account Tab */}

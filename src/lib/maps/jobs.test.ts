@@ -31,7 +31,6 @@ describe('pinKindForJob', () => {
   })
   it('estimate kinds map to estimate', () => {
     expect(pinKindForJob({ status: 'scheduled', scheduledKind: 'estimate' })).toBe('estimate')
-    expect(pinKindForJob({ status: 'scheduled', scheduledKind: 'free_estimate' })).toBe('estimate')
   })
   it('completed jobs are green', () => {
     expect(pinKindForJob({ status: 'completed', scheduledKind: 'job' })).toBe('completed')
@@ -52,9 +51,8 @@ describe('jobHasCoords', () => {
 })
 
 describe('isEstimateJob', () => {
-  it('detects both estimate kinds', () => {
+  it('detects estimate kind', () => {
     expect(isEstimateJob({ scheduledKind: 'estimate' })).toBe(true)
-    expect(isEstimateJob({ scheduledKind: 'free_estimate' })).toBe(true)
     expect(isEstimateJob({ scheduledKind: 'job' })).toBe(false)
   })
 })

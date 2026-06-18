@@ -58,6 +58,7 @@ const DEMO_QUOTES: AppQuote[] = [
 const DEMO_SETTINGS: AppSettings = {
   taxPercentage: 30,
   monthlyGoal: 8000,
+  businessType: 'junk_removal',
   businessInfo: { name: 'Demo Junk Co', phone: '(555) 123-4567', email: 'demo@dyia.co', address: '123 Demo Street', logo: null, reviewUrl: null, reviewUrlGoogle: null, reviewUrlYelp: null, reviewUrlFacebook: null },
   onboardingCompleted: true,
   onboardingSkipped: false,
@@ -268,7 +269,12 @@ function AppPageContent() {
           estimateLow: j.estimate_low ? parseFloat(j.estimate_low) || 0 : undefined,
           estimateHigh: j.estimate_high ? parseFloat(j.estimate_high) || 0 : undefined,
           appointmentWindow: (j as { appointment_window_text?: string | null }).appointment_window_text || undefined,
-          scheduledKind: (j as { scheduled_kind?: AppJob['scheduledKind'] | null }).scheduled_kind || undefined,
+          scheduledKind: (() => {
+            // Map any legacy `free_estimate` rows to `estimate` (the option was retired).
+            const raw = (j as { scheduled_kind?: string | null }).scheduled_kind
+            if (!raw) return undefined
+            return (raw === 'estimate' || raw === 'free_estimate' ? 'estimate' : 'job') as AppJob['scheduledKind']
+          })(),
             labor: parseFloat(j.labor) || 0,
             gas: parseFloat(j.gas) || 0,
             dumpFee: parseFloat(j.dump_fee) || 0,
@@ -340,6 +346,7 @@ function AppPageContent() {
         setSettings({
           taxPercentage: settingsData.tax_percentage || 30,
           monthlyGoal: parseFloat(settingsData.monthly_goal) || 0,
+          businessType: (settingsData.metadata as { business_type?: string } | null)?.business_type || undefined,
           businessInfo: {
             name: settingsData.business_name || '',
             phone: settingsData.business_phone || '',
@@ -1101,7 +1108,11 @@ function AppPageContent() {
         hasNewIntel={hasNewIntel}
       />
       
-      <main className={`flex-1 flex flex-col overflow-hidden ${isDemoMode ? 'pt-16' : ''}`} style={{ animation: 'contentReveal 0.6s cubic-bezier(0.16, 1, 0.3, 1) both' }}>
+      {/* `backwards` (not `both`) fill: a filling transform animation leaves an
+          identity-matrix transform on <main>, which creates a stacking context
+          + containing block that trapped fixed modals below the mobile tab bar.
+          `backwards` keeps the entrance but reverts to a clean `transform: none`. */}
+      <main className={`flex-1 flex flex-col overflow-hidden ${isDemoMode ? 'pt-16' : ''}`} style={{ animation: 'contentReveal 0.6s cubic-bezier(0.16, 1, 0.3, 1) backwards' }}>
         {!isDemoMode && !isAdmin && <TrialBanner />}
         <TopBar
           userName={isDemoMode ? 'Demo User' : (user?.firstName || userProfile?.first_name || '')}

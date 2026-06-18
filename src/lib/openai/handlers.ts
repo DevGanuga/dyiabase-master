@@ -2261,7 +2261,7 @@ async function getJobsForRoute(args: Record<string, unknown>, dyiaUserId: string
     if (error) throw error
 
     const filtered = (jobs || []).filter(j => {
-      const isEstimate = j.scheduled_kind === 'estimate' || j.scheduled_kind === 'free_estimate'
+      const isEstimate = j.scheduled_kind === 'estimate'
       return includeEstimates || !isEstimate
     })
 
@@ -2289,7 +2289,7 @@ async function getJobsForRoute(args: Record<string, unknown>, dyiaUserId: string
       customer: j.customer_name,
       window: j.appointment_window_text || null,
       address: j.address || null,
-      kind: (j.scheduled_kind === 'estimate' || j.scheduled_kind === 'free_estimate') ? 'estimate' : 'job',
+      kind: j.scheduled_kind === 'estimate' ? 'estimate' : 'job',
       hasCoords: typeof j.latitude === 'number' && typeof j.longitude === 'number',
     }))
 

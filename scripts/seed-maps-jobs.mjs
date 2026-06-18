@@ -63,7 +63,7 @@ const SEED = [
   { name: 'Whitaker Garage Co', phone: '(512) 555-0142', source: 'Google', status: 'scheduled', kind: 'job', window: '8:00-10:00am', revenue: 525, address: '1100 S Congress Ave, Austin, TX 78704', lat: 30.2515, lng: -97.7494, notes: 'Two-car garage cleanout, lots of furniture' },
   { name: 'Brookside Estate', phone: '(512) 555-0188', source: 'Referral', status: 'scheduled', kind: 'estimate', window: '10:30-11:30am', estLow: 600, estHigh: 850, address: '2200 Guadalupe St, Austin, TX 78705', lat: 30.2849, lng: -97.7414, notes: 'Estate cleanout estimate — walk the property' },
   { name: 'Nguyen Residence', phone: '(512) 555-0173', source: 'Yelp', status: 'scheduled', kind: 'job', window: '1:00-3:00pm', revenue: 380, address: '4500 Manor Rd, Austin, TX 78723', lat: 30.2906, lng: -97.6986, notes: 'Backyard shed demo + haul' },
-  { name: 'Cedar Park Free Estimate', phone: '(512) 555-0120', source: 'Website', status: 'scheduled', kind: 'free_estimate', window: '4:00-5:00pm', estLow: 0, estHigh: 0, address: '600 W 6th St, Austin, TX 78701', lat: 30.2701, lng: -97.7503, notes: 'Free estimate — office furniture' },
+  { name: 'Cedar Park Estimate', phone: '(512) 555-0120', source: 'Website', status: 'scheduled', kind: 'estimate', window: '4:00-5:00pm', estLow: 0, estHigh: 0, address: '600 W 6th St, Austin, TX 78701', lat: 30.2701, lng: -97.7503, notes: 'Estimate — office furniture' },
 
   // LATER THIS WEEK — scheduled (Pro week range)
   { name: 'Lakeline Storage Units', phone: '(512) 555-0199', source: 'Google', status: 'scheduled', kind: 'job', window: '9:00-11:00am', revenue: 720, address: '11200 Lakeline Mall Dr, Austin, TX 78717', lat: 30.4699, lng: -97.8052, dayOffset: 2, notes: 'Abandoned unit cleanout x3' },

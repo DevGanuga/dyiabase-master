@@ -189,7 +189,7 @@ async function processSingleUser(
       if (!status.done) continue
       if ('error' in status) throw new Error(status.error)
 
-      const { scanData, researchSources } = status.result
+      const { scanData, researchSources, researchReport } = status.result
       const actionPlan = await generateActionPlan(scanData, userInfo.businessName)
 
       const { data: scan, error: scanError } = await supabase
@@ -207,6 +207,7 @@ async function processSingleUser(
           radius_miles: userInfo.radiusMiles,
           scan_data: scanData,
           research_sources: researchSources,
+          research_report: researchReport,
           action_plan: actionPlan,
           openai_response_id: openaiResponseId,
           source: 'crm_monthly',

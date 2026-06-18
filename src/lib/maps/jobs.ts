@@ -26,7 +26,7 @@ export type MappableJob = AppJob & { latitude: number; longitude: number }
 
 export function pinKindForJob(job: Pick<AppJob, 'status' | 'scheduledKind'>): PinKind {
   if (job.status === 'cancelled') return 'cancelled'
-  if (job.scheduledKind === 'estimate' || job.scheduledKind === 'free_estimate') return 'estimate'
+  if (job.scheduledKind === 'estimate') return 'estimate'
   if (job.status === 'completed') return 'completed'
   return 'scheduled'
 }
@@ -38,7 +38,7 @@ export function jobHasCoords(job: AppJob): job is MappableJob {
 
 /** True when the job represents an estimate visit rather than billable work. */
 export function isEstimateJob(job: Pick<AppJob, 'scheduledKind'>): boolean {
-  return job.scheduledKind === 'estimate' || job.scheduledKind === 'free_estimate'
+  return job.scheduledKind === 'estimate'
 }
 
 function pad(n: number): string {
