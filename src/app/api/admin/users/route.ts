@@ -21,13 +21,14 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url)
     const search = searchParams.get('search') || ''
     const status = searchParams.get('status') || ''
+    const account = searchParams.get('account') || ''
     const page = parseInt(searchParams.get('page') || '1')
     const limit = 50
     const offset = (page - 1) * limit
 
     let query = supabase
       .from('dyia_users')
-      .select('id, clerk_user_id, email, first_name, last_name, role, subscription_status, subscription_plan, subscription_ends_at, ai_credits_balance, created_at, updated_at', { count: 'exact' })
+      .select('id, clerk_user_id, email, first_name, last_name, role, subscription_status, subscription_plan, subscription_ends_at, ai_credits_balance, is_test_account, account_label, account_notes, created_at, updated_at', { count: 'exact' })
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1)
 
@@ -36,6 +37,11 @@ export async function GET(req: NextRequest) {
     }
     if (status) {
       query = query.eq('subscription_status', status)
+    }
+    if (account === 'real') {
+      query = query.eq('is_test_account', false)
+    } else if (account === 'test') {
+      query = query.eq('is_test_account', true)
     }
 
     const { data: users, count, error } = await query

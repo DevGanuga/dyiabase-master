@@ -41,17 +41,37 @@ function getSupabase() {
 
 type AccountRow = {
   id: string
+  clerk_user_id: string | null
+  email: string | null
+  first_name: string | null
+  last_name: string | null
   stripe_subscription_id: string | null
   subscription_status: string | null
+  subscription_tier: string | null
+  subscription_plan: string | null
   is_admin: boolean | null
   role: string | null
+}
+
+type CancellationFeedbackInput = {
+  reason?: unknown
+  liked?: unknown
+  disliked?: unknown
+  notes?: unknown
+}
+
+function cleanText(value: unknown, max = 2000): string | null {
+  if (typeof value !== 'string') return null
+  const trimmed = value.trim()
+  if (!trimmed) return null
+  return trimmed.slice(0, max)
 }
 
 async function loadBillableUser(clerkUserId: string) {
   const supabase = getSupabase()
   const { data, error } = await supabase
     .from('dyia_users')
-    .select('id, stripe_subscription_id, subscription_status, is_admin, role')
+    .select('id, clerk_user_id, email, first_name, last_name, stripe_subscription_id, subscription_status, subscription_tier, subscription_plan, is_admin, role')
     .eq('clerk_user_id', clerkUserId)
     .single()
 
@@ -94,6 +114,7 @@ export async function POST(req: NextRequest) {
     const result = await loadBillableUser(clerkUserId)
     if ('error' in result) return result.error
     const { account, supabase } = result
+    const body = await req.json().catch(() => ({})) as { cancellationFeedback?: CancellationFeedbackInput }
 
     const stripe = getStripe()
     const updated = await stripe.subscriptions.update(account.stripe_subscription_id!, {
@@ -114,6 +135,38 @@ export async function POST(req: NextRequest) {
       .eq('id', account.id)
 
     if (dbError) throw dbError
+
+    const feedback = body.cancellationFeedback || {}
+    const reason = cleanText(feedback.reason, 120)
+    const liked = cleanText(feedback.liked)
+    const disliked = cleanText(feedback.disliked)
+    const notes = cleanText(feedback.notes)
+    if (reason || liked || disliked || notes) {
+      const { error: feedbackError } = await supabase
+        .from('dyia_cancellation_feedback')
+        .insert({
+          user_id: account.id,
+          clerk_user_id: account.clerk_user_id,
+          email: account.email,
+          first_name: account.first_name,
+          last_name: account.last_name,
+          stripe_subscription_id: account.stripe_subscription_id,
+          subscription_status: account.subscription_status,
+          subscription_tier: account.subscription_tier,
+          subscription_plan: account.subscription_plan,
+          cancellation_type: 'user_scheduled',
+          cancel_at_period_end: true,
+          scheduled_ends_at: periodEndIso,
+          reason,
+          liked,
+          disliked,
+          notes,
+        })
+      if (feedbackError) {
+        // Do not block the user's right to cancel because feedback logging failed.
+        console.error('Cancellation feedback insert error:', feedbackError)
+      }
+    }
 
     return NextResponse.json({
       success: true,

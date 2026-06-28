@@ -19,6 +19,9 @@ interface UserDetail {
   stripe_subscription_id: string | null
   ai_credits_balance: number
   ai_credits_used_lifetime: number
+  is_test_account: boolean
+  account_label: string | null
+  account_notes: string | null
   created_at: string
   updated_at: string
 }
@@ -185,6 +188,11 @@ export default function AdminUserDetailPage({ params }: { params: Promise<{ id: 
             <div>
               <h2 className="text-2xl font-bold">{fullName}</h2>
               <p className="text-slate-400 mt-1">{user.email}</p>
+              {user.is_test_account && (
+                <p className="text-xs text-amber-400 mt-1">
+                  Tagged as {user.account_label || 'test'} and excluded from admin metrics.
+                </p>
+              )}
               <p className="text-xs text-slate-600 mt-1">ID: {user.id}</p>
               <p className="text-xs text-slate-600">Clerk: {user.clerk_user_id}</p>
             </div>
@@ -268,6 +276,16 @@ export default function AdminUserDetailPage({ params }: { params: Promise<{ id: 
                   className="px-3 py-1.5 bg-purple-500/20 text-purple-400 text-xs font-medium rounded-lg hover:bg-purple-500/30 transition-colors disabled:opacity-50"
                 >
                   {user.role === 'admin' ? 'Remove Admin' : 'Make Admin'}
+                </button>
+                <button
+                  onClick={() => updateUser({
+                    is_test_account: !user.is_test_account,
+                    account_label: !user.is_test_account ? 'test' : null,
+                  })}
+                  disabled={saving}
+                  className="px-3 py-1.5 bg-blue-500/20 text-blue-400 text-xs font-medium rounded-lg hover:bg-blue-500/30 transition-colors disabled:opacity-50"
+                >
+                  {user.is_test_account ? 'Mark Real User' : 'Mark Test Account'}
                 </button>
               </div>
             </div>

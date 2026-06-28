@@ -3,11 +3,36 @@
 import { SignIn } from '@clerk/nextjs'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
-import { Suspense } from 'react'
+import { Suspense, useState } from 'react'
 
 function SignInContent() {
   const searchParams = useSearchParams()
   const fromCalculator = searchParams.get('utm_source') === 'pricing-calculator'
+  const [demoPassword, setDemoPassword] = useState('')
+  const [demoLoading, setDemoLoading] = useState(false)
+  const [demoError, setDemoError] = useState<string | null>(null)
+
+  const activateDemo = async () => {
+    setDemoLoading(true)
+    setDemoError(null)
+    try {
+      const res = await fetch('/api/demo/activate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: demoPassword }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setDemoError(data.error || 'Could not activate demo mode.')
+        return
+      }
+      window.location.href = '/app'
+    } catch {
+      setDemoError('Could not activate demo mode.')
+    } finally {
+      setDemoLoading(false)
+    }
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50/50 via-white to-amber-50/30 flex flex-col items-center justify-center p-4">
@@ -37,6 +62,32 @@ function SignInContent() {
         fallbackRedirectUrl="/app"
         signUpUrl="/sign-up"
       />
+
+      <div className="mt-5 w-full max-w-md rounded-2xl border border-orange-200/70 bg-white/80 p-4 shadow-sm">
+        <p className="text-sm font-semibold text-slate-800">Marketing demo</p>
+        <p className="text-xs text-slate-500 mt-1">Use the demo password to open sample data without exposing real customer numbers.</p>
+        <div className="mt-3 flex gap-2">
+          <input
+            type="password"
+            value={demoPassword}
+            onChange={(e) => setDemoPassword(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && demoPassword && !demoLoading) activateDemo()
+            }}
+            className="min-w-0 flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20"
+            placeholder="Demo password"
+          />
+          <button
+            type="button"
+            onClick={activateDemo}
+            disabled={!demoPassword || demoLoading}
+            className="rounded-xl bg-orange-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-orange-600 disabled:opacity-50"
+          >
+            {demoLoading ? 'Opening...' : 'Open Demo'}
+          </button>
+        </div>
+        {demoError && <p className="text-xs text-red-600 mt-2">{demoError}</p>}
+      </div>
 
       {/* Navigation links */}
       <div className="mt-8 flex flex-col items-center gap-3">

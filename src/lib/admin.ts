@@ -83,12 +83,13 @@ export async function getAdminMetrics() {
   const [usersResult, jobsResult, quotesResult] = await Promise.all([
     supabase
       .from('dyia_users')
-      .select('subscription_status, subscription_tier, subscription_plan, trial_consumed_at, created_at, updated_at'),
-    supabase.from('dyia_jobs').select('*', { count: 'exact', head: true }),
-    supabase.from('dyia_quotes').select('*', { count: 'exact', head: true }),
+      .select('id, subscription_status, subscription_tier, subscription_plan, trial_consumed_at, is_test_account, created_at, updated_at'),
+    supabase.from('dyia_jobs').select('user_id'),
+    supabase.from('dyia_quotes').select('user_id'),
   ])
 
-  const users = usersResult.data || []
+  const users = (usersResult.data || []).filter(u => !u.is_test_account)
+  const realUserIds = new Set(users.map(u => u.id))
   const now = Date.now()
   const WEEK_MS = 7 * 86_400_000
   const MONTH_MS = 30 * 86_400_000
@@ -176,8 +177,8 @@ export async function getAdminMetrics() {
     churnRate,
     canceledRecent,
     canceledTotal,
-    totalJobs: jobsResult.count || 0,
-    totalQuotes: quotesResult.count || 0,
+    totalJobs: (jobsResult.data || []).filter(job => realUserIds.has(job.user_id)).length,
+    totalQuotes: (quotesResult.data || []).filter(quote => realUserIds.has(quote.user_id)).length,
     statusBreakdown,
     signupsByDay,
     quizSubmissions,
@@ -192,7 +193,7 @@ export async function listAllUsers() {
   const supabase = getSupabaseAdmin()
   const { data, error } = await supabase
     .from('dyia_users')
-    .select('id, clerk_user_id, email, first_name, last_name, subscription_status, subscription_plan, subscription_ends_at, is_admin, role, created_at')
+    .select('id, clerk_user_id, email, first_name, last_name, subscription_status, subscription_plan, subscription_ends_at, is_admin, role, is_test_account, account_label, account_notes, created_at')
     .order('created_at', { ascending: false })
 
   if (error) throw error

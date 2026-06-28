@@ -14,6 +14,8 @@ interface AdminUser {
   subscription_plan: string | null
   subscription_ends_at: string | null
   ai_credits_balance: number
+  is_test_account: boolean
+  account_label: string | null
   created_at: string
   jobCount: number
 }
@@ -32,6 +34,7 @@ export default function AdminUsersPage() {
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
+  const [accountFilter, setAccountFilter] = useState<'all' | 'real' | 'test'>('all')
   const [loading, setLoading] = useState(true)
 
   const loadUsers = useCallback(async () => {
@@ -40,6 +43,7 @@ export default function AdminUsersPage() {
       const params = new URLSearchParams()
       if (search) params.set('search', search)
       if (statusFilter) params.set('status', statusFilter)
+      if (accountFilter !== 'all') params.set('account', accountFilter)
       params.set('page', String(page))
 
       const res = await fetch(`/api/admin/users?${params}`)
@@ -52,7 +56,7 @@ export default function AdminUsersPage() {
     } finally {
       setLoading(false)
     }
-  }, [search, statusFilter, page])
+  }, [search, statusFilter, accountFilter, page])
 
   useEffect(() => {
     const timer = setTimeout(loadUsers, 300)
@@ -104,6 +108,15 @@ export default function AdminUsersPage() {
               <option value="canceled">Canceled</option>
               <option value="past_due">Past Due</option>
             </select>
+            <select
+              value={accountFilter}
+              onChange={(e) => { setAccountFilter(e.target.value as 'all' | 'real' | 'test'); setPage(1) }}
+              className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:border-orange-500 focus:outline-none"
+            >
+              <option value="all">All accounts</option>
+              <option value="real">Real users</option>
+              <option value="test">Test/demo</option>
+            </select>
           </div>
         </div>
 
@@ -133,6 +146,11 @@ export default function AdminUsersPage() {
                       <div>
                         <p className="font-medium text-white">
                           {[user.first_name, user.last_name].filter(Boolean).join(' ') || 'No name'}
+                          {user.is_test_account && (
+                            <span className="ml-2 align-middle text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-slate-700 text-slate-300">
+                              {user.account_label || 'test'}
+                            </span>
+                          )}
                         </p>
                         <p className="text-xs text-slate-500">{user.email}</p>
                       </div>

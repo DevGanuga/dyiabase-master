@@ -12,6 +12,7 @@ import { ensureCustomer } from '@/lib/customers'
 import { DyiaActionButton, DYIA_PROMPTS } from './DyiaActionButton'
 import { PaymentLinkReadyModal } from './PaymentLinkReadyModal'
 import { AddressAutocomplete } from './AddressAutocomplete'
+import { downloadJobReceiptPdf } from '@/lib/job-pdf'
 
 const REVIEW_PLATFORMS = ['Google', 'Yelp', 'Facebook'] as const
 
@@ -57,6 +58,28 @@ interface TempExpenses {
 
 const MARKETING_SOURCES = ['Google', 'Facebook', 'Referral', 'Repeat Customer', 'Yelp', 'Craigslist', 'Instagram', 'Nextdoor', 'Thumbtack', 'HomeAdvisor', 'Website', 'Other']
 
+function expenseLabelsForBusinessType(businessType?: string): Record<keyof TempExpenses, string> {
+  switch (businessType) {
+    case 'lawn_care':
+      return { labor: 'Labor', gas: 'Fuel', dumpFee: 'Yard Waste', dumpsterRental: 'Equipment', additional: 'Other' }
+    case 'cleaning':
+      return { labor: 'Labor', gas: 'Travel', dumpFee: 'Supplies', dumpsterRental: 'Equipment', additional: 'Other' }
+    default:
+      return { labor: 'Labor', gas: 'Gas', dumpFee: 'Dump Fee', dumpsterRental: 'Dumpster', additional: 'Other' }
+  }
+}
+
+function otherExpensePlaceholder(businessType?: string): string {
+  switch (businessType) {
+    case 'lawn_care':
+      return 'Mulch, mower rental, bags'
+    case 'cleaning':
+      return 'Cleaning supplies, parking'
+    default:
+      return 'U-Haul rental'
+  }
+}
+
 export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth, setSelectedMonth, settings, showSuccess, onOpenDyiaWithPrompt, isPro = false, initialCloseDayDate, onCloseDayDateConsumed, initialDraftDate, initialDraftStatus, onDraftConsumed, initialFocusJobId, onFocusConsumed, onOpenMap }: JobsProps) {
   const [editingJob, setEditingJob] = useState<AppJob | 'new' | null>(null)
   const [tempCustomers, setTempCustomers] = useState<TempCustomer[]>([])
@@ -97,6 +120,8 @@ export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth,
   const [closedOutDays, setClosedOutDays] = useState<Record<string, boolean>>({})
   const [activeAutocomplete, setActiveAutocomplete] = useState<number | null>(null)
   const [showContactFields, setShowContactFields] = useState<Record<number, boolean>>({})
+  const expenseLabels = useMemo(() => expenseLabelsForBusinessType(settings?.businessType), [settings?.businessType])
+  const expensePlaceholder = otherExpensePlaceholder(settings?.businessType)
 
   const supabase = createClient()
   const { confirm, alert } = useConfirm()
@@ -847,6 +872,26 @@ export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth,
     setPaymentLinkModal({ url: shareUrl, customerName: job.customerName || undefined })
   }
 
+  const downloadReceipt = (job: AppJob) => {
+    downloadJobReceiptPdf(
+      {
+        customerName: job.customerName,
+        jobDate: job.date,
+        serviceAddress: job.address,
+        jobDescription: job.notes,
+        amountPaid: job.paymentAmountCents ? job.paymentAmountCents / 100 : job.revenue,
+        receiptRef: `JOB-${job.id.slice(0, 8).toUpperCase()}`,
+      },
+      {
+        name: settings?.businessInfo.name || 'My Business',
+        phone: settings?.businessInfo.phone || '',
+        email: settings?.businessInfo.email || '',
+        address: settings?.businessInfo.address || '',
+        logo: settings?.businessInfo.logo || null,
+      }
+    )
+  }
+
   // === LIVE PROFIT CALCULATIONS ===
   const totalExpenses = Object.values(tempExpenses).reduce((sum, e) => sum + (e || 0), 0)
   const totalRevenue = tempCustomers.reduce((sum, c) => sum + (c.revenue || 0), 0)
@@ -1248,7 +1293,7 @@ export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth,
                     value={tempOtherLabel}
                     onChange={(e) => setTempOtherLabel(e.target.value)}
                     className="app-input"
-                    placeholder="U-Haul rental"
+                    placeholder={expensePlaceholder}
                     maxLength={80}
                   />
                 </div>
@@ -1259,11 +1304,11 @@ export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth,
             <div>
               <div className="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-5 gap-3">
                 {[
-                  { key: 'labor', label: 'Labor' },
-                  { key: 'gas', label: 'Gas' },
-                  { key: 'dumpFee', label: 'Dump Fee' },
-                  { key: 'dumpsterRental', label: 'Dumpster' },
-                  { key: 'additional', label: 'Other' },
+                  { key: 'labor', label: expenseLabels.labor },
+                  { key: 'gas', label: expenseLabels.gas },
+                  { key: 'dumpFee', label: expenseLabels.dumpFee },
+                  { key: 'dumpsterRental', label: expenseLabels.dumpsterRental },
+                  { key: 'additional', label: expenseLabels.additional },
                 ].map(({ key, label }) => (
                   <div key={key}>
                     <label className="app-label">{label}</label>
@@ -1288,7 +1333,7 @@ export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth,
                     value={tempOtherLabel}
                     onChange={(e) => setTempOtherLabel(e.target.value)}
                     className="app-input"
-                    placeholder="U-Haul rental"
+                    placeholder={expensePlaceholder}
                     maxLength={80}
                   />
                 </div>
@@ -1813,6 +1858,18 @@ export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth,
                                 </svg>
                               </button>
                             )}
+                            {job.status !== 'scheduled' && job.revenue > 0 && (
+                              <button
+                                onClick={() => downloadReceipt(job)}
+                                className="p-1.5 text-[var(--color-text-faint)] hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/30 rounded-lg transition-colors"
+                                title="Download receipt"
+                                aria-label={`Download receipt for ${job.customerName}`}
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                              </button>
+                            )}
                             <button 
                               onClick={() => deleteJob(job.id)} 
                               className="p-1.5 text-[var(--color-text-faint)] hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
@@ -1931,11 +1988,11 @@ export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth,
                       <p className="text-xs text-[var(--color-text-muted)] mb-3">Enter total expenses for the day. They will be split across jobs by revenue share.</p>
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
                         {[
-                          { key: 'labor' as const, label: 'Labor' },
-                          { key: 'gas' as const, label: 'Gas' },
-                          { key: 'dumpFee' as const, label: 'Dump fee' },
-                          { key: 'dumpsterRental' as const, label: 'Dumpster' },
-                          { key: 'additional' as const, label: 'Other' },
+                          { key: 'labor' as const, label: expenseLabels.labor },
+                          { key: 'gas' as const, label: expenseLabels.gas },
+                          { key: 'dumpFee' as const, label: expenseLabels.dumpFee },
+                          { key: 'dumpsterRental' as const, label: expenseLabels.dumpsterRental },
+                          { key: 'additional' as const, label: expenseLabels.additional },
                         ].map(({ key, label }) => (
                           <div key={key}>
                             <label className="block text-xs font-medium text-[var(--color-text-muted)] mb-1">{label}</label>
@@ -1961,7 +2018,7 @@ export function Jobs({ jobs, setJobs, userId, isDemoMode = false, selectedMonth,
                             value={closeDayOtherLabel}
                             onChange={(e) => setCloseDayOtherLabel(e.target.value)}
                             className="w-full px-3 py-2 bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-lg text-sm"
-                            placeholder="U-Haul rental"
+                            placeholder={expensePlaceholder}
                             maxLength={80}
                           />
                         </div>

@@ -59,6 +59,11 @@ export function Settings({ settings, setSettings, userId, showSuccess, userProfi
   const [portalLoading, setPortalLoading] = useState(false)
   const [exportLoading, setExportLoading] = useState(false)
   const [downgradeLoading, setDowngradeLoading] = useState(false)
+  const [showCancelFeedback, setShowCancelFeedback] = useState(false)
+  const [cancelReason, setCancelReason] = useState('')
+  const [cancelLiked, setCancelLiked] = useState('')
+  const [cancelDisliked, setCancelDisliked] = useState('')
+  const [cancelNotes, setCancelNotes] = useState('')
   // Local mirror of the scheduled-downgrade flag so the UI flips instantly
   // after the user confirms, without waiting on a userProfile refresh.
   const [cancelScheduledLocal, setCancelScheduledLocal] = useState<boolean | null>(null)
@@ -92,28 +97,43 @@ export function Settings({ settings, setSettings, userId, showSuccess, userProfi
       ? `${subscription.daysRemaining} day${subscription.daysRemaining === 1 ? '' : 's'} from now`
       : 'the end of your billing period'
 
-  const scheduleDowngrade = async () => {
-    const ok = await confirm({
-      title: 'Downgrade to Basic?',
-      message: `You'll keep full Pro access until ${accessEndsLabel}. After that, your account moves to the free Basic plan (job & quote tracking, calendar, customers, and payments). You won't be charged again. You can undo this anytime before then.`,
-      confirmLabel: 'Schedule downgrade',
-      cancelLabel: 'Keep Pro',
-      variant: 'warning',
-    })
-    if (!ok) return
+  const resetCancelFeedback = () => {
+    setCancelReason('')
+    setCancelLiked('')
+    setCancelDisliked('')
+    setCancelNotes('')
+  }
+
+  const scheduleDowngrade = () => {
+    setShowCancelFeedback(true)
+  }
+
+  const submitDowngrade = async (includeFeedback: boolean) => {
     setDowngradeLoading(true)
     try {
-      const res = await fetch('/api/stripe/subscription/cancel', { method: 'POST' })
+      const cancellationFeedback = includeFeedback ? {
+        reason: cancelReason,
+        liked: cancelLiked,
+        disliked: cancelDisliked,
+        notes: cancelNotes,
+      } : undefined
+      const res = await fetch('/api/stripe/subscription/cancel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cancellationFeedback }),
+      })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) {
         await alert({ title: 'Could not downgrade', message: data.error || 'Please try again.', variant: 'error' })
         return
       }
       setCancelScheduledLocal(true)
+      setShowCancelFeedback(false)
+      resetCancelFeedback()
       onDataChanged?.()
       await alert({
         title: 'Downgrade scheduled',
-        message: `You'll keep Pro until ${accessEndsLabel}, then move to Basic. Changed your mind? Use "Keep my Pro plan" anytime before then.`,
+        message: `You'll keep Pro until ${accessEndsLabel}, then move to Basic. Thanks for helping us improve Dyia.`,
         variant: 'info',
       })
     } catch {
@@ -1180,6 +1200,110 @@ export function Settings({ settings, setSettings, userId, showSuccess, userProfi
           </p>
         </div>
       </>
+      )}
+
+      {showCancelFeedback && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="cancel-feedback-title">
+          <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-t-2xl sm:rounded-2xl shadow-xl w-full sm:max-w-lg p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:pb-5">
+            <div className="flex items-start justify-between gap-4 mb-4">
+              <div>
+                <h3 id="cancel-feedback-title" className="text-lg font-semibold text-[var(--color-text-primary)]">Before you downgrade</h3>
+                <p className="text-sm text-[var(--color-text-muted)] mt-1">
+                  You&apos;ll keep Pro until {accessEndsLabel}. If you have a minute, your feedback helps us decide what to fix next.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowCancelFeedback(false)
+                  resetCancelFeedback()
+                }}
+                className="p-1 rounded-lg text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-subtle)]"
+                aria-label="Close cancellation feedback"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="app-label">Main reason</label>
+                <select value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} className="app-input">
+                  <option value="">Select a reason (optional)</option>
+                  <option value="too_expensive">Too expensive right now</option>
+                  <option value="missing_feature">Missing a feature I need</option>
+                  <option value="hard_to_use">Hard to use or confusing</option>
+                  <option value="not_using_enough">Not using it enough</option>
+                  <option value="business_changed">My business changed</option>
+                  <option value="competitor">Using another tool</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="app-label">What did you like?</label>
+                <textarea
+                  value={cancelLiked}
+                  onChange={(e) => setCancelLiked(e.target.value)}
+                  className="app-input min-h-20 resize-y"
+                  placeholder="Anything useful about Dyia?"
+                />
+              </div>
+
+              <div>
+                <label className="app-label">What didn&apos;t work for you?</label>
+                <textarea
+                  value={cancelDisliked}
+                  onChange={(e) => setCancelDisliked(e.target.value)}
+                  className="app-input min-h-20 resize-y"
+                  placeholder="Missing workflow, confusing step, pricing, etc."
+                />
+              </div>
+
+              <div>
+                <label className="app-label">Anything else?</label>
+                <textarea
+                  value={cancelNotes}
+                  onChange={(e) => setCancelNotes(e.target.value)}
+                  className="app-input min-h-16 resize-y"
+                  placeholder="Optional notes"
+                />
+              </div>
+            </div>
+
+            <div className="mt-5 flex flex-col sm:flex-row sm:items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowCancelFeedback(false)
+                  resetCancelFeedback()
+                }}
+                disabled={downgradeLoading}
+                className="app-btn-secondary justify-center"
+              >
+                Keep Pro
+              </button>
+              <button
+                type="button"
+                onClick={() => submitDowngrade(false)}
+                disabled={downgradeLoading}
+                className="px-4 py-2 rounded-lg text-sm font-medium text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-subtle)] disabled:opacity-60"
+              >
+                Skip feedback
+              </button>
+              <button
+                type="button"
+                onClick={() => submitDowngrade(true)}
+                disabled={downgradeLoading}
+                className="app-btn-primary justify-center disabled:opacity-60"
+              >
+                {downgradeLoading ? 'Scheduling...' : 'Send feedback & downgrade'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

@@ -20,6 +20,9 @@ interface AdminUser {
   ai_credits_used_lifetime: number
   is_admin: boolean
   role: string
+  is_test_account: boolean
+  account_label: string | null
+  account_notes: string | null
   created_at: string
   updated_at: string
   jobCount: number
@@ -139,7 +142,32 @@ interface BetaAccessRequest {
   updated_at: string
 }
 
-type AdminTab = 'overview' | 'users' | 'beta' | 'ai' | 'revenue' | 'system'
+interface CancellationFeedback {
+  id: string
+  user_id: string | null
+  email: string | null
+  first_name: string | null
+  last_name: string | null
+  stripe_subscription_id: string | null
+  subscription_status: string | null
+  subscription_tier: string | null
+  subscription_plan: string | null
+  cancellation_type: string
+  cancel_at_period_end: boolean
+  scheduled_ends_at: string | null
+  reason: string | null
+  liked: string | null
+  disliked: string | null
+  notes: string | null
+  retargeting_status: 'new' | 'contacted' | 'won_back' | 'not_fit' | 'do_not_contact'
+  retargeting_notes: string | null
+  created_at: string
+  updated_at: string
+  jobCount: number
+  quoteCount: number
+}
+
+type AdminTab = 'overview' | 'users' | 'cancellations' | 'beta' | 'ai' | 'revenue' | 'system'
 
 // ---------- Component ----------
 
@@ -152,6 +180,7 @@ export function AdminPanel() {
   // Users tab state
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
+  const [accountFilter, setAccountFilter] = useState<'all' | 'real' | 'test'>('all')
   const [expandedUser, setExpandedUser] = useState<string | null>(null)
   const [userDetail, setUserDetail] = useState<UserDetail | null>(null)
   const [detailLoading, setDetailLoading] = useState(false)
@@ -164,6 +193,12 @@ export function AdminPanel() {
   const [betaStatusFilter, setBetaStatusFilter] = useState('')
   const [betaNotesDrafts, setBetaNotesDrafts] = useState<Record<string, string>>({})
   const [savingBetaId, setSavingBetaId] = useState<string | null>(null)
+  const [cancellations, setCancellations] = useState<CancellationFeedback[]>([])
+  const [cancellationsLoading, setCancellationsLoading] = useState(false)
+  const [cancellationsError, setCancellationsError] = useState<string | null>(null)
+  const [cancellationStatusFilter, setCancellationStatusFilter] = useState('')
+  const [retargetingDrafts, setRetargetingDrafts] = useState<Record<string, string>>({})
+  const [savingCancellationId, setSavingCancellationId] = useState<string | null>(null)
 
   const loadStats = useCallback(async () => {
     try {
@@ -210,6 +245,34 @@ export function AdminPanel() {
       loadBetaRequests()
     }
   }, [activeTab, loadBetaRequests])
+
+  const loadCancellations = useCallback(async () => {
+    setCancellationsLoading(true)
+    setCancellationsError(null)
+    try {
+      const params = new URLSearchParams()
+      if (cancellationStatusFilter) params.set('status', cancellationStatusFilter)
+      const res = await fetch(`/api/admin/cancellations?${params.toString()}`)
+      if (!res.ok) {
+        if (res.status === 403) throw new Error('You do not have admin access.')
+        throw new Error('Failed to load cancellations')
+      }
+      const data = await res.json()
+      const rows = data.cancellations || []
+      setCancellations(rows)
+      setRetargetingDrafts(Object.fromEntries(rows.map((row: CancellationFeedback) => [row.id, row.retargeting_notes || ''])))
+    } catch (err) {
+      setCancellationsError(err instanceof Error ? err.message : 'Failed to load cancellations')
+    } finally {
+      setCancellationsLoading(false)
+    }
+  }, [cancellationStatusFilter])
+
+  useEffect(() => {
+    if (activeTab === 'cancellations') {
+      loadCancellations()
+    }
+  }, [activeTab, loadCancellations])
 
   const loadUserDetail = useCallback(async (userId: string) => {
     setDetailLoading(true)
@@ -297,6 +360,27 @@ export function AdminPanel() {
     }
   }
 
+  const handleUpdateCancellation = async (id: string, updates: { retargetingStatus?: CancellationFeedback['retargeting_status']; retargetingNotes?: string }) => {
+    setSavingCancellationId(id)
+    try {
+      const res = await fetch('/api/admin/cancellations', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, ...updates }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to update cancellation')
+      setCancellations((prev) => prev.map((row) => row.id === id ? { ...row, ...data.cancellation } : row))
+      if (typeof data.cancellation?.retargeting_notes === 'string') {
+        setRetargetingDrafts((prev) => ({ ...prev, [id]: data.cancellation.retargeting_notes }))
+      }
+    } catch (err) {
+      console.error('Update cancellation error:', err)
+    } finally {
+      setSavingCancellationId(null)
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -328,12 +412,16 @@ export function AdminPanel() {
       (u.first_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
       (u.last_name || '').toLowerCase().includes(searchQuery.toLowerCase())
     const matchesStatus = !statusFilter || u.subscription_status === statusFilter
-    return matchesSearch && matchesStatus
+    const matchesAccount =
+      accountFilter === 'all' ||
+      (accountFilter === 'test' ? u.is_test_account : !u.is_test_account)
+    return matchesSearch && matchesStatus && matchesAccount
   })
 
   const tabs: { id: AdminTab; label: string; badge?: string }[] = [
     { id: 'overview', label: 'Overview' },
     { id: 'users', label: 'Users', badge: String(overview.totalUsers) },
+    { id: 'cancellations', label: 'Cancellations', badge: String(overview.canceledUsers) },
     { id: 'beta', label: 'Beta Access' },
     { id: 'ai', label: 'AI & Credits' },
     { id: 'revenue', label: 'Revenue' },
@@ -363,6 +451,8 @@ export function AdminPanel() {
             onClick={() => {
               if (activeTab === 'beta') {
                 loadBetaRequests()
+              } else if (activeTab === 'cancellations') {
+                loadCancellations()
               } else {
                 setLoading(true)
                 loadStats()
@@ -514,6 +604,15 @@ export function AdminPanel() {
               <option value="canceled">Canceled</option>
               <option value="past_due">Past Due</option>
             </select>
+            <select
+              value={accountFilter}
+              onChange={(e) => setAccountFilter(e.target.value as 'all' | 'real' | 'test')}
+              className="px-3 py-2 text-sm bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-lg text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-orange-500/30"
+            >
+              <option value="all">All Accounts</option>
+              <option value="real">Real Users Only</option>
+              <option value="test">Test/Demo Only</option>
+            </select>
             <span className="text-sm text-[var(--color-text-muted)] self-center whitespace-nowrap">
               {filteredUsers.length} user{filteredUsers.length !== 1 ? 's' : ''}
             </span>
@@ -539,6 +638,7 @@ export function AdminPanel() {
                           {user.first_name ? `${user.first_name} ${user.last_name || ''}`.trim() : user.email}
                         </p>
                         {user.is_admin && <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-orange-500/20 text-orange-400 uppercase">{user.role}</span>}
+                        {user.is_test_account && <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-slate-500/20 text-slate-500 uppercase">{user.account_label || 'test'}</span>}
                       </div>
                       <p className="text-xs text-[var(--color-text-muted)] truncate">{user.email}</p>
                     </div>
@@ -638,6 +738,15 @@ export function AdminPanel() {
                           >
                             {toggling === user.id ? '...' : user.is_admin ? 'Remove Admin' : 'Make Admin'}
                           </button>
+                          <button
+                            onClick={() => handleUpdateUser(user.id, {
+                              is_test_account: !user.is_test_account,
+                              account_label: !user.is_test_account ? 'test' : null,
+                            })}
+                            className={`px-3 py-1.5 text-xs rounded-lg font-medium transition ${user.is_test_account ? 'bg-slate-500/10 text-slate-500 hover:bg-slate-500/20' : 'bg-blue-500/10 text-blue-500 hover:bg-blue-500/20'}`}
+                          >
+                            {user.is_test_account ? 'Mark Real User' : 'Mark Test Account'}
+                          </button>
                           {user.subscription_status === 'inactive' && (
                             <button
                               onClick={() => handleUpdateUser(user.id, { subscription_status: 'trialing', subscription_plan: 'monthly', subscription_ends_at: new Date(Date.now() + 14 * 86400000).toISOString() })}
@@ -694,6 +803,144 @@ export function AdminPanel() {
                 {searchQuery || statusFilter ? 'No users match your filters.' : 'No users found.'}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ===== CANCELLATIONS TAB ===== */}
+      {activeTab === 'cancellations' && (
+        <div className="space-y-4 animate-fade-in">
+          <div className="flex flex-col sm:flex-row gap-3">
+            <select
+              value={cancellationStatusFilter}
+              onChange={(e) => setCancellationStatusFilter(e.target.value)}
+              className="px-3 py-2 text-sm bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-lg text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-orange-500/30"
+            >
+              <option value="">All retargeting statuses</option>
+              <option value="new">New</option>
+              <option value="contacted">Contacted</option>
+              <option value="won_back">Won Back</option>
+              <option value="not_fit">Not Fit</option>
+              <option value="do_not_contact">Do Not Contact</option>
+            </select>
+            <button
+              onClick={loadCancellations}
+              className="px-3 py-2 text-sm rounded-lg border border-[var(--color-border)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-subtle)] transition"
+            >
+              Refresh
+            </button>
+            <span className="text-sm text-[var(--color-text-muted)] self-center whitespace-nowrap">
+              {cancellations.length} cancellation{cancellations.length !== 1 ? 's' : ''}
+            </span>
+          </div>
+
+          {cancellationsError && (
+            <div className="p-4 rounded-xl bg-red-500/5 border border-red-500/20 text-sm text-red-400">
+              {cancellationsError}
+            </div>
+          )}
+
+          <div className="grid gap-3">
+            {cancellationsLoading ? (
+              <div className="flex items-center justify-center py-16">
+                <div className="w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+              </div>
+            ) : cancellations.length === 0 ? (
+              <div className="text-center py-12 text-[var(--color-text-muted)] bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl">
+                No cancellation feedback captured yet.
+              </div>
+            ) : cancellations.map((row) => {
+              const name = [row.first_name, row.last_name].filter(Boolean).join(' ') || row.email || 'Unknown user'
+              return (
+                <div key={row.id} className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl p-5 space-y-4">
+                  <div className="flex flex-col lg:flex-row lg:items-start gap-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-2 mb-2">
+                        <p className="text-base font-semibold text-[var(--color-text-primary)]">{name}</p>
+                        <RetargetingStatusBadge status={row.retargeting_status} />
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-[var(--color-bg-subtle)] text-[var(--color-text-muted)]">
+                          {row.cancellation_type.replace(/_/g, ' ')}
+                        </span>
+                      </div>
+                      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm">
+                        <div>
+                          <p className="text-[var(--color-text-faint)] mb-0.5">Email</p>
+                          <p className="text-[var(--color-text-secondary)] break-all">{row.email || '—'}</p>
+                        </div>
+                        <div>
+                          <p className="text-[var(--color-text-faint)] mb-0.5">Plan at cancel</p>
+                          <p className="text-[var(--color-text-secondary)] capitalize">
+                            {[row.subscription_tier, row.subscription_plan, row.subscription_status].filter(Boolean).join(' / ') || '—'}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-[var(--color-text-faint)] mb-0.5">Usage</p>
+                          <p className="text-[var(--color-text-secondary)]">{row.jobCount} jobs · {row.quoteCount} quotes</p>
+                        </div>
+                        <div>
+                          <p className="text-[var(--color-text-faint)] mb-0.5">Canceled</p>
+                          <p className="text-[var(--color-text-secondary)]">{new Date(row.created_at).toLocaleString()}</p>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 grid md:grid-cols-2 gap-3">
+                        <FeedbackBlock label="Reason" value={row.reason ? row.reason.replace(/_/g, ' ') : null} />
+                        <FeedbackBlock label="Liked" value={row.liked} />
+                        <FeedbackBlock label="Did not like" value={row.disliked} />
+                        <FeedbackBlock label="Notes" value={row.notes} />
+                      </div>
+                    </div>
+
+                    <div className="lg:w-64 space-y-2">
+                      <select
+                        value={row.retargeting_status}
+                        onChange={(e) => handleUpdateCancellation(row.id, { retargetingStatus: e.target.value as CancellationFeedback['retargeting_status'] })}
+                        disabled={savingCancellationId === row.id}
+                        className="w-full px-3 py-2 text-xs bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-orange-500/30 disabled:opacity-50"
+                      >
+                        <option value="new">New</option>
+                        <option value="contacted">Contacted</option>
+                        <option value="won_back">Won Back</option>
+                        <option value="not_fit">Not Fit</option>
+                        <option value="do_not_contact">Do Not Contact</option>
+                      </select>
+                      {row.user_id && (
+                        <Link
+                          href={`/app/admin/users/${row.user_id}`}
+                          className="block w-full px-3 py-2 text-xs text-center rounded-lg font-medium bg-orange-500/10 text-orange-500 hover:bg-orange-500/20 transition"
+                        >
+                          Open user
+                        </Link>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="grid lg:grid-cols-[1fr_auto] gap-3 pt-3 border-t border-[var(--color-border)]">
+                    <div>
+                      <label className="block text-xs text-[var(--color-text-faint)] uppercase tracking-wide mb-1.5">
+                        Retargeting notes
+                      </label>
+                      <textarea
+                        rows={3}
+                        value={retargetingDrafts[row.id] || ''}
+                        onChange={(e) => setRetargetingDrafts((prev) => ({ ...prev, [row.id]: e.target.value }))}
+                        className="w-full px-3 py-2 text-sm bg-[var(--color-bg-subtle)] border border-[var(--color-border)] rounded-lg text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-orange-500/30 resize-none"
+                        placeholder="Promo idea, outreach date, what to mention..."
+                      />
+                    </div>
+                    <div className="flex lg:flex-col gap-2 justify-end">
+                      <button
+                        onClick={() => handleUpdateCancellation(row.id, { retargetingNotes: retargetingDrafts[row.id] || '' })}
+                        disabled={savingCancellationId === row.id}
+                        className="px-3 py-2 text-xs rounded-lg font-medium bg-orange-500/10 text-orange-500 hover:bg-orange-500/20 transition disabled:opacity-50"
+                      >
+                        {savingCancellationId === row.id ? 'Saving...' : 'Save Notes'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
           </div>
         </div>
       )}
@@ -1207,6 +1454,31 @@ function BetaRequestStatusBadge({ status }: { status: BetaAccessRequest['status'
     <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${styles[status]}`}>
       {status.replace('_', ' ')}
     </span>
+  )
+}
+
+function RetargetingStatusBadge({ status }: { status: CancellationFeedback['retargeting_status'] }) {
+  const styles: Record<CancellationFeedback['retargeting_status'], string> = {
+    new: 'bg-blue-500/15 text-blue-600 dark:text-blue-400',
+    contacted: 'bg-amber-500/15 text-amber-600 dark:text-amber-400',
+    won_back: 'bg-green-500/15 text-green-600 dark:text-green-400',
+    not_fit: 'bg-slate-500/15 text-slate-500',
+    do_not_contact: 'bg-red-500/15 text-red-500',
+  }
+
+  return (
+    <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${styles[status]}`}>
+      {status.replace(/_/g, ' ')}
+    </span>
+  )
+}
+
+function FeedbackBlock({ label, value }: { label: string; value: string | null }) {
+  return (
+    <div className="rounded-lg bg-[var(--color-bg-subtle)] border border-[var(--color-border)] p-3">
+      <p className="text-[10px] text-[var(--color-text-faint)] uppercase tracking-wide mb-1">{label}</p>
+      <p className="text-sm text-[var(--color-text-secondary)] whitespace-pre-wrap">{value || '—'}</p>
+    </div>
   )
 }
 

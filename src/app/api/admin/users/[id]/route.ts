@@ -77,7 +77,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     // "Grant Pro" to actually unlock Pro (computeSubscriptionState gates on
     // tier), and `is_admin` must stay in lock-step with `role` or the standalone
     // /app/admin gate (which checks is_admin) disagrees with the API gate.
-    const allowedFields = ['role', 'subscription_status', 'subscription_plan', 'subscription_tier', 'subscription_ends_at', 'ai_credits_balance', 'is_admin']
+    const allowedFields = ['role', 'subscription_status', 'subscription_plan', 'subscription_tier', 'subscription_ends_at', 'ai_credits_balance', 'is_admin', 'is_test_account', 'account_label', 'account_notes']
     const updates: Record<string, unknown> = {}
     for (const field of allowedFields) {
       if (body[field] !== undefined) {

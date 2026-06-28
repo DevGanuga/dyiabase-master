@@ -8,7 +8,7 @@ import { useConfirm } from '@/components/providers/ConfirmProvider'
 import { useCustomerAutocomplete } from '@/hooks/useCustomerAutocomplete'
 import { ensureCustomer } from '@/lib/customers'
 import { downloadQuotePdf } from '@/lib/quote-pdf'
-import { templateToLineItems } from '@/lib/quotes/templates'
+import { templateToLineItems, usesLegacyJunkPricing } from '@/lib/quotes/templates'
 
 interface QuoteBuilderProps {
   quotes: AppQuote[]
@@ -21,7 +21,7 @@ interface QuoteBuilderProps {
   showSuccess: (message: string) => void
   onOpenDyiaWithPrompt?: (prompt: string) => void
   isPro?: boolean
-  settings?: { businessInfo?: { name?: string; phone?: string; email?: string; address?: string; logo?: string | null } }
+  settings?: { businessType?: string; businessInfo?: { name?: string; phone?: string; email?: string; address?: string; logo?: string | null } }
 }
 
 interface LineItem {
@@ -133,6 +133,7 @@ export function QuoteBuilder({ quotes, setQuotes, userId, selectedJob, editingQu
   const [saveTemplateModal, setSaveTemplateModal] = useState(false)
   const [newTemplateName, setNewTemplateName] = useState('')
   const [savingTemplate, setSavingTemplate] = useState(false)
+  const showJunkCalculator = usesLegacyJunkPricing(settings?.businessType)
 
   const handleCustomerNameChange = useCallback((name: string) => {
     setCustomer(prev => {
@@ -865,24 +866,26 @@ export function QuoteBuilder({ quotes, setQuotes, userId, selectedJob, editingQu
           </div>
 
           {/* Pricing Calculator Toggle */}
-          <button
-            type="button"
-            onClick={() => setShowCalculator(!showCalculator)}
-            className="mt-3 w-full text-left flex items-center justify-between py-2 px-3 text-xs font-medium text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] bg-[var(--color-bg-subtle)] hover:bg-[var(--color-bg-hover)] rounded-lg transition-colors"
-          >
-            <span className="flex items-center gap-1.5">
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+          {showJunkCalculator && (
+            <button
+              type="button"
+              onClick={() => setShowCalculator(!showCalculator)}
+              className="mt-3 w-full text-left flex items-center justify-between py-2 px-3 text-xs font-medium text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] bg-[var(--color-bg-subtle)] hover:bg-[var(--color-bg-hover)] rounded-lg transition-colors"
+            >
+              <span className="flex items-center gap-1.5">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                </svg>
+                Use junk removal pricing calculator
+              </span>
+              <svg className={`w-3.5 h-3.5 transition-transform ${showCalculator ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
               </svg>
-              Use pricing calculator
-            </span>
-            <svg className={`w-3.5 h-3.5 transition-transform ${showCalculator ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
-          </button>
+            </button>
+          )}
 
           {/* Calculator Panel */}
-          {showCalculator && (
+          {showJunkCalculator && showCalculator && (
             <div className="mt-3 border border-[var(--color-border)] rounded-xl p-4 space-y-4">
               <div>
                 <p className="text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider mb-2">Volume Pricing</p>

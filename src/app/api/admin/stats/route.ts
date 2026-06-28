@@ -24,12 +24,8 @@ export async function GET() {
 
     const [
       usersRes,
-      jobsCountRes,
-      quotesCountRes,
       customersCountRes,
       revenueRes,
-      signups7Res,
-      signups30Res,
       messageStatsRes,
       creditPurchasesRes,
       creditUsageRes,
@@ -46,20 +42,15 @@ export async function GET() {
       quotesByUserRes,
     ] = await Promise.all([
       supabase.from('dyia_users')
-        .select('id, clerk_user_id, email, first_name, last_name, subscription_status, subscription_plan, subscription_ends_at, stripe_customer_id, stripe_subscription_id, ai_credits_balance, ai_credits_used_lifetime, is_admin, role, created_at, updated_at')
+        .select('id, clerk_user_id, email, first_name, last_name, subscription_status, subscription_plan, subscription_ends_at, stripe_customer_id, stripe_subscription_id, ai_credits_balance, ai_credits_used_lifetime, is_admin, role, is_test_account, account_label, account_notes, created_at, updated_at')
         .order('created_at', { ascending: false }),
 
-      supabase.from('dyia_jobs').select('*', { count: 'exact', head: true }),
-      supabase.from('dyia_quotes').select('*', { count: 'exact', head: true }),
-      safeCount(supabase, 'dyia_customers'),
-      supabase.from('dyia_jobs').select('revenue'),
+      safeQuery(supabase, 'dyia_customers', 'user_id'),
+      supabase.from('dyia_jobs').select('user_id, revenue'),
 
-      supabase.from('dyia_users').select('*', { count: 'exact', head: true }).gte('created_at', sevenDaysAgo),
-      supabase.from('dyia_users').select('*', { count: 'exact', head: true }).gte('created_at', thirtyDaysAgo),
-
-      supabase.from('dyia_messages').select('tokens_used'),
-      supabase.from('dyia_credit_transactions').select('amount').eq('type', 'purchase'),
-      supabase.from('dyia_credit_transactions').select('amount').eq('type', 'usage'),
+      supabase.from('dyia_messages').select('thread_id, tokens_used'),
+      supabase.from('dyia_credit_transactions').select('user_id, amount').eq('type', 'purchase'),
+      supabase.from('dyia_credit_transactions').select('user_id, amount').eq('type', 'usage'),
 
       supabase.from('dyia_webhook_events').select('*', { count: 'exact', head: true }).eq('status', 'success').gte('created_at', sevenDaysAgo),
       supabase.from('dyia_webhook_events').select('*', { count: 'exact', head: true }).eq('status', 'error').gte('created_at', sevenDaysAgo),
@@ -69,7 +60,7 @@ export async function GET() {
       safeCountSince(supabase, 'dyia_email_logs', sevenDaysAgo),
       safeCount(supabase, 'dyia_email_campaigns'),
 
-      supabase.from('dyia_threads').select('user_id, message_count'),
+      supabase.from('dyia_threads').select('id, user_id, message_count'),
       supabase.from('dyia_credit_transactions')
         .select('id, user_id, type, amount, balance_after, description, created_at')
         .order('created_at', { ascending: false })
@@ -79,7 +70,11 @@ export async function GET() {
       supabase.from('dyia_quotes').select('user_id'),
     ])
 
-    const users = usersRes.data || []
+    const allUsers = usersRes.data || []
+    const users = allUsers.filter(u => !u.is_test_account)
+    const realUserIds = new Set(users.map(u => u.id))
+    const signupsLast7Days = users.filter(u => u.created_at && new Date(u.created_at) >= new Date(sevenDaysAgo)).length
+    const signupsLast30Days = users.filter(u => u.created_at && new Date(u.created_at) >= new Date(thirtyDaysAgo)).length
 
     // Compute user status counts
     const statusCounts: Record<string, number> = { active: 0, trialing: 0, canceled: 0, past_due: 0, inactive: 0 }
@@ -96,7 +91,9 @@ export async function GET() {
     }
 
     // Platform GMV
-    const platformGMV = (revenueRes.data || []).reduce((sum, j) => sum + (parseFloat(j.revenue) || 0), 0)
+    const platformGMV = (revenueRes.data || [])
+      .filter(j => realUserIds.has(j.user_id))
+      .reduce((sum, j) => sum + (parseFloat(j.revenue) || 0), 0)
 
     // MRR estimate: monthly active * $29.99 + annual active * $24.99
     const estimatedMRR =
@@ -110,17 +107,23 @@ export async function GET() {
       ? Math.round((statusCounts.active / users.length) * 100)
       : 0
 
-    const userMap = new Map(users.map(u => [u.id, u]))
+    const userMap = new Map(allUsers.map(u => [u.id, u]))
 
     // AI stats
-    const messageData = messageStatsRes.data || []
+    const realThreads = (threadsByUserRes.data || []).filter(t => realUserIds.has(t.user_id))
+    const realThreadIds = new Set(realThreads.map(t => t.id))
+    const messageData = (messageStatsRes.data || []).filter(m => realThreadIds.has(m.thread_id))
     const totalTokens = messageData.reduce((sum, m) => sum + (m.tokens_used || 0), 0)
-    const totalCreditsPurchased = (creditPurchasesRes.data || []).reduce((sum, p) => sum + (p.amount || 0), 0)
-    const totalCreditsUsed = (creditUsageRes.data || []).reduce((sum, u) => sum + Math.abs(u.amount || 0), 0)
+    const totalCreditsPurchased = (creditPurchasesRes.data || [])
+      .filter(p => realUserIds.has(p.user_id))
+      .reduce((sum, p) => sum + (p.amount || 0), 0)
+    const totalCreditsUsed = (creditUsageRes.data || [])
+      .filter(u => realUserIds.has(u.user_id))
+      .reduce((sum, u) => sum + Math.abs(u.amount || 0), 0)
 
     // Per-user AI usage (by thread message_count)
     const userAIUsage: Record<string, number> = {}
-    for (const t of (threadsByUserRes.data || [])) {
+    for (const t of realThreads) {
       userAIUsage[t.user_id] = (userAIUsage[t.user_id] || 0) + (t.message_count || 0)
     }
     const topAIUsers = Object.entries(userAIUsage)
@@ -141,16 +144,18 @@ export async function GET() {
     // Per-user job and quote counts
     const jobCounts: Record<string, number> = {}
     for (const j of (jobsByUserRes.data || [])) {
+      if (!realUserIds.has(j.user_id)) continue
       jobCounts[j.user_id] = (jobCounts[j.user_id] || 0) + 1
     }
     const quoteCounts: Record<string, number> = {}
     for (const q of (quotesByUserRes.data || [])) {
+      if (!realUserIds.has(q.user_id)) continue
       quoteCounts[q.user_id] = (quoteCounts[q.user_id] || 0) + 1
     }
 
     // Onboarding status per user
     const onboardedUsers = new Set(
-      (settingsRes.data || []).filter(s => s.onboarding_completed).map(s => s.user_id)
+      (settingsRes.data || []).filter(s => s.onboarding_completed && realUserIds.has(s.user_id)).map(s => s.user_id)
     )
 
     // Compute lifecycle stage per user
@@ -169,7 +174,7 @@ export async function GET() {
       return 'subscribed'
     }
 
-    const enrichedUsers = users.map(u => ({
+    const enrichedUsers = allUsers.map(u => ({
       ...u,
       jobCount: jobCounts[u.id] || 0,
       quoteCount: quoteCounts[u.id] || 0,
@@ -184,7 +189,7 @@ export async function GET() {
     const usersWithJob = new Set(Object.keys(jobCounts)).size
     const usersWithQuote = new Set(Object.keys(quoteCounts)).size
     const usersWithAI = new Set(Object.keys(userAIUsage)).size
-    const usersEngaged = enrichedUsers.filter(u => u.lifecycleStage === 'engaged').length
+    const usersEngaged = enrichedUsers.filter(u => !u.is_test_account && u.lifecycleStage === 'engaged').length
 
     // Recent activity feed
     const recentActivity: Array<{ type: string; description: string; timestamp: string; email?: string; userId?: string }> = []
@@ -206,7 +211,7 @@ export async function GET() {
     }
     recentActivity.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
 
-    const recentCredits = (recentCreditTxRes.data || []).map(tx => {
+    const recentCredits = (recentCreditTxRes.data || []).filter(tx => realUserIds.has(tx.user_id)).map(tx => {
       const u = userMap.get(tx.user_id)
       return {
         ...tx,
@@ -223,17 +228,17 @@ export async function GET() {
         canceledUsers: statusCounts.canceled,
         pastDueUsers: statusCounts.past_due,
         inactiveUsers: statusCounts.inactive,
-        totalJobs: jobsCountRes.count || 0,
-        totalQuotes: quotesCountRes.count || 0,
-        totalCustomers: customersCountRes,
+        totalJobs: Object.values(jobCounts).reduce((sum, count) => sum + count, 0),
+        totalQuotes: Object.values(quoteCounts).reduce((sum, count) => sum + count, 0),
+        totalCustomers: (customersCountRes as Array<{ user_id?: string }>).filter(c => c.user_id && realUserIds.has(c.user_id)).length,
         platformGMV,
         estimatedMRR: Math.round(estimatedMRR * 100) / 100,
-        signupsLast7Days: signups7Res.count || 0,
-        signupsLast30Days: signups30Res.count || 0,
+        signupsLast7Days,
+        signupsLast30Days,
         conversionRate,
       },
       ai: {
-        totalThreads: (threadsByUserRes.data || []).length,
+        totalThreads: realThreads.length,
         totalMessages: messageData.length,
         totalTokensUsed: totalTokens,
         totalCreditsPurchased,

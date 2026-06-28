@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { createClient, initSupabaseAuth } from '@/lib/supabase/client'
 import { useTheme } from '@/hooks/useTheme'
 import { compressImage } from '@/lib/utils'
+import { defaultTemplateItems } from '@/lib/quotes/templates'
 
 type Step = 'welcome' | 'you' | 'business' | 'strategy' | 'operations' | 'financials' | 'pricing'
 
@@ -79,6 +80,14 @@ const MARKETING_CHANNELS = [
   { id: 'none', label: 'None yet' },
 ]
 
+function templateRowsForBusinessType(businessType?: string) {
+  return defaultTemplateItems(businessType).map((item, index) => ({
+    id: String(index + 1),
+    label: item.label,
+    amount: item.amount,
+  }))
+}
+
 export default function OnboardingPage() {
   const { user, isLoaded } = useUser()
   const { getToken } = useAuth()
@@ -148,13 +157,7 @@ export default function OnboardingPage() {
   const [monthlyGoal, setMonthlyGoal] = useState(savedData.monthlyGoal ?? 0)
 
   // Price template state: customizable list of { id, label, amount }
-  const defaultPriceRows = [
-    { id: '1', label: 'Minimum', amount: 75 },
-    { id: '2', label: '1/4 Load', amount: 150 },
-    { id: '3', label: '1/2 Load', amount: 250 },
-    { id: '4', label: '3/4 Load', amount: 350 },
-    { id: '5', label: 'Full Load', amount: 450 },
-  ]
+  const defaultPriceRows = templateRowsForBusinessType(savedData.businessType || 'junk_removal')
   const [createTemplate, setCreateTemplate] = useState(true)
   const [templateName, setTemplateName] = useState('Standard Pricing')
   const [priceRows, setPriceRows] = useState<{ id: string; label: string; amount: number }[]>(defaultPriceRows)
@@ -259,7 +262,11 @@ export default function OnboardingPage() {
           // Restore metadata if redoing
           const meta = settings.metadata as Record<string, unknown> | null
           if (meta) {
-            if (meta.business_type) setBusinessType(meta.business_type as string)
+            if (meta.business_type) {
+              const nextBusinessType = meta.business_type as string
+              setBusinessType(nextBusinessType)
+              setPriceRows(templateRowsForBusinessType(nextBusinessType))
+            }
             if (meta.team_size) setTeamSize(meta.team_size as string)
             if (meta.service_area) setServiceArea(meta.service_area as string)
             if (meta.years_in_business) setYearsInBusiness(meta.years_in_business as string)
@@ -733,7 +740,11 @@ export default function OnboardingPage() {
                           <button
                             key={type.id}
                             type="button"
-                            onClick={() => type.available && setBusinessType(type.id)}
+                            onClick={() => {
+                              if (!type.available) return
+                              setBusinessType(type.id)
+                              setPriceRows(templateRowsForBusinessType(type.id))
+                            }}
                             disabled={!type.available}
                             className={`px-3 py-2 rounded-lg border text-xs font-medium transition-all flex items-center justify-center gap-1.5 ${
                               !type.available
