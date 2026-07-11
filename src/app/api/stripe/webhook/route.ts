@@ -288,7 +288,12 @@ async function handleCheckoutComplete(stripe: Stripe, supabase: any, session: St
   // For trials, use trial_end as the period end; otherwise use current_period_end
   const periodEnd = subscription.trial_end || subscription.current_period_end
 
-  const subscriptionTier = session.metadata?.subscription_tier || determineTierFromPriceId(subscription.items.data[0]?.price)
+  // Tier is derived from the ACTUAL billed price — never the checkout metadata.
+  // Trusting metadata let the app record "Basic" while Stripe billed the Pro
+  // price when a Basic price id was misconfigured (support case: a user on
+  // Basic charged $29.99). The price on the subscription item is the only
+  // source of truth for what the customer actually pays.
+  const subscriptionTier = determineTierFromPriceId(subscription.items.data[0]?.price)
 
   // BUG-022 (round 2): stamp `trial_consumed_at` the first time we ever
   // observe a trialing subscription for this user. The migration backfilled

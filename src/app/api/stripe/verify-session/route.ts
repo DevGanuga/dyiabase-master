@@ -139,20 +139,16 @@ export async function POST(request: NextRequest) {
     const periodEnd = subscription.trial_end || subscription.current_period_end
 
     // Mirror the webhook's tier resolution so Pro/Basic gating is correct
-    // immediately, before the async webhook lands. Prefer the tier stamped on
-    // the checkout session; fall back to the price id.
-    const metaTier = session.metadata?.subscription_tier
+    // immediately, before the async webhook lands. Tier is derived from the
+    // ACTUAL billed price (source of truth), NOT the checkout metadata — trusting
+    // metadata let the app record "Basic" while Stripe billed the Pro price.
     const basicPriceIds = [
       process.env.NEXT_PUBLIC_STRIPE_BASIC_MONTHLY_PRICE_ID,
       process.env.NEXT_PUBLIC_STRIPE_BASIC_ANNUAL_PRICE_ID,
     ].filter(Boolean)
     const priceId = subscription.items.data[0]?.price?.id
     const subscriptionTier: 'basic' | 'pro' =
-      metaTier === 'basic' || metaTier === 'pro'
-        ? metaTier
-        : priceId && basicPriceIds.includes(priceId)
-          ? 'basic'
-          : 'pro'
+      priceId && basicPriceIds.includes(priceId) ? 'basic' : 'pro'
 
     const updatePayload: Record<string, unknown> = {
       stripe_customer_id: customerId,
