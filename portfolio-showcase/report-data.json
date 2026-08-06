@@ -1,0 +1,137 @@
+{
+  "generatedAt": "2026-07-17T05:00:43.483Z",
+  "project": {
+    "name": "dyia",
+    "tagline": "Your Day, Decoded",
+    "framework": "Next.js 16.1.4",
+    "react": "19.2.3"
+  },
+  "counts": {
+    "apiRoutes": 70,
+    "adminRoutes": 12,
+    "stripeAndPaymentRoutes": 16,
+    "aiAndIntelRoutes": 14,
+    "pages": 32,
+    "components": 55,
+    "migrations": 50,
+    "tables": 29,
+    "aiTools": 21,
+    "cronJobs": 4,
+    "testFiles": 3,
+    "integrations": 11,
+    "appCodeLines": 53999
+  },
+  "integrations": [
+    {
+      "name": "Clerk (auth)",
+      "pkg": "@clerk/nextjs",
+      "present": true
+    },
+    {
+      "name": "Supabase (Postgres)",
+      "pkg": "@supabase/supabase-js",
+      "present": true
+    },
+    {
+      "name": "Stripe (billing + Connect)",
+      "pkg": "stripe",
+      "present": true
+    },
+    {
+      "name": "OpenAI",
+      "pkg": "openai",
+      "present": true
+    },
+    {
+      "name": "Anthropic",
+      "pkg": "@anthropic-ai/sdk",
+      "present": true
+    },
+    {
+      "name": "Resend (email)",
+      "pkg": "resend",
+      "present": true
+    },
+    {
+      "name": "Google Maps",
+      "pkg": "@googlemaps/js-api-loader",
+      "present": true
+    },
+    {
+      "name": "Upstash rate limit",
+      "pkg": "@upstash/ratelimit",
+      "present": true
+    },
+    {
+      "name": "Sentry",
+      "pkg": "@sentry/nextjs",
+      "present": true
+    },
+    {
+      "name": "svix (webhook verify)",
+      "pkg": "svix",
+      "present": true
+    },
+    {
+      "name": "jsPDF (documents)",
+      "pkg": "jspdf",
+      "present": true
+    }
+  ],
+  "tables": [
+    "dyia_beta_access_requests",
+    "dyia_cancellation_feedback",
+    "dyia_credit_transactions",
+    "dyia_customers",
+    "dyia_email_campaigns",
+    "dyia_email_connections",
+    "dyia_email_logs",
+    "dyia_email_sends",
+    "dyia_fixed_expenses",
+    "dyia_follow_ups",
+    "dyia_insights_cache",
+    "dyia_intel_monthly_status",
+    "dyia_intel_scans",
+    "dyia_marketing_spend",
+    "dyia_messages",
+    "dyia_openai_usage",
+    "dyia_payments",
+    "dyia_pending_actions",
+    "dyia_price_templates",
+    "dyia_quiz_submissions",
+    "dyia_review_requests",
+    "dyia_threads",
+    "dyia_user_memory",
+    "dyia_user_patterns",
+    "dyia_webhook_events",
+    "junkprofit_jobs",
+    "junkprofit_quotes",
+    "junkprofit_settings",
+    "junkprofit_users"
+  ],
+  "cronJobs": [
+    "src/app/api/cron/follow-up-reminders/route.ts",
+    "src/app/api/cron/intel-monthly/route.ts",
+    "src/app/api/cron/trial-reminders/route.ts",
+    "src/app/api/cron/weekly-insights/route.ts"
+  ],
+  "adminRoutes": [
+    "src/app/api/admin/beta-access/route.ts",
+    "src/app/api/admin/cancel-subscription/route.ts",
+    "src/app/api/admin/cancellations/route.ts",
+    "src/app/api/admin/impersonate/route.ts",
+    "src/app/api/admin/metrics/route.ts",
+    "src/app/api/admin/payments/route.ts",
+    "src/app/api/admin/stats/route.ts",
+    "src/app/api/admin/switch-plan/route.ts",
+    "src/app/api/admin/toggle/route.ts",
+    "src/app/api/admin/users/[id]/route.ts",
+    "src/app/api/admin/users/route.ts",
+    "src/app/api/admin/webhooks/route.ts"
+  ],
+  "git": {
+    "totalCommits": 229,
+    "firstCommit": "2026-07-16",
+    "lastCommit": "2026-07-16"
+  }
+}
